@@ -20,14 +20,6 @@ cd server && npm run test:watch
 cd server && npx vitest run __tests__/api.test.ts
 cd server && npx vitest run __tests__/encryption.test.ts
 
-# Python Server (port 3001, API-compatible)
-cd server-py && pip install -r requirements.txt   # 首次安装依赖
-cd server-py && cp .env.example .env              # 配置环境变量(编辑 .env 填入 AI_CHAT_ENCRYPTION_KEY)
-cd server-py && python main.py                    # 启动
-cd server-py && python -m pytest                  # 运行全部测试
-cd server-py && python -m pytest -v               # 运行全部测试(详细)
-cd server-py && python -m pytest __tests__/test_api.py -v -k "test_save"  # 运行单个测试
-
 # Client (port 5173, proxies /api -> localhost:3001)
 cd client && npm run dev
 cd client && npm run build
@@ -47,9 +39,7 @@ cd client && npm run build
 ### Stack
 - **Frontend**: React 18, Vite 5, plain CSS with CSS custom properties (design tokens). No UI library. No TypeScript. No linting.
 - **Backend (TS)**: Express 4, better-sqlite3 (SQLite), TypeScript throughout, compiled with tsc.
-- **Backend (Python)**: FastAPI, httpx, sqlite3 (stdlib), cryptography, PyJWT. API-compatible substitute for the TS server.
 - **Testing (TS)**: Vitest 1.x — integration tests spin up a real Express server on port 3099.
-- **Testing (Python)**: pytest + FastAPI TestClient.
 
 ### Project Structure
 ```
@@ -78,18 +68,6 @@ server/                         # Express API (TypeScript)
   __tests__/
     api.test.ts                 # Backend API integration tests (covers all ACs)
     encryption.test.ts          # Unit tests for encryption module
-
-server-py/                      # FastAPI API (Python, API-compatible)
-  main.py                       # Entry: loads .env, validates AI_CHAT_ENCRYPTION_KEY, uvicorn start
-  app.py                        # FastAPI app setup (CORS, routes, exception handlers)
-  database.py                   # SQLite singleton with auto-init tables
-  schemas.py                    # Pydantic models (snake_case → camelCase)
-  routes/                       # API routes (matching TS server exactly)
-  services/                     # Business logic + AI proxy + encryption + QWeather
-  repositories/                 # Data access layer
-  __tests__/
-    test_api.py                 # API integration tests
-    test_encryption.py          # Encryption unit tests
 
 docs/                           # 项目文档（SDD 规范组织）
   changes/                      # 变更主存储
