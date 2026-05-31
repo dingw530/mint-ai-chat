@@ -65,6 +65,12 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      handleGenerate();
+    }
+  };
+
   if (imageEndpoints.length === 0) {
     return (
       <div className="image-generator">
@@ -86,91 +92,114 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
     <div className="image-generator">
       <div className="image-gen-header">
         <h2>图片生成</h2>
+        <p className="image-gen-subtitle">输入提示词，让 AI 为你生成图像</p>
       </div>
 
       <div className="image-gen-content">
-        {/* 模型选择 */}
-        <div className="form-group">
-          <label>图片模型</label>
-          <select
-            value={selectedEndpointId}
-            onChange={(e) => setSelectedEndpointId(e.target.value)}
-            style={{ width: '100%', padding: '9px 13px', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, outline: 'none', background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+        {/* 输入面板 */}
+        <div className="image-gen-panel">
+          {/* 模型选择 */}
+          <div className="form-group">
+            <label>图片模型</label>
+            <select
+              value={selectedEndpointId}
+              onChange={(e) => setSelectedEndpointId(e.target.value)}
+              className="image-gen-select"
+            >
+              {imageEndpoints.map((ep) => (
+                <option key={ep.id} value={ep.id}>
+                  {ep.name} ({ep.modelId})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Prompt */}
+          <div className="form-group">
+            <label>描述提示词</label>
+            <textarea
+              className="image-gen-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="描述你想要生成的图片，如：一只橘猫戴着橙色围巾抱着水獭，温暖插画风格"
+              rows={4}
+            />
+            <p className="image-gen-hint">
+              <kbd>⌘Enter</kbd> 快速生成
+            </p>
+          </div>
+
+          {/* 参数配置 */}
+          <div className="image-gen-params">
+            <div className="form-group">
+              <label>尺寸</label>
+              <select value={size} onChange={(e) => setSize(e.target.value)} className="image-gen-select">
+                {SIZES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>质量</label>
+              <select value={quality} onChange={(e) => setQuality(e.target.value)} className="image-gen-select">
+                {QUALITY_OPTIONS.map((q) => (
+                  <option key={q.value} value={q.value}>{q.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>格式</label>
+              <select value={format} onChange={(e) => setFormat(e.target.value)} className="image-gen-select">
+                {FORMAT_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 生成按钮 */}
+          <button
+            className="btn-primary image-gen-btn"
+            onClick={handleGenerate}
+            disabled={generating || !prompt.trim() || !selectedEndpointId}
           >
-            {imageEndpoints.map((ep) => (
-              <option key={ep.id} value={ep.id}>
-                {ep.name} ({ep.modelId})
-              </option>
-            ))}
-          </select>
+            {generating ? (
+              <>
+                <span className="spinner" />
+                生成中...
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="m21 15-5-5L5 21" />
+                </svg>
+                生成图片
+              </>
+            )}
+          </button>
         </div>
-
-        {/* Prompt */}
-        <div className="form-group">
-          <label>描述提示词</label>
-          <textarea
-            className="image-gen-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="描述你想要生成的图片，如：一只橘猫戴着橙色围巾抱着水獭，温暖插画风格"
-            rows={3}
-          />
-        </div>
-
-        {/* 参数配置 */}
-        <div className="image-gen-params">
-          <div className="form-group">
-            <label>尺寸</label>
-            <select value={size} onChange={(e) => setSize(e.target.value)} className="image-gen-select">
-              {SIZES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>质量</label>
-            <select value={quality} onChange={(e) => setQuality(e.target.value)} className="image-gen-select">
-              {QUALITY_OPTIONS.map((q) => (
-                <option key={q.value} value={q.value}>{q.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>格式</label>
-            <select value={format} onChange={(e) => setFormat(e.target.value)} className="image-gen-select">
-              {FORMAT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* 生成按钮 */}
-        <button
-          className="btn-primary image-gen-btn"
-          onClick={handleGenerate}
-          disabled={generating || !prompt.trim() || !selectedEndpointId}
-        >
-          {generating ? (
-            <>
-              <span className="spinner" />
-              生成中...
-            </>
-          ) : (
-            '生成图片'
-          )}
-        </button>
 
         {/* 错误信息 */}
         {error && (
           <div className="image-gen-error">
-            {error}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4m0 4h.01" />
+            </svg>
+            <span>{error}</span>
           </div>
         )}
 
         {/* 结果展示 */}
         {result && result.data && result.data.length > 0 && (
           <div className="image-gen-result">
+            <div className="image-gen-result-header">
+              <h3>生成结果</h3>
+              <span className="image-gen-result-count">共 {result.data.length} 张</span>
+            </div>
             {result.data.map((item, index) => (
               <div key={index} className="image-gen-result-item">
                 <div className="image-gen-image-wrapper">
@@ -179,12 +208,15 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
                     alt={item.revised_prompt || `生成图片 ${index + 1}`}
                     className="image-gen-image"
                   />
+                  {result.data.length > 1 && (
+                    <span className="image-gen-image-badge">#{index + 1}</span>
+                  )}
                 </div>
                 {item.revised_prompt && (
-                  <div className="image-gen-revised-prompt">
-                    <strong>优化后的提示词：</strong>
+                  <details className="image-gen-revised-prompt" open={result.data.length === 1}>
+                    <summary>优化后的提示词</summary>
                     <p>{item.revised_prompt}</p>
-                  </div>
+                  </details>
                 )}
               </div>
             ))}
