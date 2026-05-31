@@ -1,0 +1,21 @@
+{
+  "name": "mint-ai-chat-project",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -n server,client -c yellow,cyan \"cd server && npm run dev\" \"cd client && npm run dev\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd server && npm run build && cd ../client && npm run build",
+    "start": "cd server && npm start",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up",
+    "electron:dev": "concurrently -k \"cd server && npm run dev\" \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\"",
+    "electron:build:mac": "npm run build && cd electron && npm run build:mac",
+    "electron:build:win": "npm run build && cd electron && npm run build:win",
+    "electron:build:linux": "npm run build && cd electron && npm run build:linux"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

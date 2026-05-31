@@ -1,0 +1,129 @@
+name: sdd-doc-style
+version: 1
+description: |
+  SDD 全流程：product-spec（产品规格）→ design-doc（设计方案）→ exec-plan（执行计划）
+  追溯体系：US-001 / FP-001 / AC-001 → DS-001 / API-001 → TP-001
+artifacts:
+  - id: product-spec
+    generates: "product-spec.md"
+    description: 产品规格/PRD，定义"做什么"
+    template: product-spec.md
+    instruction: |
+      创建产品规格文档，定义 WHAT the system should do。
+
+      需求理解与澄清是前置步骤。在创建前先与用户对齐需求理解。
+
+      Sections:
+      - **背景与目标**：业务背景、当前问题、成功标准
+      - **用户与场景**：目标用户、典型场景
+      - **用户故事**（US-XXX）：用户故事，1-2 句简洁描述
+      - **范围**：功能点（FP-XXX）和非目标列表
+      - **业务规则**（BR-XXX）：允许/禁止条件、状态流转、异常处理
+      - **验收标准**（AC-XXX）：可被验证的验收条件，checkbox 格式
+      - **非功能性需求**（NF-XXX）：性能/安全/兼容性（可选）
+      - **风险与依赖**（可选）
+
+      ID 编号规则：
+      - 从 001 开始顺序分配，同主题目录下已有文件则继承最大编号
+      - 格式：US-001, FP-001, BR-001, AC-001, NF-001
+
+      精简模式判定：
+      - ≤3 个功能点 + 路径单一 + 无跨团队依赖 → 精简模式
+      - 精简模式：省略非功能性需求、风险与依赖章节；用户故事简写
+      - 在背景中注明"精简模式"原因
+
+      约束：
+      - 未知信息写"待确认"，禁止脑补
+      - 语言清晰面向业务与协作方
+      - 验收标准必须可测试
+    requires: []
+
+  - id: design-doc
+    generates: "design-doc.md"
+    description: 设计方案，定义"怎么做"
+    template: design-doc.md
+    instruction: |
+      创建设计方案文档，说明 HOW to implement the change。
+
+      要求提供 ≥2 个可行方案选项，进行对比后做出决策。
+
+      Sections:
+      - **需求追溯**：关联 product-spec 中的 US/FP，注明覆盖情况
+      - **背景与目标**：当前现状、核心问题、目标、非目标
+      - **约束与前提**：业务约束、技术约束、依赖前提
+      - **方案选项**（≥2）：每个方案描述核心思路、优点、缺点
+      - **方案对比**：多维对比表（复杂度/兼容性/可维护性/风险）
+      - **最终决策**：选型结论、决策原因、不选方案记录
+      - **详细设计**：核心模块/流程（DS-XXX）、接口契约（API-XXX）、数据与兼容性
+      - **影响与风险**：影响范围、风险与应对
+      - **发布与验证**：发布策略、回滚方案、验证标准
+
+      ID 编号规则：
+      - DS-XXX：设计决策，关联 US-XXX / FP-XXX
+      - API-XXX：接口契约，关联 DS-XXX
+      - 继承同主题下已存在文件的最大编号
+
+      精简模式：
+      - 省略方案选项/对比/最终决策章节，直接从约束跳到详细设计
+      - 在背景中说明方案唯一原因
+
+      约束：
+      - 强调方案取舍与理由
+      - 对现有系统改动须写清兼容性、发布与回滚
+    requires:
+      - product-spec
+
+  - id: exec-plan
+    generates: "exec-plan.md"
+    description: 执行计划，定义"如何落地"
+    template: exec-plan.md
+    instruction: |
+      创建执行计划文档，HOW to break down implementation into tracked tasks。
+
+      任务使用 OpenSpec checkbox 格式，apply 阶段会解析追踪。
+
+      Sections:
+      - **目标与完成定义**：完成标准的 checkbox
+      - **背景与范围**：当前问题、推进原因、范围
+      - **前置条件**：依赖接口、人员、环境、配置
+      - **阶段拆解**（按阶段组织）：
+        - 每个阶段包含目标、具体执行项
+        - 任务使用 checkbox：`- [ ] TP-X.Y 任务描述 (关联 DS-XXX / AC-XXX)`
+        - 阶段一：调研与澄清
+        - 阶段二：方案与开发
+        - 阶段三：测试与上线
+      - **追溯总览**：product-spec ↔ design-doc ↔ exec-plan 全链路表
+      - **风险与依赖**
+      - **验证与验收**
+      - **执行记录**：开发过程中由 apply 阶段自动追加
+
+      编号规则：TP-001 开始顺序编号，继承已存在文件最大编号
+
+      精简模式：省略前置条件、风险与依赖；任务平铺代替分阶段
+
+      约束：
+      - 步骤可执行可跟踪可验收
+      - 优先按阶段组织
+      - 执行记录只追加不覆盖
+    requires:
+      - design-doc
+
+apply:
+  requires:
+    - exec-plan
+  tracks: exec-plan.md
+  instruction: |
+    读取 exec-plan.md，按阶段和任务顺序逐个实现。
+
+    每 TP 四步：
+    1. 将执行记录中该 TP 状态改为"进行中"
+    2. 理解上下文：关联 DS 和 AC
+    3. 代码实现：遵循项目架构，参照现有模式
+    4. 对照 AC/DS 验证后，将状态改为"已完成"，记录产出文件
+
+    偏差处理：
+    - 设计不合理/无法实现 → 暂停，讨论调整 design-doc
+    - 遗漏需求/scope 变更 → 追加 TP，更新 exec-plan
+    - 技术约束不符 → 调整方案，同步更新 design-doc
+
+    执行记录只追加不覆盖。

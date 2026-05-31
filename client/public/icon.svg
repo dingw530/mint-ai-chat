@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5EAF8A"/>
+      <stop offset="100%" stop-color="#3D8B68"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="10" y="10" width="108" height="108" rx="29" ry="29" fill="url(#bg)"/>
+
+  <!-- AI 星光 -->
+  <g fill="white" opacity="0.15">
+    <path d="M32,24 L35,16 L38,24 L46,27 L38,30 L35,38 L32,30 L24,27 Z"/>
+    <path d="M98,30 L100,24 L102,30 L108,32 L102,34 L100,40 L98,34 L92,32 Z"/>
+    <path d="M24,60 L25.5,56 L27,60 L31,61.5 L27,63 L25.5,67 L24,63 L20,61.5 Z"/>
+    <path d="M88,78 L89,75 L90,78 L93,79 L90,80 L89,83 L88,80 L85,79 Z"/>
+    <path d="M46,100 L47.5,97 L49,100 L52,101.5 L49,103 L47.5,106 L46,103 L43,101.5 Z"/>
+    <path d="M72,20 L73,18 L74,20 L76,21 L74,22 L73,24 L72,22 L70,21 Z"/>
+    <path d="M110,70 L111,68 L112,70 L114,71 L112,72 L111,74 L110,72 L108,71 Z"/>
+    <path d="M20,38 L21,36 L22,38 L24,39 L22,40 L21,42 L20,40 L18,39 Z"/>
+  </g>
+
+  <!-- 薄荷叶 -->
+  <g transform="translate(64,82)">
+    <path d="M0,0 C-12,-8 -30,-26 -26,-46 C-14,-44 -4,-30 0,-18 Z" fill="white" opacity="0.95"/>
+    <path d="M0,0 C12,-8 30,-26 26,-46 C14,-44 4,-30 0,-18 Z" fill="white" opacity="0.85"/>
+    <line x1="0" y1="-2" x2="0" y2="-36" stroke="#5EAF8A" stroke-width="1.5" opacity="0.35" stroke-linecap="round"/>
+    <line x1="0" y1="-12" x2="-14" y2="-24" stroke="#5EAF8A" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
+    <line x1="0" y1="-12" x2="14" y2="-24" stroke="#5EAF8A" stroke-width="1" opacity="0.2" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="0" y2="8" stroke="white" stroke-width="3" opacity="0.7" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,364 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Mint" [ref=e8]
+        - generic [ref=e9]:
+          - generic [ref=e10]: Mint
+          - generic [ref=e11]: 叶语 · AI Chat
+      - button "开启新对话" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+        - text: 开启新对话
+    - generic [ref=e15]:
+      - generic [ref=e16] [cursor=pointer]:
+        - img [ref=e18]
+        - generic [ref=e20]: AI今日要闻
+      - generic [ref=e21] [cursor=pointer]:
+        - img [ref=e23]
+        - generic [ref=e25]: 南京降雨预报
+      - generic [ref=e26] [cursor=pointer]:
+        - img [ref=e28]
+        - generic [ref=e30]: 你好！😊 今天过得怎么样？有什么我可以帮你的吗？
+      - generic [ref=e31] [cursor=pointer]:
+        - img [ref=e33]
+        - generic [ref=e35]: Hello
+      - generic [ref=e36] [cursor=pointer]:
+        - img [ref=e38]
+        - generic [ref=e40]: New Conversation
+      - generic [ref=e41] [cursor=pointer]:
+        - img [ref=e43]
+        - generic [ref=e45]: New Conversation
+      - generic [ref=e46] [cursor=pointer]:
+        - img [ref=e48]
+        - generic [ref=e50]: 南京穿衣指南
+      - generic [ref=e51] [cursor=pointer]:
+        - img [ref=e53]
+        - generic [ref=e55]: 明日天气
+      - generic [ref=e56] [cursor=pointer]:
+        - img [ref=e58]
+        - generic [ref=e60]: AI行业新闻速览
+      - generic [ref=e61] [cursor=pointer]:
+        - img [ref=e63]
+        - generic [ref=e65]: 南京天气运动指南
+      - generic [ref=e66] [cursor=pointer]:
+        - img [ref=e68]
+        - generic [ref=e70]: AI新闻与天气
+      - generic [ref=e71] [cursor=pointer]:
+        - img [ref=e73]
+        - generic [ref=e75]: AI今日速递
+      - generic [ref=e76] [cursor=pointer]:
+        - img [ref=e78]
+        - generic [ref=e80]: 当前可用工具
+      - generic [ref=e81] [cursor=pointer]:
+        - img [ref=e83]
+        - generic [ref=e85]: AI资讯速递
+      - generic [ref=e86] [cursor=pointer]:
+        - img [ref=e88]
+        - generic [ref=e90]: 南京明日天气
+      - generic [ref=e91] [cursor=pointer]:
+        - img [ref=e93]
+        - generic [ref=e95]: Claude接入国产模型
+      - generic [ref=e96] [cursor=pointer]:
+        - img [ref=e98]
+        - generic [ref=e100]: 南京明日天气
+      - generic [ref=e101] [cursor=pointer]:
+        - img [ref=e103]
+        - generic [ref=e105]: Hook输出注入系统提示
+      - generic [ref=e106] [cursor=pointer]:
+        - img [ref=e108]
+        - generic [ref=e110]: Hello
+      - generic [ref=e111] [cursor=pointer]:
+        - img [ref=e113]
+        - generic [ref=e115]: "111"
+      - generic [ref=e116] [cursor=pointer]:
+        - img [ref=e118]
+        - generic [ref=e120]: 南京天气
+      - generic [ref=e121] [cursor=pointer]:
+        - img [ref=e123]
+        - generic [ref=e125]: 南京明天（4月17日）天气如下： - **天气状况**：多云转晴 ☀️ - **气温**：约 14°C ~ 24°C - **风力**：微风，3-4级 - **降水概率**：较低，
+      - generic [ref=e126] [cursor=pointer]:
+        - img [ref=e128]
+        - generic [ref=e130]: 南京天气
+      - generic [ref=e131] [cursor=pointer]:
+        - img [ref=e133]
+        - generic [ref=e135]: New Conversation
+      - generic [ref=e136] [cursor=pointer]:
+        - img [ref=e138]
+        - generic [ref=e140]: 可用工具列表
+      - generic [ref=e141] [cursor=pointer]:
+        - img [ref=e143]
+        - generic [ref=e145]: 南京明日天气
+      - generic [ref=e146] [cursor=pointer]:
+        - img [ref=e148]
+        - generic [ref=e150]: 上海近日天气
+      - generic [ref=e151] [cursor=pointer]:
+        - img [ref=e153]
+        - generic [ref=e155]: 南京天气
+      - generic [ref=e156] [cursor=pointer]:
+        - img [ref=e158]
+        - generic [ref=e160]: "666"
+      - generic [ref=e161] [cursor=pointer]:
+        - img [ref=e163]
+        - generic [ref=e165]: 我们前面已经处理过对话历史，当前用户说"12345"，但根据规则：所有对话都是新的输入，没有隐含历史。所以用户只发了"12345"。任务是根据对话内容生成一个简短标题。对话内容就是"12345"。这本身是一个数字串。标题要求最多6个汉字或12个英文字符。可以理解为"数字串"或"12345"本身。但"12345"已经是5个字符，符合要求。或者更
+      - generic [ref=e166] [cursor=pointer]:
+        - img [ref=e168]
+        - generic [ref=e170]: New Conversation
+  - generic [ref=e171]:
+    - generic [ref=e172]:
+      - heading "AI今日要闻" [level=2] [ref=e173]
+      - generic [ref=e174]:
+        - button "默认端点" [ref=e176] [cursor=pointer]:
+          - img [ref=e177]
+          - generic [ref=e179]: 默认端点
+          - img [ref=e180]
+        - button "设置" [ref=e182] [cursor=pointer]:
+          - img [ref=e183]
+    - generic [ref=e185]:
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - generic [ref=e188]: 🌸 你
+          - text: 汇总下今天AI相关的新闻
+        - generic [ref=e189]:
+          - generic [ref=e190]: ✨ AI
+          - group [ref=e191]:
+            - generic "思考过程" [ref=e192] [cursor=pointer]
+            - generic [ref=e193]: "Great! Now I have some very interesting and current AI news. Let me compile a summary for ding. Let me organize the key news items based on what I found. From the search results, here are the main AI-related news items I found: 1. **Anthropic三张底牌全曝光** - Claude Opus 4.8在Google Vertex后台被发现，Sonnet 4.8跳级4.7预计6月中旬发布，安全专用模型Mythos 1首次现身 2. **OpenAI步步紧逼** - 下一代GPT-5.6现身，拥有强悍的前端爆发力 3. **谷歌Gemini 3.5 Pro** - 将于6月入局 4. **AI投资热潮** - 5月份月之暗面、阶跃星辰等国产大模型拿下超300亿元融资；一季度AI领域融资近600起，总额超1100亿元，同比激增185.4% 5. **特朗普推迟签署AI监管行政令** - 因担心削弱美国AI优势 6. **三大运营商上线Token套餐** - 转型算力服务商 7. **华为发布AI DC数据基础设施全栈方案** 8. **我国大幅扩容科技创新再贷款** - 从5000亿扩至1.2万亿，推动AI+落地 9. **联想集团4QFY26业绩** - ISG扭亏为盈，AI服务器订单储备210亿美元 10. **AI出海新路径** - 中国特色的生态构建与全球机遇 11. **创业板改革** - 迎来首单AI企业上市申请，预计融资26亿元 Let me summarize this nicely for ding."
+          - generic [ref=e194]:
+            - paragraph [ref=e195]: 抱歉 ding，之前频率限制了一下，不过现在拿到不少好料了！来看看今天（2026年5月24日）AI圈的大新闻 🔥
+            - separator [ref=e196]
+            - heading "🤖 今日AI新闻汇总" [level=2] [ref=e197]
+            - heading "1️⃣ Anthropic 三张底牌全曝光！Opus 4.8 / Sonnet 4.8 / Mythos 1 齐现身" [level=3] [ref=e198]
+            - list [ref=e199]:
+              - listitem [ref=e200]:
+                - text: 开发者在
+                - strong [ref=e201]: Google Vertex AI 后台
+                - text: 发现
+                - code [ref=e202]: claude-opus-4.8
+                - text: 模型标识，Opus 4.8 已在内部测试中 🚀
+              - listitem [ref=e203]:
+                - strong [ref=e204]: Sonnet 4.8
+                - text: 将直接跳过 4.7 版本，预计
+                - strong [ref=e205]: 6 月中旬
+                - text: 震撼发布，视觉准确率超 98%，支持高级推理
+              - listitem [ref=e206]:
+                - text: 代号
+                - strong [ref=e207]: Mythos 1
+                - text: 的「安全专用模型」短暂现身，源码中还新增了指向 Claude Code 和 Claude Security 的字符串
+              - listitem [ref=e208]:
+                - text: 来源：
+                - link "新智元" [ref=e209] [cursor=pointer]:
+                  - /url: https://news.qq.com/rain/a/20260524A049FF00
+            - heading "2️⃣ OpenAI GPT-5.6 现身，硅谷三巨头贴身肉搏 🔥" [level=3] [ref=e210]
+            - list [ref=e211]:
+              - listitem [ref=e212]:
+                - text: 下一代
+                - strong [ref=e213]: GPT-5.6
+                - text: 拥有极其强悍的前端爆发力
+              - listitem [ref=e214]:
+                - strong [ref=e215]: 谷歌 Gemini 3.5 Pro
+                - text: 也将在
+                - strong [ref=e216]: 6月
+                - text: 正式入局
+              - listitem [ref=e217]: Anthropic 正在 IPO 前夕，三大巨头 ASI 终极之战一触即发！
+            - heading "3️⃣ 国内AI投资热潮：一季度融资超1100亿元 💰" [level=3] [ref=e218]
+            - list [ref=e219]:
+              - listitem [ref=e220]:
+                - strong [ref=e221]: 月之暗面、阶跃星辰
+                - text: 等国产大模型 5 月拿下超
+                - strong [ref=e222]: 300亿元
+                - text: 融资
+              - listitem [ref=e223]:
+                - text: 一季度 AI 领域融资近
+                - strong [ref=e224]: 600 起
+                - text: ，总额
+                - strong [ref=e225]: 超1100亿元
+                - text: ，同比激增
+                - strong [ref=e226]: 185.4%
+              - listitem [ref=e227]: 具身智能赛道同样火热：维他动力、鹿明机器人接连斩获数亿元融资
+              - listitem [ref=e228]:
+                - text: 来源：
+                - link "央视网" [ref=e229] [cursor=pointer]:
+                  - /url: https://m.gmw.cn/2026-05/24/content_1304468692.htm
+            - heading "4️⃣ 特朗普推迟签署AI监管行政令 🇺🇸" [level=3] [ref=e230]
+            - list [ref=e231]:
+              - listitem [ref=e232]: 原定 5 月 21 日的 AI 监管行政令被取消，理由是美国担心削弱自身 AI 优势
+              - listitem [ref=e233]: 原方案要求先进 AI 模型上市前 90 天审查——这一推迟可能影响全球 AI 监管走向
+            - heading "5️⃣ 三大运营商上线Token套餐，转型算力服务商 📡" [level=3] [ref=e234]
+            - list [ref=e235]:
+              - listitem [ref=e236]:
+                - text: 中国电信、移动、联通
+                - strong [ref=e237]: 5月23日
+                - text: 官宣上线「Token套餐」
+              - listitem [ref=e238]: 从流量管道商转型为算力服务商，Token 成为 AI 时代的「通用货币」
+            - heading "6️⃣ 华为发布AI DC数据基础设施全栈方案 🏗️" [level=3] [ref=e239]
+            - list [ref=e240]:
+              - listitem [ref=e241]: 在巴黎创新数据基础设施论坛上推出，覆盖数据湖、知识平台、模型调度等
+            - heading "7️⃣ 我国大幅扩容科技创新再贷款，推动AI+落地 🇨🇳" [level=3] [ref=e242]
+            - list [ref=e243]:
+              - listitem [ref=e244]:
+                - text: 额度从
+                - strong [ref=e245]: 5000亿扩至1.2万亿
+                - text: ，覆盖 14 个领域，重点推动「人工智能+」在医疗、制造、能源等领域的加速应用
+            - heading "8️⃣ 联想集团Q4业绩超预期，ISG扭亏为盈 📈" [level=3] [ref=e246]
+            - list [ref=e247]:
+              - listitem [ref=e248]:
+                - text: 营收 215.88 亿美元，同比增
+                - strong [ref=e249]: 27%
+              - listitem [ref=e250]:
+                - text: AI 服务器订单储备高达
+                - strong [ref=e251]: 210亿美元
+                - text: ，ISG 业务实现盈利
+            - separator [ref=e252]
+            - paragraph [ref=e253]:
+              - strong [ref=e254]: 总结一下
+              - text: ：今天真是 AI 圈的大日子！😆 Anthropic、OpenAI、谷歌三方同时放招，神仙打架模式开启；国内这边融资热度不减，政策也在大力推 AI+ 落地。ding 你对哪条新闻最感兴趣？要不要我深挖一下～
+        - generic [ref=e255]:
+          - generic [ref=e256]: 🌸 你
+          - text: 南京明天下雨吗
+        - generic [ref=e257]:
+          - generic [ref=e258]: ✨ AI
+          - group [ref=e259]:
+            - generic "思考过程" [ref=e260] [cursor=pointer]
+            - generic [ref=e261]: 从数据来看，明天（2026年5月25日）南京的天气是"中雨"，所以答案是：会下雨！
+          - generic [ref=e262]:
+            - paragraph [ref=e263]:
+              - strong [ref=e264]: 要下雨！而且还不小呢～
+              - text: 🌧️
+            - paragraph [ref=e265]: 根据天气预报，明天（5月25日）南京的天气情况如下：
+            - table [ref=e267]:
+              - rowgroup [ref=e268]:
+                - row "项目 详情" [ref=e269]:
+                  - columnheader "项目" [ref=e270]
+                  - columnheader "详情" [ref=e271]
+              - rowgroup [ref=e272]:
+                - row "🌤 天气 中雨（全天持续）" [ref=e273]:
+                  - cell "🌤 天气" [ref=e274]:
+                    - text: 🌤
+                    - strong [ref=e275]: 天气
+                  - cell "中雨（全天持续）" [ref=e276]:
+                    - strong [ref=e277]: 中雨
+                    - text: （全天持续）
+                - row "🌡 温度 25°C ~ 29°C" [ref=e278]:
+                  - cell "🌡 温度" [ref=e279]:
+                    - text: 🌡
+                    - strong [ref=e280]: 温度
+                  - cell "25°C ~ 29°C" [ref=e281]:
+                    - text: 25°C ~
+                    - strong [ref=e282]: 29°C
+                - row "💧 湿度 96%（潮乎乎的）" [ref=e283]:
+                  - cell "💧 湿度" [ref=e284]:
+                    - text: 💧
+                    - strong [ref=e285]: 湿度
+                  - cell "96%（潮乎乎的）" [ref=e286]
+                - row "🌧 降水量 34.9mm（雨量挺大的）" [ref=e287]:
+                  - cell "🌧 降水量" [ref=e288]:
+                    - text: 🌧
+                    - strong [ref=e289]: 降水量
+                  - cell "34.9mm（雨量挺大的）" [ref=e290]:
+                    - strong [ref=e291]: 34.9mm
+                    - text: （雨量挺大的）
+                - row "🌬 风向风力 南风 1-3级" [ref=e292]:
+                  - cell "🌬 风向风力" [ref=e293]:
+                    - text: 🌬
+                    - strong [ref=e294]: 风向风力
+                  - cell "南风 1-3级" [ref=e295]
+                - row "☁️ 云量 99%（基本全天阴天）" [ref=e296]:
+                  - cell "☁️ 云量" [ref=e297]:
+                    - text: ☁️
+                    - strong [ref=e298]: 云量
+                  - cell "99%（基本全天阴天）" [ref=e299]
+            - paragraph [ref=e300]:
+              - strong [ref=e301]: 建议
+              - text: 🫵
+            - list [ref=e302]:
+              - listitem [ref=e303]:
+                - text: 明天出门
+                - strong [ref=e304]: 一定带伞
+                - text: ☂️，而且是那种大雨伞！
+              - listitem [ref=e305]: 雨量近 35mm，可能路面积水，出行注意安全～
+              - listitem [ref=e306]: 温度虽然不低，但湿度大，体感可能会有些闷湿
+            - paragraph [ref=e307]:
+              - text: 后天（5月26日）会转成
+              - strong [ref=e308]: 小雨
+              - text: ，之后渐停变阴，再坚持一天就放晴啦！😄
+          - button "重新生成" [ref=e309] [cursor=pointer]:
+            - img [ref=e310]
+      - generic [ref=e313]:
+        - button "通用助手" [ref=e314] [cursor=pointer]:
+          - img [ref=e316]
+          - text: 通用助手
+        - button "天气查询" [ref=e319] [cursor=pointer]:
+          - img [ref=e321]
+          - text: 天气查询
+        - button "MCP测试" [ref=e323] [cursor=pointer]:
+          - img [ref=e325]
+          - text: MCP测试
+        - button "网页搜索" [ref=e327] [cursor=pointer]:
+          - img [ref=e329]
+          - text: 网页搜索
+      - generic [ref=e332]:
+        - textbox "输入消息..." [ref=e333]
+        - button "发送消息" [disabled] [ref=e334]:
+          - img [ref=e335]
+  - generic [ref=e338]:
+    - heading "设置" [level=2] [ref=e339]
+    - generic [ref=e340]:
+      - generic [ref=e341]:
+        - button "通用设置" [ref=e342] [cursor=pointer]:
+          - img [ref=e344]
+          - text: 通用设置
+        - button "模型端点" [active] [ref=e346] [cursor=pointer]:
+          - img [ref=e348]
+          - text: 模型端点
+        - button "MCP 服务" [ref=e352] [cursor=pointer]:
+          - img [ref=e354]
+          - text: MCP 服务
+        - button "Agent 管理" [ref=e356] [cursor=pointer]:
+          - img [ref=e358]
+          - text: Agent 管理
+        - button "记忆" [ref=e360] [cursor=pointer]:
+          - img [ref=e362]
+          - text: 记忆
+      - generic [ref=e420]:
+        - generic [ref=e421]:
+          - generic [ref=e422]: 共 2 个端点配置
+          - button "+ 新增端点" [ref=e423] [cursor=pointer]
+        - table [ref=e424]:
+          - rowgroup [ref=e425]:
+            - row "端点名称 API 类型 API URL 模型 ID API Key 状态 操作" [ref=e426]:
+              - columnheader "端点名称" [ref=e427]
+              - columnheader "API 类型" [ref=e428]
+              - columnheader "API URL" [ref=e429]
+              - columnheader "模型 ID" [ref=e430]
+              - columnheader "API Key" [ref=e431]
+              - columnheader "状态" [ref=e432]
+              - columnheader "操作" [ref=e433]
+          - rowgroup [ref=e434]:
+            - row "默认端点 OpenAI Chat https://api.deepseek.com deepseek-v4-flash sk-****c 当前使用" [ref=e435]:
+              - cell "默认端点" [ref=e436]
+              - cell "OpenAI Chat" [ref=e437]
+              - cell "https://api.deepseek.com" [ref=e438]
+              - cell "deepseek-v4-flash" [ref=e439]
+              - cell "sk-****c" [ref=e440]
+              - cell "当前使用" [ref=e441]:
+                - generic [ref=e442]: 当前使用
+              - cell [ref=e443]:
+                - generic [ref=e444]:
+                  - button "编辑" [ref=e445] [cursor=pointer]:
+                    - img [ref=e446]
+                  - button "删除" [ref=e448] [cursor=pointer]:
+                    - img [ref=e449]
+            - row "qwen3-vl-flash OpenAI Chat https://www.packyapi.com qwen3-vl-flash sk-****E 设为当前" [ref=e452]:
+              - cell "qwen3-vl-flash" [ref=e453]
+              - cell "OpenAI Chat" [ref=e454]
+              - cell "https://www.packyapi.com" [ref=e455]
+              - cell "qwen3-vl-flash" [ref=e456]
+              - cell "sk-****E" [ref=e457]
+              - cell "设为当前" [ref=e458]:
+                - button "设为当前" [ref=e459] [cursor=pointer]
+              - cell [ref=e460]:
+                - generic [ref=e461]:
+                  - button "编辑" [ref=e462] [cursor=pointer]:
+                    - img [ref=e463]
+                  - button "删除" [ref=e465] [cursor=pointer]:
+                    - img [ref=e466]

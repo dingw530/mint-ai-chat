@@ -1,0 +1,83 @@
+/* Ocean Ice Theme (#3a506b · #5bc0be · #cdedf6) */
+:root.theme-ocean,
+.theme-ocean {
+  --bg-deep: #D6E4EE;
+  --bg-primary: #EAF2F8;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #D2E2EE;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: rgba(58, 80, 107, 0.05);
+
+  --text-primary: #1B2A3D;
+  --text-secondary: #4A5B70;
+  --text-tertiary: #7D8E9E;
+  --text-inverse: #FFFFFF;
+
+  --accent: #3D5A80;
+  --accent-hover: #2E4A6E;
+  --accent-gradient: #3D5A80;
+  --accent-glow: rgba(61, 90, 128, 0.16);
+  --accent-subtle: rgba(61, 90, 128, 0.06);
+  --accent-border: rgba(61, 90, 128, 0.18);
+
+  --secondary: #5DBFC0;
+  --secondary-hover: #4DADAE;
+  --secondary-glow: rgba(93, 191, 192, 0.16);
+  --secondary-subtle: rgba(93, 191, 192, 0.07);
+  --secondary-border: rgba(93, 191, 192, 0.22);
+
+  --sunny: #D4BC74;
+  --sunny-subtle: rgba(212, 188, 116, 0.14);
+
+  --border-subtle: rgba(58, 80, 107, 0.07);
+  --border-default: rgba(58, 80, 107, 0.12);
+  --border-strong: rgba(58, 80, 107, 0.18);
+
+  --user-bubble: #3D5A80;
+  --user-bubble-text: #FFFFFF;
+  --assistant-bubble: #E6F0F7;
+  --assistant-bubble-border: rgba(93, 191, 192, 0.28);
+
+  --error-bg: rgba(200, 130, 130, 0.10);
+  --error-border: rgba(200, 130, 130, 0.25);
+  --error-text: #C07A7A;
+
+  --success-bg: rgba(93, 191, 192, 0.12);
+}
+
+.theme-ocean body::before {
+  background:
+    radial-gradient(ellipse 600px 500px at 5% 10%, var(--accent-subtle) 0%, transparent 60%);
+}
+
+.theme-ocean .sidebar::after {
+  background: var(--accent);
+  opacity: 0.12;
+}
+
+.theme-ocean .sidebar-brand-text {
+  color: var(--accent);
+  background: none;
+  -webkit-text-fill-color: unset;
+}
+
+.theme-ocean .modal::before {
+  background: var(--accent);
+  opacity: 0.35;
+}
+
+.theme-ocean .modal h2 {
+  color: var(--accent);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+.theme-ocean.is-macos .sidebar {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.theme-ocean.is-macos .main-header {
+  background: rgba(255, 255, 255, 0.65);
+}

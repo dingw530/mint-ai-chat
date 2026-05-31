@@ -1,0 +1,14 @@
+node_modules/
+dist/
+data.db*
+.DS_Store
+.env
+*.log
+electron/release/
+electron/server-dist/
+electron/client-dist/
+.cache/
+.venv/
+__pycache__/
+*.egg-info/
+.idea/

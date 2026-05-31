@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - AI_CHAT_ENCRYPTION_KEY=${AI_CHAT_ENCRYPTION_KEY:?err}
+      - AI_CHAT_DB_PATH=/app/data/data.db
+      - AI_CHAT_CLIENT_DIST=/app/client/dist
+      - PORT=3001
+      - NODE_ENV=production
+    volumes:
+      - chat-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  chat-data:

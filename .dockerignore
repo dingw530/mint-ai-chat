@@ -1,0 +1,16 @@
+node_modules
+.git
+.gitignore
+.DS_Store
+*.md
+docs/
+__tests__/
+.env
+data.db*
+.vscode/
+.idea/
+.venv/
+server-py/
+dist/
+.cache/
+*.log

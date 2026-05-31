@@ -1,0 +1,49 @@
+/* Mint — Fresh Green Design Token Overrides */
+:root.theme-mint,
+.theme-mint {
+  --bg-deep: #E4EBE7;
+  --bg-primary: #F0F5F2;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #E6EDE9;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: rgba(109, 190, 155, 0.06);
+
+  --text-primary: #1F1F1F;
+  --text-secondary: #505050;
+  --text-tertiary: #888888;
+  --text-inverse: #FFFFFF;
+
+  --accent: #5EAF8A;
+  --accent-hover: #4E9F7A;
+  --accent-gradient: #5EAF8A;
+  --accent-glow: rgba(94, 175, 138, 0.18);
+  --accent-subtle: rgba(94, 175, 138, 0.07);
+  --accent-border: rgba(94, 175, 138, 0.25);
+
+  --secondary: #7DB8C8;
+  --secondary-hover: #6DA8B8;
+  --secondary-glow: rgba(125, 184, 200, 0.18);
+  --secondary-subtle: rgba(125, 184, 200, 0.07);
+  --secondary-border: rgba(125, 184, 200, 0.25);
+
+  --sunny: #D8BC74;
+  --sunny-subtle: rgba(216, 188, 116, 0.15);
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.15);
+
+  --user-bubble: #5EAF8A;
+  --user-bubble-text: #FFFFFF;
+  --assistant-bubble: #E8F2EC;
+  --assistant-bubble-border: rgba(94, 175, 138, 0.30);
+
+  --error-bg: rgba(200, 130, 130, 0.08);
+  --error-border: rgba(200, 130, 130, 0.2);
+  --error-text: #CC7A7A;
+
+  --success-bg: rgba(141, 196, 212, 0.1);
+
+  --shadow-glow: 0 0 20px rgba(94, 175, 138, 0.12);
+  --shadow-teal: 0 0 20px rgba(125, 184, 200, 0.10);
+}

@@ -1,0 +1,24 @@
+schema: sdd-doc-style
+
+context: |
+  项目名称：Zephyr AI Chat
+  技术栈：React (Vite) 前端 + Python (FastAPI) + Node.js 后端 + Electron 桌面端
+  API 风格：RESTful，遵循 V6 接口规范
+  目录结构：client/（前端）、server/（Node.js 后端）、server-py/（Python 后端）、electron/（桌面端）
+  文档规范：遵循 SDD（Spec-Driven Development），文档在 docs/changes/ 目录下
+
+rules:
+  product-spec:
+    - 使用中文撰写
+    - 未知信息写"待确认"，禁止脑补
+    - 验收标准必须可测试、可验证
+    - ID 编号按顺序分配：US-001, FP-001, BR-001, AC-001, NF-001
+  design-doc:
+    - 必须包含至少 2 个方案选项的对比
+    - 明确记录被否决的方案及原因
+    - DS-XXX 关联 US-XXX / FP-XXX
+    - API-XXX 关联 DS-XXX
+  exec-plan:
+    - 任务使用 checkbox 格式：`- [ ] TP-X.X 描述 (关联 XXX)`
+    - 按阶段组织，避免松散 todo 列表
+    - 执行记录只追加不覆盖

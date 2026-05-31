@@ -1,0 +1,189 @@
+/* Blue Snowflake Theme (#727CC6) — 蓝雪花 */
+:root.theme-snow,
+.theme-snow {
+  --bg-deep: #E2E8F2;
+  --bg-primary: #EDF2F8;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #D9E2EF;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: rgba(114, 124, 198, 0.06);
+
+  --text-primary: #1E2A3D;
+  --text-secondary: #475569;
+  --text-tertiary: #8698AA;
+  --text-inverse: #FFFFFF;
+
+  --accent: #727CC6;
+  --accent-hover: #626CB6;
+  --accent-gradient: #727CC6;
+  --accent-glow: rgba(114, 124, 198, 0.18);
+  --accent-subtle: rgba(114, 124, 198, 0.07);
+  --accent-border: rgba(114, 124, 198, 0.22);
+
+  --secondary: #7EC8E3;
+  --secondary-hover: #6DB8D3;
+  --secondary-glow: rgba(126, 200, 227, 0.18);
+  --secondary-subtle: rgba(126, 200, 227, 0.08);
+  --secondary-border: rgba(126, 200, 227, 0.25);
+
+  --sunny: #D4BC7A;
+  --sunny-subtle: rgba(212, 188, 122, 0.16);
+
+  --border-subtle: rgba(30, 42, 61, 0.06);
+  --border-default: rgba(30, 42, 61, 0.10);
+  --border-strong: rgba(30, 42, 61, 0.16);
+
+  --user-bubble: #727CC6;
+  --user-bubble-text: #FFFFFF;
+  --assistant-bubble: #EBF1FB;
+  --assistant-bubble-border: rgba(114, 124, 198, 0.28);
+
+  --error-bg: rgba(200, 140, 150, 0.10);
+  --error-border: rgba(200, 140, 150, 0.22);
+  --error-text: #C07A8A;
+
+  --success-bg: rgba(126, 200, 227, 0.12);
+
+  --shadow-glow: 0 0 20px rgba(114, 124, 198, 0.14);
+  --shadow-teal: 0 0 20px rgba(126, 200, 227, 0.10);
+}
+
+/* Atmospheric background — frost bloom */
+.theme-snow body::before {
+  background:
+    radial-gradient(ellipse 600px 500px at 5% 10%, rgba(114, 124, 198, 0.06) 0%, transparent 60%);
+}
+
+.theme-snow .sidebar::after {
+  background: linear-gradient(90deg, #7EC8E3, #727CC6);
+  opacity: 0.10;
+}
+
+@keyframes snowGleam {
+  0%, 100% { transform: translateX(-60%) translateY(-60%) rotate(45deg); }
+  50% { transform: translateX(60%) translateY(60%) rotate(45deg); }
+}
+
+.theme-snow .sidebar-brand-text {
+  color: var(--accent);
+  background: none;
+  -webkit-text-fill-color: unset;
+}
+
+.theme-snow .modal::before {
+  background: linear-gradient(90deg, #727CC6, #7EC8E3);
+  opacity: 0.35;
+}
+
+.theme-snow .modal h2 {
+  color: var(--accent);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+/* Frost hexagonal decorative pattern on welcome screen */
+.theme-snow .welcome-screen::before {
+  background-image:
+    linear-gradient(60deg, rgba(114, 124, 198, 0.06) 2px, transparent 2px),
+    linear-gradient(-60deg, rgba(114, 124, 198, 0.06) 2px, transparent 2px);
+  background-size: 24px 42px;
+  background-position: 0 0, 0 21px;
+  width: 160px;
+  height: 160px;
+}
+
+.theme-snow .welcome-screen::after {
+  background-image:
+    linear-gradient(60deg, rgba(126, 200, 227, 0.06) 2px, transparent 2px),
+    linear-gradient(-60deg, rgba(126, 200, 227, 0.06) 2px, transparent 2px);
+  background-size: 20px 35px;
+  background-position: 0 0, 0 17px;
+  width: 140px;
+  height: 140px;
+}
+
+.theme-snow .app-icon.welcome {
+  background: linear-gradient(135deg, #727CC6, #7EC8E3);
+  box-shadow: 0 0 60px rgba(114, 124, 198, 0.2), 0 0 100px rgba(126, 200, 227, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-snow .app-icon.welcome::after {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 60%
+  );
+  animation: snowGleam 5s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.theme-snow .welcome-screen h2 {
+  color: var(--accent);
+}
+
+/* Frost accent on input focus */
+.theme-snow .input-box textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(114, 124, 198, 0.2), 0 0 0 4px var(--accent-glow), inset 0 0 20px rgba(126, 200, 227, 0.03);
+  background: white;
+}
+
+/* Conversation item active state */
+.theme-snow .conversation-item.active .conv-icon {
+  background: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* Code blocks — frost tint */
+.theme-snow .code-block {
+  background: #F0F4FC;
+}
+
+.theme-snow .code-block-header {
+  background: #E4ECF8;
+}
+
+/* Highlight.js — Blue Snowflake syntax theme */
+.theme-snow .hljs-keyword,
+.theme-snow .hljs-selector-tag,
+.theme-snow .hljs-type,
+.theme-snow .hljs-literal {
+  color: #727CC6;
+}
+
+.theme-snow .hljs-string,
+.theme-snow .hljs-addition,
+.theme-snow .hljs-attribute,
+.theme-snow .hljs-template-variable {
+  color: #B8895A;
+}
+
+.theme-snow .hljs-number,
+.theme-snow .hljs-selector-attr,
+.theme-snow .hljs-selector-pseudo {
+  color: #5D8FC4;
+}
+
+.theme-snow .hljs-built_in,
+.theme-snow .hljs-builtin-name {
+  color: #4A7ABF;
+}
+
+.theme-snow .hljs-title,
+.theme-snow .hljs-section,
+.theme-snow .hljs-name {
+  color: #5D8FC4;
+}
+
+.theme-snow .hljs-function {
+  color: #5D8FC4;
+}

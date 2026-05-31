@@ -1,0 +1,180 @@
+/* Red Dot — 炽红 · 极简科技
+   Clean tech aesthetic with striking red accent */
+:root.theme-reddot,
+.theme-reddot {
+  --font-display: 'DM Sans', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --bg-deep: #F2F2F5;
+  --bg-primary: #FAFAFC;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #EAEAEF;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: rgba(255, 75, 75, 0.06);
+
+  --text-primary: #1A1A1A;
+  --text-secondary: #5C5C5C;
+  --text-tertiary: #9E9E9E;
+  --text-inverse: #FFFFFF;
+
+  --accent: #FF4B4B;
+  --accent-hover: #E03030;
+  --accent-gradient: linear-gradient(135deg, #FF4B4B, #FF6B6B);
+  --accent-glow: rgba(255, 75, 75, 0.16);
+  --accent-subtle: rgba(255, 75, 75, 0.06);
+  --accent-border: rgba(255, 75, 75, 0.18);
+
+  --secondary: #6B7D8D;
+  --secondary-hover: #5A6C7C;
+  --secondary-glow: rgba(107, 125, 141, 0.14);
+  --secondary-subtle: rgba(107, 125, 141, 0.06);
+  --secondary-border: rgba(107, 125, 141, 0.18);
+
+  --sunny: #FFB84B;
+  --sunny-subtle: rgba(255, 184, 75, 0.14);
+
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-default: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --user-bubble: #FF4B4B;
+  --user-bubble-text: #FFFFFF;
+  --assistant-bubble: #F2F2F6;
+  --assistant-bubble-border: rgba(255, 75, 75, 0.12);
+
+  --error-bg: rgba(255, 75, 75, 0.06);
+  --error-border: rgba(255, 75, 75, 0.18);
+  --error-text: #FF4B4B;
+
+  --success-bg: rgba(75, 200, 140, 0.10);
+
+  --shadow-glow: 0 0 20px rgba(255, 75, 75, 0.12);
+  --shadow-teal: 0 0 20px rgba(107, 125, 141, 0.08);
+}
+
+/* Clean tech atmosphere — subtle red bloom */
+.theme-reddot body::before {
+  background:
+    radial-gradient(ellipse 600px 500px at 0% 0%, rgba(255, 75, 75, 0.035) 0%, transparent 55%);
+}
+
+/* Sidebar — slim red accent bar */
+.theme-reddot .sidebar::after {
+  background: var(--accent);
+  opacity: 0.12;
+  width: 2px;
+}
+
+.theme-reddot .sidebar-brand-text {
+  color: var(--text-primary);
+  background: none;
+  -webkit-text-fill-color: unset;
+}
+
+/* Modal — red accent */
+.theme-reddot .modal::before {
+  background: var(--accent);
+  opacity: 0.25;
+}
+
+.theme-reddot .modal h2 {
+  color: var(--text-primary);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+/* Conversation active — red left border */
+.theme-reddot .conversation-item.active {
+  background: rgba(255, 75, 75, 0.04);
+  border-left: 3px solid var(--accent);
+}
+
+.theme-reddot .conversation-item.active .conv-icon {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Welcome screen */
+.theme-reddot .app-icon.welcome {
+  background: linear-gradient(135deg, #FF4B4B, #FF6B6B);
+  box-shadow: 0 0 60px rgba(255, 75, 75, 0.18), 0 0 100px rgba(255, 107, 107, 0.08);
+}
+
+.theme-reddot .welcome-screen h2 {
+  color: var(--text-primary);
+}
+
+/* Input focus — red ring */
+.theme-reddot .input-box textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 75, 75, 0.15), 0 0 0 4px var(--accent-glow);
+  background: white;
+}
+
+/* Chat bubbles */
+.theme-reddot .message.assistant .bubble {
+  background: var(--assistant-bubble);
+  border: 1px solid var(--assistant-bubble-border);
+}
+
+/* View switcher active */
+.theme-reddot .view-switcher-btn.active svg {
+  stroke: var(--accent);
+}
+
+/* Code blocks — cool grey */
+.theme-reddot .code-block {
+  background: #EDEDF2;
+}
+
+.theme-reddot .code-block-header {
+  background: #E2E2E8;
+}
+
+/* Highlight.js — Red Tech syntax */
+.theme-reddot .hljs-keyword,
+.theme-reddot .hljs-selector-tag,
+.theme-reddot .hljs-type,
+.theme-reddot .hljs-literal {
+  color: #D03050;
+}
+
+.theme-reddot .hljs-string,
+.theme-reddot .hljs-addition,
+.theme-reddot .hljs-attribute,
+.theme-reddot .hljs-template-variable {
+  color: #6B7D8D;
+}
+
+.theme-reddot .hljs-number,
+.theme-reddot .hljs-selector-attr,
+.theme-reddot .hljs-selector-pseudo {
+  color: #FF4B4B;
+}
+
+.theme-reddot .hljs-built_in,
+.theme-reddot .hljs-builtin-name {
+  color: #D03050;
+}
+
+.theme-reddot .hljs-title,
+.theme-reddot .hljs-section,
+.theme-reddot .hljs-name {
+  color: #1A1A1A;
+}
+
+.theme-reddot .hljs-function {
+  color: #1A1A1A;
+}
+
+/* Scrollbar — red tint */
+.theme-reddot ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.10);
+  border-radius: 8px;
+}
+
+.theme-reddot ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}

@@ -1,0 +1,177 @@
+/* Anthropic — 极简 · 高对比 · 珊瑚白
+   Inspired by Anthropic's brand identity:
+   pristine white, signature coral accent, clean minimalism */
+
+:root.theme-anthropic,
+.theme-anthropic {
+  --font-display: 'Georgia', 'Noto Serif SC', 'SimSun', serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --bg-deep: #F2F0EE;
+  --bg-primary: #FAF9F8;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #EDEBE9;
+  --bg-elevated: #FFFFFF;
+  --bg-hover: rgba(200, 80, 50, 0.05);
+
+  --text-primary: #1A1A1A;
+  --text-secondary: #5A5A5A;
+  --text-tertiary: #9A9A9A;
+  --text-inverse: #FFFFFF;
+
+  --accent: #E18C6E;
+  --accent-hover: #D17A5A;
+  --accent-gradient: linear-gradient(135deg, #E18C6E, #EAA68E);
+  --accent-glow: rgba(225, 140, 110, 0.14);
+  --accent-subtle: rgba(225, 140, 110, 0.06);
+  --accent-border: rgba(225, 140, 110, 0.18);
+
+  --secondary: #6B7D8D;
+  --secondary-hover: #5A6C7C;
+  --secondary-glow: rgba(107, 125, 141, 0.14);
+  --secondary-subtle: rgba(107, 125, 141, 0.06);
+  --secondary-border: rgba(107, 125, 141, 0.18);
+
+  --sunny: #EAA68E;
+  --sunny-subtle: rgba(234, 166, 142, 0.14);
+
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-default: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --user-bubble: #E18C6E;
+  --user-bubble-text: #FFFFFF;
+  --assistant-bubble: #F0EDEA;
+  --assistant-bubble-border: rgba(225, 140, 110, 0.15);
+
+  --error-bg: rgba(225, 140, 110, 0.06);
+  --error-border: rgba(225, 140, 110, 0.18);
+  --error-text: #E18C6E;
+
+  --success-bg: rgba(107, 125, 141, 0.08);
+
+  --shadow-glow: 0 0 20px rgba(200, 74, 46, 0.10);
+  --shadow-teal: 0 0 20px rgba(107, 125, 141, 0.08);
+}
+
+/* Pristine light atmosphere */
+.theme-anthropic body::before {
+  background:
+    radial-gradient(ellipse 800px 600px at 2% 5%, rgba(200, 74, 46, 0.03) 0%, transparent 60%);
+}
+
+/* Sharp, minimal sidebar accent — thin coral line */
+.theme-anthropic .sidebar::after {
+  background: var(--accent);
+  opacity: 0.15;
+  width: 2px;
+}
+
+.theme-anthropic .sidebar-brand-text {
+  color: var(--text-primary);
+  background: none;
+  -webkit-text-fill-color: unset;
+}
+
+/* Modal — clean, minimal */
+.theme-anthropic .modal::before {
+  background: var(--accent);
+  opacity: 0.25;
+}
+
+.theme-anthropic .modal h2 {
+  color: var(--text-primary);
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+/* Conversation active — crisp coral left border */
+.theme-anthropic .conversation-item.active {
+  background: rgba(200, 74, 46, 0.04);
+  border-left: 3px solid var(--accent);
+}
+
+.theme-anthropic .conversation-item.active .conv-icon {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Welcome screen — coral accent */
+.theme-anthropic .app-icon.welcome {
+  background: linear-gradient(135deg, #E18C6E, #EAA68E);
+  box-shadow: 0 0 60px rgba(225, 140, 110, 0.15), 0 0 100px rgba(234, 166, 142, 0.08);
+}
+
+.theme-anthropic .welcome-screen h2 {
+  color: var(--text-primary);
+}
+
+/* Input focus — coral ring */
+.theme-anthropic .input-box textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(225, 140, 110, 0.15), 0 0 0 4px var(--accent-glow);
+  background: white;
+}
+
+/* Chat bubbles — warm white */
+.theme-anthropic .message.assistant .bubble {
+  background: var(--assistant-bubble);
+  border: 1px solid var(--assistant-bubble-border);
+}
+
+/* Scrollbar — subtle */
+.theme-anthropic ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+}
+
+.theme-anthropic ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.20);
+}
+
+/* Code blocks — clean slate */
+.theme-anthropic .code-block {
+  background: #F0EEEC;
+}
+
+.theme-anthropic .code-block-header {
+  background: #E6E3E0;
+}
+
+/* Highlight.js — Clean Syntax */
+.theme-anthropic .hljs-keyword,
+.theme-anthropic .hljs-selector-tag,
+.theme-anthropic .hljs-type,
+.theme-anthropic .hljs-literal {
+  color: #C97A5A;
+}
+
+.theme-anthropic .hljs-string,
+.theme-anthropic .hljs-addition,
+.theme-anthropic .hljs-attribute,
+.theme-anthropic .hljs-template-variable {
+  color: #6B7D8D;
+}
+
+.theme-anthropic .hljs-number,
+.theme-anthropic .hljs-selector-attr,
+.theme-anthropic .hljs-selector-pseudo {
+  color: #E18C6E;
+}
+
+.theme-anthropic .hljs-built_in,
+.theme-anthropic .hljs-builtin-name {
+  color: #C97A5A;
+}
+
+.theme-anthropic .hljs-title,
+.theme-anthropic .hljs-section,
+.theme-anthropic .hljs-name {
+  color: #1A1A1A;
+}
+
+.theme-anthropic .hljs-function {
+  color: #1A1A1A;
+}
