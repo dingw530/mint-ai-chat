@@ -9,7 +9,7 @@ import {
   getEndpoints,
 } from './services/api';
 
-const ImageGenerator = lazy(() => import('./components/ImageGenerator'));
+const ImageChatArea = lazy(() => import('./components/ImageChatArea'));
 const Settings = lazy(() => import('./components/Settings'));
 
 function getInitialTheme() {
@@ -30,9 +30,9 @@ export default function App() {
   const [activeEndpoint, setActiveEndpoint] = useState(null);
   const [activeView, setActiveView] = useState('chat');
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (type) => {
     try {
-      const data = await getConversations();
+      const data = await getConversations(type);
       setConversations(data.conversations || []);
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
@@ -54,14 +54,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchConversations();
+    const convType = activeView === 'image' ? 'image' : undefined;
+    fetchConversations(convType);
     fetchEndpoints();
-  }, [fetchConversations, fetchEndpoints]);
+  }, [fetchConversations, fetchEndpoints, activeView]);
 
-  // 加载完成后，有对话则自动选中第一个
+  // 加载完成后，有对话则自动选中第一个，无对话则清空 activeId
   useEffect(() => {
-    if (!loading && conversations.length > 0 && !activeId) {
-      setActiveId(conversations[0].id);
+    if (!loading) {
+      if (conversations.length > 0) {
+        // 当前 activeId 不在列表中时，选中第一个
+        if (!activeId || !conversations.find((c) => c.id === activeId)) {
+          setActiveId(conversations[0].id);
+        }
+      } else {
+        setActiveId(null);
+      }
     }
   }, [loading, conversations, activeId]);
 
@@ -76,7 +84,8 @@ export default function App() {
 
   const handleCreate = async (title) => {
     try {
-      const data = await createConversation(title || 'New Conversation');
+      const convType = activeView === 'image' ? 'image' : undefined;
+      const data = await createConversation(title || 'New Conversation', convType);
       setConversations((prev) => [data.conversation, ...prev]);
       setActiveId(data.conversation.id);
       return data.conversation.id;
@@ -138,9 +147,13 @@ export default function App() {
       />
       {activeView === 'image' ? (
         <Suspense fallback={<div className="view-loading">加载中...</div>}>
-          <ImageGenerator
+          <ImageChatArea
+            activeConversation={activeId}
+            conversations={conversations}
             endpoints={endpoints}
             onOpenSettings={() => setShowSettings(true)}
+            onAutoCreate={handleCreate}
+            onTitleUpdate={handleTitleUpdate}
           />
         </Suspense>
       ) : (

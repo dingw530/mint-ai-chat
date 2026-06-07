@@ -6,6 +6,7 @@ function toCamelCase(row: ConversationRow): Conversation {
   return {
     id: row.id,
     title: row.title,
+    type: row.type,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lockedAgent: row.locked_agent || null,
@@ -13,31 +14,37 @@ function toCamelCase(row: ConversationRow): Conversation {
   };
 }
 
-// 获取所有会话，按更新时间降序
-export function findAll(): Conversation[] {
+// 获取所有会话，按更新时间降序，可选按 type 过滤
+export function findAll(type?: string): Conversation[] {
   const db = getDb();
-  const rows = db.prepare(
-    'SELECT id, title, created_at, updated_at, locked_agent, routing_mode FROM conversations ORDER BY updated_at DESC'
-  ).all() as ConversationRow[];
+  let sql = 'SELECT id, title, type, created_at, updated_at, locked_agent, routing_mode FROM conversations';
+  const params: string[] = [];
+  if (type) {
+    sql += ' WHERE type = ?';
+    params.push(type);
+  }
+  sql += ' ORDER BY updated_at DESC';
+  const rows = db.prepare(sql).all(...params) as ConversationRow[];
   return rows.map(toCamelCase);
 }
 
 export function findById(id: string): Conversation | null {
   const db = getDb();
   const row = db.prepare(
-    'SELECT id, title, created_at, updated_at, locked_agent, routing_mode FROM conversations WHERE id = ?'
+    'SELECT id, title, type, created_at, updated_at, locked_agent, routing_mode FROM conversations WHERE id = ?'
   ).get(id) as ConversationRow | undefined;
   return row ? toCamelCase(row) : null;
 }
 
-export function create({ id, title, routingMode }: { id: string; title: string; routingMode?: string }): Conversation {
+export function create({ id, title, type, routingMode }: { id: string; title: string; type?: string; routingMode?: string }): Conversation {
   const db = getDb();
   const now = new Date().toISOString();
+  const convType = type || 'text';
   const mode = routingMode || 'auto';
   db.prepare(
-    'INSERT INTO conversations (id, title, created_at, updated_at, locked_agent, routing_mode) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(id, title, now, now, null, mode);
-  return { id, title, createdAt: now, updatedAt: now, lockedAgent: null, routingMode: mode };
+    'INSERT INTO conversations (id, title, type, created_at, updated_at, locked_agent, routing_mode) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(id, title, convType, now, now, null, mode);
+  return { id, title, type: convType, createdAt: now, updatedAt: now, lockedAgent: null, routingMode: mode };
 }
 
 // 删除会话，返回受影响行数（调用方据此判断是否 404）

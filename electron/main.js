@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -210,6 +210,51 @@ function createWindow() {
 
   logger.info('Main window created');
 }
+
+// ── IPC Handler：下载文件（绕过 CORS） ──
+
+ipcMain.handle('download-file', async (event, { url, filename }) => {
+  logger.info(`Download requested: ${url}`);
+
+  // 弹出保存对话框
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: filename || 'image.png',
+    filters: [
+      { name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] },
+      { name: '所有文件', extensions: ['*'] },
+    ],
+  });
+
+  if (result.canceled || !result.filePath) {
+    logger.info('Download cancelled by user');
+    return { success: false, reason: 'cancelled' };
+  }
+
+  try {
+    // 使用 Node.js 的 http/https 模块下载（无需 CORS）
+    const urlObj = new URL(url);
+    const httpMod = urlObj.protocol === 'https:' ? require('https') : require('http');
+
+    const fileData = await new Promise((resolve, reject) => {
+      httpMod.get(url, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(Buffer.concat(chunks)));
+      }).on('error', reject);
+    });
+
+    fs.writeFileSync(result.filePath, fileData);
+    logger.info(`File saved to: ${result.filePath}`);
+    return { success: true, filePath: result.filePath };
+  } catch (err) {
+    logger.error(`Download failed: ${err.message}`);
+    return { success: false, reason: err.message };
+  }
+});
 
 // ── 应用生命周期 ──
 

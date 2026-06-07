@@ -114,23 +114,23 @@ export default function Sidebar({
               生图
             </button>
           </div>
-          {activeView === 'chat' && (
-            <button className="new-chat-btn" onClick={handleCreate} disabled={loading}>
-              <PlusIcon />
-              新建
-            </button>
-          )}
+          <button className="new-chat-btn" onClick={handleCreate} disabled={loading}>
+            <PlusIcon />
+            新建
+          </button>
         </div>
       </div>
       <div className="conversation-list">
         {conversations.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">
-              <ChatIcon />
+              {activeView === 'image' ? <ImageIcon /> : <ChatIcon />}
             </div>
             {loading
               ? 'Loading...'
-              : 'No conversations yet. Start a new one above.'}
+              : activeView === 'image'
+                ? '暂无图片对话，点击上方按钮新建'
+                : 'No conversations yet. Start a new one above.'}
           </div>
         )}
         {conversations.map((conv) => (
@@ -152,7 +152,7 @@ export default function Sidebar({
             ) : (
               <>
                 <div className="conv-icon">
-                  <ChatIcon />
+                  {activeView === 'image' ? <ImageIcon /> : <ChatIcon />}
                 </div>
                 <span className="title">{conv.title}</span>
                 <span className="actions">

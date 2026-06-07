@@ -55,7 +55,6 @@ export async function generateImage(params: GenerateImageParams): Promise<Genera
   if (size) body.size = size;
   if (quality) body.quality = quality;
   if (output_format) body.output_format = output_format;
-  body.response_format = 'url';
 
   const response = await fetch(url, {
     method: 'POST',

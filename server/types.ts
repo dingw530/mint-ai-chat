@@ -2,6 +2,7 @@
 export interface ConversationRow {
   id: string;
   title: string;
+  type: string;
   created_at: string;
   updated_at: string;
   locked_agent: string | null;
@@ -14,6 +15,7 @@ export interface MessageRow {
   role: string;
   content: string;
   reasoning: string | null;
+  image_data: string | null;
   created_at: string;
 }
 
@@ -27,6 +29,7 @@ export interface HistoryMessageRow {
 export interface Conversation {
   id: string;
   title: string;
+  type: string;
   createdAt: string;
   updatedAt: string;
   lockedAgent: string | null;
@@ -39,6 +42,7 @@ export interface Message {
   role: string;
   content: string;
   reasoning?: string | null;
+  imageData?: string | null;
   createdAt: string;
 }
 
@@ -300,5 +304,6 @@ export interface CreateMessageParams {
   role: string;
   content: string;
   reasoning?: string | null;
+  imageData?: string | null;
   createdAt: string;
 }

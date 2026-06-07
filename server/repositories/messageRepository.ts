@@ -9,6 +9,7 @@ function toCamelCase(row: MessageRow): Message {
     role: row.role,
     content: row.content,
     reasoning: row.reasoning,
+    imageData: row.image_data,
     createdAt: row.created_at,
   };
 }
@@ -17,7 +18,7 @@ function toCamelCase(row: MessageRow): Message {
 export function findByConversationId(conversationId: string): Message[] {
   const db = getDb();
   const rows = db.prepare(
-    'SELECT id, conversation_id, role, content, reasoning, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC'
+    'SELECT id, conversation_id, role, content, reasoning, image_data, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC'
   ).all(conversationId) as MessageRow[];
   return rows.map(toCamelCase);
 }
@@ -25,8 +26,8 @@ export function findByConversationId(conversationId: string): Message[] {
 export function create(params: CreateMessageParams): void {
   const db = getDb();
   db.prepare(
-    'INSERT INTO messages (id, conversation_id, role, content, reasoning, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(params.id, params.conversationId, params.role, params.content, params.reasoning ?? null, params.createdAt);
+    'INSERT INTO messages (id, conversation_id, role, content, reasoning, image_data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(params.id, params.conversationId, params.role, params.content, params.reasoning ?? null, params.imageData ?? null, params.createdAt);
 }
 
 // 获取消息历史（精简字段，用于发送给 AI）

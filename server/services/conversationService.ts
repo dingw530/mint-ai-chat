@@ -8,14 +8,14 @@ function getSettingsRoutingMode(): string {
   return raw.routingMode || 'auto';
 }
 
-export function list() {
-  return conversationRepo.findAll();
+export function list(type?: string) {
+  return conversationRepo.findAll(type);
 }
 
-export function create({ title }: { title?: string } = {}) {
+export function create({ title, type }: { title?: string; type?: string } = {}) {
   const id = uuidv4();
   const routingMode = getSettingsRoutingMode();
-  return conversationRepo.create({ id, title: title || 'New Chat', routingMode });
+  return conversationRepo.create({ id, title: title || 'New Chat', type, routingMode });
 }
 
 // 删除会话，不存在时抛出 404 错误

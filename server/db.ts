@@ -160,6 +160,20 @@ function initTables(): void {
     /* column already exists, ignore */
   }
 
+  // 迁移：新增 type 列到 conversations（text / image）
+  try {
+    db!.exec('ALTER TABLE conversations ADD COLUMN type TEXT NOT NULL DEFAULT \'text\'');
+  } catch {
+    /* column already exists, ignore */
+  }
+
+  // 迁移：新增 image_data 列到 messages（存储图片结果 JSON）
+  try {
+    db!.exec('ALTER TABLE messages ADD COLUMN image_data TEXT');
+  } catch {
+    /* column already exists, ignore */
+  }
+
   // 初始化内置 Agent（如果不存在则插入）
   const weatherAvailable = !!(
     process.env.QWEATHER_PROJECT_ID &&

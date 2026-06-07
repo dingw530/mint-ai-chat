@@ -12,14 +12,15 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-export function getConversations() {
-  return request('/conversations');
+export function getConversations(type) {
+  const params = type ? `?type=${type}` : '';
+  return request(`/conversations${params}`);
 }
 
-export function createConversation(title) {
+export function createConversation(title, type) {
   return request('/conversations', {
     method: 'POST',
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, type }),
   });
 }
 
@@ -172,6 +173,14 @@ export function activateEndpoint(id) {
 
 export function generateImage(data) {
   return request('/images/generate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// 图片对话发消息：保存用户消息 → 生成图片 → 保存 assistant 消息
+export function sendImageMessage(conversationId, data) {
+  return request(`/conversations/${conversationId}/images`, {
     method: 'POST',
     body: JSON.stringify(data),
   });

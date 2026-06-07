@@ -3428,3 +3428,199 @@ body::before {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================
+   Image Chat Input Bar
+   ============================================ */
+.image-input-bar {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+}
+
+.image-input-bar form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-input-model-row {
+  display: flex;
+}
+
+.image-input-model-row select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.image-input-model-row select:focus {
+  border-color: var(--accent);
+}
+
+.image-input-params {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.image-input-param-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.image-input-param-group label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.image-input-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.image-input-select:focus {
+  border-color: var(--accent);
+}
+
+.image-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.image-input-row textarea {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  max-height: 120px;
+}
+
+.image-input-row textarea:focus {
+  border-color: var(--accent);
+}
+
+.image-input-row textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ============================================
+   Image Message Rendering
+   ============================================ */
+.image-message-container {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.image-message-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-message-wrapper {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.image-download-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.image-message-wrapper:hover .image-download-btn {
+  opacity: 1;
+}
+
+.image-download-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.image-download-btn .spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.image-message-img {
+  max-width: 100%;
+  max-height: 480px;
+  border-radius: 12px;
+  object-fit: contain;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: zoom-in;
+  transition: box-shadow 0.2s;
+}
+
+.image-message-img:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.image-message-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  border: 2px dashed var(--border-default);
+  border-radius: 12px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.image-message-revised {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.image-message-revised summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.image-message-revised p {
+  margin: 6px 0 0;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}

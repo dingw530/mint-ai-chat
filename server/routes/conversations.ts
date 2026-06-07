@@ -7,10 +7,11 @@ import { HttpError } from '../types.js';
 
 const router = Router();
 
-// 获取所有会话列表（按 updated_at 降序）
-router.get('/', (_req: Request, res: Response) => {
+// 获取所有会话列表（按 updated_at 降序），可选 ?type=text|image 过滤
+router.get('/', (req: Request, res: Response) => {
   try {
-    const conversations = conversationService.list();
+    const type = req.query.type as string | undefined;
+    const conversations = conversationService.list(type);
     res.json({ conversations });
   } catch (err) {
     const e = err as HttpError;
@@ -18,14 +19,17 @@ router.get('/', (_req: Request, res: Response) => {
   }
 });
 
-// 创建新会话（可指定标题，不指定则默认 "New Chat"）
+// 创建新会话（可指定标题和类型）
 router.post('/', (req: Request, res: Response) => {
   try {
-    const { title } = req.body;
+    const { title, type } = req.body;
     if (title !== undefined && typeof title !== 'string') {
       return res.status(400).json({ error: 'Title must be a string' });
     }
-    const conversation = conversationService.create({ title });
+    if (type !== undefined && type !== 'text' && type !== 'image') {
+      return res.status(400).json({ error: 'Type must be "text" or "image"' });
+    }
+    const conversation = conversationService.create({ title, type });
     res.status(201).json({ conversation });
   } catch (err) {
     const e = err as HttpError;
