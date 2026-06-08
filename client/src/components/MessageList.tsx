@@ -1,16 +1,15 @@
-import { useState } from 'react';
+import { useState, RefObject } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ReActStep from './ReActStep';
 import AppIcon from './AppIcon';
+import type { Message, ReActStep as ReActStepData } from '../types';
 
-// 下载图片：Electron 环境用 IPC 绕过 CORS，Web 环境用 fetch + blob
-async function downloadImage(src, filename = 'image.png') {
-  if (window.electronAPI?.downloadFile) {
-    await window.electronAPI.downloadFile(src, filename);
+async function downloadImage(src: string, filename = 'image.png') {
+  if ((window as any).electronAPI?.downloadFile) {
+    await (window as any).electronAPI.downloadFile(src, filename);
     return;
   }
 
-  // Web 环境 fallback
   try {
     const response = await fetch(src);
     const blob = await response.blob();
@@ -23,13 +22,12 @@ async function downloadImage(src, filename = 'image.png') {
     document.body.removeChild(a);
     URL.revokeObjectURL(blobUrl);
   } catch (err) {
-    // CORS 失败时尝试直接打开（至少在新标签页能看）
     console.warn('[ImageChat] Download via blob failed, opening in new tab:', err);
     window.open(src, '_blank');
   }
 }
 
-function ImageMessage({ src, alt }) {
+function ImageMessage({ src, alt }: { src: string; alt: string }) {
   const [error, setError] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -46,7 +44,7 @@ function ImageMessage({ src, alt }) {
     );
   }
 
-  const handleDownload = async (e) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setDownloading(true);
     const ext = src.includes('.png') ? 'png' : src.includes('.jpeg') || src.includes('.jpg') ? 'jpg' : 'webp';
@@ -83,10 +81,16 @@ function ImageMessage({ src, alt }) {
   );
 }
 
-function renderImageContent(imageData) {
-  let images;
+interface ImageItem {
+  url?: string;
+  b64_json?: string;
+  revised_prompt?: string;
+}
+
+function renderImageContent(imageData: string | Record<string, unknown> | null | undefined) {
+  let images: ImageItem[];
   try {
-    images = typeof imageData === 'string' ? JSON.parse(imageData) : imageData;
+    images = typeof imageData === 'string' ? JSON.parse(imageData) : (imageData as ImageItem[] | undefined);
   } catch {
     console.warn('[ImageChat] Failed to parse imageData:', imageData);
     return null;
@@ -99,7 +103,6 @@ function renderImageContent(imageData) {
   return (
     <div className="image-message-container">
       {images.map((item, index) => {
-        // 支持 url 和 b64_json 两种返回格式
         const src = item.url || (item.b64_json ? `data:image/png;base64,${item.b64_json}` : null);
         if (!src || (typeof src === 'string' && !src.trim())) {
           console.warn('[ImageChat] Image item has no usable src:', item);
@@ -121,8 +124,18 @@ function renderImageContent(imageData) {
   );
 }
 
-export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true }) {
-  const roleIcon = {
+interface MessageListProps {
+  messages: Message[];
+  streamingId: string | null;
+  scrollRef: RefObject<HTMLDivElement | null>;
+  containerRef?: RefObject<HTMLDivElement | null>;
+  onRegenerate?: () => void;
+  reactSteps?: ReActStepData[];
+  showReactSteps?: boolean;
+}
+
+export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true }: MessageListProps) {
+  const roleIcon: Record<string, string> = {
     user: '&#x1F338;',
     assistant: '&#x2728;',
     error: '&#x26A0;&#xFE0F;',
@@ -146,7 +159,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
         const isStreaming = msg.role === 'assistant' && msg.id === streamingId;
         return (
           <div
-            key={msg.id || msg._tempId}
+            key={msg.id || (msg as any)._tempId}
             className={`message ${msg.role}${isStreaming ? ' streaming' : ''}`}
           >
             <div className="message-label"
@@ -162,7 +175,6 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                 <div className="reasoning-content">{msg.reasoning}</div>
               </details>
             )}
-            {/* ReAct 推理步骤展示：受 showReactSteps 控制 */}
             {showReactSteps && msg.role === 'assistant' && reactSteps && reactSteps.length > 0 ? (
               <div className="react-steps-container">
                 {reactSteps.map((step, i) => (
@@ -173,7 +185,6 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
             {msg.role === 'assistant'
               ? <MarkdownRenderer content={msg.content} />
               : <span>{msg.content}</span>}
-            {/* 图片消息渲染 */}
             {msg.role === 'assistant' && msg.imageData && renderImageContent(msg.imageData)}
             {isStreaming && <span className="cursor" />}
             {msg.role === 'assistant' && !isStreaming && onRegenerate && messages.indexOf(msg) === messages.length - 1 && (

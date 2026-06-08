@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, KeyboardEvent } from 'react';
 import AppIcon from './AppIcon';
+import type { Conversation } from '../types';
 
 function PlusIcon() {
   return (
@@ -43,6 +44,18 @@ function TrashIcon() {
   );
 }
 
+interface SidebarProps {
+  conversations: Conversation[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onCreate: () => void;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
+  loading: boolean;
+  activeView: string;
+  onViewChange: (view: string) => void;
+}
+
 export default function Sidebar({
   conversations,
   activeId,
@@ -53,15 +66,15 @@ export default function Sidebar({
   loading,
   activeView,
   onViewChange,
-}) {
-  const [editingId, setEditingId] = useState(null);
+}: SidebarProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
   const handleCreate = () => {
     onCreate();
   };
 
-  const startRename = (conv) => {
+  const startRename = (conv: Conversation) => {
     setEditingId(conv.id);
     setEditTitle(conv.title);
   };
@@ -69,13 +82,13 @@ export default function Sidebar({
   const submitRename = () => {
     const title = editTitle.trim();
     if (title) {
-      onRename(editingId, title);
+      onRename(editingId!, title);
     }
     setEditingId(null);
     setEditTitle('');
   };
 
-  const handleRenameKeyDown = (e) => {
+  const handleRenameKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       submitRename();
     } else if (e.key === 'Escape') {

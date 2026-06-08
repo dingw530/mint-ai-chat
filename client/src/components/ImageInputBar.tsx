@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
 
 const SIZES = [
   '1024x1024',
@@ -29,13 +29,27 @@ function SendIcon() {
   );
 }
 
-export default function ImageInputBar({ imageEndpoints, onSend, sending }) {
+interface ImageSendParams {
+  content: string;
+  endpointId: string;
+  size: string;
+  quality: string;
+  output_format: string;
+}
+
+interface ImageInputBarProps {
+  imageEndpoints: Array<{ id: string; name: string; modelId: string }>;
+  onSend: (params: ImageSendParams) => void;
+  sending: boolean;
+}
+
+export default function ImageInputBar({ imageEndpoints, onSend, sending }: ImageInputBarProps) {
   const [text, setText] = useState('');
   const [selectedEndpointId, setSelectedEndpointId] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [quality, setQuality] = useState('auto');
   const [format, setFormat] = useState('png');
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isCompositing = useRef(false);
 
   useEffect(() => {
@@ -44,14 +58,13 @@ export default function ImageInputBar({ imageEndpoints, onSend, sending }) {
     }
   }, [imageEndpoints, selectedEndpointId]);
 
-  // 聚焦输入框
   useEffect(() => {
     if (!sending && textareaRef.current) {
       textareaRef.current.focus();
     }
   }, [sending]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || sending || !selectedEndpointId) return;
@@ -68,7 +81,7 @@ export default function ImageInputBar({ imageEndpoints, onSend, sending }) {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && !isCompositing.current) {
       e.preventDefault();
       handleSubmit(e);
@@ -86,7 +99,6 @@ export default function ImageInputBar({ imageEndpoints, onSend, sending }) {
   return (
     <div className="image-input-bar">
       <form onSubmit={handleSubmit}>
-        {/* 模型选择 */}
         <div className="image-input-model-row">
           <select
             value={selectedEndpointId}
@@ -102,7 +114,6 @@ export default function ImageInputBar({ imageEndpoints, onSend, sending }) {
           </select>
         </div>
 
-        {/* 参数工具栏 */}
         <div className="image-input-params">
           <div className="image-input-param-group">
             <label>尺寸</label>
@@ -130,7 +141,6 @@ export default function ImageInputBar({ imageEndpoints, onSend, sending }) {
           </div>
         </div>
 
-        {/* 输入框 + 发送按钮 */}
         <div className="image-input-row">
           <textarea
             ref={textareaRef}

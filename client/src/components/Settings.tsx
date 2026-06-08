@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getSettings, saveSettings } from '../services/api';
 import McpServersPanel from './McpServersPanel';
 import AgentsPanel from './AgentsPanel';
 import MemoriesPanel from './MemoriesPanel';
 import EndpointsPanel from './EndpointsPanel';
+import type { VisibleSettings } from '../types';
 
-function Toast({ toast }) {
+function Toast({ toast }: { toast: { type: string; message: string } | null }) {
   if (!toast) return null;
   return (
     <div className={`toast ${toast.type}`}>
@@ -14,7 +15,34 @@ function Toast({ toast }) {
   );
 }
 
-function GeneralTab({ apiUrl, setApiUrl, apiKey, setApiKey, modelId, setModelId, systemPrompt, setSystemPrompt, thinkingMode, setThinkingMode, memoryEnabled, setMemoryEnabled, routingMode, setRoutingMode, errors, setErrors, apiKeyDirty, setApiKeyDirty, theme, setTheme, reactMaxIterations, setReactMaxIterations, toolMaxRetries, setToolMaxRetries, showReactSteps, setShowReactSteps }) {
+type StringSetter = (value: string) => void;
+type BooleanSetter = (value: boolean) => void;
+type NumberSetter = (value: number) => void;
+
+interface GeneralTabProps {
+  apiUrl: string; setApiUrl: StringSetter;
+  apiKey: string; setApiKey: StringSetter;
+  modelId: string; setModelId: StringSetter;
+  systemPrompt: string; setSystemPrompt: StringSetter;
+  thinkingMode: boolean; setThinkingMode: BooleanSetter;
+  memoryEnabled: boolean; setMemoryEnabled: BooleanSetter;
+  routingMode: string; setRoutingMode: StringSetter;
+  errors: Record<string, string>; setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  apiKeyDirty: boolean; setApiKeyDirty: BooleanSetter;
+  theme: string; setTheme: StringSetter;
+  reactMaxIterations: number; setReactMaxIterations: NumberSetter;
+  toolMaxRetries: number; setToolMaxRetries: NumberSetter;
+  showReactSteps: boolean; setShowReactSteps: BooleanSetter;
+}
+
+function GeneralTab({
+  apiUrl, setApiUrl, apiKey, setApiKey, modelId, setModelId,
+  systemPrompt, setSystemPrompt, thinkingMode, setThinkingMode,
+  memoryEnabled, setMemoryEnabled, routingMode, setRoutingMode,
+  errors, setErrors, apiKeyDirty, setApiKeyDirty,
+  theme, setTheme, reactMaxIterations, setReactMaxIterations,
+  toolMaxRetries, setToolMaxRetries, showReactSteps, setShowReactSteps,
+}: GeneralTabProps) {
   return (
     <>
       <div className="form-group">
@@ -190,7 +218,13 @@ function GeneralTab({ apiUrl, setApiUrl, apiKey, setApiKey, modelId, setModelId,
   );
 }
 
-export default function Settings({ onClose, theme, onThemeChange }) {
+interface SettingsProps {
+  onClose: () => void;
+  theme: string;
+  onThemeChange: (theme: string) => void;
+}
+
+export default function Settings({ onClose, theme, onThemeChange }: SettingsProps) {
   const [activeTab, setActiveTab] = useState('general');
   const [apiUrl, setApiUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -205,12 +239,12 @@ export default function Settings({ onClose, theme, onThemeChange }) {
   const [showReactSteps, setShowReactSteps] = useState(true);
   const [apiKeyDirty, setApiKeyDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [toast, setToast] = useState(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
   useEffect(() => {
     getSettings()
-      .then((data) => {
+      .then((data: VisibleSettings) => {
         setApiUrl(data.apiUrl || '');
         if (data.apiKeyMasked) {
           setApiKey(data.apiKeyMasked);
@@ -229,20 +263,20 @@ export default function Settings({ onClose, theme, onThemeChange }) {
       });
   }, []);
 
-  // 主题切换即时生效
   useEffect(() => {
     if (localTheme !== theme) {
       onThemeChange(localTheme);
     }
-  }, [localTheme]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localTheme]);
 
-  const showToast = (type, message) => {
+  const showToast = useCallback((type: string, message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
-  };
+  }, []);
 
   const validate = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     if (!apiUrl.trim()) {
       newErrors.apiUrl = 'API URL is required';
     } else {
@@ -281,21 +315,21 @@ export default function Settings({ onClose, theme, onThemeChange }) {
       showToast('success', '设置已保存');
       setTimeout(() => onClose(), 1000);
     } catch (err) {
-      showToast('error', `Failed to save: ${err.message}`);
+      showToast('error', `Failed to save: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
   };
 
   const tabs = [
-    { id: 'general', label: '通用设置', icon: 'gear' },
-    { id: 'endpoints', label: '模型端点', icon: 'server' },
-    { id: 'mcp', label: 'MCP 服务', icon: 'plugin' },
-    { id: 'agents', label: 'Agent 管理', icon: 'agent' },
-    { id: 'memories', label: '记忆', icon: 'memory' },
+    { id: 'general', label: '通用设置', icon: 'gear' as const },
+    { id: 'endpoints', label: '模型端点', icon: 'server' as const },
+    { id: 'mcp', label: 'MCP 服务', icon: 'plugin' as const },
+    { id: 'agents', label: 'Agent 管理', icon: 'agent' as const },
+    { id: 'memories', label: '记忆', icon: 'memory' as const },
   ];
 
-  const tabIcon = {
+  const tabIcon: Record<string, React.ReactNode> = {
     gear: (
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.611 3.611 0 0112 15.6z" />
@@ -328,7 +362,7 @@ export default function Settings({ onClose, theme, onThemeChange }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <Toast toast={toast} />
-      <div className={`modal modal-wide`} onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h2>设置</h2>
         <div className="settings-body">
           <div className="settings-tabs">
@@ -346,49 +380,49 @@ export default function Settings({ onClose, theme, onThemeChange }) {
           <div className="settings-tab-content">
             {activeTab === 'general' && (
               <GeneralTab
-              apiUrl={apiUrl}
-              setApiUrl={setApiUrl}
-              apiKey={apiKey}
-              setApiKey={setApiKey}
-              modelId={modelId}
-              setModelId={setModelId}
-              systemPrompt={systemPrompt}
-              setSystemPrompt={setSystemPrompt}
-              thinkingMode={thinkingMode}
-              setThinkingMode={setThinkingMode}
-              memoryEnabled={memoryEnabled}
-              setMemoryEnabled={setMemoryEnabled}
-              routingMode={routingMode}
-              setRoutingMode={setRoutingMode}
-              errors={errors}
-              setErrors={setErrors}
-              apiKeyDirty={apiKeyDirty}
-              setApiKeyDirty={setApiKeyDirty}
-              theme={localTheme}
-              setTheme={setLocalTheme}
-              reactMaxIterations={reactMaxIterations}
-              setReactMaxIterations={setReactMaxIterations}
-              toolMaxRetries={toolMaxRetries}
-              setToolMaxRetries={setToolMaxRetries}
-              showReactSteps={showReactSteps}
-              setShowReactSteps={setShowReactSteps}
-            />
-          )}
-          {activeTab === 'mcp' && (
-            <McpServersPanel onToast={showToast} />
-          )}
-          {activeTab === 'agents' && (
-            <AgentsPanel onToast={showToast} />
-          )}
-          {activeTab === 'memories' && (
-            <MemoriesPanel onToast={showToast} />
-          )}
-          {activeTab === 'endpoints' && (
-            <EndpointsPanel onToast={showToast} />
-          )}
+                apiUrl={apiUrl}
+                setApiUrl={setApiUrl}
+                apiKey={apiKey}
+                setApiKey={setApiKey}
+                modelId={modelId}
+                setModelId={setModelId}
+                systemPrompt={systemPrompt}
+                setSystemPrompt={setSystemPrompt}
+                thinkingMode={thinkingMode}
+                setThinkingMode={setThinkingMode}
+                memoryEnabled={memoryEnabled}
+                setMemoryEnabled={setMemoryEnabled}
+                routingMode={routingMode}
+                setRoutingMode={setRoutingMode}
+                errors={errors}
+                setErrors={setErrors}
+                apiKeyDirty={apiKeyDirty}
+                setApiKeyDirty={setApiKeyDirty}
+                theme={localTheme}
+                setTheme={setLocalTheme}
+                reactMaxIterations={reactMaxIterations}
+                setReactMaxIterations={setReactMaxIterations}
+                toolMaxRetries={toolMaxRetries}
+                setToolMaxRetries={setToolMaxRetries}
+                showReactSteps={showReactSteps}
+                setShowReactSteps={setShowReactSteps}
+              />
+            )}
+            {activeTab === 'mcp' && (
+              <McpServersPanel onToast={showToast} />
+            )}
+            {activeTab === 'agents' && (
+              <AgentsPanel onToast={showToast} />
+            )}
+            {activeTab === 'memories' && (
+              <MemoriesPanel onToast={showToast} />
+            )}
+            {activeTab === 'endpoints' && (
+              <EndpointsPanel onToast={showToast} />
+            )}
+          </div>
         </div>
-      </div>
-      {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'memories' && (
+        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'memories' && (
           <div className="modal-actions">
             <button className="btn-secondary" onClick={onClose}>
               取消

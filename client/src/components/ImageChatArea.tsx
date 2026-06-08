@@ -2,6 +2,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import MessageList from './MessageList';
 import ImageInputBar from './ImageInputBar';
 import { getMessages, sendImageMessage } from '../services/api';
+import type { Conversation, EndpointOutput, Message } from '../types';
+
+interface ImageChatAreaProps {
+  activeConversation: string | null;
+  conversations: Conversation[];
+  endpoints: EndpointOutput[];
+  onOpenSettings: () => void;
+  onAutoCreate: (title?: string) => Promise<string | undefined>;
+  onTitleUpdate: (id: string, title: string) => void;
+}
 
 export default function ImageChatArea({
   activeConversation,
@@ -10,16 +20,15 @@ export default function ImageChatArea({
   onOpenSettings,
   onAutoCreate,
   onTitleUpdate,
-}) {
-  const [messages, setMessages] = useState([]);
+}: ImageChatAreaProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevConvRef = useRef(activeConversation);
 
   const imageEndpoints = (endpoints || []).filter((ep) => ep.category === 'image');
 
-  // 切换对话时加载消息
   useEffect(() => {
     if (activeConversation) {
       setLoading(true);
@@ -41,7 +50,6 @@ export default function ImageChatArea({
     messagesEndRef.current?.scrollIntoView(false);
   }, [messages]);
 
-  // 切换对话时重置
   useEffect(() => {
     if (prevConvRef.current && prevConvRef.current !== activeConversation) {
       setSending(false);
@@ -49,15 +57,16 @@ export default function ImageChatArea({
     prevConvRef.current = activeConversation;
   }, [activeConversation]);
 
-  const handleSend = useCallback(async (imageParams) => {
-    let convId = activeConversation;
+  const handleSend = useCallback(async (imageParams: { content: string; endpointId: string; size: string; quality: string; output_format: string }) => {
+    let convId: string | null = activeConversation;
     let createdNow = false;
 
-    // 无活跃对话时自动创建
     if (!convId) {
       if (!onAutoCreate) return;
       try {
-        convId = await onAutoCreate();
+        const newId = await onAutoCreate();
+        if (!newId) return;
+        convId = newId;
         createdNow = true;
       } catch {
         return;
@@ -66,18 +75,22 @@ export default function ImageChatArea({
 
     const { content, endpointId, size, quality, output_format } = imageParams;
 
-    const tempUserMsg = {
+    const tempUserMsg: Message & { _tempId: string } = {
       id: `user-${Date.now()}`,
       _tempId: `user-${Date.now()}`,
       role: 'user',
       content,
+      conversationId: convId,
+      createdAt: new Date().toISOString(),
     };
 
-    const tempAssistantMsg = {
+    const tempAssistantMsg: Message & { _tempId: string } = {
       id: `assistant-${Date.now()}`,
       _tempId: `assistant-${Date.now()}`,
       role: 'assistant',
       content: '',
+      conversationId: convId,
+      createdAt: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, tempUserMsg, tempAssistantMsg]);
@@ -94,25 +107,26 @@ export default function ImageChatArea({
 
       setMessages((prev) => {
         const updated = prev.filter(
-          (m) => m._tempId !== tempUserMsg._tempId && m._tempId !== tempAssistantMsg._tempId
+          (m: Message & { _tempId?: string }) => m._tempId !== tempUserMsg._tempId && m._tempId !== tempAssistantMsg._tempId
         );
         if (data.userMessage) updated.push(data.userMessage);
         if (data.assistantMessage) updated.push(data.assistantMessage);
         return updated;
       });
 
-      // 新建对话生成标题
       if (createdNow && data.userMessage && data.assistantMessage) {
         const title = content.length > 30 ? content.slice(0, 30) + '...' : content;
         if (onTitleUpdate) onTitleUpdate(convId, title);
       }
     } catch (err) {
       setMessages((prev) => {
-        const updated = prev.filter((m) => m._tempId !== tempAssistantMsg._tempId);
+        const updated = prev.filter((m: Message & { _tempId?: string }) => m._tempId !== tempAssistantMsg._tempId);
         updated.push({
           id: `error-${Date.now()}`,
           role: 'error',
-          content: `Error: ${err.message}`,
+          content: `Error: ${(err as Error).message}`,
+          conversationId: convId!,
+          createdAt: new Date().toISOString(),
         });
         return updated;
       });

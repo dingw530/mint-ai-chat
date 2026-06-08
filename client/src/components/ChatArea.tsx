@@ -4,6 +4,7 @@ import InputBox from './InputBox';
 import ModelSwitcher from './ModelSwitcher';
 import { getMessages, fetchAgents, generateTitle, lockAgent, unlockAgent, getSettings } from '../services/api';
 import useSSE from '../hooks/useSSE';
+import type { Conversation, EndpointOutput, Agent, Message, ReActStep } from '../types';
 
 function SettingsIcon() {
   return (
@@ -13,8 +14,8 @@ function SettingsIcon() {
   );
 }
 
-function AgentIcon({ id }) {
-  const icons = {
+function AgentIcon({ id }: { id: string }) {
+  const icons: Record<string, React.ReactNode> = {
     general: (
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
@@ -45,6 +46,19 @@ function LoadingSpinner() {
   );
 }
 
+interface ChatAreaProps {
+  activeConversation: string | null;
+  conversations: Conversation[];
+  onOpenSettings: () => void;
+  onAutoCreate: (title?: string) => Promise<string | undefined>;
+  onRefreshConversations?: () => void;
+  onTitleUpdate: (id: string, title: string) => void;
+  onUpdateConversation?: (convId: string, updates: Partial<Conversation>) => void;
+  activeEndpoint: EndpointOutput | null;
+  endpoints: EndpointOutput[];
+  onEndpointChange: () => Promise<void>;
+}
+
 export default function ChatArea({
   activeConversation,
   conversations,
@@ -56,40 +70,39 @@ export default function ChatArea({
   activeEndpoint,
   endpoints,
   onEndpointChange,
-}) {
-  const [messages, setMessages] = useState([]);
+}: ChatAreaProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
-  const [streamingId, setStreamingId] = useState(null);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [agents, setAgents] = useState([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [activeAgent, setActiveAgent] = useState('general');
-  const [autoRoutedAgent, setAutoRoutedAgent] = useState(null);
-  const [reactSteps, setReactSteps] = useState([]);
+  const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
+  const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
   const [showReactSteps, setShowReactSteps] = useState(true);
   const { send, abort } = useSSE();
-  const messagesEndRef = useRef(null);
-  const convIdRef = useRef(activeConversation);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const convIdRef = useRef<string | null>(activeConversation);
 
   useEffect(() => {
     convIdRef.current = activeConversation;
   }, [activeConversation]);
-  const prevConvRef = useRef(null);
+  const prevConvRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchAgents()
       .then((data) => {
         setAgents(data.agents || []);
-        const weather = (data.agents || []).find((a) => a.id === 'weather');
+        const weather = (data.agents || []).find((a: Agent) => a.id === 'weather');
         if (!weather?.available && activeAgent === 'weather') {
           setActiveAgent('general');
         }
       })
       .catch(() => {
-        setAgents([{ id: 'general', label: '通用助手', available: true }]);
+        setAgents([{ id: 'general', label: '通用助手', available: true } as Agent]);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 加载 showReactSteps 配置
   useEffect(() => {
     getSettings().then((data) => {
       setShowReactSteps(data.showReactSteps !== false);
@@ -124,58 +137,61 @@ export default function ChatArea({
     prevConvRef.current = activeConversation;
   }, [activeConversation, abort]);
 
-  // 切换对话时重置自动路由状态和 ReAct 步骤
   useEffect(() => {
     setAutoRoutedAgent(null);
     setReactSteps([]);
   }, [activeConversation]);
 
   const handleSend = useCallback(
-    async (content) => {
-      let convId = activeConversation;
+    async (content: string) => {
+      let convId: string | null = activeConversation;
       let createdNow = false;
       if (!convId) {
         if (!onAutoCreate) return;
         try {
-          convId = await onAutoCreate();
+          const newId = await onAutoCreate();
+          if (!newId) return;
+          convId = newId;
           createdNow = true;
         } catch {
           return;
         }
       }
-      // 新建对话时 conversations state 尚未更新，直接标记为默认标题
       const convTitle = createdNow ? 'New Conversation' : conversations.find((c) => c.id === convId)?.title;
 
-      const tempUserMsg = {
+      const tempUserMsg: Message & { _tempId: string } = {
         id: `user-${Date.now()}`,
         _tempId: `user-${Date.now()}`,
         role: 'user',
         content,
+        conversationId: convId,
+        createdAt: new Date().toISOString(),
       };
 
-      const tempAssistantMsg = {
+      const tempAssistantMsg: Message & { _tempId: string } = {
         id: `assistant-${Date.now()}`,
         _tempId: `assistant-${Date.now()}`,
         role: 'assistant',
         content: '',
         reasoning: '',
+        conversationId: convId,
+        createdAt: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, tempUserMsg, tempAssistantMsg]);
       setSending(true);
       setStreamingId(tempAssistantMsg.id);
-      setReactSteps([]);  // 清空上一轮的 ReAct 步骤
+      setReactSteps([]);
 
-      // 自动模式下不传 agent，由服务端路由
       const currentConv = conversations.find((c) => c.id === convId);
       const isAutoRoute = (currentConv?.routingMode || 'auto') === 'auto' && !currentConv?.lockedAgent;
 
       send(convId, content, {
-        onChunk: (chunk) => {
+        onChunk: (chunk: string) => {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
-            if (last && last._tempId === tempAssistantMsg._tempId) {
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
               updated[updated.length - 1] = {
                 ...last,
                 content: last.content + chunk,
@@ -184,11 +200,11 @@ export default function ChatArea({
             return updated;
           });
         },
-        onReasoning: (chunk) => {
+        onReasoning: (chunk: string) => {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
-            if (last && last._tempId === tempAssistantMsg._tempId) {
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
               updated[updated.length - 1] = {
                 ...last,
                 reasoning: (last.reasoning || '') + chunk,
@@ -197,54 +213,52 @@ export default function ChatArea({
             return updated;
           });
         },
-        onRouting: (agentId) => {
+        onRouting: (agentId: string) => {
           setAutoRoutedAgent(agentId);
           if (isAutoRoute) {
             setActiveAgent(agentId);
           }
         },
-        // ── ReAct 推理过程展示 ──
-        onThought: (content) => {
-          if (!content) return; // 跳过空内容
+        onThought: (content: string) => {
+          if (!content) return;
           setReactSteps((prev) => {
-            // 合并连续的 thought 步骤，避免大量碎片
             const last = prev[prev.length - 1];
             if (last && last.type === 'thought') {
               const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: last.content + content };
+              updated[updated.length - 1] = { ...last, content: (last as ReActStep & { content?: string }).content || '' + content } as ReActStep;
               return updated;
             }
-            return [...prev, { type: 'thought', content }];
+            return [...prev, { type: 'thought', content } as ReActStep];
           });
         },
-        onToolCallStart: (data) => {
+        onToolCallStart: (data: Record<string, unknown>) => {
           setReactSteps((prev) => [...prev, {
             type: 'tool_call_start',
-            toolName: data.toolName,
-            arguments: data.arguments,
-          }]);
+            toolName: data.toolName as string,
+            arguments: data.arguments as string,
+          } as ReActStep]);
         },
-        onToolCallEnd: (data) => {
+        onToolCallEnd: (data: Record<string, unknown>) => {
           setReactSteps((prev) => [...prev, {
             type: 'tool_call_end',
-            toolName: data.toolName,
-            result: data.result,
-            duration: data.duration,
-          }]);
+            toolName: data.toolName as string,
+            result: data.result as string,
+            duration: data.duration as number,
+          } as ReActStep]);
         },
-        onToolCallError: (data) => {
+        onToolCallError: (data: Record<string, unknown>) => {
           setReactSteps((prev) => [...prev, {
             type: 'tool_call_error',
-            toolName: data.toolName,
-            error: data.error,
-            retryCount: data.retryCount,
-          }]);
+            toolName: data.toolName as string,
+            error: data.error as string,
+            retryCount: data.retryCount as number,
+          } as ReActStep]);
         },
-        onAnswerReady: (content) => {
+        onAnswerReady: (content: string) => {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
-            if (last && last._tempId === tempAssistantMsg._tempId) {
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
               updated[updated.length - 1] = {
                 ...last,
                 content: last.content + content,
@@ -261,22 +275,19 @@ export default function ChatArea({
         onDone: () => {
           setSending(false);
           setStreamingId(null);
-          // 首条消息完成后，调用独立 API 生成标题
           if (convTitle === 'New Conversation') {
             generateTitle(convId).then((data) => {
               if (data?.title && onTitleUpdate) {
                 onTitleUpdate(convId, data.title);
               }
-            }).catch(() => {
-              // 静默失败，标题保持默认值
-            });
+            }).catch(() => {});
           }
         },
-        onError: (err) => {
+        onError: (err: Error) => {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
-            if (last && last._tempId === tempAssistantMsg._tempId) {
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
               updated[updated.length - 1] = {
                 ...last,
                 role: 'error',
@@ -291,7 +302,7 @@ export default function ChatArea({
         },
       }, isAutoRoute ? undefined : activeAgent);
     },
-    [activeConversation, conversations, send, activeAgent, onAutoCreate, onTitleUpdate, setReactSteps]
+    [activeConversation, conversations, send, activeAgent, onAutoCreate, onTitleUpdate]
   );
 
   const handleStop = useCallback(() => {
@@ -300,7 +311,7 @@ export default function ChatArea({
     setStreamingId(null);
   }, [abort]);
 
-  const handleLock = useCallback(async (agentId) => {
+  const handleLock = useCallback(async (agentId: string) => {
     const convId = convIdRef.current;
     if (!convId) return;
     try {
@@ -332,15 +343,16 @@ export default function ChatArea({
     const convId = convIdRef.current;
     if (!convId) return;
 
-    // 移除最后一条 AI 回复
     setMessages((prev) => prev.slice(0, -1));
 
-    const tempAssistantMsg = {
+    const tempAssistantMsg: Message & { _tempId: string } = {
       id: `assistant-${Date.now()}`,
       _tempId: `assistant-${Date.now()}`,
       role: 'assistant',
       content: '',
       reasoning: '',
+      conversationId: convId,
+      createdAt: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, tempAssistantMsg]);
@@ -348,11 +360,11 @@ export default function ChatArea({
     setStreamingId(tempAssistantMsg.id);
 
     send(convId, lastUserMsg.content, {
-      onChunk: (chunk) => {
+      onChunk: (chunk: string) => {
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
-          if (last && last._tempId === tempAssistantMsg._tempId) {
+          if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
             updated[updated.length - 1] = {
               ...last,
               content: last.content + chunk,
@@ -361,11 +373,11 @@ export default function ChatArea({
           return updated;
         });
       },
-      onReasoning: (chunk) => {
+      onReasoning: (chunk: string) => {
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
-          if (last && last._tempId === tempAssistantMsg._tempId) {
+          if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
             updated[updated.length - 1] = {
               ...last,
               reasoning: (last.reasoning || '') + chunk,
@@ -374,14 +386,14 @@ export default function ChatArea({
           return updated;
         });
       },
-      onRouting: (agentId) => {
+      onRouting: (agentId: string) => {
         setAutoRoutedAgent(agentId);
       },
-      onAnswerReady: (content) => {
+      onAnswerReady: (content: string) => {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
-            if (last && last._tempId === tempAssistantMsg._tempId) {
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
               updated[updated.length - 1] = {
                 ...last,
                 content: last.content + content,
@@ -394,11 +406,11 @@ export default function ChatArea({
         setSending(false);
         setStreamingId(null);
       },
-      onError: (err) => {
+      onError: (err: Error) => {
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
-          if (last && last._tempId === tempAssistantMsg._tempId) {
+          if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
             updated[updated.length - 1] = {
               ...last,
               role: 'error',
@@ -409,6 +421,7 @@ export default function ChatArea({
         });
         setSending(false);
         setStreamingId(null);
+        setReactSteps([]);
       },
     }, undefined, { regenerate: true });
   }, [messages, send, activeAgent]);
@@ -447,7 +460,7 @@ export default function ChatArea({
               const isDisabled = agent.available === false;
               const label = agent.label || agent.name || agent.id;
               const titleText = isDisabled
-                ? (agent.error || `Agent "${label}" is not available`)
+                ? (agent.errorMessage || `Agent "${label}" is not available`)
                 : (agent.description || label);
               const isLocked = !!lockedAgent;
               const isLockedAgent = lockedAgent === agent.id;

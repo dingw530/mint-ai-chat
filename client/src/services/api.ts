@@ -1,6 +1,23 @@
+import type {
+  Conversation,
+  Message,
+  Agent,
+  Memory,
+  McpServer,
+  EndpointOutput,
+  EndpointInput,
+  VisibleSettings,
+  SettingsInput,
+  SendCallbacks,
+  SendOptions,
+  StreamReturn,
+  ImageGenerateParams,
+  GenerateImageResult,
+} from '../types';
+
 const BASE_URL = '/api';
 
-async function request(path, options = {}) {
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
@@ -12,174 +29,177 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-export function getConversations(type) {
+export function getConversations(type?: string): Promise<{ conversations: Conversation[] }> {
   const params = type ? `?type=${type}` : '';
   return request(`/conversations${params}`);
 }
 
-export function createConversation(title, type) {
+export function createConversation(title?: string, type?: string): Promise<{ conversation: Conversation }> {
   return request('/conversations', {
     method: 'POST',
     body: JSON.stringify({ title, type }),
   });
 }
 
-export function deleteConversation(id) {
+export function deleteConversation(id: string): Promise<{ success: boolean }> {
   return request(`/conversations/${id}`, { method: 'DELETE' });
 }
 
-export function renameConversation(id, title) {
+export function renameConversation(id: string, title: string): Promise<{ conversation: Conversation }> {
   return request(`/conversations/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
 }
 
-export function lockAgent(conversationId, agentId) {
+export function lockAgent(conversationId: string, agentId: string): Promise<{ conversation: Conversation }> {
   return request(`/conversations/${conversationId}`, {
     method: 'PATCH',
     body: JSON.stringify({ lockedAgent: agentId }),
   });
 }
 
-export function unlockAgent(conversationId) {
+export function unlockAgent(conversationId: string): Promise<{ conversation: Conversation }> {
   return request(`/conversations/${conversationId}`, {
     method: 'PATCH',
     body: JSON.stringify({ lockedAgent: null }),
   });
 }
 
-export function getMessages(conversationId) {
+export function getMessages(conversationId: string): Promise<{ messages: Message[] }> {
   return request(`/conversations/${conversationId}/messages`);
 }
 
-export function getSettings() {
+export function getSettings(): Promise<VisibleSettings> {
   return request('/settings');
 }
 
-export function saveSettings(settings) {
+export function saveSettings(settings: SettingsInput): Promise<void> {
   return request('/settings', {
     method: 'PUT',
     body: JSON.stringify(settings),
   });
 }
 
-export function generateTitle(conversationId) {
+export function generateTitle(conversationId: string): Promise<{ title: string }> {
   return request(`/conversations/${conversationId}/generate-title`, {
     method: 'POST',
   });
 }
 
-export function fetchAgents() {
+export function fetchAgents(): Promise<{ agents: Agent[] }> {
   return request('/agents');
 }
 
 /* MCP Server APIs */
-export function getMcpServers() {
+export function getMcpServers(): Promise<{ servers: McpServer[] }> {
   return request('/mcp-servers');
 }
 
-export function createMcpServer(data) {
+export function createMcpServer(data: Partial<McpServer>): Promise<{ server: McpServer }> {
   return request('/mcp-servers', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function updateMcpServer(id, data) {
+export function updateMcpServer(id: string, data: Partial<McpServer>): Promise<{ server: McpServer }> {
   return request(`/mcp-servers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteMcpServer(id) {
+export function deleteMcpServer(id: string): Promise<{ success: boolean }> {
   return request(`/mcp-servers/${id}`, { method: 'DELETE' });
 }
 
-export function restartMcpServer(id) {
+export function restartMcpServer(id: string): Promise<{ server: McpServer }> {
   return request(`/mcp-servers/${id}/restart`, { method: 'POST' });
 }
 
 /* Agent CRUD APIs */
-export function createAgent(data) {
+export function createAgent(data: Partial<Agent>): Promise<{ agent: Agent }> {
   return request('/agents', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function updateAgent(id, data) {
+export function updateAgent(id: string, data: Partial<Agent>): Promise<{ agent: Agent }> {
   return request(`/agents/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteAgent(id) {
+export function deleteAgent(id: string): Promise<{ success: boolean }> {
   return request(`/agents/${id}`, { method: 'DELETE' });
 }
 
 /* Memory APIs */
-export function getMemories(category) {
+export function getMemories(category?: string): Promise<Memory[]> {
   const params = category ? `?category=${category}` : '';
   return request(`/memories${params}`);
 }
 
-export function createMemory(data) {
+export function createMemory(data: Partial<Memory>): Promise<Memory> {
   return request('/memories', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function updateMemory(id, data) {
+export function updateMemory(id: string, data: Partial<Memory>): Promise<Memory> {
   return request(`/memories/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteMemory(id) {
+export function deleteMemory(id: string): Promise<{ success: boolean }> {
   return request(`/memories/${id}`, { method: 'DELETE' });
 }
 
 /* Model Endpoints APIs */
-export function getEndpoints() {
+export function getEndpoints(): Promise<{ endpoints: EndpointOutput[] }> {
   return request('/model-endpoints');
 }
 
-export function createEndpoint(data) {
+export function createEndpoint(data: EndpointInput): Promise<{ endpoint: EndpointOutput }> {
   return request('/model-endpoints', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export function updateEndpoint(id, data) {
+export function updateEndpoint(id: string, data: EndpointInput): Promise<{ endpoint: EndpointOutput }> {
   return request(`/model-endpoints/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
-export function deleteEndpoint(id) {
+export function deleteEndpoint(id: string): Promise<{ success: boolean }> {
   return request(`/model-endpoints/${id}`, { method: 'DELETE' });
 }
 
-export function activateEndpoint(id) {
+export function activateEndpoint(id: string): Promise<{ success: boolean }> {
   return request(`/model-endpoints/${id}/activate`, { method: 'PUT' });
 }
 
-export function generateImage(data) {
+/* Image APIs */
+export function generateImage(data: ImageGenerateParams): Promise<GenerateImageResult> {
   return request('/images/generate', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-// 图片对话发消息：保存用户消息 → 生成图片 → 保存 assistant 消息
-export function sendImageMessage(conversationId, data) {
+export function sendImageMessage(
+  conversationId: string,
+  data: Record<string, unknown>
+): Promise<{ userMessage: Message; assistantMessage: Message }> {
   return request(`/conversations/${conversationId}/images`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -189,29 +209,37 @@ export function sendImageMessage(conversationId, data) {
 /**
  * Send a message and receive SSE stream response.
  * Returns an object with an abort method.
- * Calls onChunk for each data chunk and onDone when the stream ends.
- * agent 参数可选：传值时手动指定，不传时由服务端自动路由。
- *
- * ReAct 事件回调（可选）：
- *   onThought(content)        — AI 推理过程（type: thought）
- *   onToolCallStart(data)     — 工具调用开始（type: tool_call_start）
- *   onToolCallEnd(data)       — 工具调用成功（type: tool_call_end）
- *   onToolCallError(data)     — 工具调用失败/重试（type: tool_call_error）
- *   onAnswerReady(content)    — 最终回答已在 thought 中流完，将最后一段 thought 提升为消息正文
  */
-export function sendMessageStream(conversationId, content, {
-  onChunk, onReasoning, onDone, onError, onTitle, onRouting,
-  onThought, onToolCallStart, onToolCallEnd, onToolCallError,
-  onAnswerReady,
-  regenerate,
-}, agent) {
+export function sendMessageStream(
+  conversationId: string,
+  content: string,
+  callbacks: SendCallbacks & { regenerate?: boolean },
+  agent?: string,
+): StreamReturn;
+export function sendMessageStream(
+  conversationId: string,
+  content: string,
+  callbacks: SendCallbacks,
+  agent?: string,
+  options?: SendOptions,
+): StreamReturn;
+export function sendMessageStream(
+  conversationId: string,
+  content: string,
+  callbacks: SendCallbacks,
+  agent?: string,
+  options?: SendOptions,
+): StreamReturn {
   const controller = new AbortController();
-  const body = { content, regenerate };
+  const body: Record<string, unknown> = { content };
+  if (options?.regenerate) {
+    body.regenerate = true;
+  }
   if (agent !== undefined) {
     body.agent = agent;
   }
 
-  let _lastThought = '';  // 暂存最后一段 thought 的内容，用于 answer_ready 时提升为回答
+  let _lastThought = '';
 
   fetch(`${BASE_URL}/conversations/${conversationId}/messages`, {
     method: 'POST',
@@ -224,7 +252,7 @@ export function sendMessageStream(conversationId, content, {
         const err = await response.json().catch(() => ({ error: response.statusText }));
         throw new Error(err.error || `HTTP ${response.status}`);
       }
-      const reader = response.body.getReader();
+      const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
 
@@ -243,35 +271,32 @@ export function sendMessageStream(conversationId, content, {
             try {
               const data = JSON.parse(dataStr);
 
-              // ReAct 事件分发（type 字段）
               if (data.type) {
                 switch (data.type) {
                   case 'thought':
                     if (data.content) _lastThought += data.content;
-                    if (onThought) onThought(data.content || '');
-                    if (data.reasoning && onReasoning) onReasoning(data.reasoning);
+                    if (data.content && callbacks.onThought) callbacks.onThought(data.content);
+                    if (data.reasoning && callbacks.onReasoning) callbacks.onReasoning(data.reasoning);
                     break;
                   case 'tool_call_start':
-                    _lastThought = '';  // 清空，只保留最后一段（可能是最终回答）
-                    if (onToolCallStart) onToolCallStart(data);
+                    _lastThought = '';
+                    if (callbacks.onToolCallStart) callbacks.onToolCallStart(data);
                     break;
                   case 'tool_call_end':
                     _lastThought = '';
-                    if (onToolCallEnd) onToolCallEnd(data);
+                    if (callbacks.onToolCallEnd) callbacks.onToolCallEnd(data);
                     break;
                   case 'tool_call_error':
                     _lastThought = '';
-                    if (onToolCallError) onToolCallError(data);
+                    if (callbacks.onToolCallError) callbacks.onToolCallError(data);
                     break;
                   case 'answer':
-                    if (data.content && onChunk) onChunk(data.content);
-                    if (data.reasoning && onReasoning) onReasoning(data.reasoning);
+                    if (data.content && callbacks.onChunk) callbacks.onChunk(data.content);
+                    if (data.reasoning && callbacks.onReasoning) callbacks.onReasoning(data.reasoning);
                     break;
                   case 'answer_ready':
-                    // 最终回答已在 thought 中流完，将最后一段 thought 提升为消息正文
-                    // 不重复推送到 ReAct 步骤（onThought 已推送），只补充到消息内容
-                    if (_lastThought && onAnswerReady) {
-                      onAnswerReady(_lastThought);
+                    if (_lastThought && callbacks.onAnswerReady) {
+                      callbacks.onAnswerReady(_lastThought);
                     }
                     _lastThought = '';
                     break;
@@ -279,15 +304,14 @@ export function sendMessageStream(conversationId, content, {
                 continue;
               }
 
-              // 无 type 字段：兼容 V1.5 及之前格式
               if (data.content) {
-                onChunk(data.content);
+                callbacks.onChunk?.(data.content);
               }
-              if (data.reasoning && onReasoning) {
-                onReasoning(data.reasoning);
+              if (data.reasoning && callbacks.onReasoning) {
+                callbacks.onReasoning(data.reasoning);
               }
-              if (data.agent && onRouting) {
-                onRouting(data.agent);
+              if (data.agent && callbacks.onRouting) {
+                callbacks.onRouting(data.agent);
               }
             } catch {
               // ignore parse errors for partial lines
@@ -296,46 +320,35 @@ export function sendMessageStream(conversationId, content, {
         }
       }
 
-      // process remaining buffer
       if (buffer.startsWith('data: ')) {
         const dataStr = buffer.slice(6).trim();
         if (dataStr !== '[DONE]') {
           try {
             const data = JSON.parse(dataStr);
-
             if (data.type) {
               switch (data.type) {
                 case 'thought':
-                  if (onThought) onThought(data.content || '');
+                  if (callbacks.onThought) callbacks.onThought(data.content || '');
                   break;
                 case 'tool_call_start':
-                  if (onToolCallStart) onToolCallStart(data);
+                  if (callbacks.onToolCallStart) callbacks.onToolCallStart(data);
                   break;
                 case 'tool_call_end':
-                  if (onToolCallEnd) onToolCallEnd(data);
+                  if (callbacks.onToolCallEnd) callbacks.onToolCallEnd(data);
                   break;
                 case 'tool_call_error':
-                  if (onToolCallError) onToolCallError(data);
+                  if (callbacks.onToolCallError) callbacks.onToolCallError(data);
                   break;
                 case 'answer':
-                  if (data.content && onChunk) onChunk(data.content);
+                  if (data.content && callbacks.onChunk) callbacks.onChunk(data.content);
                   break;
                 case 'answer_ready':
-                  if (_lastThought && onAnswerReady) onAnswerReady(_lastThought);
+                  if (_lastThought && callbacks.onAnswerReady) callbacks.onAnswerReady(_lastThought);
                   _lastThought = '';
                   break;
               }
-              return;
-            }
-
-            if (data.content) {
-              onChunk(data.content);
-            }
-            if (data.reasoning && onReasoning) {
-              onReasoning(data.reasoning);
-            }
-            if (data.agent && onRouting) {
-              onRouting(data.agent);
+            } else {
+              if (data.content) callbacks.onChunk?.(data.content);
             }
           } catch {
             // ignore
@@ -343,11 +356,11 @@ export function sendMessageStream(conversationId, content, {
         }
       }
 
-      onDone();
+      callbacks.onDone?.();
     })
     .catch((err) => {
       if (err.name === 'AbortError') return;
-      onError(err);
+      callbacks.onError?.(err);
     });
 
   return { abort: () => controller.abort() };

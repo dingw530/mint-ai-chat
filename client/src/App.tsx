@@ -8,11 +8,12 @@ import {
   renameConversation,
   getEndpoints,
 } from './services/api';
+import type { Conversation, EndpointOutput } from './types';
 
 const ImageChatArea = lazy(() => import('./components/ImageChatArea'));
 const Settings = lazy(() => import('./components/Settings'));
 
-function getInitialTheme() {
+function getInitialTheme(): string {
   try {
     return localStorage.getItem('mint-theme') || 'mint';
   } catch {
@@ -21,16 +22,16 @@ function getInitialTheme() {
 }
 
 export default function App() {
-  const [conversations, setConversations] = useState([]);
-  const [activeId, setActiveId] = useState(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
-  const [endpoints, setEndpoints] = useState([]);
-  const [activeEndpoint, setActiveEndpoint] = useState(null);
+  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
+  const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
   const [activeView, setActiveView] = useState('chat');
 
-  const fetchConversations = useCallback(async (type) => {
+  const fetchConversations = useCallback(async (type?: string) => {
     try {
       const data = await getConversations(type);
       setConversations(data.conversations || []);
@@ -46,7 +47,7 @@ export default function App() {
       const data = await getEndpoints();
       const list = data.endpoints || [];
       setEndpoints(list);
-      const active = list.find((ep) => ep.isActive) || null;
+      const active = list.find((ep: EndpointOutput) => ep.isActive) || null;
       setActiveEndpoint(active);
     } catch (err) {
       console.error('Failed to fetch endpoints:', err);
@@ -54,16 +55,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const convType = activeView === 'image' ? 'image' : undefined;
-    fetchConversations(convType);
+    fetchConversations(activeView === 'image' ? 'image' : undefined);
     fetchEndpoints();
   }, [fetchConversations, fetchEndpoints, activeView]);
 
-  // 加载完成后，有对话则自动选中第一个，无对话则清空 activeId
   useEffect(() => {
     if (!loading) {
       if (conversations.length > 0) {
-        // 当前 activeId 不在列表中时，选中第一个
         if (!activeId || !conversations.find((c) => c.id === activeId)) {
           setActiveId(conversations[0].id);
         }
@@ -73,7 +71,6 @@ export default function App() {
     }
   }, [loading, conversations, activeId]);
 
-  // 主题切换：应用到 document + 持久化
   useEffect(() => {
     document.documentElement.classList.remove('theme-mint', 'theme-ocean', 'theme-snow', 'theme-anthropic', 'theme-reddot');
     document.documentElement.classList.add(`theme-${theme}`);
@@ -82,7 +79,7 @@ export default function App() {
     } catch { /* ignore */ }
   }, [theme]);
 
-  const handleCreate = async (title) => {
+  const handleCreate = async (title?: string): Promise<string | undefined> => {
     try {
       const convType = activeView === 'image' ? 'image' : undefined;
       const data = await createConversation(title || 'New Conversation', convType);
@@ -94,7 +91,7 @@ export default function App() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     try {
       await deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -106,7 +103,7 @@ export default function App() {
     }
   };
 
-  const handleRename = async (id, title) => {
+  const handleRename = async (id: string, title: string) => {
     try {
       const data = await renameConversation(id, title);
       setConversations((prev) =>
@@ -117,7 +114,7 @@ export default function App() {
     }
   };
 
-  const handleTitleUpdate = useCallback((convId, title) => {
+  const handleTitleUpdate = useCallback((convId: string, title: string) => {
     setConversations((prev) =>
       prev.map((c) => (c.id === convId ? { ...c, title } : c))
     );
@@ -127,7 +124,7 @@ export default function App() {
     try {
       const data = await getEndpoints();
       setEndpoints(data.endpoints || []);
-      const active = (data.endpoints || []).find((ep) => ep.isActive) || null;
+      const active = (data.endpoints || []).find((ep: EndpointOutput) => ep.isActive) || null;
       setActiveEndpoint(active);
     } catch { /* ignore */ }
   }, []);
@@ -163,7 +160,7 @@ export default function App() {
           onOpenSettings={() => setShowSettings(true)}
           onAutoCreate={handleCreate}
           onTitleUpdate={handleTitleUpdate}
-          onUpdateConversation={(convId, updates) => {
+          onUpdateConversation={(convId: string, updates: Partial<Conversation>) => {
             setConversations((prev) =>
               prev.map((c) => (c.id === convId ? { ...c, ...updates } : c))
             );

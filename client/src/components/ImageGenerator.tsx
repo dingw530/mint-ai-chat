@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
 import { generateImage } from '../services/api';
+import type { EndpointOutput, GenerateImageResult } from '../types';
 
 const SIZES = [
   '1024x1024',
@@ -22,16 +23,21 @@ const FORMAT_OPTIONS = [
   { value: 'webp', label: 'WebP' },
 ];
 
-export default function ImageGenerator({ endpoints, onOpenSettings }) {
-  const [imageEndpoints, setImageEndpoints] = useState([]);
+interface ImageGeneratorProps {
+  endpoints: EndpointOutput[];
+  onOpenSettings: () => void;
+}
+
+export default function ImageGenerator({ endpoints, onOpenSettings }: ImageGeneratorProps) {
+  const [imageEndpoints, setImageEndpoints] = useState<EndpointOutput[]>([]);
   const [selectedEndpointId, setSelectedEndpointId] = useState('');
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [quality, setQuality] = useState('auto');
   const [format, setFormat] = useState('png');
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
+  const [result, setResult] = useState<GenerateImageResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const imageEps = (endpoints || []).filter((ep) => ep.category === 'image');
@@ -59,13 +65,13 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
       });
       setResult(data);
     } catch (err) {
-      setError(err.message || '生成失败');
+      setError((err as Error).message || '生成失败');
     } finally {
       setGenerating(false);
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       handleGenerate();
     }
@@ -96,9 +102,7 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
       </div>
 
       <div className="image-gen-content">
-        {/* 输入面板 */}
         <div className="image-gen-panel">
-          {/* 模型选择 */}
           <div className="form-group">
             <label>图片模型</label>
             <select
@@ -114,7 +118,6 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
             </select>
           </div>
 
-          {/* Prompt */}
           <div className="form-group">
             <label>描述提示词</label>
             <textarea
@@ -130,7 +133,6 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
             </p>
           </div>
 
-          {/* 参数配置 */}
           <div className="image-gen-params">
             <div className="form-group">
               <label>尺寸</label>
@@ -158,7 +160,6 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
             </div>
           </div>
 
-          {/* 生成按钮 */}
           <button
             className="btn-primary image-gen-btn"
             onClick={handleGenerate}
@@ -182,7 +183,6 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
           </button>
         </div>
 
-        {/* 错误信息 */}
         {error && (
           <div className="image-gen-error">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
@@ -193,7 +193,6 @@ export default function ImageGenerator({ endpoints, onOpenSettings }) {
           </div>
         )}
 
-        {/* 结果展示 */}
         {result && result.data && result.data.length > 0 && (
           <div className="image-gen-result">
             <div className="image-gen-result-header">

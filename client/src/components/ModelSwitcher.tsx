@@ -1,12 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { activateEndpoint } from '../services/api';
+import type { EndpointOutput } from '../types';
 
-export default function ModelSwitcher({ activeEndpoint, endpoints, onEndpointChange }) {
+interface ModelSwitcherProps {
+  activeEndpoint: EndpointOutput | null;
+  endpoints: EndpointOutput[];
+  onEndpointChange: () => Promise<void>;
+}
+
+export default function ModelSwitcher({ activeEndpoint, endpoints, onEndpointChange }: ModelSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
-  const [dropdownStyle, setDropdownStyle] = useState({});
-  const btnRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState<Record<string, string | number>>({});
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open && btnRef.current) {
@@ -20,7 +27,7 @@ export default function ModelSwitcher({ activeEndpoint, endpoints, onEndpointCha
     }
   }, [open]);
 
-  const handleSelect = (ep) => {
+  const handleSelect = (ep: EndpointOutput) => {
     if (switching) return;
     if (ep.id === activeEndpoint?.id) {
       setOpen(false);
@@ -28,9 +35,7 @@ export default function ModelSwitcher({ activeEndpoint, endpoints, onEndpointCha
     }
     setSwitching(true);
     activateEndpoint(ep.id)
-      .then(() => {
-        if (onEndpointChange) return onEndpointChange();
-      })
+      .then(() => onEndpointChange())
       .then(() => {
         setOpen(false);
       })

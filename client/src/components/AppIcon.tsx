@@ -1,6 +1,11 @@
 import iconUrl from '../styles/icon.svg';
 
-export default function AppIcon({ size = 36, className = '' }) {
+interface AppIconProps {
+  size?: number;
+  className?: string;
+}
+
+export default function AppIcon({ size = 36, className = '' }: AppIconProps) {
   return (
     <div
       className={`app-icon ${className}`.trim()}

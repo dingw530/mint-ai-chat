@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReActStep as ReActStepData } from '../types';
 
 function ThoughtIcon() {
   return (
@@ -16,17 +17,23 @@ function ToolIcon() {
   );
 }
 
-/**
- * ReActStep — 渲染单步 ReAct 推理过程
- * type: 'thought' | 'tool_call_start' | 'tool_call_end' | 'tool_call_error'
- */
-export default function ReActStep({ step, isLast }) {
+function truncate(str: string | undefined | null, max: number): string | undefined | null {
+  if (!str || str.length <= max) return str;
+  return str.substring(0, max) + '...';
+}
+
+interface ReActStepProps {
+  step: ReActStepData;
+  isLast: boolean;
+}
+
+export default function ReActStep({ step, isLast }: ReActStepProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const { type, content, toolName, arguments: args, result, error, retryCount, duration } = step;
+  const { type, content, toolName, arguments: args, result, error, retryCount, duration } = step as ReActStepData & Record<string, unknown>;
   const isExpandable = type === 'tool_call_end' && result;
 
-  let icon, label, body;
+  let icon, label, body: React.ReactNode;
 
   switch (type) {
     case 'thought':
@@ -47,7 +54,7 @@ export default function ReActStep({ step, isLast }) {
 
     case 'tool_call_end':
       icon = <ToolIcon />;
-      label = `工具返回: ${toolName || ''}${duration ? ` (${(duration / 1000).toFixed(1)}s)` : ''}`;
+      label = `工具返回: ${toolName || ''}${duration ? ` (${(Number(duration) / 1000).toFixed(1)}s)` : ''}`;
       body = (
         <div className="react-tool-result">
           <pre>{truncate(result, 500)}</pre>
@@ -81,9 +88,4 @@ export default function ReActStep({ step, isLast }) {
       {(!collapsed && body) && <div className="react-step-body">{body}</div>}
     </div>
   );
-}
-
-function truncate(str, max) {
-  if (!str || str.length <= max) return str;
-  return str.substring(0, max) + '...';
 }

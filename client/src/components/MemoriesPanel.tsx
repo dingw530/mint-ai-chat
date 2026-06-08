@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getMemories, createMemory, updateMemory, deleteMemory } from '../services/api';
+import type { Memory } from '../types';
 
 const CATEGORIES = [
   { id: '', label: '全部', icon: '📋' },
@@ -11,7 +12,7 @@ const CATEGORIES = [
   { id: 'general', label: '通用', icon: '📝' },
 ];
 
-const CATEGORY_LABELS = {
+const CATEGORY_LABELS: Record<string, string> = {
   personal: '个人信息',
   preference: '偏好',
   feedback: '反馈',
@@ -22,27 +23,31 @@ const CATEGORY_LABELS = {
 
 const emptyForm = { content: '', category: '' };
 
-function formatDateTime(isoStr) {
+function formatDateTime(isoStr: string | undefined | null): string {
   if (!isoStr) return '';
   const d = new Date(isoStr);
-  const pad = (n) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function getBadgeLabel(category) {
-  return CATEGORY_LABELS[category] || category || '通用';
+function getBadgeLabel(category: string | undefined | null): string {
+  return CATEGORY_LABELS[category || ''] || category || '通用';
 }
 
-function getBadgeClass(category) {
+function getBadgeClass(category: string | undefined | null): string {
   const cls = category || 'general';
   return CATEGORY_LABELS[cls] ? cls : 'general';
 }
 
-export default function MemoriesPanel({ onToast }) {
-  const [memories, setMemories] = useState([]);
+interface MemoriesPanelProps {
+  onToast?: (type: 'success' | 'error', message: string) => void;
+}
+
+export default function MemoriesPanel({ onToast }: MemoriesPanelProps) {
+  const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('');
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
 
@@ -52,7 +57,7 @@ export default function MemoriesPanel({ onToast }) {
       const data = await getMemories(activeCategory);
       setMemories(Array.isArray(data) ? data : []);
     } catch (err) {
-      onToast?.('error', `加载记忆失败: ${err.message}`);
+      onToast?.('error', `加载记忆失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -62,7 +67,7 @@ export default function MemoriesPanel({ onToast }) {
     fetchMemories();
   }, [fetchMemories]);
 
-  const handleCategoryChange = (catId) => {
+  const handleCategoryChange = (catId: string) => {
     setActiveCategory(catId);
   };
 
@@ -71,7 +76,7 @@ export default function MemoriesPanel({ onToast }) {
     setForm({ ...emptyForm });
   };
 
-  const handleEdit = (memory) => {
+  const handleEdit = (memory: Memory) => {
     setEditingId(memory.id);
     setForm({
       content: memory.content || '',
@@ -84,7 +89,7 @@ export default function MemoriesPanel({ onToast }) {
     setForm({ ...emptyForm });
   };
 
-  const validate = () => {
+  const validate = (): string | null => {
     if (!form.content.trim()) return '请输入记忆内容';
     return null;
   };
@@ -97,28 +102,29 @@ export default function MemoriesPanel({ onToast }) {
     }
     setSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         content: form.content.trim(),
-        ...(form.category ? { category: form.category } : {}),
       };
+      if (form.category) payload.category = form.category;
+
       if (editingId === 'new') {
         await createMemory(payload);
         onToast?.('success', '记忆已创建');
       } else {
-        await updateMemory(editingId, payload);
+        await updateMemory(editingId as string, payload);
         onToast?.('success', '记忆已更新');
       }
       setEditingId(null);
       setForm({ ...emptyForm });
       fetchMemories();
     } catch (err) {
-      onToast?.('error', `保存失败: ${err.message}`);
+      onToast?.('error', `保存失败: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('确定删除此记忆？')) return;
     try {
       await deleteMemory(id);
@@ -129,7 +135,7 @@ export default function MemoriesPanel({ onToast }) {
       }
       fetchMemories();
     } catch (err) {
-      onToast?.('error', `删除失败: ${err.message}`);
+      onToast?.('error', `删除失败: ${(err as Error).message}`);
     }
   };
 
@@ -141,7 +147,6 @@ export default function MemoriesPanel({ onToast }) {
 
   return (
     <div className="memories-panel">
-      {/* Category Filter Bar */}
       <div className="category-bar">
         {CATEGORIES.map((cat) => (
           <button
@@ -154,14 +159,12 @@ export default function MemoriesPanel({ onToast }) {
         ))}
       </div>
 
-      {/* Add Button (hide when editing a new item) */}
       {editingId !== 'new' && (
         <button className="add-memory-btn" onClick={handleNew}>
           + 添加记忆
         </button>
       )}
 
-      {/* Inline Edit Form */}
       {isFormVisible && (
         <div className="memory-form" style={{ marginBottom: 16 }}>
           <div className="form-group">
@@ -196,7 +199,6 @@ export default function MemoriesPanel({ onToast }) {
         </div>
       )}
 
-      {/* Memory List */}
       {memories.length === 0 ? (
         <div className="memory-empty">
           <p>暂无记忆</p>

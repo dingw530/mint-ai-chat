@@ -1,20 +1,23 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ReactNode } from 'react';
 
-function extractText(node) {
+function extractText(node: ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractText).join('');
-  if (node?.props?.children) return extractText(node.props.children);
+  const el = node as { props?: { children?: ReactNode } } | null;
+  if (el?.props?.children) return extractText(el.props.children);
   return '';
 }
 
-export default function CodeBlock({ children, className }) {
+interface CodeBlockProps {
+  children: ReactNode;
+  className?: string;
+}
+
+export default function CodeBlock({ children, className }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const codeText = extractText(children);
   const hasLangClass = className && (className.includes('language-') || className.includes('hljs'));
-  // Fenced code blocks (even without language) contain newlines;
-  // inline code almost never does. This distinguishes them since
-  // we strip the <pre> wrapper in MarkdownRenderer.
   const isBlock = hasLangClass || codeText.includes('\n');
 
   if (!isBlock) {

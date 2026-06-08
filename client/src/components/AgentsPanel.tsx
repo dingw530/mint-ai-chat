@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchAgents, createAgent, updateAgent, deleteAgent, getMcpServers } from '../services/api';
+import type { Agent, McpServer } from '../types';
 
-const emptyForm = { name: '', description: '', systemPrompt: '', mcpServerIds: [], triggerKeywords: '' };
+const emptyForm = { name: '', description: '', systemPrompt: '', mcpServerIds: [] as string[], triggerKeywords: '' };
 
-export default function AgentsPanel({ onToast }) {
-  const [agents, setAgents] = useState([]);
+interface AgentsPanelProps {
+  onToast?: (type: 'success' | 'error', message: string) => void;
+}
+
+export default function AgentsPanel({ onToast }: AgentsPanelProps) {
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
-  const [connectedServers, setConnectedServers] = useState([]);
+  const [connectedServers, setConnectedServers] = useState<McpServer[]>([]);
 
   const loadAgents = useCallback(async () => {
     setLoading(true);
@@ -17,7 +22,7 @@ export default function AgentsPanel({ onToast }) {
       const data = await fetchAgents();
       setAgents(data.agents || []);
     } catch (err) {
-      onToast?.('error', `加载 Agent 失败: ${err.message}`);
+      onToast?.('error', `加载 Agent 失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -43,7 +48,7 @@ export default function AgentsPanel({ onToast }) {
     setForm({ ...emptyForm });
   };
 
-  const handleEdit = (agent) => {
+  const handleEdit = (agent: Agent) => {
     setEditingId(agent.id);
     setForm({
       name: agent.name || '',
@@ -59,7 +64,7 @@ export default function AgentsPanel({ onToast }) {
     setForm({ ...emptyForm });
   };
 
-  const toggleServer = (serverName) => {
+  const toggleServer = (serverName: string) => {
     setForm((prev) => {
       const exists = prev.mcpServerIds.includes(serverName);
       return {
@@ -71,7 +76,7 @@ export default function AgentsPanel({ onToast }) {
     });
   };
 
-  const validate = () => {
+  const validate = (): string | null => {
     if (!form.name.trim()) return '请输入 Agent 名称';
     return null;
   };
@@ -97,20 +102,20 @@ export default function AgentsPanel({ onToast }) {
       if (editingId === 'new') {
         await createAgent(payload);
       } else {
-        await updateAgent(editingId, payload);
+        await updateAgent(editingId as string, payload);
       }
       onToast?.('success', editingId === 'new' ? 'Agent 创建成功' : 'Agent 更新成功');
       setEditingId(null);
       setForm({ ...emptyForm });
       loadAgents();
     } catch (err) {
-      onToast?.('error', `保存失败: ${err.message}`);
+      onToast?.('error', `保存失败: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('确定删除此 Agent？')) return;
     try {
       await deleteAgent(id);
@@ -121,12 +126,11 @@ export default function AgentsPanel({ onToast }) {
       }
       loadAgents();
     } catch (err) {
-      onToast?.('error', `删除失败: ${err.message}`);
+      onToast?.('error', `删除失败: ${(err as Error).message}`);
     }
   };
 
-  // 计算每个 Server 的工具数量
-  const getToolCount = (serverName) => {
+  const getToolCount = (serverName: string): number => {
     const server = connectedServers.find((s) => s.name === serverName);
     return server?.tools?.length || 0;
   };

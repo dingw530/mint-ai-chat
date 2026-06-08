@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
 import { getEndpoints, createEndpoint, updateEndpoint, deleteEndpoint, activateEndpoint } from '../services/api';
+import type { EndpointOutput, EndpointInput } from '../types';
 
-const emptyForm = { name: '', apiUrl: '', apiKey: '', modelId: '', apiType: 'openai-chat', category: 'text' };
+const emptyForm: EndpointInput & { apiType: string } = { name: '', apiUrl: '', apiKey: '', modelId: '', apiType: 'openai-chat', category: 'text' };
 
-const CATEGORY_LABELS = {
+const CATEGORY_LABELS: Record<string, string> = {
   text: '文本对话',
   image: '图片生成',
 };
 
-const API_TYPE_LABELS = {
+const API_TYPE_LABELS: Record<string, string> = {
   'openai-chat': 'OpenAI Chat',
   anthropic: 'Anthropic API',
   'openai-responses': 'OpenAI Responses',
 };
 
-function DetailModal({ endpoint, onClose }) {
+function DetailModal({ endpoint, onClose }: { endpoint: EndpointOutput; onClose: () => void }) {
   if (!endpoint) return null;
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -62,20 +63,24 @@ function DetailModal({ endpoint, onClose }) {
   );
 }
 
-export default function EndpointsPanel({ onToast }) {
-  const [endpoints, setEndpoints] = useState([]);
+interface EndpointsPanelProps {
+  onToast?: (type: 'success' | 'error', message: string) => void;
+}
+
+export default function EndpointsPanel({ onToast }: EndpointsPanelProps) {
+  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [detailTarget, setDetailTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState<EndpointOutput | null>(null);
+  const [detailTarget, setDetailTarget] = useState<EndpointOutput | null>(null);
 
   const load = () => {
     setLoading(true);
     getEndpoints()
       .then((data) => setEndpoints(data.endpoints || []))
-      .catch((err) => onToast && onToast('error', `加载端点失败: ${err.message}`))
+      .catch((err) => onToast && onToast('error', `加载端点失败: ${(err as Error).message}`))
       .finally(() => setLoading(false));
   };
 
@@ -86,12 +91,12 @@ export default function EndpointsPanel({ onToast }) {
     setForm({ ...emptyForm });
   };
 
-  const openEdit = (ep) => {
+  const openEdit = (ep: EndpointOutput) => {
     setEditingId(ep.id);
     setForm({ name: ep.name, apiUrl: ep.apiUrl, apiKey: '', modelId: ep.modelId, apiType: ep.apiType || 'openai-chat', category: ep.category || 'text' });
   };
 
-  const openCopy = (ep) => {
+  const openCopy = (ep: EndpointOutput) => {
     setEditingId('__new__');
     setForm({ name: ep.name + ' (副本)', apiUrl: ep.apiUrl, apiKey: '', modelId: ep.modelId, apiType: ep.apiType || 'openai-chat', category: ep.category || 'text' });
   };
@@ -112,13 +117,13 @@ export default function EndpointsPanel({ onToast }) {
         await createEndpoint(form);
         onToast && onToast('success', '端点已创建');
       } else {
-        await updateEndpoint(editingId, form);
+        await updateEndpoint(editingId as string, form);
         onToast && onToast('success', '端点已更新');
       }
       closeForm();
       load();
     } catch (err) {
-      onToast && onToast('error', `保存失败: ${err.message}`);
+      onToast && onToast('error', `保存失败: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -133,18 +138,18 @@ export default function EndpointsPanel({ onToast }) {
       setDeleteTarget(null);
       load();
     } catch (err) {
-      onToast && onToast('error', `删除失败: ${err.message}`);
+      onToast && onToast('error', `删除失败: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleActivate = async (id) => {
+  const handleActivate = async (id: string) => {
     try {
       await activateEndpoint(id);
       load();
     } catch (err) {
-      onToast && onToast('error', `激活失败: ${err.message}`);
+      onToast && onToast('error', `激活失败: ${(err as Error).message}`);
     }
   };
 
@@ -205,12 +210,10 @@ export default function EndpointsPanel({ onToast }) {
         </table>
       )}
 
-      {/* 详情弹窗 */}
       {detailTarget && (
         <DetailModal endpoint={detailTarget} onClose={() => setDetailTarget(null)} />
       )}
 
-      {/* 新增/编辑弹窗 */}
       {editingId && (
         <div className="modal-overlay" onClick={closeForm}>
           <div className="tool-modal" onClick={(e) => e.stopPropagation()}>
@@ -234,15 +237,15 @@ export default function EndpointsPanel({ onToast }) {
                   <option value="anthropic">Anthropic Messages API</option>
                   <option value="openai-responses">OpenAI Responses API</option>
                 </select>
-                <p className="form-help">选择 API 类型后，服务端会自动适配请求格式和响应解析。Anthropic 类型填写 base URL 即可（如 https://api.deepseek.com/anthropic 或 https://api.anthropic.com/v1），Adapter 会自动追加 /v1/messages。</p>
+                <p className="form-help">选择 API 类型后，服务端会自动适配请求格式和响应解析。</p>
               </div>
               <div className="form-group">
                 <label htmlFor="epCategory">分类</label>
-                <select id="epCategory" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ width: '100%', padding: '9px 13px', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, outline: 'none', background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                <select id="epCategory" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as 'text' | 'image' })} style={{ width: '100%', padding: '9px 13px', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, outline: 'none', background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer' }}>
                   <option value="text">文本对话</option>
                   <option value="image">图片生成</option>
                 </select>
-                <p className="form-help">选择"图片生成"后，该端点不会出现在聊天模型选择器中，仅在图片生成入口可用。</p>
+                <p className="form-help">选择"图片生成"后，该端点不会出现在聊天模型选择器中。</p>
               </div>
               <div className="form-group">
                 <label htmlFor="epKey">API Key <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>(选填)</span></label>
@@ -261,7 +264,6 @@ export default function EndpointsPanel({ onToast }) {
         </div>
       )}
 
-      {/* 删除确认弹窗 */}
       {deleteTarget && (
         <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="tool-modal" onClick={(e) => e.stopPropagation()}>

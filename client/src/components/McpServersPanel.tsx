@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getMcpServers, createMcpServer, updateMcpServer, deleteMcpServer, restartMcpServer } from '../services/api';
+import type { McpServer, McpTool } from '../types';
 
 const JSON_TEMPLATE = `{
   "mcpServers": {
@@ -13,7 +14,7 @@ const JSON_TEMPLATE = `{
   }
 }`;
 
-function StatusDot({ status, error }) {
+function StatusDot({ status, error }: { status: string; error?: string | null }) {
   const dotClass = status === 'connected' ? 'status-dot connected'
     : status === 'error' ? 'status-dot error'
     : 'status-dot inactive';
@@ -24,10 +25,12 @@ function StatusDot({ status, error }) {
   );
 }
 
-const emptyForm = { name: '', command: '', args: '', env: [] };
+interface EnvRow { key: string; value: string; }
 
-function ToolDetailModal({ server, onClose }) {
-  const [expandedTool, setExpandedTool] = useState(null);
+const emptyForm = { name: '', command: '', args: '', env: [] as EnvRow[] };
+
+function ToolDetailModal({ server, onClose }: { server: McpServer; onClose: () => void }) {
+  const [expandedTool, setExpandedTool] = useState<string | null>(null);
   const tools = server.tools || [];
 
   return (
@@ -56,9 +59,9 @@ function ToolDetailModal({ server, onClose }) {
                     {expandedTool === tool.name ? '▲' : '▼'}
                   </span>
                 </div>
-                {expandedTool === tool.name && tool.inputSchema && (
+                {expandedTool === tool.name && (tool as any).inputSchema && (
                   <pre className="tool-schema">
-                    {JSON.stringify(tool.inputSchema, null, 2)}
+                    {JSON.stringify((tool as any).inputSchema, null, 2)}
                   </pre>
                 )}
               </div>
@@ -70,17 +73,21 @@ function ToolDetailModal({ server, onClose }) {
   );
 }
 
-export default function McpServersPanel({ onToast }) {
-  const [servers, setServers] = useState([]);
+interface McpServersPanelProps {
+  onToast?: (type: 'success' | 'error', message: string) => void;
+}
+
+export default function McpServersPanel({ onToast }: McpServersPanelProps) {
+  const [servers, setServers] = useState<McpServer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState('');
-  const [restarting, setRestarting] = useState(null);
-  const [detailServer, setDetailServer] = useState(null);
+  const [restarting, setRestarting] = useState<string | null>(null);
+  const [detailServer, setDetailServer] = useState<McpServer | null>(null);
 
   const loadServers = useCallback(async () => {
     setLoading(true);
@@ -88,7 +95,7 @@ export default function McpServersPanel({ onToast }) {
       const data = await getMcpServers();
       setServers(data.servers || []);
     } catch (err) {
-      onToast?.('error', `加载 MCP 服务失败: ${err.message}`);
+      onToast?.('error', `加载 MCP 服务失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -106,7 +113,7 @@ export default function McpServersPanel({ onToast }) {
     setJsonError('');
   };
 
-  const handleEdit = (server) => {
+  const handleEdit = (server: McpServer) => {
     setEditingId(server.id);
     setForm({
       name: server.name || '',
@@ -128,14 +135,14 @@ export default function McpServersPanel({ onToast }) {
     setForm((prev) => ({ ...prev, env: [...prev.env, { key: '', value: '' }] }));
   };
 
-  const removeEnvRow = (idx) => {
+  const removeEnvRow = (idx: number) => {
     setForm((prev) => ({
       ...prev,
       env: prev.env.filter((_, i) => i !== idx),
     }));
   };
 
-  const updateEnv = (idx, field, val) => {
+  const updateEnv = (idx: number, field: 'key' | 'value', val: string) => {
     setForm((prev) => {
       const env = [...prev.env];
       env[idx] = { ...env[idx], [field]: val };
@@ -143,7 +150,7 @@ export default function McpServersPanel({ onToast }) {
     });
   };
 
-  const validate = () => {
+  const validate = (): string | null => {
     if (!form.name.trim()) return '请输入服务名称';
     if (!form.command.trim()) return '请输入启动命令';
     for (const [i, row] of form.env.entries()) {
@@ -156,7 +163,7 @@ export default function McpServersPanel({ onToast }) {
 
   const handleJsonSave = async () => {
     setJsonError('');
-    let parsed;
+    let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(jsonText);
     } catch {
@@ -164,16 +171,16 @@ export default function McpServersPanel({ onToast }) {
       return;
     }
 
-    const servers = parsed.mcpServers || parsed;
-    if (typeof servers !== 'object' || Array.isArray(servers)) {
+    const serversConfig = (parsed.mcpServers || parsed) as Record<string, unknown>;
+    if (typeof serversConfig !== 'object' || Array.isArray(serversConfig)) {
       setJsonError('需要 mcpServers 对象或服务配置对象');
       return;
     }
 
     setSaving(true);
     let count = 0;
-    for (const [name, cfg] of Object.entries(servers)) {
-      const conf = cfg;
+    for (const [name, cfg] of Object.entries(serversConfig)) {
+      const conf = cfg as Record<string, unknown>;
       if (!conf || typeof conf !== 'object' || !conf.command) {
         setJsonError(`服务 "${name}" 缺少 command 字段`);
         setSaving(false);
@@ -182,13 +189,13 @@ export default function McpServersPanel({ onToast }) {
       try {
         await createMcpServer({
           name,
-          command: conf.command,
-          args: conf.args || [],
-          env: conf.env || {},
+          command: conf.command as string,
+          args: (conf.args as string[]) || [],
+          env: (conf.env as Record<string, string>) || {},
         });
         count++;
       } catch (err) {
-        setJsonError(`导入 "${name}" 失败: ${err.message}`);
+        setJsonError(`导入 "${name}" 失败: ${(err as Error).message}`);
         setSaving(false);
         return;
       }
@@ -225,20 +232,20 @@ export default function McpServersPanel({ onToast }) {
       if (editingId === 'new') {
         await createMcpServer(payload);
       } else {
-        await updateMcpServer(editingId, payload);
+        await updateMcpServer(editingId as string, payload);
       }
       onToast?.('success', editingId === 'new' ? '服务创建成功' : '服务更新成功');
       setEditingId(null);
       setForm({ ...emptyForm });
       loadServers();
     } catch (err) {
-      onToast?.('error', `保存失败: ${err.message}`);
+      onToast?.('error', `保存失败: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('确定删除此 MCP 服务？')) return;
     try {
       await deleteMcpServer(id);
@@ -249,18 +256,18 @@ export default function McpServersPanel({ onToast }) {
       }
       loadServers();
     } catch (err) {
-      onToast?.('error', `删除失败: ${err.message}`);
+      onToast?.('error', `删除失败: ${(err as Error).message}`);
     }
   };
 
-  const handleRestart = async (id) => {
+  const handleRestart = async (id: string) => {
     setRestarting(id);
     try {
       await restartMcpServer(id);
       onToast?.('success', '服务已重启');
       loadServers();
     } catch (err) {
-      onToast?.('error', `重启失败: ${err.message}`);
+      onToast?.('error', `重启失败: ${(err as Error).message}`);
     } finally {
       setRestarting(null);
     }
@@ -394,7 +401,7 @@ export default function McpServersPanel({ onToast }) {
                 {servers.map((server) => (
                   <tr key={server.id}>
                     <td>
-                      <StatusDot status={server.status} error={server.error} />
+                      <StatusDot status={server.status} error={server.errorMessage} />
                     </td>
                     <td className="mcp-name">{server.name}</td>
                     <td className="mcp-command">

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 
 function SendIcon() {
   return (
@@ -8,9 +8,14 @@ function SendIcon() {
   );
 }
 
-export default function InputBox({ onSend, disabled }) {
+interface InputBoxProps {
+  onSend: (content: string) => void;
+  disabled: boolean;
+}
+
+export default function InputBox({ onSend, disabled }: InputBoxProps) {
   const [text, setText] = useState('');
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isCompositing = useRef(false);
 
   useEffect(() => {
@@ -19,7 +24,7 @@ export default function InputBox({ onSend, disabled }) {
     }
   }, [disabled]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
@@ -30,7 +35,7 @@ export default function InputBox({ onSend, disabled }) {
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && !isCompositing.current) {
       e.preventDefault();
       handleSubmit(e);
