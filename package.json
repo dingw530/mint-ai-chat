@@ -14,9 +14,11 @@
     "electron:dev": "concurrently -k \"cd server && npm run dev\" \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\"",
     "electron:build:mac": "npm run build && cd electron && npm run build:mac",
     "electron:build:win": "npm run build && cd electron && npm run build:win",
-    "electron:build:linux": "npm run build && cd electron && npm run build:linux"
+    "electron:build:linux": "npm run build && cd electron && npm run build:linux",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "husky": "^9.1.7"
   }
 }
