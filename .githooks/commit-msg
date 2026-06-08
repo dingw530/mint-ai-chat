@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# Conventional Commits hook
+# Validates commit message format: <type>(<scope>): <description>
+
+COMMIT_MSG="$1"
+
+# Skip merge commits and --allow-empty messages
+HEADER=$(head -1 "$COMMIT_MSG")
+if echo "$HEADER" | grep -qE '^Merge '; then
+  exit 0
+fi
+
+# Match Conventional Commits format
+if ! echo "$HEADER" | grep -qE '^(feat|fix|refactor|perf|style|test|docs|chore|ci)(\([a-z0-9._/-]+\))?: .+$'; then
+  echo ""
+  echo "  ✗ Invalid commit message format"
+  echo ""
+  echo "  Expected: <type>(<scope>): <description>"
+  echo ""
+  echo "  Types: feat | fix | refactor | perf | style | test | docs | chore | ci"
+  echo ""
+  echo "  Examples:"
+  echo "    feat(ui): add theme switcher"
+  echo "    fix(sse): handle empty buffer on stream end"
+  echo "    refactor: extract endpoint service"
+  echo "    chore: bump express to 4.21"
+  echo ""
+  exit 1
+fi
+
+# Check description length (first line only)
+LEN=$(echo "$HEADER" | wc -c | tr -d ' ')
+if [ "$LEN" -gt 73 ]; then  # 72 chars + newline = 73
+  echo ""
+  echo "  ✗ Commit title exceeds 72 characters ($((LEN - 1)))"
+  echo ""
+  exit 1
+fi
+
+exit 0

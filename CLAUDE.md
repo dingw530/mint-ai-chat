@@ -111,9 +111,73 @@ docs/                           # 项目文档（SDD 规范组织）
 - Vite dev server proxies /api to backend on port 3001
 - Database path overridable via `AI_CHAT_DB_PATH` env var for test isolation
 
-### other
+## Commit Convention
 
-as ai agent，please use Chinese
+遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范，格式：
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+```
+
+### Type（必选）
+
+| Type | 含义 | 示例 |
+|------|------|------|
+| `feat` | 新功能 | `feat: add image generation panel` |
+| `fix` | 修复 Bug | `fix: handle SSE parse error on partial chunk` |
+| `refactor` | 重构（既不修 Bug 也不加功能） | `refactor: extract message routing to service` |
+| `perf` | 性能优化 | `perf: lazy-load Settings modal` |
+| `style` | 代码格式（空格、分号等，不影响逻辑） | `style: reformat with 2-space indent` |
+| `test` | 增改测试 | `test: add streaming edge cases` |
+| `docs` | 仅文档变更 | `docs: add architecture overview` |
+| `chore` | 构建/工具/依赖 | `chore: upgrade vite to 5.4` |
+| `ci` | CI 配置变更 | `ci: add lint step to pipeline` |
+
+### Scope（可选）
+
+小写，表示影响范围，如 `api`、`ui`、`db`、`sse`、`electron`。
+
+### Description
+
+- 英文，小写开头，无句号
+- 祈使句（"add" 而非 "added" 或 "adds"）
+- 不超过 72 字符
+
+### Body（可选）
+
+- 解释 **why** 而非 **what**（diff 已经说明了 what）
+- 中英文均可，用换行分隔段落
+
+### 示例
+
+```
+feat(ui): add theme switcher to settings modal
+
+Users can now switch between 5 themes without reloading.
+```
+
+```
+fix(sse): handle empty buffer on stream end
+
+The SSE reader threw when the final chunk was empty.
+```
+
+```
+refactor: extract endpoint service from settings route
+
+Settings route had grown to 400 lines mixing CRUD and migration logic.
+```
+
+```
+chore: bump express from 4.18 to 4.21
+```
+
+### 注意
+
+- `feat` / `fix` 会出现在 changelog 中，`refactor` / `chore` 等不会
+- 一个 commit 只做一件事。如果不同目标混在一起，拆成多个 commit
 
 ## Development Process
 
