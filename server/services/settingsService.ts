@@ -57,7 +57,8 @@ export function getAiSettings(): AiSettings {
       showReactSteps: raw.showReactSteps !== 'false',
     };
   }
-  // 兜底：旧 settings 表
+  // 兜底：旧 settings 表（过渡期兼容，后续不再扩展）
+  // @deprecated — 新安装用户应通过 model_endpoints 配置
   const raw: RawSettings = settingsRepo.getAll();
   return {
     apiUrl: raw.apiUrl || '',
@@ -74,7 +75,7 @@ export function getAiSettings(): AiSettings {
 }
 
 // 保存设置：API Key 加密后写入，仅在有新 key 时更新
-// 同时同步 apiUrl/apiKey/modelId 到激活端点（若存在）
+// @deprecated — 同步端点逻辑将在后续版本移除，前端直接操作 model_endpoints 接口
 export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode, reactMaxIterations, toolMaxRetries, showReactSteps }: SettingsInput): void {
   const settings: Record<string, string> = {
     apiUrl,

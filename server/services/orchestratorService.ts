@@ -1,9 +1,9 @@
 import * as settingsService from './settingsService.js';
 import * as agentService from './agentService.js';
-import { getAllToolDefinitions, executeTool } from './toolRegistry.js';
-import { streamFromAPI, readStream } from './aiProxy.js';
-import { HistoryMessage, ToolDefinition } from '../types.js';
-import { openaiChatAdapter } from './adapters/openaiChatAdapter.js';
+import { getAllToolDefinitions } from './toolRegistry.js';
+import { toolLoopEngine } from './toolLoopEngine.js';
+import { AccumulatingSink } from './sink.js';
+import { HistoryMessage, ToolDefinition, StreamResult } from '../types.js';
 
 // 编排 Agent 的默认系统提示词后缀
 export const ORCHESTRATOR_INSTRUCTION = `
@@ -15,18 +15,6 @@ export const ORCHESTRATOR_INSTRUCTION = `
 
 注意：invoke_agent 是同步操作，等待返回结果后再继续。
 一次可以并行调用多个 invoke_agent 来加速处理。`;
-
-// Mock 响应对象，仅用于满足 readStream 的类型签名
-function mockRes(): any {
-  const state = { chunks: '', ended: false };
-  return {
-    write: (chunk: string) => { state.chunks += chunk; },
-    end: () => { state.ended = true; },
-    get headersSent() { return false; },
-    get writableEnded() { return state.ended; },
-    get data() { return state.chunks; },
-  };
-}
 
 // 获取当前可用的 Worker Agent 列表文本
 function getAvailableWorkers(): string {
@@ -49,8 +37,6 @@ export async function invokeAgent(agentId: string, task: string, timeoutMs = 300
   if (!agent) return `Error: Agent "${agentId}" not found`;
   if (!agent.available) return `Error: Agent "${agentId}" is not available`;
 
-  const url = openaiChatAdapter.getUrl(settings.apiUrl);
-  const headers = openaiChatAdapter.getHeaders(settings.apiKey);
   const tools: ToolDefinition[] = await getAllToolDefinitions(agentId);
 
   // 构造消息
@@ -62,25 +48,17 @@ export async function invokeAgent(agentId: string, task: string, timeoutMs = 300
 
   // 无工具路径：直接非流式调用
   if (tools.length === 0) {
-    return await directCall(url, settings, messages, timeoutMs);
+    return await directCall(settings, messages, timeoutMs);
   }
 
-  // 有工具路径：流式调用 → 检查 tool_calls → 执行工具 → 二次调用
-  const res = mockRes();
-  const body1 = openaiChatAdapter.buildRequest(messages, settings, tools);
-
-  let response1: Response;
+  // 有工具路径：通过引擎执行首轮
+  let result: StreamResult;
   try {
-    response1 = await streamFromAPI(url, headers, body1, 'orchestrator-tool1');
+    result = await toolLoopEngine.executeRound(
+      { messages, settings, tools, label: 'orchestrator-tool1' },
+    );
   } catch (err) {
     return `Error: AI request failed: ${(err as Error).message}`;
-  }
-
-  let result;
-  try {
-    result = await readStream(response1, res, false, openaiChatAdapter);
-  } catch (err) {
-    return `Error: AI streaming failed: ${(err as Error).message}`;
   }
 
   // 无 tool_calls → 直接返回
@@ -91,39 +69,32 @@ export async function invokeAgent(agentId: string, task: string, timeoutMs = 300
   // 有 tool_calls → 执行后二次调用
   const toolMessages: HistoryMessage[] = [];
   for (const tc of result.toolCalls) {
-    let toolResult: unknown;
-    try {
-      toolResult = await executeTool(tc);
-    } catch (err) {
-      toolResult = { error: (err as Error).message };
-    }
-    toolMessages.push({ role: 'assistant', content: null as unknown as string, tool_calls: [tc], reasoning: result.reasoning || undefined });
-    toolMessages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(toolResult).substring(0, 5000) });
+    const { assistantMsg, toolMsg } = await toolLoopEngine.executeToolCall(tc, result.reasoning);
+    toolMessages.push(assistantMsg, toolMsg);
   }
 
   const secondMessages = [...messages, ...toolMessages];
-  const body2 = openaiChatAdapter.buildRequest(secondMessages, settings);
-  let response2: Response;
+  const sink = new AccumulatingSink();
+
+  let secondResult: StreamResult;
   try {
-    response2 = await streamFromAPI(url, headers, body2, 'orchestrator-tool2');
+    secondResult = await toolLoopEngine.executeRound(
+      { messages: secondMessages, settings, label: 'orchestrator-tool2' },
+      sink,
+    );
   } catch (err) {
     return `Error: AI retry failed: ${(err as Error).message}`;
-  }
-
-  let secondResult;
-  try {
-    secondResult = await readStream(response2, res, false, openaiChatAdapter);
-  } catch (err) {
-    return `Error: AI retry streaming failed: ${(err as Error).message}`;
   }
 
   return secondResult.content || '(empty response)';
 }
 
 // 非流式直接调用 AI
-async function directCall(url: string, settings: any, messages: HistoryMessage[], timeoutMs: number): Promise<string> {
+async function directCall(settings: any, messages: HistoryMessage[], timeoutMs: number): Promise<string> {
+  const { apiUrl, apiKey, modelId } = settings;
+
   const body = {
-    model: settings.modelId,
+    model: modelId,
     messages,
     stream: false,
     max_tokens: 4096,
@@ -132,9 +103,9 @@ async function directCall(url: string, settings: any, messages: HistoryMessage[]
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl.replace(/\/+$/, '') + '/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify(body),
       signal: controller.signal,
     });

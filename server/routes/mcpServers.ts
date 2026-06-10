@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as mcpServerRepo from '../repositories/mcpServerRepository.js';
 import { mcpService } from '../services/mcpService.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get('/:id', (req: Request, res: Response) => {
 });
 
 // POST /api/mcp-servers — 创建 MCP Server 配置
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response, next) => {
   try {
     const { name, command, args, env } = req.body;
     if (!name || !command) {
@@ -47,7 +48,7 @@ router.post('/', async (req: Request, res: Response) => {
       env: env || {},
     });
 
-    // 创建后自动连接
+    // 创建后自动连接（静默忽略失败）
     try {
       await mcpService.connectServer(server);
     } catch (err) {
@@ -60,12 +61,12 @@ router.post('/', async (req: Request, res: Response) => {
       res.status(409).json({ error: `MCP Server "${req.body.name}" already exists` });
       return;
     }
-    throw err;
+    next(err);
   }
 });
 
 // PUT /api/mcp-servers/:id — 更新 MCP Server 配置
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = getParamId(req);
   const existing = mcpServerRepo.findById(id);
   if (!existing) {
@@ -80,7 +81,6 @@ router.put('/:id', async (req: Request, res: Response) => {
   if (args !== undefined) fields.args = args;
   if (env !== undefined) fields.env = env;
 
-  // 断开旧连接
   await mcpService.disconnectServer(existing.name);
 
   const updated = mcpServerRepo.update(id, fields);
@@ -89,7 +89,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     return;
   }
 
-  // 重新连接
   try {
     await mcpService.connectServer(updated);
   } catch (err) {
@@ -97,10 +96,10 @@ router.put('/:id', async (req: Request, res: Response) => {
   }
 
   res.json({ server: updated });
-});
+}));
 
 // DELETE /api/mcp-servers/:id — 删除 MCP Server
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = getParamId(req);
   const server = mcpServerRepo.findById(id);
   if (!server) {
@@ -111,10 +110,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
   await mcpService.disconnectServer(server.name);
   mcpServerRepo.deleteById(id);
   res.json({ success: true });
-});
+}));
 
 // POST /api/mcp-servers/:id/restart — 重启 MCP Server
-router.post('/:id/restart', async (req: Request, res: Response) => {
+router.post('/:id/restart', asyncHandler(async (req: Request, res: Response) => {
   const id = getParamId(req);
   const server = mcpServerRepo.findById(id);
   if (!server) {
@@ -122,13 +121,9 @@ router.post('/:id/restart', async (req: Request, res: Response) => {
     return;
   }
 
-  try {
-    await mcpService.restartServer(server.name);
-    const updated = mcpServerRepo.findById(id);
-    res.json({ server: updated });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  await mcpService.restartServer(server.name);
+  const updated = mcpServerRepo.findById(id);
+  res.json({ server: updated });
+}));
 
 export default router;

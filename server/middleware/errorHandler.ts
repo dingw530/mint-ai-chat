@@ -9,3 +9,10 @@ export function errorHandler(err: HttpError, _req: Request, res: Response, _next
     error: err.message || 'Internal Server Error',
   });
 }
+
+// asyncHandler：包装异步 route handler，自动将 rejected promise 转发到 errorHandler
+export function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    fn(req, res, next).catch(next);
+  };
+}

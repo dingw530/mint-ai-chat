@@ -1,9 +1,10 @@
 import { Response as ExpressResponse } from 'express';
-import { getAllToolDefinitions, executeTool } from './toolRegistry.js';
-import { retry } from './retryWrapper.js';
-import { HistoryMessage, AiSettings, ToolCall, StreamResult, StreamChunk, ToolDefinition } from '../types.js';
+import { getAllToolDefinitions } from './toolRegistry.js';
+import { HistoryMessage, AiSettings, StreamResult } from '../types.js';
 import { ApiAdapter, getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
+import { toolLoopEngine, parseSSEStream } from './toolLoopEngine.js';
+import { ResSink } from './sink.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -20,31 +21,8 @@ function getApiAdapter(settings: AiSettings): ApiAdapter {
   return adapter;
 }
 
-// 调用 AI API，返回 fetch Response
-export async function streamFromAPI(url: string, headers: Record<string, string>, body: Record<string, unknown>, label?: string): Promise<Response> {
-  const bodyPreview = JSON.stringify(body).substring(0, 500);
-  log.debug('streamFromAPI', { label: label || 'unnamed', url, method: 'POST', bodyPreview });
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    log.error('streamFromAPI failed', { label: label || 'unnamed', url, status: response.status, errorText: errorText.substring(0, 1000) });
-  } else {
-    log.debug('streamFromAPI success', { label: label || 'unnamed', url, status: response.status });
-  }
-
-  return response;
-}
-
-// 读取 SSE 流：通过 Adapter 解析每行 data，累加 content/reasoning/tool_calls
-// streamToClient=true 时，将每块内容实时写入 Express Response
-// options.eventType 设置后，写入 SSE 时在 data JSON 中添加 type 字段（用于 ReAct 区分事件类型）
-// options.signal 用于提前中止读取
+// ── 兼容层：读取 SSE 流并实时写入 Express Response ──
+// 新代码应直接使用 toolLoopEngine.executeRound() 或 parseSSEStream()
 export async function readStream(
   response: Response,
   res: ExpressResponse,
@@ -66,80 +44,35 @@ export async function readStream(
     res.setHeader('X-Accel-Buffering', 'no');
   }
 
-  const reader = (response.body as ReadableStream<Uint8Array>).getReader();
-  const decoder = new TextDecoder();
-  let fullContent = '';
-  let fullReasoning = '';
-  const toolCalls: (ToolCall | null)[] = [];
-  let buffer = '';
+  const sink = streamToClient ? new ResSink(res) : undefined;
+  const result = await parseSSEStream(response, adapter, sink, options);
+  return result;
+}
 
-  try {
-    while (true) {
-      if (options?.signal?.aborted) break;
+// ── 调用 AI API，返回 fetch Response ──
+export async function streamFromAPI(url: string, headers: Record<string, string>, body: Record<string, unknown>, label?: string): Promise<Response> {
+  const bodyPreview = JSON.stringify(body).substring(0, 500);
+  log.debug('streamFromAPI', { label: label || 'unnamed', url, method: 'POST', bodyPreview });
 
-      const { done, value } = await reader.read();
-      if (done) break;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-
-        const chunk = adapter.parseChunk(data);
-        if (!chunk) continue;
-
-        if (chunk.isFinished) {
-          if (streamToClient) res.write('data: [DONE]\n\n');
-          break;
-        }
-
-        // tool_call 流式片段，按 index 累加
-        if (chunk.toolCallDelta) {
-          const tc = chunk.toolCallDelta;
-          if (!toolCalls[tc.index]) {
-            toolCalls[tc.index] = { id: '', type: 'function', function: { name: '', arguments: '' } };
-          }
-          if (tc.id) toolCalls[tc.index]!.id = tc.id;
-          if (tc.type) toolCalls[tc.index]!.type = tc.type;
-          if (tc.function) {
-            if (tc.function.name) toolCalls[tc.index]!.function.name += tc.function.name;
-            if (tc.function.arguments) toolCalls[tc.index]!.function.arguments += tc.function.arguments;
-          }
-        }
-
-        if (chunk.content) {
-          fullContent += chunk.content;
-          if (streamToClient) {
-            const sseChunk: StreamChunk = { content: chunk.content };
-            if (options?.eventType) sseChunk.type = options.eventType;
-            res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
-          }
-        }
-
-        if (chunk.reasoning) {
-          fullReasoning += chunk.reasoning;
-          if (streamToClient) {
-            const sseChunk: StreamChunk = { reasoning: chunk.reasoning };
-            if (options?.eventType) sseChunk.type = options.eventType;
-            res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
+  if (!response.ok) {
+    const errorText = await response.text();
+    log.error('streamFromAPI failed', { label: label || 'unnamed', url, status: response.status, errorText: errorText.substring(0, 1000) });
+  } else {
+    log.debug('streamFromAPI success', { label: label || 'unnamed', url, status: response.status });
   }
 
-  const hasToolCalls = toolCalls.length > 0;
-  return { content: fullContent, reasoning: fullReasoning, toolCalls: hasToolCalls ? (toolCalls as ToolCall[]) : null };
+  return response;
 }
 
 // 核心入口：发起 AI 流式对话，支持无工具/有工具两条路径
 export async function streamChat(messages: HistoryMessage[], settings: AiSettings, res: ExpressResponse, agent?: string): Promise<StreamResult> {
-  const { apiUrl, apiKey, apiType } = settings;
+  const { apiUrl, apiKey } = settings;
 
   if (!apiUrl || !apiKey) {
     res.status(400).json({ error: 'API URL or API Key not configured' });
@@ -173,13 +106,12 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     }
   }
 
-  // 工具路径：先缓存首轮响应判断是否触发 tool_call
-  const body1 = adapter.buildRequest(messages, settings, tools);
-  const response1 = await streamFromAPI(url, headers, body1, 'streamChat-tool1');
-
+  // 工具路径：先通过引擎执行首轮，判断是否触发 tool_call
   let result: StreamResult;
   try {
-    result = await readStream(response1, res, false, adapter);
+    result = await toolLoopEngine.executeRound(
+      { messages, settings, tools, adapter, label: 'streamChat-tool1' },
+    );
   } catch (err) {
     const error = err as any;
     if (!res.headersSent) {
@@ -188,7 +120,7 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     return { content: '', reasoning: '', toolCalls: null };
   }
 
-  // 未触发工具调用 → 刷新缓存内容到前端
+  // 未触发工具调用 → 将缓存内容以 SSE 格式发送给前端
   if (!result.toolCalls) {
     if (!res.headersSent) {
       res.setHeader('Content-Type', 'text/event-stream');
@@ -210,15 +142,8 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
   // ---- 工具调用路径：执行工具后二次调用 AI ----
   const toolMessages: HistoryMessage[] = [];
   for (const tc of result.toolCalls) {
-    let toolResult: unknown;
-    try {
-      toolResult = await executeTool(tc);
-      console.log('[aiProxy] toolResult:', JSON.stringify(toolResult).substring(0, 200));
-    } catch (err) {
-      toolResult = { error: (err as Error).message };
-    }
-    toolMessages.push({ role: 'assistant', content: null as unknown as string, tool_calls: [tc], reasoning: result.reasoning || undefined });
-    toolMessages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(toolResult) });
+    const { assistantMsg, toolMsg } = await toolLoopEngine.executeToolCall(tc, result.reasoning);
+    toolMessages.push(assistantMsg, toolMsg);
   }
 
   const secondMessages: HistoryMessage[] = [
@@ -226,12 +151,20 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     ...toolMessages,
   ];
 
-  const body2 = adapter.buildRequest(secondMessages, settings);
-  const response2 = await streamFromAPI(url, headers, body2, 'streamChat-tool2');
+  const sink = new ResSink(res);
+  if (!sink.headersSent) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+  }
 
   let secondResult: StreamResult;
   try {
-    secondResult = await readStream(response2, res, true, adapter);
+    secondResult = await toolLoopEngine.executeRound(
+      { messages: secondMessages, settings, adapter, label: 'streamChat-tool2' },
+      sink,
+    );
   } catch (err) {
     const error = err as any;
     if (!res.headersSent) {
@@ -257,8 +190,6 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
   }
 
   const adapter = getApiAdapter(settings);
-  const url = adapter.getUrl(apiUrl);
-  const headers = adapter.getHeaders(apiKey);
 
   const maxIterations = Math.max(1, Math.min(20, settings.reactMaxIterations ?? 5));
   const maxRetries = Math.max(0, Math.min(10, settings.toolMaxRetries ?? 5));
@@ -282,32 +213,25 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
     if (res.destroyed || res.writableEnded || signal?.aborted) break;
 
     const isLast = iteration === maxIterations - 1;
-    const body = adapter.buildRequest(currentMessages, settings, tools);
+    const label = isLast ? 'react-answer' : 'react-thought';
+    const sink = new ResSink(res);
 
-    let response: Response;
-    try {
-      response = await streamFromAPI(url, headers, body, 'reactChat');
-    } catch (err) {
-      console.error('[reactChat] streamFromAPI failed:', err);
-      if (!res.writableEnded) res.end();
-      return { content: finalContent, reasoning: finalReasoning, toolCalls: null };
-    }
-
-    const eventType = isLast ? 'answer' : 'thought';
     let result: StreamResult;
     try {
-      result = await readStream(response, res, true, adapter, { eventType, signal });
+      result = await toolLoopEngine.executeRound(
+        { messages: currentMessages, settings, tools, adapter, signal, label },
+        sink,
+      );
     } catch (err) {
-      const error = err as any;
-      console.error('[reactChat] readStream failed:', error.message);
+      console.error('[reactChat] executeRound failed:', err);
       if (!res.writableEnded) res.end();
-      return { content: result?.content || finalContent, reasoning: result?.reasoning || finalReasoning, toolCalls: null };
+      return { content: finalContent, reasoning: finalReasoning, toolCalls: null };
     }
 
     if (!result.toolCalls || result.toolCalls.length === 0) {
       finalContent = result.content;
       finalReasoning = result.reasoning;
-      if (eventType === 'answer') streamedAsAnswer = true;
+      if (isLast) streamedAsAnswer = true;
       break;
     }
 
@@ -321,35 +245,29 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
         })}\n\n`);
       }
 
-      let toolResult: unknown;
-      let succeeded = false;
       let attempts = 0;
 
-      try {
-        toolResult = await retry(() => executeTool(tc), {
-          maxRetries,
-          baseDelay: 1000,
-          maxDelay: 16000,
-          onRetry: (attempt, error) => {
-            attempts = attempt;
-            if (!res.destroyed && !res.writableEnded) {
-              res.write(`data: ${JSON.stringify({
-                type: 'tool_call_error',
-                toolName: tc.function.name,
-                error: error.message.substring(0, 200),
-                retryCount: attempt,
-                maxRetries,
-              })}\n\n`);
-            }
-          },
-        });
-        succeeded = true;
-      } catch (err) {
-        toolResult = { error: `All retries failed: ${(err as Error).message}` };
-      }
+      const { assistantMsg, toolMsg, succeeded } = await toolLoopEngine.executeToolCallWithRetry(
+        tc,
+        result.reasoning,
+        maxRetries,
+        (attempt, error) => {
+          attempts = attempt;
+          if (!res.destroyed && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({
+              type: 'tool_call_error',
+              toolName: tc.function.name,
+              error: error.message.substring(0, 200),
+              retryCount: attempt,
+              maxRetries,
+            })}\n\n`);
+          }
+        },
+      );
+
+      const resultStr = toolMsg.content;
 
       if (!res.destroyed && !res.writableEnded) {
-        const resultStr = JSON.stringify(toolResult);
         res.write(`data: ${JSON.stringify({
           type: succeeded ? 'tool_call_end' : 'tool_call_error',
           toolName: tc.function.name,
@@ -360,18 +278,7 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
         })}\n\n`);
       }
 
-      const resultStr = JSON.stringify(toolResult);
-      toolMessages.push({
-        role: 'assistant',
-        content: null as unknown as string,
-        tool_calls: [tc],
-        reasoning: result.reasoning || undefined,
-      });
-      toolMessages.push({
-        role: 'tool',
-        tool_call_id: tc.id,
-        content: resultStr.substring(0, 5000),
-      });
+      toolMessages.push(assistantMsg, toolMsg);
     });
 
     await Promise.all(toolPromises);
