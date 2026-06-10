@@ -99,7 +99,7 @@ async function startServer() {
 
   if (isDev) {
     logger.info('Dev mode — assuming external server on port 3001');
-    return;
+    return 3001;
   }
 
   // 设置环境变量（在导入 server 之前）
@@ -107,11 +107,9 @@ async function startServer() {
   process.env.AI_CHAT_DB_PATH = getDbPath();
   process.env.AI_CHAT_CLIENT_DIST = getClientDistPath();
   process.env.NODE_ENV = 'production';
-  process.env.PORT = process.env.PORT || '3001';
 
   logger.info(`AI_CHAT_DB_PATH: ${process.env.AI_CHAT_DB_PATH}`);
   logger.info(`AI_CHAT_CLIENT_DIST: ${process.env.AI_CHAT_CLIENT_DIST}`);
-  logger.info(`PORT: ${process.env.PORT}`);
   logger.info('AI_CHAT_ENCRYPTION_KEY is set ✓');
 
   // ── 和风天气（QWeather）配置诊断 ──
@@ -132,7 +130,7 @@ async function startServer() {
     logger.warn(`和风天气功能: 已禁用（缺少环境变量 ${missing.join(', ')}）`);
   }
 
-  // 动态导入编译后的 server 模块
+  // 动态导入编译后的 server 模块并启动
   const serverModulePath = path.join(__dirname, 'server-dist', 'index.js');
   logger.info(`Loading server module from: ${serverModulePath}`);
 
@@ -143,8 +141,10 @@ async function startServer() {
 
   try {
     logger.info('Importing server module...');
-    await import(serverModulePath);
-    logger.info(`Server started successfully on port ${process.env.PORT || 3001}`);
+    const serverModule = await import(serverModulePath);
+    const actualPort = await serverModule.startServer();
+    logger.info(`Server started successfully on port ${actualPort}`);
+    return actualPort;
   } catch (err) {
     logger.error(`Failed to import server module: ${err.message}`);
     logger.error(`Stack: ${err.stack}`);
@@ -232,21 +232,32 @@ ipcMain.handle('download-file', async (event, { url, filename }) => {
   }
 
   try {
-    // 使用 Node.js 的 http/https 模块下载（无需 CORS）
-    const urlObj = new URL(url);
-    const httpMod = urlObj.protocol === 'https:' ? require('https') : require('http');
+    let fileData;
 
-    const fileData = await new Promise((resolve, reject) => {
-      httpMod.get(url, (response) => {
-        if (response.statusCode !== 200) {
-          reject(new Error(`HTTP ${response.statusCode}`));
-          return;
-        }
-        const chunks = [];
-        response.on('data', (chunk) => chunks.push(chunk));
-        response.on('end', () => resolve(Buffer.concat(chunks)));
-      }).on('error', reject);
-    });
+    if (url.startsWith('data:')) {
+      // data: URI — 直接解码 Base64
+      const commaIdx = url.indexOf(',');
+      if (commaIdx === -1) throw new Error('Invalid data URI');
+      const base64Data = url.slice(commaIdx + 1);
+      fileData = Buffer.from(base64Data, 'base64');
+      logger.info(`Decoded data URI: ${(fileData.length / 1024).toFixed(1)} KB`);
+    } else {
+      // HTTP/HTTPS URL — 使用 Node.js 模块下载（无需 CORS）
+      const urlObj = new URL(url);
+      const httpMod = urlObj.protocol === 'https:' ? require('https') : require('http');
+
+      fileData = await new Promise((resolve, reject) => {
+        httpMod.get(url, (response) => {
+          if (response.statusCode !== 200) {
+            reject(new Error(`HTTP ${response.statusCode}`));
+            return;
+          }
+          const chunks = [];
+          response.on('data', (chunk) => chunks.push(chunk));
+          response.on('end', () => resolve(Buffer.concat(chunks)));
+        }).on('error', reject);
+      });
+    }
 
     fs.writeFileSync(result.filePath, fileData);
     logger.info(`File saved to: ${result.filePath}`);
@@ -269,8 +280,9 @@ app.whenReady().then(async () => {
   logger.info(`Log file: ${logFile}`);
 
   try {
-    await startServer();
-    createWindow();
+    const port = await startServer();
+    serverPort = port;
+    createWindow(port);
   } catch (err) {
     logger.error(`Failed to start application: ${err.message}`);
     logger.error(`Stack: ${err.stack}`);
