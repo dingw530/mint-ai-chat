@@ -1,4 +1,4 @@
-import { useState, RefObject } from 'react';
+import { useState, useEffect, RefObject } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ReActStep from './ReActStep';
 import AppIcon from './AppIcon';
@@ -28,9 +28,24 @@ async function downloadImage(src: string, filename = 'image.png') {
   }
 }
 
+function ImagePreview({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="image-preview-overlay" onClick={onClose}>
+      <img className="image-preview-img" src={src} alt={alt || '大图'} onClick={e => e.stopPropagation()} />
+    </div>
+  );
+}
+
 function ImageMessage({ src, alt }: { src: string; alt: string }) {
   const [error, setError] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [preview, setPreview] = useState(false);
 
   if (error) {
     return (
@@ -54,31 +69,35 @@ function ImageMessage({ src, alt }: { src: string; alt: string }) {
   };
 
   return (
-    <div className="image-message-wrapper">
-      <img
-        className="image-message-img"
-        src={src}
-        alt={alt || '生成图片'}
-        onError={() => setError(true)}
-        loading="lazy"
-      />
-      <button
-        className="image-download-btn"
-        onClick={handleDownload}
-        disabled={downloading}
-        title="下载图片"
-      >
-        {downloading ? (
-          <span className="spinner" />
-        ) : (
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-        )}
-      </button>
-    </div>
+    <>
+      <div className="image-message-wrapper">
+        <img
+          className="image-message-img"
+          src={src}
+          alt={alt || '生成图片'}
+          onClick={() => setPreview(true)}
+          onError={() => setError(true)}
+          loading="lazy"
+        />
+        <button
+          className="image-download-btn"
+          onClick={handleDownload}
+          disabled={downloading}
+          title="下载图片"
+        >
+          {downloading ? (
+            <span className="spinner" />
+          ) : (
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          )}
+        </button>
+      </div>
+      {preview && <ImagePreview src={src} alt={alt} onClose={() => setPreview(false)} />}
+    </>
   );
 }
 
