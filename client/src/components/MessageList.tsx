@@ -6,8 +6,9 @@ import type { Message, ReActStep as ReActStepData } from '../types';
 
 async function downloadImage(src: string, filename = 'image.png') {
   if ((window as any).electronAPI?.downloadFile) {
-    await (window as any).electronAPI.downloadFile(src, filename);
-    return;
+    const result = await (window as any).electronAPI.downloadFile(src, filename);
+    if (result?.success) return;
+    console.warn('[ImageChat] Electron download failed, falling back to blob download:', result?.reason);
   }
 
   try {

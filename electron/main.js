@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const logger = require('./logger');
 
 let mainWindow = null;
+let serverPort = null;
 
 const isDev = !app.isPackaged;
 
@@ -158,11 +159,11 @@ async function startServer() {
 
 // ── 窗口管理 ──
 
-function createWindow() {
+function createWindow(port) {
   logger.info('Creating main window...');
 
-  const port = parseInt(process.env.PORT, 10) || 3001;
-  const url = isDev ? 'http://localhost:5173' : `http://localhost:${port}`;
+  const effectivePort = port || serverPort || 3001;
+  const url = isDev ? 'http://localhost:5173' : `http://localhost:${effectivePort}`;
   logger.info(`Loading URL: ${url}`);
 
   mainWindow = new BrowserWindow({
