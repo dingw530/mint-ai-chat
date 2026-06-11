@@ -5,8 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "tsx watch index.ts",
+    "start": "node --dns-result-order=ipv4first dist/index.js",
+    "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' tsx watch index.ts",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"

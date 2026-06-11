@@ -30,6 +30,41 @@ const BUILTIN_TOOLS: ToolDefinition[] = [
   },
 ];
 
+// 全局内置工具（所有 Agent 可用）
+const GLOBAL_TOOLS: ToolDefinition[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'http_fetch',
+      description: '发起 HTTP 请求获取外部数据（支持 GET/POST），AI 助手可通过此工具访问公开 API 或网页内容',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: '请求 URL',
+          },
+          method: {
+            type: 'string',
+            enum: ['GET', 'POST'],
+            description: 'HTTP 方法，默认 GET',
+          },
+          headers: {
+            type: 'object',
+            description: '自定义请求头，可选',
+            additionalProperties: { type: 'string' },
+          },
+          body: {
+            type: 'string',
+            description: 'POST 请求体（字符串），可选',
+          },
+        },
+        required: ['url'],
+      },
+    },
+  },
+];
+
 // 天气工具是否可用（环境变量已配置）
 function weatherConfigured(): boolean {
   return !!(
@@ -41,12 +76,15 @@ function weatherConfigured(): boolean {
 
 // 获取 Agent 可用的工具定义列表
 export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefinition[]> {
-  // general 助手不使用工具
-  if (!agentId || agentId === 'general') return [];
-
   const tools: ToolDefinition[] = [];
 
-  // weather Agent：使用内置天气工具
+  // 全局内置工具（http_fetch 等），所有 Agent 可用
+  tools.push(...GLOBAL_TOOLS);
+
+  // general 助手仅使用全局工具
+  if (!agentId || agentId === 'general') return tools;
+
+  // weather Agent：追加天气工具
   if (agentId === 'weather') {
     if (weatherConfigured()) {
       tools.push(...BUILTIN_TOOLS);
@@ -56,7 +94,7 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
 
   // 自定义 Agent：根据 mcp_server_ids 加载其全部工具
   const agent = agentRepo.findById(agentId);
-  if (!agent || !agent.available) return [];
+  if (!agent || !agent.available) return tools;
 
   // 编排 Agent：注册 invoke_agent 工具（不含 MCP 工具）
   if (agent.type === 'orchestrator') {
@@ -96,6 +134,33 @@ export async function executeTool(toolCall: ToolCall): Promise<unknown> {
     }
     case 'invoke_agent': {
       return await invokeAgent(args.agent_id, args.task);
+    }
+    case 'http_fetch': {
+      const method = (args.method || 'GET').toUpperCase();
+      console.log('[http_fetch]', { url: args.url, method, headers: args.headers, body: args.body ? args.body.substring(0, 200) : undefined });
+      const fetchInit: RequestInit = { method };
+      if (args.headers) fetchInit.headers = args.headers;
+      if (method === 'POST' && args.body) fetchInit.body = args.body;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      fetchInit.signal = controller.signal;
+
+      try {
+        const resp = await fetch(args.url, fetchInit);
+        clearTimeout(timeout);
+        const text = await resp.text();
+        return {
+          status: resp.status,
+          statusText: resp.statusText,
+          headers: Object.fromEntries(resp.headers.entries()),
+          body: text.length > 10000 ? text.substring(0, 10000) + '\n...(truncated)' : text,
+        };
+      } catch (err) {
+          console.error(err)
+        clearTimeout(timeout);
+        return { error: `HTTP request failed: ${(err as Error).message}` };
+      }
     }
     default: {
       // MCP 工具格式：serverName__toolName
