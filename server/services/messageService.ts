@@ -67,12 +67,20 @@ export async function sendMessage(conversationId: string, content: string, res: 
     // manual 模式下不传 agent → 默认通用助手
   }
 
-  // 拼接消息历史：如果有 system prompt 则作为首条
+  // 拼接消息历史：优先使用路由到的 Agent 的 systemPrompt，其次用全局设置
   const history = messageRepo.getHistory(conversationId);
   const settings = settingsService.getAiSettings();
 
-  const messages: HistoryMessage[] = settings.systemPrompt
-    ? [{ role: 'system', content: settings.systemPrompt }, ...history]
+  let systemPrompt = settings.systemPrompt;
+  if (resolvedAgent && resolvedAgent !== 'general') {
+    const agentInfo = agentService.findById(resolvedAgent);
+    if (agentInfo?.systemPrompt) {
+      systemPrompt = agentInfo.systemPrompt;
+    }
+  }
+
+  const messages: HistoryMessage[] = systemPrompt
+    ? [{ role: 'system', content: systemPrompt }, ...history]
     : history;
 
   // 注入记忆上下文
