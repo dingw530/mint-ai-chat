@@ -205,9 +205,17 @@ export default function ChatArea({
             const updated = [...prev];
             const last = updated[updated.length - 1];
             if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
+              const segments = [...(last.segments || [])];
+              const lastSeg = segments[segments.length - 1];
+              if (lastSeg && lastSeg.type === 'thinking') {
+                segments[segments.length - 1] = { ...lastSeg, content: lastSeg.content + chunk };
+              } else {
+                segments.push({ type: 'thinking', content: chunk });
+              }
               updated[updated.length - 1] = {
                 ...last,
                 reasoning: (last.reasoning || '') + chunk,
+                segments,
               };
             }
             return updated;
@@ -225,36 +233,11 @@ export default function ChatArea({
             const last = prev[prev.length - 1];
             if (last && last.type === 'thought') {
               const updated = [...prev];
-              updated[updated.length - 1] = { ...last, content: (last as ReActStep & { content?: string }).content || '' + content } as ReActStep;
+              updated[updated.length - 1] = { ...last, content: ((last as ReActStep & { content?: string }).content || '') + content } as ReActStep;
               return updated;
             }
             return [...prev, { type: 'thought', content } as ReActStep];
           });
-        },
-        onToolCallStart: (data: Record<string, unknown>) => {
-          setReactSteps((prev) => [...prev, {
-            type: 'tool_call_start',
-            toolName: data.toolName as string,
-            arguments: data.arguments as string,
-          } as ReActStep]);
-        },
-        onToolCallEnd: (data: Record<string, unknown>) => {
-          setReactSteps((prev) => [...prev, {
-            type: 'tool_call_end',
-            toolName: data.toolName as string,
-            result: data.result as string,
-            duration: data.duration as number,
-          } as ReActStep]);
-        },
-        onToolCallError: (data: Record<string, unknown>) => {
-          setReactSteps((prev) => [...prev, {
-            type: 'tool_call_error',
-            toolName: data.toolName as string,
-            error: data.error as string,
-            retryCount: data.retryCount as number,
-          } as ReActStep]);
-        },
-        onAnswerReady: (content: string) => {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
@@ -266,6 +249,78 @@ export default function ChatArea({
             }
             return updated;
           });
+        },
+        onToolCallStart: (data: Record<string, unknown>) => {
+          setReactSteps((prev) => [...prev, {
+            type: 'tool_call_start',
+            toolName: data.toolName as string,
+            arguments: data.arguments as string,
+          } as ReActStep]);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
+              const segments = [...(last.segments || []), {
+                type: 'tool_call' as const,
+                toolName: data.toolName as string,
+                status: 'running' as const,
+                arguments: data.arguments,
+              }];
+              updated[updated.length - 1] = { ...last, segments };
+            }
+            return updated;
+          });
+        },
+        onToolCallEnd: (data: Record<string, unknown>) => {
+          setReactSteps((prev) => [...prev, {
+            type: 'tool_call_end',
+            toolName: data.toolName as string,
+            result: data.result as string,
+            duration: data.duration as number,
+          } as ReActStep]);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
+              const segments = [...(last.segments || [])];
+              for (let i = segments.length - 1; i >= 0; i--) {
+                const seg = segments[i];
+                if (seg.type === 'tool_call' && seg.status === 'running' && seg.toolName === data.toolName) {
+                  segments[i] = { ...seg, status: 'done' as const, result: data.result as string, duration: data.duration as number };
+                  break;
+                }
+              }
+              updated[updated.length - 1] = { ...last, segments };
+            }
+            return updated;
+          });
+        },
+        onToolCallError: (data: Record<string, unknown>) => {
+          setReactSteps((prev) => [...prev, {
+            type: 'tool_call_error',
+            toolName: data.toolName as string,
+            error: data.error as string,
+            retryCount: data.retryCount as number,
+          } as ReActStep]);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
+              const segments = [...(last.segments || [])];
+              for (let i = segments.length - 1; i >= 0; i--) {
+                const seg = segments[i];
+                if (seg.type === 'tool_call' && seg.status === 'running' && seg.toolName === data.toolName) {
+                  segments[i] = { ...seg, status: 'error' as const, error: data.error as string, retryCount: data.retryCount as number };
+                  break;
+                }
+              }
+              updated[updated.length - 1] = { ...last, segments };
+            }
+            return updated;
+          });
+        },
+        onAnswerReady: () => {
+          // Content already streamed via onThought/onChunk — no append needed
           setReactSteps((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.type === 'thought') return prev.slice(0, -1);
@@ -378,9 +433,17 @@ export default function ChatArea({
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
+            const segments = [...(last.segments || [])];
+            const lastSeg = segments[segments.length - 1];
+            if (lastSeg && lastSeg.type === 'thinking') {
+              segments[segments.length - 1] = { ...lastSeg, content: lastSeg.content + chunk };
+            } else {
+              segments.push({ type: 'thinking', content: chunk });
+            }
             updated[updated.length - 1] = {
               ...last,
               reasoning: (last.reasoning || '') + chunk,
+              segments,
             };
           }
           return updated;
@@ -389,20 +452,24 @@ export default function ChatArea({
       onRouting: (agentId: string) => {
         setAutoRoutedAgent(agentId);
       },
-      onAnswerReady: (content: string) => {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
-              updated[updated.length - 1] = {
-                ...last,
-                content: last.content + content,
-              };
-            }
-            return updated;
-          });
-        },
-        onDone: () => {
+      onThought: (content: string) => {
+        if (!content) return;
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
+            updated[updated.length - 1] = {
+              ...last,
+              content: last.content + content,
+            };
+          }
+          return updated;
+        });
+      },
+      onAnswerReady: () => {
+        // Content already streamed via onThought/onChunk — no append needed
+      },
+      onDone: () => {
         setSending(false);
         setStreamingId(null);
       },

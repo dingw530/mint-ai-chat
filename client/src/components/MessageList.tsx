@@ -2,7 +2,7 @@ import { useState, useEffect, RefObject } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ReActStep from './ReActStep';
 import AppIcon from './AppIcon';
-import type { Message, ReActStep as ReActStepData } from '../types';
+import type { Message, ReActStep as ReActStepData, ContentSegment } from '../types';
 
 async function downloadImage(src: string, filename = 'image.png') {
   if ((window as any).electronAPI?.downloadFile) {
@@ -173,10 +173,54 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
     );
   }
 
+  function renderSegments(segments: ContentSegment[]) {
+    return (
+      <div className="content-segments">
+        {segments.map((seg, i) => {
+          if (seg.type === 'thinking') {
+            return (
+              <details key={i} className="thinking-segment" open>
+                <summary>思考过程</summary>
+                <div className="thinking-segment-content">{seg.content}</div>
+              </details>
+            );
+          }
+          if (seg.type === 'tool_call') {
+            const statusIcon = seg.status === 'running'
+              ? <span className="tool-call-cursor">●</span>
+              : seg.status === 'error'
+                ? <span className="tool-call-status-error">✕</span>
+                : null;
+            return (
+              <div key={i} className={`tool-call-segment tool-call-${seg.status}`}>
+                <div className="tool-call-header">
+                  <svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z" fill="currentColor"/>
+                  </svg>
+                  <span className="tool-call-label">
+                    {seg.status === 'done' ? '工具返回' : seg.status === 'error' ? '工具失败' : '调用工具'}: {seg.toolName}
+                    {seg.status === 'done' && seg.duration != null ? ` (${(Number(seg.duration) / 1000).toFixed(1)}s)` : ''}
+                    {seg.status === 'error' && seg.retryCount ? ` (重试 ${seg.retryCount} 次)` : ''}
+                  </span>
+                  {statusIcon}
+                </div>
+                {seg.status === 'error' && seg.error && (
+                  <div className="tool-call-error-body">{seg.error.length > 200 ? seg.error.substring(0, 200) + '...' : seg.error}</div>
+                )}
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="messages-container" ref={containerRef}>
       {messages.map((msg) => {
         const isStreaming = msg.role === 'assistant' && msg.id === streamingId;
+        const hasSegments = msg.segments && msg.segments.length > 0;
         return (
           <div
             key={msg.id || (msg as any)._tempId}
@@ -189,22 +233,31 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                 }`,
               }}
             />
-            {msg.reasoning && (
-              <details className="reasoning-block" open>
-                <summary>思考过程</summary>
-                <div className="reasoning-content">{msg.reasoning}</div>
-              </details>
+            {msg.role === 'assistant' && hasSegments ? (
+              <>
+                {renderSegments(msg.segments!)}
+                {msg.content && <MarkdownRenderer content={msg.content} />}
+              </>
+            ) : (
+              <>
+                {msg.reasoning && (
+                  <details className="reasoning-block" open>
+                    <summary>思考过程</summary>
+                    <div className="reasoning-content">{msg.reasoning}</div>
+                  </details>
+                )}
+                {showReactSteps && msg.role === 'assistant' && reactSteps && reactSteps.length > 0 ? (
+                  <div className="react-steps-container">
+                    {reactSteps.map((step, i) => (
+                      <ReActStep key={i} step={step} isLast={isStreaming && i === reactSteps.length - 1} />
+                    ))}
+                  </div>
+                ) : null}
+                {msg.role === 'assistant'
+                  ? <MarkdownRenderer content={msg.content} />
+                  : <span>{msg.content}</span>}
+              </>
             )}
-            {showReactSteps && msg.role === 'assistant' && reactSteps && reactSteps.length > 0 ? (
-              <div className="react-steps-container">
-                {reactSteps.map((step, i) => (
-                  <ReActStep key={i} step={step} isLast={isStreaming && i === reactSteps.length - 1} />
-                ))}
-              </div>
-            ) : null}
-            {msg.role === 'assistant'
-              ? <MarkdownRenderer content={msg.content} />
-              : <span>{msg.content}</span>}
             {msg.role === 'assistant' && msg.imageData && renderImageContent(msg.imageData)}
             {isStreaming && <span className="cursor" />}
             {msg.role === 'assistant' && !isStreaming && onRegenerate && messages.indexOf(msg) === messages.length - 1 && (

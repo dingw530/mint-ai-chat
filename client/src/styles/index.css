@@ -801,6 +801,91 @@ body::before {
 }
 
 /* --------------------------------------------
+   Content Segments (linear thinking + tool calls)
+   -------------------------------------------- */
+.content-segments {
+  margin-bottom: 8px;
+}
+
+.thinking-segment {
+  background: rgba(141, 196, 212, 0.06);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.thinking-segment:hover {
+  box-shadow: 0 0 8px var(--secondary-glow);
+}
+
+.thinking-segment summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--secondary);
+  user-select: none;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.thinking-segment-content {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  font-size: 13px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tool-call-segment {
+  font-size: 0.85em;
+  line-height: 1.4;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(94, 175, 138, 0.04);
+}
+
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.tool-call-label {
+  font-size: 0.82em;
+  font-weight: 500;
+}
+
+.tool-call-cursor {
+  animation: blink 1s step-end infinite;
+  color: var(--accent);
+  font-size: 0.6em;
+  margin-left: 2px;
+}
+
+.tool-call-status-error {
+  color: #e74c3c;
+  font-size: 0.75em;
+  margin-left: 2px;
+}
+
+.tool-call-error-body {
+  color: #e74c3c;
+  font-size: 0.85em;
+  margin-top: 4px;
+  margin-left: 20px;
+}
+
+/* --------------------------------------------
    Input Box
    -------------------------------------------- */
 .input-box {
@@ -1001,6 +1086,37 @@ body::before {
   margin-bottom: 12px;
   letter-spacing: -0.02em;
   flex-shrink: 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  margin-bottom: 0;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .form-group {
