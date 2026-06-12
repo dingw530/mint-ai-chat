@@ -19,6 +19,7 @@ export interface Message {
   imageData?: string | null;
   createdAt: string;
   _tempId?: string;
+  segments?: ContentSegment[];
 }
 
 export interface Agent {
@@ -134,6 +135,26 @@ export interface ToolCallDelta {
   };
 }
 
+// ── 内容段类型（线性展示思维链 + 工具调用） ──
+
+export interface ThinkingSegment {
+  type: 'thinking';
+  content: string;
+}
+
+export interface ToolCallSegment {
+  type: 'tool_call';
+  toolName: string;
+  status: 'running' | 'done' | 'error';
+  arguments?: unknown;
+  result?: string;
+  error?: string;
+  duration?: number;
+  retryCount?: number;
+}
+
+export type ContentSegment = ThinkingSegment | ToolCallSegment;
+
 // ── ReAct 步骤类型 ──
 
 export interface ThoughtStep {
@@ -208,15 +229,63 @@ export interface GenerateImageResult {
   data: GeneratedImage[];
 }
 
-// ── Electron API 类型 ──
+// ── Electron IPC API 类型 ──
 
 export interface ElectronAPI {
   isElectron: boolean;
-  downloadFile?: (url: string, filename: string) => Promise<void>;
-  openFileDialog?: () => Promise<{ filePath: string } | null>;
   platform?: string;
-  onOpenSettings?: (callback: () => void) => void;
-  removeOpenSettings?: () => void;
+
+  // 流式对话
+  sendMessage: (convId: string, content: string, agent?: string, regenerate?: boolean) => void;
+  onChunk: (callback: (data: string) => void) => void;
+  onDone: (callback: () => void) => void;
+  onError: (callback: (err: string) => void) => void;
+  removeListener: (channel: string) => void;
+
+  // 会话
+  getConversations: (type?: string) => Promise<{ conversations: Conversation[] }>;
+  createConversation: (title?: string, type?: string) => Promise<{ conversation: Conversation }>;
+  deleteConversation: (id: string) => Promise<{ success: boolean }>;
+  renameConversation: (id: string, title: string) => Promise<{ conversation: Conversation }>;
+  lockAgent: (id: string, agentId: string | null) => Promise<{ conversation: Conversation }>;
+  generateTitle: (id: string) => Promise<{ title: string }>;
+
+  // 消息
+  getMessages: (convId: string) => Promise<{ messages: Message[] }>;
+
+  // 设置
+  getSettings: () => Promise<VisibleSettings>;
+  saveSettings: (data: SettingsInput) => Promise<{ success: boolean }>;
+
+  // Agent
+  getAgents: () => Promise<{ agents: Agent[] }>;
+  createAgent: (data: Partial<Agent>) => Promise<{ agent: Agent }>;
+  updateAgent: (id: string, data: Partial<Agent>) => Promise<{ agent: Agent }>;
+  deleteAgent: (id: string) => Promise<{ success: boolean }>;
+
+  // 端点
+  getEndpoints: () => Promise<{ endpoints: EndpointOutput[] }>;
+  createEndpoint: (data: EndpointInput) => Promise<{ endpoint: EndpointOutput }>;
+  updateEndpoint: (id: string, data: Partial<EndpointInput>) => Promise<{ endpoint: EndpointOutput }>;
+  deleteEndpoint: (id: string) => Promise<{ success: boolean }>;
+  activateEndpoint: (id: string) => Promise<{ success: boolean }>;
+
+  // 记忆
+  getMemories: (category?: string) => Promise<Memory[]>;
+  createMemory: (data: { content: string; category?: string }) => Promise<Memory>;
+  updateMemory: (id: string, data: { content?: string; category?: string }) => Promise<Memory>;
+  deleteMemory: (id: string) => Promise<{ success: boolean }>;
+
+  // MCP Server
+  getMcpServers: () => Promise<{ servers: McpServer[] }>;
+  getMcpServer: (id: string) => Promise<{ server: McpServer }>;
+  createMcpServer: (data: Partial<McpServer>) => Promise<{ server: McpServer }>;
+  updateMcpServer: (id: string, data: Partial<McpServer>) => Promise<{ server: McpServer }>;
+  deleteMcpServer: (id: string) => Promise<{ success: boolean }>;
+  restartMcpServer: (id: string) => Promise<{ server: McpServer }>;
+
+  // 文件
+  downloadFile?: (url: string, filename: string) => Promise<void>;
 }
 
 declare global {

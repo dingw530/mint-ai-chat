@@ -11,10 +11,12 @@
     "start": "cd server && npm start",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up",
-    "electron:dev": "concurrently -k \"cd server && npm run dev\" \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\"",
-    "electron:build:mac": "npm run build && cd electron && npm run build:mac",
-    "electron:build:win": "npm run build && cd electron && npm run build:win",
-    "electron:build:linux": "npm run build && cd electron && npm run build:linux",
+    "electron:rebuild": "cd electron && npx @electron/rebuild -f -w better-sqlite3 --module-dir ../server",
+    "electron:dev": "cd server && npm run build && cd .. && npm run electron:rebuild && concurrently -k \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\" && npm run server:rebuild",
+    "electron:dev:server": "concurrently -k \"cd server && npm run dev\" \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\"",
+    "electron:build:mac": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:mac",
+    "electron:build:win": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:win",
+    "electron:build:linux": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:linux",
     "prepare": "husky"
   },
   "devDependencies": {

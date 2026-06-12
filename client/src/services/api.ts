@@ -13,9 +13,12 @@ import type {
   StreamReturn,
   ImageGenerateParams,
   GenerateImageResult,
+  ElectronAPI,
 } from '../types';
 
 const BASE_URL = '/api';
+const electronAPI: ElectronAPI | undefined = (window as any).electronAPI;
+const isElectron = !!electronAPI?.isElectron;
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -29,166 +32,273 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// ── Electron IPC 分支帮助函数（IPC 不可用时自动降级到 HTTP）──
+
+async function ipcOrHttp<T>(ipcCall: () => Promise<T>, httpCall: () => Promise<T>): Promise<T> {
+  if (!isElectron) return httpCall();
+  try {
+    return await ipcCall();
+  } catch {
+    // IPC 不可用时（如 dev 模式服务未加载）降级到 HTTP
+    return httpCall();
+  }
+}
+
+// ── 会话 ──
+
 export function getConversations(type?: string): Promise<{ conversations: Conversation[] }> {
-  const params = type ? `?type=${type}` : '';
-  return request(`/conversations${params}`);
+  return ipcOrHttp(
+    () => electronAPI!.getConversations(type),
+    () => {
+      const params = type ? `?type=${type}` : '';
+      return request(`/conversations${params}`);
+    },
+  );
 }
 
 export function createConversation(title?: string, type?: string): Promise<{ conversation: Conversation }> {
-  return request('/conversations', {
-    method: 'POST',
-    body: JSON.stringify({ title, type }),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.createConversation(title, type),
+    () => request('/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ title, type }),
+    }),
+  );
 }
 
 export function deleteConversation(id: string): Promise<{ success: boolean }> {
-  return request(`/conversations/${id}`, { method: 'DELETE' });
+  return ipcOrHttp(
+    () => electronAPI!.deleteConversation(id),
+    () => request(`/conversations/${id}`, { method: 'DELETE' }),
+  );
 }
 
 export function renameConversation(id: string, title: string): Promise<{ conversation: Conversation }> {
-  return request(`/conversations/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ title }),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.renameConversation(id, title),
+    () => request(`/conversations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    }),
+  );
 }
 
 export function lockAgent(conversationId: string, agentId: string): Promise<{ conversation: Conversation }> {
-  return request(`/conversations/${conversationId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ lockedAgent: agentId }),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.lockAgent(conversationId, agentId),
+    () => request(`/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ lockedAgent: agentId }),
+    }),
+  );
 }
 
 export function unlockAgent(conversationId: string): Promise<{ conversation: Conversation }> {
-  return request(`/conversations/${conversationId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ lockedAgent: null }),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.lockAgent(conversationId, null),
+    () => request(`/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ lockedAgent: null }),
+    }),
+  );
 }
 
 export function getMessages(conversationId: string): Promise<{ messages: Message[] }> {
-  return request(`/conversations/${conversationId}/messages`);
+  return ipcOrHttp(
+    () => electronAPI!.getMessages(conversationId),
+    () => request(`/conversations/${conversationId}/messages`),
+  );
 }
 
 export function getSettings(): Promise<VisibleSettings> {
-  return request('/settings');
+  return ipcOrHttp(
+    () => electronAPI!.getSettings(),
+    () => request('/settings'),
+  );
 }
 
 export function saveSettings(settings: SettingsInput): Promise<void> {
-  return request('/settings', {
-    method: 'PUT',
-    body: JSON.stringify(settings),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.saveSettings(settings).then(() => undefined),
+    () => request('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
+  );
 }
 
 export function generateTitle(conversationId: string): Promise<{ title: string }> {
-  return request(`/conversations/${conversationId}/generate-title`, {
-    method: 'POST',
-  });
+  return ipcOrHttp(
+    () => electronAPI!.generateTitle(conversationId),
+    () => request(`/conversations/${conversationId}/generate-title`, {
+      method: 'POST',
+    }),
+  );
 }
+
+// ── Agent ──
 
 export function fetchAgents(): Promise<{ agents: Agent[] }> {
-  return request('/agents');
+  return ipcOrHttp(
+    () => electronAPI!.getAgents(),
+    () => request('/agents'),
+  );
 }
 
-/* MCP Server APIs */
-export function getMcpServers(): Promise<{ servers: McpServer[] }> {
-  return request('/mcp-servers');
-}
-
-export function createMcpServer(data: Partial<McpServer>): Promise<{ server: McpServer }> {
-  return request('/mcp-servers', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export function updateMcpServer(id: string, data: Partial<McpServer>): Promise<{ server: McpServer }> {
-  return request(`/mcp-servers/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-export function deleteMcpServer(id: string): Promise<{ success: boolean }> {
-  return request(`/mcp-servers/${id}`, { method: 'DELETE' });
-}
-
-export function restartMcpServer(id: string): Promise<{ server: McpServer }> {
-  return request(`/mcp-servers/${id}/restart`, { method: 'POST' });
-}
-
-/* Agent CRUD APIs */
 export function createAgent(data: Partial<Agent>): Promise<{ agent: Agent }> {
-  return request('/agents', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.createAgent(data),
+    () => request('/agents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  );
 }
 
 export function updateAgent(id: string, data: Partial<Agent>): Promise<{ agent: Agent }> {
-  return request(`/agents/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.updateAgent(id, data),
+    () => request(`/agents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  );
 }
 
 export function deleteAgent(id: string): Promise<{ success: boolean }> {
-  return request(`/agents/${id}`, { method: 'DELETE' });
+  return ipcOrHttp(
+    () => electronAPI!.deleteAgent(id),
+    () => request(`/agents/${id}`, { method: 'DELETE' }),
+  );
 }
 
-/* Memory APIs */
+// ── MCP Server ──
+
+export function getMcpServers(): Promise<{ servers: McpServer[] }> {
+  return ipcOrHttp(
+    () => electronAPI!.getMcpServers(),
+    () => request('/mcp-servers'),
+  );
+}
+
+export function createMcpServer(data: Partial<McpServer>): Promise<{ server: McpServer }> {
+  return ipcOrHttp(
+    () => electronAPI!.createMcpServer(data),
+    () => request('/mcp-servers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  );
+}
+
+export function updateMcpServer(id: string, data: Partial<McpServer>): Promise<{ server: McpServer }> {
+  return ipcOrHttp(
+    () => electronAPI!.updateMcpServer(id, data),
+    () => request(`/mcp-servers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  );
+}
+
+export function deleteMcpServer(id: string): Promise<{ success: boolean }> {
+  return ipcOrHttp(
+    () => electronAPI!.deleteMcpServer(id),
+    () => request(`/mcp-servers/${id}`, { method: 'DELETE' }),
+  );
+}
+
+export function restartMcpServer(id: string): Promise<{ server: McpServer }> {
+  return ipcOrHttp(
+    () => electronAPI!.restartMcpServer(id),
+    () => request(`/mcp-servers/${id}/restart`, { method: 'POST' }),
+  );
+}
+
+// ── 记忆 ──
+
 export function getMemories(category?: string): Promise<Memory[]> {
-  const params = category ? `?category=${category}` : '';
-  return request(`/memories${params}`);
+  return ipcOrHttp(
+    () => electronAPI!.getMemories(category),
+    () => {
+      const params = category ? `?category=${category}` : '';
+      return request(`/memories${params}`);
+    },
+  );
 }
 
 export function createMemory(data: Partial<Memory>): Promise<Memory> {
-  return request('/memories', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.createMemory(data),
+    () => request('/memories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  );
 }
 
 export function updateMemory(id: string, data: Partial<Memory>): Promise<Memory> {
-  return request(`/memories/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.updateMemory(id, data),
+    () => request(`/memories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  );
 }
 
 export function deleteMemory(id: string): Promise<{ success: boolean }> {
-  return request(`/memories/${id}`, { method: 'DELETE' });
+  return ipcOrHttp(
+    () => electronAPI!.deleteMemory(id),
+    () => request(`/memories/${id}`, { method: 'DELETE' }),
+  );
 }
 
-/* Model Endpoints APIs */
+// ── 模型端点 ──
+
 export function getEndpoints(): Promise<{ endpoints: EndpointOutput[] }> {
-  return request('/model-endpoints');
+  return ipcOrHttp(
+    () => electronAPI!.getEndpoints(),
+    () => request('/model-endpoints'),
+  );
 }
 
 export function createEndpoint(data: EndpointInput): Promise<{ endpoint: EndpointOutput }> {
-  return request('/model-endpoints', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.createEndpoint(data),
+    () => request('/model-endpoints', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  );
 }
 
 export function updateEndpoint(id: string, data: EndpointInput): Promise<{ endpoint: EndpointOutput }> {
-  return request(`/model-endpoints/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+  return ipcOrHttp(
+    () => electronAPI!.updateEndpoint(id, data),
+    () => request(`/model-endpoints/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  );
 }
 
 export function deleteEndpoint(id: string): Promise<{ success: boolean }> {
-  return request(`/model-endpoints/${id}`, { method: 'DELETE' });
+  return ipcOrHttp(
+    () => electronAPI!.deleteEndpoint(id),
+    () => request(`/model-endpoints/${id}`, { method: 'DELETE' }),
+  );
 }
 
 export function activateEndpoint(id: string): Promise<{ success: boolean }> {
-  return request(`/model-endpoints/${id}/activate`, { method: 'PUT' });
+  return ipcOrHttp(
+    () => electronAPI!.activateEndpoint(id),
+    () => request(`/model-endpoints/${id}/activate`, { method: 'PUT' }),
+  );
 }
 
-/* Image APIs */
+// ── 图片 ──
+
 export function generateImage(data: ImageGenerateParams): Promise<GenerateImageResult> {
   return request('/images/generate', {
     method: 'POST',
@@ -206,10 +316,8 @@ export function sendImageMessage(
   });
 }
 
-/**
- * Send a message and receive SSE stream response.
- * Returns an object with an abort method.
- */
+// ── SSE 流式对话 ──
+
 export function sendMessageStream(
   conversationId: string,
   content: string,
@@ -230,6 +338,67 @@ export function sendMessageStream(
   agent?: string,
   options?: SendOptions,
 ): StreamReturn {
+  // Electron IPC 路径
+  if (isElectron && electronAPI) {
+    let _lastThought = '';
+
+    const onChunk = (data: string) => {
+      try {
+        const parsed = JSON.parse(data);
+
+        if (parsed.type) {
+          switch (parsed.type) {
+            case 'thought':
+              if (parsed.content) _lastThought += parsed.content;
+              if (parsed.content && callbacks.onThought) callbacks.onThought(parsed.content);
+              if (parsed.reasoning && callbacks.onReasoning) callbacks.onReasoning(parsed.reasoning);
+              return;
+            case 'tool_call_start':
+              _lastThought = '';
+              callbacks.onToolCallStart?.(parsed);
+              return;
+            case 'tool_call_end':
+              _lastThought = '';
+              callbacks.onToolCallEnd?.(parsed);
+              return;
+            case 'tool_call_error':
+              _lastThought = '';
+              callbacks.onToolCallError?.(parsed);
+              return;
+            case 'answer':
+              if (parsed.content) callbacks.onChunk?.(parsed.content);
+              if (parsed.reasoning) callbacks.onReasoning?.(parsed.reasoning);
+              return;
+            case 'answer_ready':
+              if (_lastThought && callbacks.onAnswerReady) callbacks.onAnswerReady(_lastThought);
+              _lastThought = '';
+              return;
+          }
+        }
+
+        if (parsed.content) callbacks.onChunk?.(parsed.content);
+        if (parsed.reasoning) callbacks.onReasoning?.(parsed.reasoning);
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    electronAPI.onChunk(onChunk);
+    electronAPI.onDone(() => callbacks.onDone?.());
+    electronAPI.onError((err) => callbacks.onError?.(new Error(err)));
+
+    electronAPI.sendMessage(conversationId, content, agent, !!options?.regenerate);
+
+    return {
+      abort: () => {
+        electronAPI.removeListener('chat:chunk');
+        electronAPI.removeListener('chat:done');
+        electronAPI.removeListener('chat:error');
+      },
+    };
+  }
+
+  // HTTP SSE 路径（原逻辑）
   const controller = new AbortController();
   const body: Record<string, unknown> = { content };
   if (options?.regenerate) {

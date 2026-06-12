@@ -18,3 +18,4 @@
 | [ReAct 推理范式与编排 Agent](<../changes/2026-05-17-react-reasoning-paradigm/product-spec.md>) | 2026-05-17 | 草稿 |
 | [多模型端点配置与实时切换](<../changes/2026-05-23-multi-model-endpoints/product-spec.md>) | 2026-05-23 | 草稿 |
 | [图片生成模型支持](<../changes/2026-05-30-image-model-support/product-spec.md>) | 2026-05-30 | 草稿 |
+| [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/design-doc.md>) | 2026-06-11 | 已完成 |

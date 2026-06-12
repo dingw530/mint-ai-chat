@@ -1,10 +1,9 @@
-import { Response as ExpressResponse } from 'express';
 import { getAllToolDefinitions } from './toolRegistry.js';
 import { HistoryMessage, AiSettings, StreamResult } from '../types.js';
 import { ApiAdapter, getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolLoopEngine.js';
-import { ResSink } from './sink.js';
+import { Sink } from './sink.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -21,13 +20,11 @@ function getApiAdapter(settings: AiSettings): ApiAdapter {
   return adapter;
 }
 
-// ── 兼容层：读取 SSE 流并实时写入 Express Response ──
-// 新代码应直接使用 toolLoopEngine.executeRound() 或 parseSSEStream()
+// ── 兼容层：读取 SSE 流，可选择实时写入 Sink ──
 export async function readStream(
   response: Response,
-  res: ExpressResponse,
-  streamToClient: boolean,
   adapter: ApiAdapter,
+  sink?: Sink,
   options?: { eventType?: string; signal?: AbortSignal },
 ): Promise<StreamResult> {
   if (!response.ok) {
@@ -37,14 +34,6 @@ export async function readStream(
     throw err;
   }
 
-  if (streamToClient && !res.headersSent) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-  }
-
-  const sink = streamToClient ? new ResSink(res) : undefined;
   const result = await parseSSEStream(response, adapter, sink, options);
   return result;
 }
@@ -71,11 +60,12 @@ export async function streamFromAPI(url: string, headers: Record<string, string>
 }
 
 // 核心入口：发起 AI 流式对话，支持无工具/有工具两条路径
-export async function streamChat(messages: HistoryMessage[], settings: AiSettings, res: ExpressResponse, agent?: string): Promise<StreamResult> {
+export async function streamChat(messages: HistoryMessage[], settings: AiSettings, sink: Sink, agent?: string): Promise<StreamResult> {
   const { apiUrl, apiKey } = settings;
 
   if (!apiUrl || !apiKey) {
-    res.status(400).json({ error: 'API URL or API Key not configured' });
+    sink.write(JSON.stringify({ error: 'API URL or API Key not configured' }));
+    sink.end();
     return { content: '', reasoning: '', toolCalls: null };
   }
 
@@ -92,16 +82,15 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     const body = adapter.buildRequest(messages, settings);
     const response = await streamFromAPI(url, headers, body, 'streamChat-fast');
     try {
-      const result = await readStream(response, res, true, adapter);
-      if (!res.writableEnded) {
-        res.end();
+      const result = await readStream(response, adapter, sink);
+      if (!sink.writableEnded) {
+        sink.end();
       }
       return result;
     } catch (err) {
       const error = err as any;
-      if (!res.headersSent) {
-        res.status(error.status || 500).json({ error: error.message });
-      }
+      sink.write(JSON.stringify({ error: error.message }));
+      sink.end();
       return { content: '', reasoning: '', toolCalls: null };
     }
   }
@@ -114,28 +103,20 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     );
   } catch (err) {
     const error = err as any;
-    if (!res.headersSent) {
-      res.status(error.status || 500).json({ error: error.message });
-    }
+    sink.write(JSON.stringify({ error: error.message }));
+    sink.end();
     return { content: '', reasoning: '', toolCalls: null };
   }
 
-  // 未触发工具调用 → 将缓存内容以 SSE 格式发送给前端
+  // 未触发工具调用 → 将缓存内容写入 sink
   if (!result.toolCalls) {
-    if (!res.headersSent) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-    }
     if (result.content) {
-      res.write(`data: ${JSON.stringify({ content: result.content })}\n\n`);
+      sink.write(JSON.stringify({ content: result.content }));
     }
     if (result.reasoning) {
-      res.write(`data: ${JSON.stringify({ reasoning: result.reasoning })}\n\n`);
+      sink.write(JSON.stringify({ reasoning: result.reasoning }));
     }
-    res.write('data: [DONE]\n\n');
-    res.end();
+    sink.end();
     return { content: result.content, reasoning: result.reasoning, toolCalls: null };
   }
 
@@ -151,14 +132,6 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     ...toolMessages,
   ];
 
-  const sink = new ResSink(res);
-  if (!sink.headersSent) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-  }
-
   let secondResult: StreamResult;
   try {
     secondResult = await toolLoopEngine.executeRound(
@@ -167,25 +140,22 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
     );
   } catch (err) {
     const error = err as any;
-    if (!res.headersSent) {
-      res.status(error.status || 500).json({ error: error.message });
-    } else {
-      res.end();
-    }
+    sink.write(JSON.stringify({ error: error.message }));
+    sink.end();
     return { content: '', reasoning: '', toolCalls: null };
   }
 
-  res.write('data: [DONE]\n\n');
-  res.end();
+  sink.end();
   return { content: secondResult.content, reasoning: secondResult.reasoning, toolCalls: null };
 }
 
 // ── ReAct 循环引擎 ──
-export async function reactChat(messages: HistoryMessage[], settings: AiSettings, res: ExpressResponse, agent?: string, signal?: AbortSignal): Promise<StreamResult> {
+export async function reactChat(messages: HistoryMessage[], settings: AiSettings, sink: Sink, agent?: string, signal?: AbortSignal): Promise<StreamResult> {
   const { apiUrl, apiKey } = settings;
 
   if (!apiUrl || !apiKey) {
-    if (!res.headersSent) res.status(400).json({ error: 'API URL or API Key not configured' });
+    sink.write(JSON.stringify({ error: 'API URL or API Key not configured' }));
+    sink.end();
     return { content: '', reasoning: '', toolCalls: null };
   }
 
@@ -195,13 +165,6 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
   const maxRetries = Math.max(0, Math.min(10, settings.toolMaxRetries ?? 5));
   const tools = await getAllToolDefinitions(agent);
 
-  if (!res.headersSent) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-  }
-
   let currentMessages: HistoryMessage[] = [...messages];
   let finalContent = '';
   let finalReasoning = '';
@@ -210,11 +173,10 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
   let iteration = 0;
 
   while (iteration < maxIterations) {
-    if (res.destroyed || res.writableEnded || signal?.aborted) break;
+    if (sink.writableEnded || signal?.aborted) break;
 
     const isLast = iteration === maxIterations - 1;
     const label = isLast ? 'react-answer' : 'react-thought';
-    const sink = new ResSink(res);
 
     let result: StreamResult;
     try {
@@ -224,25 +186,25 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
       );
     } catch (err) {
       console.error('[reactChat] executeRound failed:', err);
-      if (!res.writableEnded) res.end();
+      if (!sink.writableEnded) sink.end();
       return { content: finalContent, reasoning: finalReasoning, toolCalls: null };
     }
 
     if (!result.toolCalls || result.toolCalls.length === 0) {
       finalContent = result.content;
       finalReasoning = result.reasoning;
-      if (isLast) streamedAsAnswer = true;
+      streamedAsAnswer = true;
       break;
     }
 
     const toolMessages: HistoryMessage[] = [];
     const toolPromises = result.toolCalls.map(async (tc) => {
-      if (!res.destroyed && !res.writableEnded) {
-        res.write(`data: ${JSON.stringify({
+      if (!sink.writableEnded) {
+        sink.write(JSON.stringify({
           type: 'tool_call_start',
           toolName: tc.function.name,
           arguments: (() => { try { return JSON.parse(tc.function.arguments); } catch { return tc.function.arguments; } })(),
-        })}\n\n`);
+        }));
       }
 
       let attempts = 0;
@@ -253,29 +215,29 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
         maxRetries,
         (attempt, error) => {
           attempts = attempt;
-          if (!res.destroyed && !res.writableEnded) {
-            res.write(`data: ${JSON.stringify({
+          if (!sink.writableEnded) {
+            sink.write(JSON.stringify({
               type: 'tool_call_error',
               toolName: tc.function.name,
               error: error.message.substring(0, 200),
               retryCount: attempt,
               maxRetries,
-            })}\n\n`);
+            }));
           }
         },
       );
 
       const resultStr = toolMsg.content;
 
-      if (!res.destroyed && !res.writableEnded) {
-        res.write(`data: ${JSON.stringify({
+      if (!sink.writableEnded) {
+        sink.write(JSON.stringify({
           type: succeeded ? 'tool_call_end' : 'tool_call_error',
           toolName: tc.function.name,
           ...(succeeded
             ? { result: resultStr.substring(0, 2000) }
             : { error: resultStr.substring(0, 2000), retryCount: attempts }
           ),
-        })}\n\n`);
+        }));
       }
 
       toolMessages.push(assistantMsg, toolMsg);
@@ -286,16 +248,15 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
     iteration++;
   }
 
-  if (!streamedAsAnswer && !res.writableEnded) {
+  if (!streamedAsAnswer && !sink.writableEnded) {
     if (finalReasoning) {
-      res.write(`data: ${JSON.stringify({ type: 'thought', reasoning: finalReasoning })}\n\n`);
+      sink.write(JSON.stringify({ type: 'thought', reasoning: finalReasoning }));
     }
-    res.write(`data: ${JSON.stringify({ type: 'answer_ready' })}\n\n`);
+    sink.write(JSON.stringify({ type: 'answer_ready' }));
   }
 
-  if (!res.writableEnded) {
-    res.write('data: [DONE]\n\n');
-    res.end();
+  if (!sink.writableEnded) {
+    sink.end();
   }
 
   return { content: finalContent, reasoning: finalReasoning, toolCalls: null };

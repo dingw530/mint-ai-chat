@@ -69,6 +69,16 @@ describe('retryWrapper', () => {
 // ── Tool Routing Tests ──
 
 describe('Tool Routing — messageService reactChat vs streamChat', () => {
+  function createMockSink() {
+    let ended = false;
+    return {
+      write: vi.fn(),
+      end: vi.fn(() => { ended = true; }),
+      get headersSent() { return true; },
+      get writableEnded() { return ended; },
+    };
+  }
+
   beforeEach(() => {
     vi.resetModules();
   });
@@ -141,22 +151,8 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
       createLogger: vi.fn().mockReturnValue({ info: vi.fn(), debug: vi.fn(), error: vi.fn() }),
     }));
 
-    function createMockRes() {
-      let headersSent = false, ended = false;
-      return {
-        write: vi.fn(),
-        end: vi.fn(() => { ended = true; }),
-        setHeader: vi.fn(() => { headersSent = true; }),
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn(),
-        get headersSent() { return headersSent; },
-        get writableEnded() { return ended; },
-        destroyed: false,
-      };
-    }
-
     const { sendMessage } = await import('../services/messageService.js');
-    await sendMessage('conv-1', 'Hello', createMockRes());
+    await sendMessage('conv-1', 'Hello', createMockSink());
     expect(streamChatMock).toHaveBeenCalled();
   });
 
@@ -240,18 +236,9 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
     }));
 
     const { sendMessage } = await import('../services/messageService.js');
-    const mockRes: any = {
-      write: vi.fn(),
-      end: vi.fn(),
-      setHeader: vi.fn(),
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn(),
-      get headersSent() { return false; },
-      get writableEnded() { return false; },
-      destroyed: false,
-    };
+    const mockSink = createMockSink();
 
-    await sendMessage('conv-1', 'What is the weather?', mockRes, 'weather');
+    await sendMessage('conv-1', 'What is the weather?', mockSink, 'weather');
     expect(reactChatMock).toHaveBeenCalled();
   });
 
@@ -315,6 +302,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
     vi.doMock('../services/agentService.js', () => ({
       list: vi.fn().mockReturnValue([]),
+      findById: vi.fn().mockReturnValue({ id: 'weather', name: 'Weather', type: 'weather', available: true, mcpServerIds: [], systemPrompt: null }),
     }));
 
     vi.doMock('../utils/logger.js', () => ({
@@ -322,18 +310,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
     }));
 
     const { sendMessage } = await import('../services/messageService.js');
-    const mockRes: any = {
-      write: vi.fn(),
-      end: vi.fn(),
-      setHeader: vi.fn(),
-      status: vi.fn().mockReturnThis(),
-      json: vi.fn(),
-      get headersSent() { return false; },
-      get writableEnded() { return false; },
-      destroyed: false,
-    };
-
-    await sendMessage('conv-1', 'Hello', mockRes, 'weather');
+    await sendMessage('conv-1', 'Hello', createMockSink(), 'weather');
     expect(streamChatMock).toHaveBeenCalled();
     expect(reactChatMock).not.toHaveBeenCalled();
   });

@@ -21,3 +21,4 @@
 | [多模型端点配置与实时切换](<../changes/2026-05-23-multi-model-endpoints/exec-plan.md>) | 2026-05-23 | 草稿 |
 | [图片生成模型支持](<../changes/2026-05-30-image-model-support/exec-plan.md>) | 2026-05-30 | 草稿 |
 | [Server 架构收敛](<../changes/2026-06-10-server-refactor/exec-plan.md>) | 2026-06-10 | 执行中 |
+| [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/exec-plan.md>) | 2026-06-11 | 已完成 |
