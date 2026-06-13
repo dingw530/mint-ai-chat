@@ -54,6 +54,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteMcpServer: (id) => ipcRenderer.invoke('mcp-servers:delete', id),
   restartMcpServer: (id) => ipcRenderer.invoke('mcp-servers:restart', id),
 
+  // ── 技能 ──
+  getSkills: () => ipcRenderer.invoke('skills:list'),
+
+  // ── Bash 安全 ──
+  getBashSecurity: () => ipcRenderer.invoke('bash-security:get'),
+  updateBashSecurity: (data) => ipcRenderer.invoke('bash-security:update', data),
+
   // ── 文件 ──
   downloadFile: (url, filename) => ipcRenderer.invoke('download-file', { url, filename }),
 });

@@ -204,6 +204,12 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                   </span>
                   {statusIcon}
                 </div>
+                {seg.status === 'done' && seg.result != null && (
+                  <details className="tool-call-result-details">
+                    <summary className="tool-call-result-summary">查看返回数据</summary>
+                    <pre className="tool-call-result-body">{seg.result.length > 2000 ? seg.result.substring(0, 2000) + '\n...(truncated)' : seg.result}</pre>
+                  </details>
+                )}
                 {seg.status === 'error' && seg.error && (
                   <div className="tool-call-error-body">{seg.error.length > 200 ? seg.error.substring(0, 200) + '...' : seg.error}</div>
                 )}

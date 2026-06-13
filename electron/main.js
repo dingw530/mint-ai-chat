@@ -153,6 +153,8 @@ async function loadServiceModules() {
     sinkMod,
     mcpRepo,
     mcpSvc,
+    skillSvc,
+    bashSecurity,
   ] = await Promise.all([
     importService('messageService'),
     importService('conversationService'),
@@ -163,10 +165,18 @@ async function loadServiceModules() {
     importService('sink'),
     importRepo('mcpServerRepository'),
     importService('mcpService'),
+    importService('skillService'),
+    importService('bashSecurityService'),
   ]);
 
-  services = { msgSvc, convSvc, settSvc, agentSvc, epSvc, memSvc, sinkMod, mcpRepo, mcpSvc };
+  services = { msgSvc, convSvc, settSvc, agentSvc, epSvc, memSvc, sinkMod, mcpRepo, mcpSvc, skillSvc, bashSecurity };
   logger.info('Service modules loaded');
+
+  // 启动时扫描技能
+  if (skillSvc) {
+    skillSvc.listSkills().catch(err => logger.error('Skill scan failed: ' + err.message));
+  }
+
   return true;
 }
 
@@ -417,6 +427,40 @@ function setupIpcHandlers() {
     } catch (err) {
       logger.error(`Download failed: ${err.message}`);
       return { success: false, reason: err.message };
+    }
+  });
+
+  // ── 技能 ──
+  ipcMain.handle('skills:list', async () => {
+    try {
+      if (!services.skillSvc) throw new Error('Skill service not loaded');
+      const skills = await services.skillSvc.listSkills();
+      return { skills: skills.map(s => ({ name: s.name, description: s.description })) };
+    } catch (err) {
+      logger.error(`skills:list failed: ${err.message}`);
+      return { skills: [] };
+    }
+  });
+
+  // ── Bash 安全 ──
+  ipcMain.handle('bash-security:get', () => {
+    try {
+      if (!services.skillSvc) throw new Error('Skill service not loaded');
+      return bashSecurity.getBashSecurity();
+    } catch (err) {
+      logger.error(`bash-security:get failed: ${err.message}`);
+      return { blockedCommands: [], blockedDirs: [] };
+    }
+  });
+
+  ipcMain.handle('bash-security:update', (_, data) => {
+    try {
+      if (!services.skillSvc) throw new Error('Skill service not loaded');
+      bashSecurity.updateBashSecurity(data);
+      return { success: true };
+    } catch (err) {
+      logger.error(`bash-security:update failed: ${err.message}`);
+      return { success: false };
     }
   });
 

@@ -315,6 +315,124 @@ body::before {
   fill: currentColor;
 }
 
+/* Sidebar Wrapper & Footer */
+.sidebar-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sidebar-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.sidebar-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.sidebar-footer-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+
+/* Skills Panel */
+.skills-panel-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+
+.skills-loading,
+.skills-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.skills-empty-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-base);
+}
+
+.skill-card:hover {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+}
+
+.skill-card-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(94, 175, 138, 0.1);
+  color: var(--accent);
+}
+
+.skill-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skill-card-desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.skill-card-hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  opacity: 0.7;
+}
+
 /* Conversation List */
 .conversation-list {
   flex: 1;
@@ -883,6 +1001,150 @@ body::before {
   font-size: 0.85em;
   margin-top: 4px;
   margin-left: 20px;
+}
+
+.tool-call-result-details {
+  margin-top: 6px;
+  margin-left: 20px;
+}
+
+.tool-call-result-summary {
+  cursor: pointer;
+  font-size: 0.82em;
+  color: var(--accent);
+  user-select: none;
+}
+
+.tool-call-result-body {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  line-height: 1.4;
+  color: var(--text-primary);
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Bash Security Panel */
+.bash-security-panel {
+  padding: 4px 0;
+}
+
+.bash-security-section {
+  margin-bottom: 24px;
+}
+
+.bash-security-section .form-help {
+  margin-top: 2px;
+  margin-bottom: 12px;
+}
+
+.bash-security-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.bash-security-empty {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  padding: 12px 0;
+}
+
+.bash-security-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.bash-security-code {
+  font-size: 12px;
+  color: var(--text-primary);
+  word-break: break-all;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+}
+
+.bash-security-remove {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.bash-security-remove:hover {
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+}
+
+.bash-security-add {
+  display: flex;
+  gap: 6px;
+}
+
+.bash-security-add input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition-base);
+}
+
+.bash-security-add input:focus {
+  border-color: var(--accent);
+}
+
+.bash-security-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+}
+
+.bash-security-add-btn:hover {
+  opacity: 0.9;
+}
+
+.bash-security-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bash-security-loading {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-tertiary);
+  font-size: 14px;
 }
 
 /* --------------------------------------------

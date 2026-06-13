@@ -4,6 +4,8 @@ import McpServersPanel from './McpServersPanel';
 import AgentsPanel from './AgentsPanel';
 import MemoriesPanel from './MemoriesPanel';
 import EndpointsPanel from './EndpointsPanel';
+import SkillsPanel from './SkillsPanel';
+import BashSecurityPanel from './BashSecurityPanel';
 import type { VisibleSettings } from '../types';
 
 function Toast({ toast }: { toast: { type: string; message: string } | null }) {
@@ -326,6 +328,8 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     { id: 'endpoints', label: '模型端点', icon: 'server' as const },
     { id: 'mcp', label: 'MCP 服务', icon: 'plugin' as const },
     { id: 'agents', label: 'Agent 管理', icon: 'agent' as const },
+    { id: 'skills', label: '技能', icon: 'skill' as const },
+    { id: 'bash', label: 'Bash 安全', icon: 'bash' as const },
     { id: 'memories', label: '记忆', icon: 'memory' as const },
   ];
 
@@ -355,6 +359,16 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     memory: (
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-4-4 1.41-1.41L11 14.17l6.59-6.59L19 9l-8 8z" />
+      </svg>
+    ),
+    skill: (
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2L12 16.8 6 21.2l2.4-7.2-6-4.8h7.6z" />
+      </svg>
+    ),
+    bash: (
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 3H3v18h1V3zm3 0v18h1V3H7zm4 0v18h1V3h-1zm4 0v18h2V3h-2zm5 0v18h1V3h-1z" />
       </svg>
     ),
   };
@@ -421,6 +435,12 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
             {activeTab === 'agents' && (
               <AgentsPanel onToast={showToast} />
             )}
+            {activeTab === 'skills' && (
+              <SkillsPanel onToast={showToast} />
+            )}
+            {activeTab === 'bash' && (
+              <BashSecurityPanel onToast={showToast} />
+            )}
             {activeTab === 'memories' && (
               <MemoriesPanel onToast={showToast} />
             )}
@@ -429,7 +449,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
             )}
           </div>
         </div>
-        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'memories' && (
+        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'skills' && activeTab !== 'bash' && activeTab !== 'memories' && (
           <div className="modal-actions">
             <button className="btn-secondary" onClick={onClose}>
               取消

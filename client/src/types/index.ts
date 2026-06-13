@@ -284,6 +284,13 @@ export interface ElectronAPI {
   deleteMcpServer: (id: string) => Promise<{ success: boolean }>;
   restartMcpServer: (id: string) => Promise<{ server: McpServer }>;
 
+  // 技能
+  getSkills: () => Promise<{ skills: { name: string; description: string }[] }>;
+
+  // Bash 安全
+  getBashSecurity: () => Promise<{ blockedCommands: string[]; blockedDirs: string[] }>;
+  updateBashSecurity: (data: { blockedCommands: string[]; blockedDirs: string[] }) => Promise<{ success: boolean }>;
+
   // 文件
   downloadFile?: (url: string, filename: string) => Promise<void>;
 }

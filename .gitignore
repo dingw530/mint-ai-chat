@@ -12,3 +12,4 @@ electron/client-dist/
 __pycache__/
 *.egg-info/
 .idea/
+electron/.playwright-cli/

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import app from './app.js';
 import { createLogger } from './utils/logger.js';
+import { listSkills } from './services/skillService.js';
 
 const log = createLogger('server');
 
@@ -37,6 +38,9 @@ if (!qwConfigured) {
 } else {
   log.info('和风天气功能已启用');
 }
+
+// 启动时扫描技能
+listSkills().catch(err => log.error('技能扫描失败', { error: err.message }));
 
 /**
  * 启动 HTTP 服务，如果端口被占用则自动回退到随机可用端口。
