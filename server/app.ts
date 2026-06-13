@@ -2,16 +2,9 @@ import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import { errorHandler } from './middleware/errorHandler.js';
+import { createResourceRouter, endpointRegistry } from './endpoints/index.js';
 import conversationsRouter from './routes/conversations.js';
 import messagesRouter from './routes/messages.js';
-import settingsRouter from './routes/settings.js';
-import agentsRouter from './routes/agents.js';
-import weatherRouter from './routes/weather.js';
-import mcpServersRouter from './routes/mcpServers.js';
-import memoriesRouter from './routes/memories.js';
-import routingLogsRouter from './routes/routingLogs.js';
-import modelEndpointsRouter from './routes/modelEndpoints.js';
-import imagesRouter from './routes/images.js';
 import { mcpService } from './services/mcpService.js';
 
 const app = express();
@@ -20,20 +13,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 路由注册：conversations 和 messages 共享同一前缀但职责分离
+// ── 手动路由（SSE 流式、generateTitle 等复杂端点） ──
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/conversations', messagesRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/agents', agentsRouter);
-app.use('/api/weather', weatherRouter);
-app.use('/api/mcp-servers', mcpServersRouter);
-app.use('/api/memories', memoriesRouter);
-app.use('/api/routing-logs', routingLogsRouter);
-app.use('/api/model-endpoints', modelEndpointsRouter);
-app.use('/api/images', imagesRouter);
+
+// ── 自动生成路由（Endpoint Registry） ──
+for (const resource of endpointRegistry.resources()) {
+  app.use(`/api/${resource}`, createResourceRouter(endpointRegistry.getByResource(resource)));
+}
 
 // ── 生产模式静态文件服务 ──
-// 当 AI_CHAT_CLIENT_DIST 环境变量设置时，serve 前端构建产物并提供 SPA fallback
 const clientDistPath = process.env.AI_CHAT_CLIENT_DIST;
 if (clientDistPath) {
   app.use(express.static(clientDistPath));

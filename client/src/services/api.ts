@@ -44,6 +44,99 @@ async function ipcOrHttp<T>(ipcCall: () => Promise<T>, httpCall: () => Promise<T
   }
 }
 
+// ── Endpoint Manifest（自动生成的端点描述，用于 callEndpoint） ──
+
+interface ManifestEntry {
+  id: string;
+  ipcChannel: string;
+  preloadMethod: string | null;
+  method: string;
+  httpPath: string;
+  args: { from: string; name: string; optional?: boolean }[];
+  result: string | null;
+  async: boolean;
+}
+
+// manifest 在构建时从 electron/endpoints-manifest.json 生成
+// 运行时通过动态 import 加载（避免 Vite JSON 导入问题）
+let manifestCache: ManifestEntry[] | null = null;
+
+async function getManifest(): Promise<ManifestEntry[]> {
+  if (manifestCache) return manifestCache;
+  try {
+    const mod = await import('../../../electron/endpoints-manifest.json');
+    manifestCache = mod.default || mod;
+  } catch {
+    // fallback: 空 manifest（非 Electron 环境或文件不存在）
+    manifestCache = [];
+  }
+  return manifestCache;
+}
+
+/**
+ * 通用端点调用函数。根据 manifest 自动选择 IPC 或 HTTP 路径。
+ *
+ * 用法：callEndpoint('settings:get') 或 callEndpoint('memories:create', data)
+ */
+export async function callEndpoint<T = unknown>(
+  id: string,
+  ...args: unknown[]
+): Promise<T> {
+  const manifest = await getManifest();
+  const ep = manifest.find((e) => e.id === id);
+  if (!ep) throw new Error(`Unknown endpoint: ${id}`);
+
+  return ipcOrHttp(
+    // IPC 路径：通过 preload 桥接方法调用
+    () => {
+      if (!ep.preloadMethod) throw new Error(`No preload method for ${id}`);
+      return (electronAPI as any)[ep.preloadMethod](...args);
+    },
+    // HTTP 路径：根据 manifest 构建请求
+    () => {
+      const url = buildUrlFromManifest(ep, args);
+      const body = extractBodyFromManifest(ep, args);
+      return request<T>(url, {
+        method: ep.method,
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+    },
+  );
+}
+
+function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string {
+  let url = ep.httpPath;
+  let argIdx = 0;
+
+  for (const mapping of ep.args) {
+    if (mapping.from === 'path') {
+      // 替换 URL 中的 :param
+      url = url.replace(`:${mapping.name}`, String(args[argIdx]));
+      argIdx++;
+    } else if (mapping.from === 'query') {
+      const value = args[argIdx];
+      if (value !== undefined && value !== null) {
+        const sep = url.includes('?') ? '&' : '?';
+        url += `${sep}${mapping.name}=${encodeURIComponent(String(value))}`;
+      }
+      argIdx++;
+    } else {
+      // body 参数，跳过（在 extractBodyFromManifest 中处理）
+      argIdx++;
+    }
+  }
+
+  return url;
+}
+
+function extractBodyFromManifest(ep: ManifestEntry, args: unknown[]): unknown {
+  const bodyMapping = ep.args.find((a) => a.from === 'body');
+  if (!bodyMapping) return undefined;
+
+  const bodyIdx = ep.args.indexOf(bodyMapping);
+  return args[bodyIdx];
+}
+
 // ── 会话 ──
 
 export function getConversations(type?: string): Promise<{ conversations: Conversation[] }> {
@@ -533,4 +626,13 @@ export function sendMessageStream(
     });
 
   return { abort: () => controller.abort() };
+}
+
+// ── 技能 ──
+
+export function getSkills(): Promise<{ skills: { name: string; description: string }[] }> {
+  return ipcOrHttp(
+    () => electronAPI!.getSkills(),
+    () => request('/skills'),
+  );
 }
