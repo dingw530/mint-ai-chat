@@ -131,6 +131,7 @@ export class RoutingService {
     let bestScore = 0;
 
     for (const agent of agents) {
+      if (agent.available === false) continue;
       const keywords = agent.triggerKeywords || [];
       for (const keyword of keywords) {
         let score = 0;

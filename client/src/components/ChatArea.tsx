@@ -523,7 +523,7 @@ export default function ChatArea({
         )}
         <div className="agent-selector">
           <div className="agent-bar">
-            {agents.map((agent) => {
+            {agents.filter(a => a.available !== false).map((agent) => {
               const isDisabled = agent.available === false;
               const label = agent.label || agent.name || agent.id;
               const titleText = isDisabled
