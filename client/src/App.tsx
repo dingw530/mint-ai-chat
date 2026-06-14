@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import Sidebar from './components/Sidebar';
-import ChatArea from './components/ChatArea';
+import Sidebar from '@/components/Sidebar';
+import ChatArea from '@/features/chat/components/ChatArea';
 import {
   getConversations,
   createConversation,
   deleteConversation,
   renameConversation,
   getEndpoints,
-} from './services/api';
-import type { Conversation, EndpointOutput } from './types';
+} from '@/services/api';
+import type { Conversation, EndpointOutput } from '@/types';
 
-const ImageChatArea = lazy(() => import('./components/ImageChatArea'));
-const Settings = lazy(() => import('./components/Settings'));
+const ImageChatArea = lazy(() => import('@/features/images/components/ImageChatArea'));
+const Settings = lazy(() => import('@/features/settings/components/Settings'));
 
 function getInitialTheme(): string {
   try {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAgents, createAgent, updateAgent, deleteAgent, getMcpServers } from '../services/api';
-import type { Agent, McpServer } from '../types';
+import { fetchAgents, createAgent, updateAgent, deleteAgent, getMcpServers } from '@/services/api';
+import type { Agent, McpServer } from '@/types';
 
 const emptyForm = { name: '', description: '', systemPrompt: '', mcpServerIds: [] as string[], triggerKeywords: '' };
 

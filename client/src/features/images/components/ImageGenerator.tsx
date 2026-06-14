@@ -1,6 +1,6 @@
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { generateImage } from '../services/api';
-import type { EndpointOutput, GenerateImageResult } from '../types';
+import { generateImage } from '@/services/api';
+import type { EndpointOutput, GenerateImageResult } from '@/types';
 
 const SIZES = [
   '1024x1024',

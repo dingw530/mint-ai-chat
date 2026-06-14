@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ReActStep as ReActStepData } from '../types';
+import type { ReActStep as ReActStepData } from '@/types';
 
 function ThoughtIcon() {
   return (

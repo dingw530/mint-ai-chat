@@ -1,8 +1,8 @@
 import { useState, useEffect, RefObject } from 'react';
-import MarkdownRenderer from './MarkdownRenderer';
+import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
 import ReActStep from './ReActStep';
-import AppIcon from './AppIcon';
-import type { Message, ReActStep as ReActStepData, ContentSegment } from '../types';
+import AppIcon from '@/shared/components/AppIcon';
+import type { Message, ReActStep as ReActStepData, ContentSegment } from '@/types';
 
 async function downloadImage(src: string, filename = 'image.png') {
   if ((window as any).electronAPI?.downloadFile) {

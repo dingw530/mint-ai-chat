@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import MessageList from './MessageList';
+import MessageList from '@/features/chat/components/MessageList';
 import ImageInputBar from './ImageInputBar';
-import { getMessages, sendImageMessage } from '../services/api';
-import type { Conversation, EndpointOutput, Message } from '../types';
+import { getMessages, sendImageMessage } from '@/services/api';
+import type { Conversation, EndpointOutput, Message } from '@/types';
 
 interface ImageChatAreaProps {
   activeConversation: string | null;

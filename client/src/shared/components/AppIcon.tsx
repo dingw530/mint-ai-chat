@@ -1,4 +1,4 @@
-import iconUrl from '../styles/icon.svg';
+import iconUrl from '@/styles/icon.svg';
 
 interface AppIconProps {
   size?: number;

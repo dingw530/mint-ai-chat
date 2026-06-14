@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSkills } from '../services/api';
+import { getSkills } from '@/services/api';
 
 interface Skill {
   name: string;

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { activateEndpoint } from '../services/api';
-import type { EndpointOutput } from '../types';
+import { activateEndpoint } from '@/services/api';
+import type { EndpointOutput } from '@/types';
 
 interface ModelSwitcherProps {
   activeEndpoint: EndpointOutput | null;

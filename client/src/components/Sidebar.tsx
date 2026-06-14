@@ -1,6 +1,6 @@
 import { useState, KeyboardEvent } from 'react';
-import AppIcon from './AppIcon';
-import type { Conversation } from '../types';
+import AppIcon from '@/shared/components/AppIcon';
+import type { Conversation } from '@/types';
 
 function PlusIcon() {
   return (

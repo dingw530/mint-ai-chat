@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getMemories, createMemory, updateMemory, deleteMemory } from '../services/api';
-import type { Memory } from '../types';
+import { getMemories, createMemory, updateMemory, deleteMemory } from '@/services/api';
+import type { Memory } from '@/types';
 
 const CATEGORIES = [
   { id: '', label: '全部', icon: '📋' },

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getEndpoints, createEndpoint, updateEndpoint, deleteEndpoint, activateEndpoint } from '../services/api';
-import type { EndpointOutput, EndpointInput } from '../types';
+import { getEndpoints, createEndpoint, updateEndpoint, deleteEndpoint, activateEndpoint } from '@/services/api';
+import type { EndpointOutput, EndpointInput } from '@/types';
 
 const emptyForm: EndpointInput & { apiType: string } = { name: '', apiUrl: '', apiKey: '', modelId: '', apiType: 'openai-chat', category: 'text' };
 

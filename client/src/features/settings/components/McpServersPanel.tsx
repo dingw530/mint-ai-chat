@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getMcpServers, createMcpServer, updateMcpServer, deleteMcpServer, restartMcpServer } from '../services/api';
-import type { McpServer, McpTool } from '../types';
+import { getMcpServers, createMcpServer, updateMcpServer, deleteMcpServer, restartMcpServer } from '@/services/api';
+import type { McpServer, McpTool } from '@/types';
 
 const JSON_TEMPLATE = `{
   "mcpServers": {
