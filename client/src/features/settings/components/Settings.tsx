@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSettings, saveSettings } from '@/services/api';
 import GeneralTab from './GeneralTab';
 import McpServersPanel from './McpServersPanel';
@@ -69,6 +69,42 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localTheme]);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    // Focus first element on open
+    requestAnimationFrame(() => {
+      const first = modalRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      first?.focus();
+    });
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   const showToast = useCallback((type: string, message: string) => {
     setToast({ type, message });
@@ -174,7 +210,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   return (
     <div className="modal-overlay">
       <Toast toast={toast} />
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} ref={modalRef}>
         <div className="modal-header">
           <h2>设置</h2>
           <button className="modal-close-btn" onClick={onClose} title="关闭">

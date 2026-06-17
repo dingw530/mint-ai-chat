@@ -144,6 +144,19 @@ function renderImageContent(imageData: string | Record<string, unknown> | null |
   );
 }
 
+function RoleIcon({ role }: { role: string }) {
+  switch (role) {
+    case 'user':
+      return <span role="img" aria-label="用户">🌸</span>;
+    case 'assistant':
+      return <span role="img" aria-label="AI">✨</span>;
+    case 'error':
+      return <span role="img" aria-label="错误">⚠️</span>;
+    default:
+      return null;
+  }
+}
+
 interface MessageListProps {
   messages: Message[];
   streamingId: string | null;
@@ -155,11 +168,6 @@ interface MessageListProps {
 }
 
 export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true }: MessageListProps) {
-  const roleIcon: Record<string, string> = {
-    user: '&#x1F338;',
-    assistant: '&#x2728;',
-    error: '&#x26A0;&#xFE0F;',
-  };
 
   if (messages.length === 0) {
     return (
@@ -232,13 +240,10 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
             key={msg.id || (msg as any)._tempId}
             className={`message ${msg.role}${isStreaming ? ' streaming' : ''}`}
           >
-            <div className="message-label"
-              dangerouslySetInnerHTML={{
-                __html: `${roleIcon[msg.role] || ''} ${
-                  msg.role === 'user' ? '你' : msg.role === 'error' ? '错误' : 'AI'
-                }`,
-              }}
-            />
+            <div className="message-label">
+              <RoleIcon role={msg.role} />{' '}
+              {msg.role === 'user' ? '你' : msg.role === 'error' ? '错误' : 'AI'}
+            </div>
             {msg.role === 'assistant' && hasSegments ? (
               <>
                 {renderSegments(msg.segments!)}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ChatArea from '@/features/chat/components/ChatArea';
 import {
@@ -72,12 +72,23 @@ export default function App() {
   }, [loading, conversations, activeId]);
 
   useEffect(() => {
-    document.documentElement.classList.remove('theme-mint', 'theme-ocean', 'theme-snow', 'theme-anthropic', 'theme-reddot');
+    document.documentElement.classList.remove('theme-mint', 'theme-snow', 'theme-anthropic', 'theme-reddot');
     document.documentElement.classList.add(`theme-${theme}`);
     try {
       localStorage.setItem('mint-theme', theme);
     } catch { /* ignore */ }
   }, [theme]);
+
+  const prevFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (showSettings) {
+      prevFocusRef.current = document.activeElement as HTMLElement;
+    } else {
+      prevFocusRef.current?.focus();
+      prevFocusRef.current = null;
+    }
+  }, [showSettings]);
 
   const handleCreate = async (title?: string): Promise<string | undefined> => {
     try {

@@ -54,6 +54,9 @@ export default function ChatArea({
   const { send, abort } = useSSE();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const convIdRef = useRef<string | null>(activeConversation);
+  // Streaming perf: accumulate chunks in a ref and throttle state updates
+  const streamBufferRef = useRef<{ id: string; content: string }>({ id: '', content: '' });
+  const streamRafRef = useRef<number>(0);
 
   useEffect(() => {
     convIdRef.current = activeConversation;
@@ -157,16 +160,37 @@ export default function ChatArea({
       const currentConv = conversations.find((c) => c.id === convId);
       const isAutoRoute = (currentConv?.routingMode || 'auto') === 'auto' && !currentConv?.lockedAgent;
 
+      // Streaming perf: buffer chunks in ref, flush via rAF
+      streamBufferRef.current = { id: tempAssistantMsg._tempId, content: '' };
+      const tempId = tempAssistantMsg._tempId;
+
+      const flushStream = () => {
+        const buf = streamBufferRef.current;
+        if (!buf.content) return;
+        const content = buf.content;
+        buf.content = ''; // reset after flush
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last && (last as Message & { _tempId?: string })._tempId === tempId) {
+            updated[updated.length - 1] = { ...last, content };
+          }
+          return updated;
+        });
+      };
+
+      const scheduleFlush = () => {
+        if (streamRafRef.current) return;
+        streamRafRef.current = requestAnimationFrame(() => {
+          streamRafRef.current = 0;
+          flushStream();
+        });
+      };
+
       send(convId, content, {
         onChunk: (chunk: string) => {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const last = updated[updated.length - 1];
-            if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
-              updated[updated.length - 1] = { ...last, content: last.content + chunk };
-            }
-            return updated;
-          });
+          streamBufferRef.current.content += chunk;
+          scheduleFlush();
         },
         onReasoning: (chunk: string) => {
           setMessages((prev) => {
@@ -266,6 +290,11 @@ export default function ChatArea({
           });
         },
         onDone: () => {
+          if (streamRafRef.current) {
+            cancelAnimationFrame(streamRafRef.current);
+            streamRafRef.current = 0;
+          }
+          flushStream(); // commit any buffered content
           setSending(false);
           setStreamingId(null);
           if (convTitle === 'New Conversation') {
@@ -275,6 +304,11 @@ export default function ChatArea({
           }
         },
         onError: (err: Error) => {
+          if (streamRafRef.current) {
+            cancelAnimationFrame(streamRafRef.current);
+            streamRafRef.current = 0;
+          }
+          flushStream(); // commit any buffered content before showing error
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
@@ -342,16 +376,34 @@ export default function ChatArea({
     setSending(true);
     setStreamingId(tempAssistantMsg.id);
 
+    streamBufferRef.current = { id: tempAssistantMsg._tempId, content: '' };
+    const regenTempId = tempAssistantMsg._tempId;
+    const regenFlush = () => {
+      const buf = streamBufferRef.current;
+      if (!buf.content) return;
+      const content = buf.content;
+      buf.content = '';
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last && (last as Message & { _tempId?: string })._tempId === regenTempId) {
+          updated[updated.length - 1] = { ...last, content };
+        }
+        return updated;
+      });
+    };
+    const regenScheduleFlush = () => {
+      if (streamRafRef.current) return;
+      streamRafRef.current = requestAnimationFrame(() => {
+        streamRafRef.current = 0;
+        regenFlush();
+      });
+    };
+
     send(convId, lastUserMsg.content, {
       onChunk: (chunk: string) => {
-        setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
-            updated[updated.length - 1] = { ...last, content: last.content + chunk };
-          }
-          return updated;
-        });
+        streamBufferRef.current.content += chunk;
+        regenScheduleFlush();
       },
       onReasoning: (chunk: string) => {
         setMessages((prev) => {
@@ -383,8 +435,21 @@ export default function ChatArea({
         });
       },
       onAnswerReady: () => {},
-      onDone: () => { setSending(false); setStreamingId(null); },
+      onDone: () => {
+        if (streamRafRef.current) {
+          cancelAnimationFrame(streamRafRef.current);
+          streamRafRef.current = 0;
+        }
+        regenFlush();
+        setSending(false);
+        setStreamingId(null);
+      },
       onError: (err: Error) => {
+        if (streamRafRef.current) {
+          cancelAnimationFrame(streamRafRef.current);
+          streamRafRef.current = 0;
+        }
+        regenFlush();
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
