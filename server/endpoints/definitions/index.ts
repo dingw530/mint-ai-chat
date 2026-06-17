@@ -24,5 +24,5 @@ export function registerAllEndpoints(): void {
   endpointRegistry.registerAll(agentsEndpoints);
   endpointRegistry.registerAll(modelEndpointsEndpoints);
   endpointRegistry.registerAll(mcpServersEndpoints);
-  // conversations 保持手动路由（SSE 流式 + generateTitle + overloaded PATCH）
+  endpointRegistry.registerAll(conversationsEndpoints);
 }

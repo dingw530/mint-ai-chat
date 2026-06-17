@@ -2,15 +2,6 @@ import * as conversationService from '../../services/conversationService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 
-// ── PATCH /:id 的统一分发（根据 body 字段决定 rename 或 lockAgent） ──
-
-function patchConversation(id: string, data: Record<string, unknown>) {
-  if (data.lockedAgent !== undefined) {
-    return { conversation: conversationService.setLockedAgent(id, data.lockedAgent as string) };
-  }
-  return { conversation: conversationService.rename(id, data.title as string) };
-}
-
 export const conversationsEndpoints: EndpointDescriptor[] = [
   {
     id: 'conversations:list',
@@ -58,10 +49,15 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     method: 'PATCH',
     path: '/:id',
     preloadMethod: 'patchConversation',
-    service: patchConversation,
+    service: (id: string, data: Record<string, unknown>) => {
+      if (data?.lockedAgent !== undefined) {
+        return { conversation: conversationService.setLockedAgent(id, data.lockedAgent as string) };
+      }
+      return { conversation: conversationService.rename(id, data.title as string) };
+    },
     args: [
       { from: 'path', name: 'id' },
-      { from: 'body', name: 'data' },
+      { from: 'body', name: '' },
     ],
     result: 'direct',
   },
