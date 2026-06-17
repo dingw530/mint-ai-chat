@@ -144,19 +144,6 @@ function renderImageContent(imageData: string | Record<string, unknown> | null |
   );
 }
 
-function RoleIcon({ role }: { role: string }) {
-  switch (role) {
-    case 'user':
-      return <span role="img" aria-label="用户">🌸</span>;
-    case 'assistant':
-      return <span role="img" aria-label="AI">✨</span>;
-    case 'error':
-      return <span role="img" aria-label="错误">⚠️</span>;
-    default:
-      return null;
-  }
-}
-
 interface MessageListProps {
   messages: Message[];
   streamingId: string | null;
@@ -236,52 +223,57 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
         const isStreaming = msg.role === 'assistant' && msg.id === streamingId;
         const hasSegments = msg.segments && msg.segments.length > 0;
         return (
-          <div
-            key={msg.id || (msg as any)._tempId}
-            className={`message ${msg.role}${isStreaming ? ' streaming' : ''}`}
-          >
-            <div className="message-label">
-              <RoleIcon role={msg.role} />{' '}
-              {msg.role === 'user' ? '你' : msg.role === 'error' ? '错误' : 'AI'}
+          <div key={msg.id || (msg as any)._tempId} className="message-wrapper">
+            <div className={`message-avatar-wrapper ${msg.role}`}>
+              <div className="message-avatar">
+                {msg.role === 'user' ? '你' : msg.role === 'error' ? '!' : 'AI'}
+              </div>
             </div>
-            {msg.role === 'assistant' && hasSegments ? (
-              <>
-                {renderSegments(msg.segments!)}
-                {msg.content && <MarkdownRenderer content={msg.content} />}
-              </>
-            ) : (
-              <>
-                {msg.reasoning && (
-                  <details className="reasoning-block" open>
-                    <summary>思考过程</summary>
-                    <div className="reasoning-content">{msg.reasoning}</div>
-                  </details>
-                )}
-                {showReactSteps && msg.role === 'assistant' && reactSteps && reactSteps.length > 0 ? (
-                  <div className="react-steps-container">
-                    {reactSteps.map((step, i) => (
-                      <ReActStep key={i} step={step} isLast={isStreaming && i === reactSteps.length - 1} />
-                    ))}
-                  </div>
-                ) : null}
-                {msg.role === 'assistant'
-                  ? <MarkdownRenderer content={msg.content} />
-                  : <span>{msg.content}</span>}
-              </>
-            )}
-            {msg.role === 'assistant' && msg.imageData && renderImageContent(msg.imageData)}
-            {isStreaming && <span className="cursor" />}
-            {msg.role === 'assistant' && !isStreaming && onRegenerate && messages.indexOf(msg) === messages.length - 1 && (
-              <button
-                className="regenerate-btn"
-                title="重新生成"
-                onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
-              >
-                <svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor" />
-                </svg>
-              </button>
-            )}
+            <div
+              className={`message ${msg.role}${isStreaming ? ' streaming' : ''}`}
+            >
+              <div className="message-label">
+                {msg.role === 'user' ? '你' : msg.role === 'error' ? '错误' : 'AI'}
+              </div>
+              {msg.role === 'assistant' && hasSegments ? (
+                <>
+                  {renderSegments(msg.segments!)}
+                  {msg.content && <MarkdownRenderer content={msg.content} />}
+                </>
+              ) : (
+                <>
+                  {msg.reasoning && (
+                    <details className="reasoning-block" open>
+                      <summary>思考过程</summary>
+                      <div className="reasoning-content">{msg.reasoning}</div>
+                    </details>
+                  )}
+                  {showReactSteps && msg.role === 'assistant' && reactSteps && reactSteps.length > 0 ? (
+                    <div className="react-steps-container">
+                      {reactSteps.map((step, i) => (
+                        <ReActStep key={i} step={step} isLast={isStreaming && i === reactSteps.length - 1} />
+                      ))}
+                    </div>
+                  ) : null}
+                  {msg.role === 'assistant'
+                    ? <MarkdownRenderer content={msg.content} />
+                    : <span>{msg.content}</span>}
+                </>
+              )}
+              {msg.role === 'assistant' && msg.imageData && renderImageContent(msg.imageData)}
+              {isStreaming && <span className="cursor" />}
+              {msg.role === 'assistant' && !isStreaming && onRegenerate && messages.indexOf(msg) === messages.length - 1 && (
+                <button
+                  className="regenerate-btn"
+                  title="重新生成"
+                  onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         );
       })}
