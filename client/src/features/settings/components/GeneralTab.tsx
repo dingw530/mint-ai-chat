@@ -113,11 +113,22 @@ export default function GeneralTab({
       <div className="form-group">
         <label>主题皮肤</label>
         <div className="mode-toggle">
-          <button type="button" className={theme === 'mint' ? 'active' : ''} onClick={() => setTheme('mint')}>Mint 沁绿</button>
-          <button type="button" className={theme === 'ocean' ? 'active' : ''} onClick={() => setTheme('ocean')}>海洋冰蓝</button>
-          <button type="button" className={theme === 'snow' ? 'active' : ''} onClick={() => setTheme('snow')}>蓝雪花 ❄</button>
-          <button type="button" className={theme === 'anthropic' ? 'active' : ''} onClick={() => setTheme('anthropic')}>Anthropic</button>
-          <button type="button" className={theme === 'reddot' ? 'active' : ''} onClick={() => setTheme('reddot')}>炽红</button>
+          <button type="button" className={theme === 'mint' ? 'active' : ''} onClick={() => setTheme('mint')}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#2AA87D', marginRight: 6, verticalAlign: 'middle' }}></span>
+            Mint 沁绿
+          </button>
+          <button type="button" className={theme === 'snow' ? 'active' : ''} onClick={() => setTheme('snow')}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#727CC6', marginRight: 6, verticalAlign: 'middle' }}></span>
+            蓝雪花
+          </button>
+          <button type="button" className={theme === 'anthropic' ? 'active' : ''} onClick={() => setTheme('anthropic')}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#E18C6E', marginRight: 6, verticalAlign: 'middle' }}></span>
+            Anthropic
+          </button>
+          <button type="button" className={theme === 'reddot' ? 'active' : ''} onClick={() => setTheme('reddot')}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#D03050', marginRight: 6, verticalAlign: 'middle' }}></span>
+            炽红
+          </button>
         </div>
         <p className="form-help">切换应用的色彩主题风格，即时生效。</p>
       </div>

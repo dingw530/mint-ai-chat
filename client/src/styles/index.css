@@ -5,7 +5,6 @@
 
 /* Theme imports — each theme defines its own CSS custom property overrides */
 @import './themes/mint.css';
-@import './themes/ocean.css';
 @import './themes/snow.css';
 @import './themes/anthropic.css';
 @import './themes/reddot.css';
@@ -20,24 +19,24 @@
    Design Tokens
    -------------------------------------------- */
 :root {
-  --bg-deep: #E4EBE7;
-  --bg-primary: #F0F5F2;
+  --bg-deep: #F0F0F0;
+  --bg-primary: #FFFFFF;
   --bg-secondary: #FFFFFF;
-  --bg-tertiary: #E6EDE9;
+  --bg-tertiary: #F2F2F2;
   --bg-elevated: #FFFFFF;
-  --bg-hover: rgba(109, 190, 155, 0.06);
+  --bg-hover: rgba(42, 168, 125, 0.06);
 
   --text-primary: #1F1F1F;
   --text-secondary: #505050;
   --text-tertiary: #888888;
   --text-inverse: #FFFFFF;
 
-  --accent: #5EAF8A;
-  --accent-hover: #4E9F7A;
-  --accent-gradient: #5EAF8A;
-  --accent-glow: rgba(94, 175, 138, 0.18);
-  --accent-subtle: rgba(94, 175, 138, 0.07);
-  --accent-border: rgba(94, 175, 138, 0.25);
+  --accent: #2AA87D;
+  --accent-hover: #269770;
+  --accent-gradient: #2AA87D;
+  --accent-glow: rgba(42, 168, 125, 0.18);
+  --accent-subtle: rgba(42, 168, 125, 0.07);
+  --accent-border: rgba(42, 168, 125, 0.25);
 
   --secondary: #7DB8C8;
   --secondary-hover: #6DA8B8;
@@ -52,10 +51,10 @@
   --border-default: rgba(0, 0, 0, 0.10);
   --border-strong: rgba(0, 0, 0, 0.15);
 
-  --user-bubble: #5EAF8A;
+  --user-bubble: #2AA87D;
   --user-bubble-text: #FFFFFF;
-  --assistant-bubble: #E8F2EC;
-  --assistant-bubble-border: rgba(94, 175, 138, 0.30);
+  --assistant-bubble: #FFFFFF;
+  --assistant-bubble-border: rgba(0, 0, 0, 0.08);
 
   --error-bg: rgba(200, 130, 130, 0.08);
   --error-border: rgba(200, 130, 130, 0.2);
@@ -74,7 +73,7 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.06);
   --shadow-xl: 0 20px 60px -15px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 20px rgba(94, 175, 138, 0.12);
+  --shadow-glow: 0 0 20px rgba(42, 168, 125, 0.12);
   --shadow-teal: 0 0 20px rgba(125, 184, 200, 0.10);
   --shadow-diffuse: 0 4px 24px -6px rgba(0, 0, 0, 0.08);
 
@@ -123,22 +122,6 @@ body {
   line-height: 1.7;
 }
 
-/* --------------------------------------------
-   Subtle Atmospheric Background
-   -------------------------------------------- */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 600px 500px at 5% 10%, var(--accent-subtle) 0%, transparent 60%);
-}
-
-/* --------------------------------------------
-   Top decorative accent bar
-   -------------------------------------------- */
 /* --------------------------------------------
    App Layout
    -------------------------------------------- */
@@ -204,7 +187,7 @@ body::before {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: rgba(94, 175, 138, 0.1);
+  background: var(--accent-subtle);
   color: var(--accent);
 }
 
@@ -348,35 +331,9 @@ body::before {
   text-align: center;
   padding: 40px;
   animation: fadeIn 0.8s var(--ease-out);
-  position: relative;
 }
 
-/* Decorative dots around welcome */
-.welcome-screen::before {
-  content: '';
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  top: 10%;
-  left: 15%;
-  background-image: radial-gradient(circle, rgba(109, 190, 155, 0.08) 2px, transparent 2px);
-  background-size: 16px 16px;
-  pointer-events: none;
-}
-
-.welcome-screen::after {
-  content: '';
-  position: absolute;
-  width: 100px;
-  height: 100px;
-  bottom: 15%;
-  right: 15%;
-  background-image: radial-gradient(circle, rgba(141, 196, 212, 0.08) 2px, transparent 2px);
-  background-size: 14px 14px;
-  pointer-events: none;
-}
-
-.app-icon.welcome {
+.welcome-screen h2 {
   margin-bottom: 24px;
   animation: floatBounce 4s var(--ease-in-out) infinite;
 }
@@ -419,7 +376,7 @@ body::before {
   color: var(--user-bubble-text);
   margin-left: auto;
   border-bottom-right-radius: var(--radius-sm);
-  box-shadow: 0 4px 16px rgba(94, 175, 138, 0.22), 0 1px 4px rgba(94, 175, 138, 0.08);
+  box-shadow: 0 4px 16px rgba(42, 168, 125, 0.20), 0 1px 4px rgba(42, 168, 125, 0.08);
 }
 
 .message.assistant {
@@ -428,7 +385,7 @@ body::before {
   margin-right: auto;
   border-bottom-left-radius: var(--radius-sm);
   border: 1px solid var(--assistant-bubble-border);
-  box-shadow: var(--shadow-teal);
+  box-shadow: var(--shadow-sm);
   white-space: normal;
 }
 
@@ -507,7 +464,7 @@ body::before {
    Reasoning Block
    -------------------------------------------- */
 .reasoning-block {
-  background: rgba(141, 196, 212, 0.06);
+  background: rgba(0, 0, 0, 0.03);
   border-radius: var(--radius-md);
   padding: 8px 12px;
   margin-bottom: 8px;
@@ -550,7 +507,7 @@ body::before {
 }
 
 .thinking-segment {
-  background: rgba(141, 196, 212, 0.06);
+  background: rgba(0, 0, 0, 0.03);
   border-radius: var(--radius-md);
   padding: 8px 12px;
   margin-bottom: 6px;
@@ -592,7 +549,7 @@ body::before {
   padding: 6px 10px;
   border-left: 2px solid var(--accent);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: rgba(94, 175, 138, 0.04);
+  background: var(--bg-tertiary);
 }
 
 .tool-call-header {
@@ -779,17 +736,6 @@ body::before {
   background: var(--bg-primary);
   border-top: 1px solid var(--border-subtle);
   position: relative;
-}
-
-.input-box::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: 5%;
-  right: 5%;
-  height: 1px;
-  background: var(--accent);
-  opacity: 0.12;
 }
 
 .input-box form {
@@ -1165,7 +1111,7 @@ body::before {
 .agent-btn.active {
   color: var(--accent);
   background: var(--bg-secondary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(109,190,155,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px rgba(42, 168, 125, 0.08);
 }
 
 .agent-btn.active .agent-icon svg {

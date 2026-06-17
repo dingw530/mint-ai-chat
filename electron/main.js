@@ -469,12 +469,12 @@ function setupIpcHandlers() {
 
 // ── 窗口管理 ──
 
-function createWindow() {
+function createWindow(port) {
   logger.info('Creating main window...');
 
   const url = isDev
     ? 'http://localhost:5173'
-    : `file://${path.join(__dirname, 'client-dist', 'index.html')}`;
+    : `http://localhost:${port}`;
 
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -526,8 +526,8 @@ app.whenReady().then(async () => {
   if (servicesLoaded) setupIpcHandlers();
 
   try {
-    await startServer();
-    createWindow();
+    const port = await startServer();
+    createWindow(port);
   } catch (err) {
     logger.error(`Failed to start: ${err.message}`);
     const { dialog } = require('electron');
