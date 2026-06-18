@@ -3,6 +3,7 @@ import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine } from './toolRoundEngine.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
 import { Sink } from './sink.js';
+import { trimContext } from './utils/contextWindow.js';
 
 // ── ReAct 循环引擎 ──
 export async function reactChat(messages: HistoryMessage[], settings: AiSettings, sink: Sink, agent?: string, signal?: AbortSignal): Promise<StreamResult> {
@@ -34,6 +35,11 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
 
   while (iteration < maxIterations) {
     if (sink.writableEnded || signal?.aborted) break;
+
+    // 滑动窗口：保留 system + 最近 N 轮对话，防止 context window 超限
+    currentMessages = trimContext(currentMessages, {
+      maxRounds: settings.maxContextRounds || 10,
+    });
 
     const isLast = iteration === maxIterations - 1;
     const label = isLast ? 'react-answer' : 'react-thought';

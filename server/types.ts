@@ -74,6 +74,7 @@ export interface SettingsInput {
   reactMaxIterations?: number;
   toolMaxRetries?: number;
   showReactSteps?: boolean;
+  maxContextRounds?: number;
 }
 
 // AI 代理内部使用的设置（apiKey 已解密）
@@ -88,6 +89,7 @@ export interface AiSettings {
   reactMaxIterations: number;
   toolMaxRetries: number;
   showReactSteps: boolean;
+  maxContextRounds: number;
 }
 
 // 返回给前端的设置（apiKey 脱敏显示）
@@ -102,6 +104,7 @@ export interface VisibleSettings {
   reactMaxIterations: number;
   toolMaxRetries: number;
   showReactSteps: boolean;
+  maxContextRounds: number;
   activeEndpointId: string | null;
   activeEndpointName: string | null;
 }

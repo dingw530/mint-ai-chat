@@ -14,12 +14,14 @@ export { WeatherTool } from './WeatherTool.js';
 export { HttpFetchTool } from './HttpFetchTool.js';
 export { SkillTool } from './SkillTool.js';
 export { BashTool } from './BashTool.js';
+export { InvokeAgentTool } from './InvokeAgentTool.js';
 
 // 工具实例（用于注册）
 import { WeatherTool } from './WeatherTool.js';
 import { HttpFetchTool } from './HttpFetchTool.js';
 import { SkillTool } from './SkillTool.js';
 import { BashTool } from './BashTool.js';
+import { InvokeAgentTool } from './InvokeAgentTool.js';
 import { toolRegistry } from './ToolRegistry.js';
 
 // 内置工具列表
@@ -28,6 +30,7 @@ export const builtinTools = [
   new HttpFetchTool(),
   new SkillTool(),
   new BashTool(),
+  new InvokeAgentTool(),
 ];
 
 /**

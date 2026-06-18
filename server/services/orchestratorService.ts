@@ -16,16 +16,7 @@ export const ORCHESTRATOR_INSTRUCTION = `
 注意：invoke_agent 是同步操作，等待返回结果后再继续。
 一次可以并行调用多个 invoke_agent 来加速处理。`;
 
-// 获取当前可用的 Worker Agent 列表文本
-function getAvailableWorkers(): string {
-  const agents = agentService.list();
-  return agents
-    .filter(a => a.available !== false && a.id !== 'orchestrator' && a.id !== 'general')
-    .map(a => `- ${a.id}: ${a.description || a.name}`)
-    .join('\n');
-}
-
-// 内部调用 Worker Agent（非流式，捕获完整回复）
+// 非流式直接调用 AI
 export async function invokeAgent(agentId: string, task: string, timeoutMs = 30000): Promise<string> {
   const settings = settingsService.getAiSettings();
   if (!settings.apiUrl || !settings.apiKey) {
@@ -120,22 +111,3 @@ async function directCall(settings: any, messages: HistoryMessage[], timeoutMs: 
   }
 }
 
-// 构建编排 Agent 的 invoke_agent 工具定义
-export function getInvokeAgentToolDefinition(): ToolDefinition {
-  const workers = getAvailableWorkers();
-  return {
-    type: 'function',
-    function: {
-      name: 'invoke_agent',
-      description: `将子任务委派给指定的专业 Agent 执行，等待结果返回。在需要其他 Agent 专业能力时调用。\n\n可用 Worker Agent：\n${workers || '(暂无可用 Worker)'}`,
-      parameters: {
-        type: 'object',
-        properties: {
-          agent_id: { type: 'string', description: '目标 Agent ID' },
-          task: { type: 'string', description: '要委派给该 Agent 的子任务描述' },
-        },
-        required: ['agent_id', 'task'],
-      },
-    },
-  };
-}

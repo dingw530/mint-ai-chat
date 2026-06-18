@@ -26,6 +26,7 @@ export function get(): VisibleSettings {
     reactMaxIterations: parseInt(raw.reactMaxIterations || '5', 10),
     toolMaxRetries: parseInt(raw.toolMaxRetries || '5', 10),
     showReactSteps: raw.showReactSteps !== 'false',
+    maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
     activeEndpointId: activeEndpoint?.id || null,
     activeEndpointName: activeEndpoint?.name || null,
   };
@@ -55,9 +56,10 @@ export function getAiSettings(): AiSettings {
       reactMaxIterations: parseInt(raw.reactMaxIterations || '5', 10),
       toolMaxRetries: parseInt(raw.toolMaxRetries || '5', 10),
       showReactSteps: raw.showReactSteps !== 'false',
+      maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
     };
   }
-  // 兜底：旧 settings 表（过渡期兼容，后续不再扩展）
+  // 兜底：旧 settings 表（过渡期兼容）
   // @deprecated — 新安装用户应通过 model_endpoints 配置
   const raw: RawSettings = settingsRepo.getAll();
   return {
@@ -71,6 +73,7 @@ export function getAiSettings(): AiSettings {
     reactMaxIterations: parseInt(raw.reactMaxIterations || '5', 10),
     toolMaxRetries: parseInt(raw.toolMaxRetries || '5', 10),
     showReactSteps: raw.showReactSteps !== 'false',
+    maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
   };
 }
 

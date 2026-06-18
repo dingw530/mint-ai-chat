@@ -71,6 +71,14 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
   }
 
   /**
+   * 是否并发安全（多个相同工具可同时执行）
+   * 只读工具默认并发安全，修改状态的工具视情况覆盖
+   */
+  isConcurrencySafe(): boolean {
+    return this.isReadOnly();
+  }
+
+  /**
    * 验证输入参数
    * 默认使用 Zod schema 验证，可覆盖添加自定义逻辑
    */

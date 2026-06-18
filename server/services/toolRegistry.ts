@@ -1,7 +1,6 @@
 import { ToolCall, ToolDefinition } from '../types.js';
 import { mcpService } from './api/mcpService.js';
 import * as agentRepo from '../repositories/agentRepository.js';
-import { getInvokeAgentToolDefinition, invokeAgent } from './orchestratorService.js';
 import { toolRegistry as newToolRegistry, toolExecutor } from './tools/index.js';
 
 // 获取 Agent 可用的工具定义列表
@@ -9,7 +8,7 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
   const tools: ToolDefinition[] = [];
 
   // 全局工具，所有 Agent 可用
-  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash'];
+  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash', 'invoke_agent'];
   for (const name of globalToolNames) {
     const def = getToolDefinitionSafe(name);
     if (def) tools.push(def);
@@ -28,12 +27,6 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
   // 自定义 Agent：根据 mcp_server_ids 加载其全部工具
   const agent = agentRepo.findById(agentId);
   if (!agent || !agent.available) return tools;
-
-  // 编排 Agent：注册 invoke_agent 工具（不含 MCP 工具）
-  if (agent.type === 'orchestrator') {
-    tools.push(getInvokeAgentToolDefinition());
-    return tools;
-  }
 
   // 加载 Agent 绑定的 MCP Server 的全部工具
   const boundServerIds: string[] = agent.mcpServerIds || [];
@@ -63,13 +56,7 @@ export async function executeTool(toolCall: ToolCall): Promise<unknown> {
     return { error: result.error };
   }
 
-  // 2. invoke_agent（编排 Agent 专用）
-  if (name === 'invoke_agent') {
-    const args = JSON.parse(argsStr);
-    return await invokeAgent(args.agent_id, args.task);
-  }
-
-  // 3. MCP 工具格式：serverName__toolName
+  // 2. MCP 工具格式：serverName__toolName
   const separatorIndex = name.indexOf('__');
   if (separatorIndex > 0) {
     const serverName = name.substring(0, separatorIndex);
