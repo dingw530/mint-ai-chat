@@ -1,49 +1,51 @@
 /* Mint — Fresh Green Design Token Overrides */
 :root.theme-mint,
 .theme-mint {
-  --bg-deep: #E4EBE7;
-  --bg-primary: #F0F5F2;
+  --bg-deep: #F5F5F5;
+  --bg-primary: #FFFFFF;
   --bg-secondary: #FFFFFF;
-  --bg-tertiary: #E6EDE9;
+  --bg-tertiary: #F7F7F7;
   --bg-elevated: #FFFFFF;
-  --bg-hover: rgba(109, 190, 155, 0.06);
+  --bg-hover: rgba(0, 0, 0, 0.03);
 
-  --text-primary: #1F1F1F;
-  --text-secondary: #505050;
-  --text-tertiary: #888888;
+  --text-primary: #1A1A1A;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
   --text-inverse: #FFFFFF;
 
-  --accent: #5EAF8A;
-  --accent-hover: #4E9F7A;
-  --accent-gradient: #5EAF8A;
-  --accent-glow: rgba(94, 175, 138, 0.18);
-  --accent-subtle: rgba(94, 175, 138, 0.07);
-  --accent-border: rgba(94, 175, 138, 0.25);
+  --accent: #2AA87D;
+  --accent-hover: #269770;
+  --accent-gradient: #2AA87D;
+  --accent-glow: rgba(42, 168, 125, 0.08);
+  --accent-subtle: rgba(42, 168, 125, 0.05);
+  --accent-border: rgba(42, 168, 125, 0.15);
 
-  --secondary: #7DB8C8;
-  --secondary-hover: #6DA8B8;
-  --secondary-glow: rgba(125, 184, 200, 0.18);
-  --secondary-subtle: rgba(125, 184, 200, 0.07);
-  --secondary-border: rgba(125, 184, 200, 0.25);
+  --secondary: #5B8FB9;
+  --secondary-hover: #4A7EA8;
+  --secondary-glow: rgba(91, 143, 185, 0.08);
+  --secondary-subtle: rgba(91, 143, 185, 0.05);
+  --secondary-border: rgba(91, 143, 185, 0.15);
 
   --sunny: #D8BC74;
-  --sunny-subtle: rgba(216, 188, 116, 0.15);
+  --sunny-subtle: rgba(216, 188, 116, 0.10);
 
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-default: rgba(0, 0, 0, 0.10);
-  --border-strong: rgba(0, 0, 0, 0.15);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.12);
 
-  --user-bubble: #5EAF8A;
-  --user-bubble-text: #FFFFFF;
-  --assistant-bubble: #E8F2EC;
-  --assistant-bubble-border: rgba(94, 175, 138, 0.30);
+  --user-avatar: #2AA87D;
+  --assistant-avatar: #5B8FB9;
+  --user-bubble: #FFFFFF;
+  --user-bubble-text: #1A1A1A;
+  --assistant-bubble: #FFFFFF;
+  --assistant-bubble-border: rgba(0, 0, 0, 0.06);
 
-  --error-bg: rgba(200, 130, 130, 0.08);
-  --error-border: rgba(200, 130, 130, 0.2);
-  --error-text: #CC7A7A;
+  --error-bg: rgba(220, 80, 80, 0.06);
+  --error-border: rgba(220, 80, 80, 0.12);
+  --error-text: #CC5555;
 
-  --success-bg: rgba(141, 196, 212, 0.1);
+  --success-bg: rgba(91, 143, 185, 0.06);
 
-  --shadow-glow: 0 0 20px rgba(94, 175, 138, 0.12);
-  --shadow-teal: 0 0 20px rgba(125, 184, 200, 0.10);
+  --shadow-glow: 0 0 12px rgba(42, 168, 125, 0.06);
+  --shadow-teal: 0 0 12px rgba(91, 143, 185, 0.06);
 }

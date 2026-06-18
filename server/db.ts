@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { runMigrations } from './migrations/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -9,22 +10,29 @@ const DB_PATH: string = process.env.AI_CHAT_DB_PATH || path.join(__dirname, 'dat
 
 let db: Database.Database | undefined;
 
-// 获取数据库单例：延迟初始化，首次调用时自动建表和迁移
+// 获取数据库单例：延迟初始化，首次调用时自动建表、迁移、种子数据
 export function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');   // WAL 模式提升并发读写性能
     db.pragma('foreign_keys = ON');    // 启用外键约束
-    initTables();
+    createSchema();
+    runMigrations(db);
+    seedData();
   }
   return db;
 }
 
-function initTables(): void {
+// ── 阶段一：Schema 定义 ──
+// 完整的当前表结构（含所有后续迁移加的列），新数据库通过此处一次性建齐
+function createSchema(): void {
   db!.exec(`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL DEFAULT 'New Chat',
+      type TEXT NOT NULL DEFAULT 'text',
+      locked_agent TEXT,
+      routing_mode TEXT NOT NULL DEFAULT 'auto',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -34,6 +42,8 @@ function initTables(): void {
       conversation_id TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
       content TEXT NOT NULL,
+      reasoning TEXT,
+      image_data TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     );
@@ -42,17 +52,7 @@ function initTables(): void {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
-  `);
 
-  // 迁移：新增 reasoning 列（AI 思考链），幂等执行，列已存在时静默忽略
-  try {
-    db!.exec('ALTER TABLE messages ADD COLUMN reasoning TEXT');
-  } catch {
-    /* column already exists, ignore */
-  }
-
-  // 创建 MCP Server 配置表
-  db!.exec(`
     CREATE TABLE IF NOT EXISTS mcp_servers (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
@@ -64,10 +64,7 @@ function initTables(): void {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-  `);
 
-  // 创建 Agent 表
-  db!.exec(`
     CREATE TABLE IF NOT EXISTS agents (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -77,13 +74,11 @@ function initTables(): void {
       mcp_server_ids TEXT NOT NULL DEFAULT '[]',
       available INTEGER NOT NULL DEFAULT 1,
       error_message TEXT,
+      trigger_keywords TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-  `);
 
-  // 创建记忆表
-  db!.exec(`
     CREATE TABLE IF NOT EXISTS memories (
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,
@@ -92,29 +87,7 @@ function initTables(): void {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-  `);
 
-  // 迁移：添加 locked_agent 和 routing_mode 列到 conversations 表
-  try {
-    db!.exec('ALTER TABLE conversations ADD COLUMN locked_agent TEXT');
-  } catch {
-    /* column already exists, ignore */
-  }
-  try {
-    db!.exec('ALTER TABLE conversations ADD COLUMN routing_mode TEXT NOT NULL DEFAULT \'auto\'');
-  } catch {
-    /* column already exists, ignore */
-  }
-
-  // 迁移：添加 trigger_keywords 列到 agents 表
-  try {
-    db!.exec('ALTER TABLE agents ADD COLUMN trigger_keywords TEXT');
-  } catch {
-    /* column already exists, ignore */
-  }
-
-  // 创建路由日志表
-  db!.exec(`
     CREATE TABLE IF NOT EXISTS routing_logs (
       id TEXT PRIMARY KEY,
       conversation_id TEXT,
@@ -128,10 +101,7 @@ function initTables(): void {
       routing_mode TEXT,
       created_at TEXT NOT NULL
     );
-  `);
 
-  // 创建模型端点配置表
-  db!.exec(`
     CREATE TABLE IF NOT EXISTS model_endpoints (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
@@ -139,48 +109,26 @@ function initTables(): void {
       api_key TEXT NOT NULL DEFAULT '',
       model_id TEXT NOT NULL,
       api_type TEXT NOT NULL DEFAULT 'openai-chat',
+      category TEXT NOT NULL DEFAULT 'text',
       is_active INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+}
 
-  // 迁移：新增 api_type 列
-  try {
-    db!.exec('ALTER TABLE model_endpoints ADD COLUMN api_type TEXT NOT NULL DEFAULT \'openai-chat\'');
-  } catch {
-    /* column already exists, ignore */
-  }
+// ── 阶段三：种子数据 ──
+// 内置 Agent 记录，用 INSERT OR IGNORE + UPDATE 保持幂等
+function seedData(): void {
+  const now = new Date().toISOString();
 
-  // 迁移：新增 category 列（text / image）
-  try {
-    db!.exec('ALTER TABLE model_endpoints ADD COLUMN category TEXT NOT NULL DEFAULT \'text\'');
-  } catch {
-    /* column already exists, ignore */
-  }
-
-  // 迁移：新增 type 列到 conversations（text / image）
-  try {
-    db!.exec('ALTER TABLE conversations ADD COLUMN type TEXT NOT NULL DEFAULT \'text\'');
-  } catch {
-    /* column already exists, ignore */
-  }
-
-  // 迁移：新增 image_data 列到 messages（存储图片结果 JSON）
-  try {
-    db!.exec('ALTER TABLE messages ADD COLUMN image_data TEXT');
-  } catch {
-    /* column already exists, ignore */
-  }
-
-  // 初始化内置 Agent（如果不存在则插入）
+  // 和风天气功能是否可用取决于环境变量配置
   const weatherAvailable = !!(
     process.env.QWEATHER_PROJECT_ID &&
     process.env.QWEATHER_KEY_ID &&
     process.env.QWEATHER_PRIVATE_KEY
   );
-  const now = new Date().toISOString();
 
   const upsertAgent = db!.prepare(`
     INSERT OR IGNORE INTO agents (id, name, description, type, system_prompt, mcp_server_ids, available, created_at, updated_at)
@@ -195,7 +143,6 @@ function initTables(): void {
   db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('和风天气', 'weather', '和风天气');
   db!.prepare('UPDATE agents SET description = ? WHERE id = ? AND description != ?').run('查询天气预报信息', 'weather', '查询天气预报信息');
 
-  // 更新内置 Agent 的 triggerKeywords
   const weatherKeywords = JSON.stringify(['天气', '温度', '预报', '风力', '降雨', '晴', '雨', '雪', '台风', '湿度', '空气质量']);
   db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run(weatherKeywords, 'weather', '[]');
   db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run('[]', 'general', '[]');

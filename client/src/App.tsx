@@ -1,17 +1,19 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import Sidebar from './components/Sidebar';
-import ChatArea from './components/ChatArea';
+import { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
+import Sidebar from '@/components/Sidebar';
+import ChatArea from '@/features/chat/components/ChatArea';
 import {
   getConversations,
   createConversation,
   deleteConversation,
+  clearAllConversations,
   renameConversation,
   getEndpoints,
-} from './services/api';
-import type { Conversation, EndpointOutput } from './types';
+} from '@/services/api';
+import type { Conversation, EndpointOutput } from '@/types';
 
-const ImageChatArea = lazy(() => import('./components/ImageChatArea'));
-const Settings = lazy(() => import('./components/Settings'));
+const ImageChatArea = lazy(() => import('@/features/images/components/ImageChatArea'));
+const Settings = lazy(() => import('@/features/settings/components/Settings'));
+const WikiPanel = lazy(() => import('@/components/WikiPanel'));
 
 function getInitialTheme(): string {
   try {
@@ -26,6 +28,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showWiki, setShowWiki] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
@@ -72,12 +75,23 @@ export default function App() {
   }, [loading, conversations, activeId]);
 
   useEffect(() => {
-    document.documentElement.classList.remove('theme-mint', 'theme-ocean', 'theme-snow', 'theme-anthropic', 'theme-reddot');
+    document.documentElement.classList.remove('theme-mint', 'theme-snow', 'theme-anthropic', 'theme-reddot');
     document.documentElement.classList.add(`theme-${theme}`);
     try {
       localStorage.setItem('mint-theme', theme);
     } catch { /* ignore */ }
   }, [theme]);
+
+  const prevFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (showSettings) {
+      prevFocusRef.current = document.activeElement as HTMLElement;
+    } else {
+      prevFocusRef.current?.focus();
+      prevFocusRef.current = null;
+    }
+  }, [showSettings]);
 
   const handleCreate = async (title?: string): Promise<string | undefined> => {
     try {
@@ -100,6 +114,16 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to delete conversation:', err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await clearAllConversations();
+      setConversations([]);
+      setActiveId(null);
+    } catch (err) {
+      console.error('Failed to clear conversations:', err);
     }
   };
 
@@ -138,9 +162,11 @@ export default function App() {
         onCreate={handleCreate}
         onRename={handleRename}
         onDelete={handleDelete}
+        onClearAll={handleClearAll}
         loading={loading}
         activeView={activeView}
         onViewChange={setActiveView}
+        onOpenWiki={() => setShowWiki(true)}
       />
       {activeView === 'image' ? (
         <Suspense fallback={<div className="view-loading">加载中...</div>}>
@@ -173,6 +199,11 @@ export default function App() {
       {showSettings && (
         <Suspense fallback={null}>
           <Settings onClose={() => { setShowSettings(false); fetchEndpoints(); }} theme={theme} onThemeChange={setTheme} />
+        </Suspense>
+      )}
+      {showWiki && (
+        <Suspense fallback={null}>
+          <WikiPanel onClose={() => setShowWiki(false)} />
         </Suspense>
       )}
     </div>

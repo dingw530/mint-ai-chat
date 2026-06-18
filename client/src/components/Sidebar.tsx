@@ -1,6 +1,6 @@
 import { useState, KeyboardEvent } from 'react';
-import AppIcon from './AppIcon';
-import type { Conversation } from '../types';
+import AppIcon from '@/shared/components/AppIcon';
+import type { Conversation } from '@/types';
 
 function PlusIcon() {
   return (
@@ -36,6 +36,15 @@ function EditIcon() {
   );
 }
 
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -51,9 +60,11 @@ interface SidebarProps {
   onCreate: () => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  onClearAll: () => void;
   loading: boolean;
   activeView: string;
   onViewChange: (view: string) => void;
+  onOpenWiki?: () => void;
 }
 
 export default function Sidebar({
@@ -63,9 +74,11 @@ export default function Sidebar({
   onCreate,
   onRename,
   onDelete,
+  onClearAll,
   loading,
   activeView,
   onViewChange,
+  onOpenWiki,
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -194,6 +207,25 @@ export default function Sidebar({
             )}
           </div>
         ))}
+      </div>
+      <div className="sidebar-footer">
+        <button className="sidebar-footer-btn" onClick={() => onOpenWiki?.()}>
+          <BookIcon />
+          Wiki 知识库
+        </button>
+        {conversations.length > 0 && (
+          <button
+            className="sidebar-footer-btn"
+            onClick={() => {
+              if (window.confirm('确定要清空所有对话记录吗？此操作不可撤销。')) {
+                onClearAll();
+              }
+            }}
+          >
+            <TrashIcon />
+            清空全部
+          </button>
+        )}
       </div>
     </aside>
   );

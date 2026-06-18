@@ -1,68 +1,32 @@
-import * as qweather from './qweatherService.js';
 import { ToolCall, ToolDefinition } from '../types.js';
-import { mcpService } from './mcpService.js';
+import { mcpService } from './api/mcpService.js';
 import * as agentRepo from '../repositories/agentRepository.js';
-import { getInvokeAgentToolDefinition, invokeAgent } from './orchestratorService.js';
-
-// 内置天气工具定义
-const BUILTIN_TOOLS: ToolDefinition[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_weather_forecast',
-      description: '获取指定城市的天气预报，支持3天和7天预报',
-      parameters: {
-        type: 'object',
-        properties: {
-          city: {
-            type: 'string',
-            description: '城市中文名称，如 北京、上海、广州',
-          },
-          days: {
-            type: 'integer',
-            enum: [3, 7],
-            description: '预报天数，默认3天',
-          },
-        },
-        required: ['city'],
-      },
-    },
-  },
-];
-
-// 天气工具是否可用（环境变量已配置）
-function weatherConfigured(): boolean {
-  return !!(
-    process.env.QWEATHER_PROJECT_ID &&
-    process.env.QWEATHER_KEY_ID &&
-    process.env.QWEATHER_PRIVATE_KEY
-  );
-}
+import { toolRegistry as newToolRegistry, toolExecutor } from './tools/index.js';
 
 // 获取 Agent 可用的工具定义列表
 export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefinition[]> {
-  // general 助手不使用工具
-  if (!agentId || agentId === 'general') return [];
-
   const tools: ToolDefinition[] = [];
 
-  // weather Agent：使用内置天气工具
+  // 全局工具，所有 Agent 可用
+  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash', 'invoke_agent', 'read_file', 'write_file', 'list_files', 'wiki_ingest', 'wiki_query', 'wiki_lint'];
+  for (const name of globalToolNames) {
+    const def = getToolDefinitionSafe(name);
+    if (def) tools.push(def);
+  }
+
+  // general 助手仅使用全局工具
+  if (!agentId || agentId === 'general') return tools;
+
+  // weather Agent：追加天气工具
   if (agentId === 'weather') {
-    if (weatherConfigured()) {
-      tools.push(...BUILTIN_TOOLS);
-    }
+    const weatherDef = getToolDefinitionSafe('get_weather_forecast');
+    if (weatherDef) tools.push(weatherDef);
     return tools;
   }
 
   // 自定义 Agent：根据 mcp_server_ids 加载其全部工具
   const agent = agentRepo.findById(agentId);
-  if (!agent || !agent.available) return [];
-
-  // 编排 Agent：注册 invoke_agent 工具（不含 MCP 工具）
-  if (agent.type === 'orchestrator') {
-    tools.push(getInvokeAgentToolDefinition());
-    return tools;
-  }
+  if (!agent || !agent.available) return tools;
 
   // 加载 Agent 绑定的 MCP Server 的全部工具
   const boundServerIds: string[] = agent.mcpServerIds || [];
@@ -82,34 +46,37 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
 // 根据 tool_call 分发执行对应的工具函数
 export async function executeTool(toolCall: ToolCall): Promise<unknown> {
   const { name, arguments: argsStr } = toolCall.function;
-  const args = JSON.parse(argsStr);
 
-  // 内置工具分发
-  switch (name) {
-    case 'get_weather_forecast': {
-      const locations = await qweather.getCityLocation(args.city);
-      if (!locations || locations.length === 0) {
-        return { error: `未找到城市: ${args.city}` };
-      }
-      const forecast = await qweather.getWeatherForecast(locations[0].id, args.days || 3);
-      return forecast;
-    }
-    case 'invoke_agent': {
-      return await invokeAgent(args.agent_id, args.task);
-    }
-    default: {
-      // MCP 工具格式：serverName__toolName
-      const separatorIndex = name.indexOf('__');
-      if (separatorIndex > 0) {
-        const serverName = name.substring(0, separatorIndex);
-        const toolName = name.substring(separatorIndex + 2);
-        try {
-          return await mcpService.callTool(serverName, toolName, args);
-        } catch (err) {
-          return { error: `MCP tool error: ${(err as Error).message}` };
-        }
-      }
-      return { error: `未知工具: ${name}` };
+  // 1. 优先从新工具系统执行（get_weather_forecast, http_fetch 等内置工具）
+  if (newToolRegistry.has(name)) {
+    const result = await toolExecutor.executeFromToolCall(toolCall, {
+      conversationId: '',
+    });
+    if (result.success) return result.data;
+    return { error: result.error };
+  }
+
+  // 2. MCP 工具格式：serverName__toolName
+  const separatorIndex = name.indexOf('__');
+  if (separatorIndex > 0) {
+    const serverName = name.substring(0, separatorIndex);
+    const toolName = name.substring(separatorIndex + 2);
+    try {
+      const args = JSON.parse(argsStr);
+      return await mcpService.callTool(serverName, toolName, args);
+    } catch (err) {
+      return { error: `MCP tool error: ${(err as Error).message}` };
     }
   }
+
+  return { error: `未知工具: ${name}` };
+}
+
+/**
+ * 安全获取工具定义，工具未注册或未启用时返回 undefined
+ */
+function getToolDefinitionSafe(name: string): ToolDefinition | undefined {
+  const tool = newToolRegistry.get(name);
+  if (!tool || !tool.isEnabled()) return undefined;
+  return tool.getDefinition();
 }

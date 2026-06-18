@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RoutingService, RouteResult, RoutingContext } from '../services/routingService.js';
+import { RoutingService, RouteResult, RoutingContext } from '../services/api/routingService.js';
 import { Agent } from '../types.js';
 
 // 模拟 settingsService（llmClassify 需要）
-vi.mock('../services/settingsService.js', () => ({
+vi.mock('../services/api/settingsService.js', () => ({
   getAiSettings: vi.fn(() => ({
     apiUrl: 'https://api.example.com',
     apiKey: 'test-key',
@@ -287,7 +287,7 @@ describe('RoutingService - llmClassify', () => {
   });
 
   it('should return null when AI API call fails', async () => {
-    const failSettings = vi.mocked(await import('../services/settingsService.js')).getAiSettings;
+    const failSettings = vi.mocked(await import('../services/api/settingsService.js')).getAiSettings;
     failSettings.mockReturnValueOnce({
       apiUrl: 'https://invalid-url',
       apiKey: '',

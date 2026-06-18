@@ -1,0 +1,321 @@
+[
+  {
+    "id": "settings:get",
+    "ipcChannel": "settings:get",
+    "preloadMethod": "getSettings",
+    "method": "GET",
+    "httpPath": "/settings",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "settings:save",
+    "ipcChannel": "settings:save",
+    "preloadMethod": "saveSettings",
+    "method": "PUT",
+    "httpPath": "/settings",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "memories:list",
+    "ipcChannel": "memories:list",
+    "preloadMethod": "getMemories",
+    "method": "GET",
+    "httpPath": "/memories",
+    "args": [{ "from": "query", "name": "category", "optional": true }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "memories:create",
+    "ipcChannel": "memories:create",
+    "preloadMethod": "createMemory",
+    "method": "POST",
+    "httpPath": "/memories",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "memories:update",
+    "ipcChannel": "memories:update",
+    "preloadMethod": "updateMemory",
+    "method": "PUT",
+    "httpPath": "/memories/:id",
+    "args": [
+      { "from": "path", "name": "id" },
+      { "from": "body", "name": "data" }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "memories:delete",
+    "ipcChannel": "memories:delete",
+    "preloadMethod": "deleteMemory",
+    "method": "DELETE",
+    "httpPath": "/memories/:id",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "bash-security:get",
+    "ipcChannel": "bash-security:get",
+    "preloadMethod": "getBashSecurity",
+    "method": "GET",
+    "httpPath": "/bash-security",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "bash-security:update",
+    "ipcChannel": "bash-security:update",
+    "preloadMethod": "updateBashSecurity",
+    "method": "PUT",
+    "httpPath": "/bash-security",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "skills:list",
+    "ipcChannel": "skills:list",
+    "preloadMethod": "getSkills",
+    "method": "GET",
+    "httpPath": "/skills",
+    "args": [],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "weather:query",
+    "ipcChannel": "weather:query",
+    "preloadMethod": "queryWeather",
+    "method": "GET",
+    "httpPath": "/weather/query",
+    "args": [
+      { "from": "query", "name": "city" },
+      { "from": "query", "name": "days", "optional": true }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "routing-logs:list",
+    "ipcChannel": "routing-logs:list",
+    "preloadMethod": "getRoutingLogs",
+    "method": "GET",
+    "httpPath": "/routing-logs",
+    "args": [
+      { "from": "query", "name": "conversationId", "optional": true },
+      { "from": "query", "name": "page", "optional": true },
+      { "from": "query", "name": "pageSize", "optional": true }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "images:generate",
+    "ipcChannel": "images:generate",
+    "preloadMethod": "generateImage",
+    "method": "POST",
+    "httpPath": "/images/generate",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "agents:list",
+    "ipcChannel": "agents:list",
+    "preloadMethod": "getAgents",
+    "method": "GET",
+    "httpPath": "/agents",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "agents:get",
+    "ipcChannel": "agents:get",
+    "preloadMethod": "getAgent",
+    "method": "GET",
+    "httpPath": "/agents/:id",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "agents:create",
+    "ipcChannel": "agents:create",
+    "preloadMethod": "createAgent",
+    "method": "POST",
+    "httpPath": "/agents",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "agents:update",
+    "ipcChannel": "agents:update",
+    "preloadMethod": "updateAgent",
+    "method": "PUT",
+    "httpPath": "/agents/:id",
+    "args": [
+      { "from": "path", "name": "id" },
+      { "from": "body", "name": "data" }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "agents:delete",
+    "ipcChannel": "agents:delete",
+    "preloadMethod": "deleteAgent",
+    "method": "DELETE",
+    "httpPath": "/agents/:id",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "endpoints:list",
+    "ipcChannel": "endpoints:list",
+    "preloadMethod": "getEndpoints",
+    "method": "GET",
+    "httpPath": "/endpoints",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "endpoints:create",
+    "ipcChannel": "endpoints:create",
+    "preloadMethod": "createEndpoint",
+    "method": "POST",
+    "httpPath": "/endpoints",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "endpoints:update",
+    "ipcChannel": "endpoints:update",
+    "preloadMethod": "updateEndpoint",
+    "method": "PUT",
+    "httpPath": "/endpoints/:id",
+    "args": [
+      { "from": "path", "name": "id" },
+      { "from": "body", "name": "data" }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "endpoints:delete",
+    "ipcChannel": "endpoints:delete",
+    "preloadMethod": "deleteEndpoint",
+    "method": "DELETE",
+    "httpPath": "/endpoints/:id",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "endpoints:activate",
+    "ipcChannel": "endpoints:activate",
+    "preloadMethod": "activateEndpoint",
+    "method": "PUT",
+    "httpPath": "/endpoints/:id/activate",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "mcp-servers:list",
+    "ipcChannel": "mcp-servers:list",
+    "preloadMethod": "getMcpServers",
+    "method": "GET",
+    "httpPath": "/mcp-servers",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "mcp-servers:get",
+    "ipcChannel": "mcp-servers:get",
+    "preloadMethod": "getMcpServer",
+    "method": "GET",
+    "httpPath": "/mcp-servers/:id",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "mcp-servers:create",
+    "ipcChannel": "mcp-servers:create",
+    "preloadMethod": "createMcpServer",
+    "method": "POST",
+    "httpPath": "/mcp-servers",
+    "args": [{ "from": "body", "name": "data" }],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "mcp-servers:update",
+    "ipcChannel": "mcp-servers:update",
+    "preloadMethod": "updateMcpServer",
+    "method": "PUT",
+    "httpPath": "/mcp-servers/:id",
+    "args": [
+      { "from": "path", "name": "id" },
+      { "from": "body", "name": "data" }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "mcp-servers:delete",
+    "ipcChannel": "mcp-servers:delete",
+    "preloadMethod": "deleteMcpServer",
+    "method": "DELETE",
+    "httpPath": "/mcp-servers/:id",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "mcp-servers:restart",
+    "ipcChannel": "mcp-servers:restart",
+    "preloadMethod": "restartMcpServer",
+    "method": "POST",
+    "httpPath": "/mcp-servers/:id/restart",
+    "args": [{ "from": "path", "name": "id" }],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "wiki:list",
+    "ipcChannel": "wiki:list",
+    "preloadMethod": "listWiki",
+    "method": "GET",
+    "httpPath": "/wiki/list",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:read",
+    "ipcChannel": "wiki:read",
+    "preloadMethod": "readWiki",
+    "method": "GET",
+    "httpPath": "/wiki/read",
+    "args": [{ "from": "query", "name": "path" }],
+    "result": "direct",
+    "async": false
+  }
+]

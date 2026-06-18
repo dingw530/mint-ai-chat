@@ -37,10 +37,12 @@
   --border-default: rgba(0, 0, 0, 0.09);
   --border-strong: rgba(0, 0, 0, 0.14);
 
-  --user-bubble: #FF4B4B;
-  --user-bubble-text: #FFFFFF;
-  --assistant-bubble: #F2F2F6;
-  --assistant-bubble-border: rgba(255, 75, 75, 0.12);
+  --user-avatar: #FF4B4B;
+  --assistant-avatar: #6B7D8D;
+  --user-bubble: #FFFFFF;
+  --user-bubble-text: #1A1A1A;
+  --assistant-bubble: #FFFFFF;
+  --assistant-bubble-border: rgba(0, 0, 0, 0.06);
 
   --error-bg: rgba(255, 75, 75, 0.06);
   --error-border: rgba(255, 75, 75, 0.18);

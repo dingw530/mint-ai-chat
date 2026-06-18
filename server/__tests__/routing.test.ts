@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RoutingService } from '../services/routingService.js';
+import { RoutingService } from '../services/api/routingService.js';
 import { createLogger } from '../utils/logger.js';
 import type { Agent } from '../types.js';
 

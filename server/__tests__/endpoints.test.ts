@@ -63,7 +63,7 @@ const runIf = (condition: any) => (condition ? describe : describe.skip);
 
 runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   it('should return empty endpoints list initially', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data).toHaveProperty('endpoints');
@@ -72,7 +72,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should create a new endpoint', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'OpenAI GPT-4o',
@@ -95,7 +95,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should default apiType to openai-chat', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     const ep = data.endpoints[0];
     expect(ep).toHaveProperty('apiType');
@@ -103,7 +103,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should create endpoint with explicit apiType', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Anthropic Claude',
@@ -119,14 +119,14 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should include created endpoint in the list', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     expect(data.endpoints.length).toBeGreaterThanOrEqual(1);
     expect(data.endpoints[0].name).toBe('OpenAI GPT-4o');
   });
 
   it('should create a second endpoint (not auto-activated)', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Claude Opus 4.7',
@@ -141,13 +141,13 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should list all endpoints sorted', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     expect(data.endpoints.length).toBeGreaterThanOrEqual(2);
   });
 
   it('should return 400 when name is empty', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: '',
@@ -160,7 +160,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should return 400 when apiUrl is empty', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Test',
@@ -173,7 +173,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should return 400 when apiUrl is invalid', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Test',
@@ -186,7 +186,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should return 400 when modelId is empty', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Test',
@@ -199,7 +199,7 @@ runIf(server)('AC-067: Endpoint Management — Create & List', () => {
   });
 
   it('should return 409 when name is duplicate', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'OpenAI GPT-4o',
@@ -216,7 +216,7 @@ runIf(server)('AC-069: Endpoint Management — Update', () => {
   let endpointId: string;
 
   beforeAll(async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Update Test',
@@ -229,7 +229,7 @@ runIf(server)('AC-069: Endpoint Management — Update', () => {
   });
 
   it('should update endpoint name and apiUrl', async () => {
-    const res = await request!(`/api/model-endpoints/${endpointId}`, {
+    const res = await request!(`/api/endpoints/${endpointId}`, {
       method: 'PUT',
       body: JSON.stringify({
         name: 'Updated Name',
@@ -245,7 +245,7 @@ runIf(server)('AC-069: Endpoint Management — Update', () => {
   });
 
   it('should keep existing apiKey when not provided in update', async () => {
-    const res = await request!(`/api/model-endpoints/${endpointId}`, {
+    const res = await request!(`/api/endpoints/${endpointId}`, {
       method: 'PUT',
       body: JSON.stringify({
         name: 'Updated Name',
@@ -260,7 +260,7 @@ runIf(server)('AC-069: Endpoint Management — Update', () => {
   });
 
   it('should update apiKey when new value provided', async () => {
-    const res = await request!(`/api/model-endpoints/${endpointId}`, {
+    const res = await request!(`/api/endpoints/${endpointId}`, {
       method: 'PUT',
       body: JSON.stringify({
         name: 'Updated Name',
@@ -273,7 +273,7 @@ runIf(server)('AC-069: Endpoint Management — Update', () => {
   });
 
   it('should return 404 for non-existent endpoint', async () => {
-    const res = await request!('/api/model-endpoints/non-existent', {
+    const res = await request!('/api/endpoints/non-existent', {
       method: 'PUT',
       body: JSON.stringify({
         name: 'Ghost',
@@ -287,7 +287,7 @@ runIf(server)('AC-069: Endpoint Management — Update', () => {
 
 runIf(server)('AC-074: API Key Security — Masked Response', () => {
   it('should never return plaintext apiKey in list', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     for (const ep of data.endpoints) {
       expect(ep).toHaveProperty('apiKeyMasked');
@@ -303,7 +303,7 @@ runIf(server)('AC-070: Endpoint Management — Delete', () => {
   let endpointId: string;
 
   beforeAll(async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'To Delete',
@@ -316,7 +316,7 @@ runIf(server)('AC-070: Endpoint Management — Delete', () => {
   });
 
   it('should delete a non-active endpoint', async () => {
-    const res = await request!(`/api/model-endpoints/${endpointId}`, {
+    const res = await request!(`/api/endpoints/${endpointId}`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
@@ -325,14 +325,14 @@ runIf(server)('AC-070: Endpoint Management — Delete', () => {
   });
 
   it('should remove deleted endpoint from list', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     const ids = data.endpoints.map((e: any) => e.id);
     expect(ids).not.toContain(endpointId);
   });
 
   it('should return 404 for non-existent endpoint', async () => {
-    const res = await request!('/api/model-endpoints/non-existent', {
+    const res = await request!('/api/endpoints/non-existent', {
       method: 'DELETE',
     });
     expect(res.status).toBe(404);
@@ -342,22 +342,22 @@ runIf(server)('AC-070: Endpoint Management — Delete', () => {
 runIf(server)('AC-071: Endpoint Management — Reject Delete Last', () => {
   it('should reject deleting the last endpoint', async () => {
     // 获取当前列表
-    const listRes = await request!('/api/model-endpoints');
+    const listRes = await request!('/api/endpoints');
     const listData = await listRes.json();
 
     // 删除除最后一个以外的所有端点
     for (let i = 0; i < listData.endpoints.length - 1; i++) {
-      await request!(`/api/model-endpoints/${listData.endpoints[i].id}`, {
+      await request!(`/api/endpoints/${listData.endpoints[i].id}`, {
         method: 'DELETE',
       });
     }
 
     // 现在只剩一个端点，尝试删除
-    const finalList = await request!('/api/model-endpoints');
+    const finalList = await request!('/api/endpoints');
     const finalData = await finalList.json();
     const lastId = finalData.endpoints[0].id;
 
-    const res = await request!(`/api/model-endpoints/${lastId}`, {
+    const res = await request!(`/api/endpoints/${lastId}`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(400);
@@ -372,11 +372,11 @@ runIf(server)('AC-068: Endpoint Management — Activate', () => {
 
   beforeAll(async () => {
     // 确保至少有 2 个端点
-    const listRes = await request!('/api/model-endpoints');
+    const listRes = await request!('/api/endpoints');
     const listData = await listRes.json();
 
     if (listData.endpoints.length === 0) {
-      const r = await request!('/api/model-endpoints', {
+      const r = await request!('/api/endpoints', {
         method: 'POST',
         body: JSON.stringify({
           name: 'First Endpoint',
@@ -391,7 +391,7 @@ runIf(server)('AC-068: Endpoint Management — Activate', () => {
     }
 
     if (listData.endpoints.length < 2) {
-      const r = await request!('/api/model-endpoints', {
+      const r = await request!('/api/endpoints', {
         method: 'POST',
         body: JSON.stringify({
           name: 'Second Endpoint',
@@ -407,7 +407,7 @@ runIf(server)('AC-068: Endpoint Management — Activate', () => {
   });
 
   it('should activate second endpoint', async () => {
-    const res = await request!(`/api/model-endpoints/${secondId}/activate`, {
+    const res = await request!(`/api/endpoints/${secondId}/activate`, {
       method: 'PUT',
     });
     expect(res.status).toBe(200);
@@ -416,7 +416,7 @@ runIf(server)('AC-068: Endpoint Management — Activate', () => {
   });
 
   it('should reflect activation in the list', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     const ep = data.endpoints.find((e: any) => e.id === secondId);
     expect(ep.isActive).toBe(true);
@@ -425,7 +425,7 @@ runIf(server)('AC-068: Endpoint Management — Activate', () => {
   });
 
   it('should return 404 when activating non-existent endpoint', async () => {
-    const res = await request!('/api/model-endpoints/non-existent/activate', {
+    const res = await request!('/api/endpoints/non-existent/activate', {
       method: 'PUT',
     });
     expect(res.status).toBe(404);
@@ -434,7 +434,7 @@ runIf(server)('AC-068: Endpoint Management — Activate', () => {
 
 runIf(server)('AC-072: API Key Optional — Empty Key', () => {
   it('should create endpoint with empty apiKey', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Local Ollama',
@@ -449,7 +449,7 @@ runIf(server)('AC-072: API Key Optional — Empty Key', () => {
   });
 
   it('should create endpoint without apiKey field', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Local LM Studio',
@@ -465,7 +465,7 @@ runIf(server)('AC-073: Migration — Legacy Settings to Endpoints', () => {
   // 注意：迁移测试需要一个干净的数据库，此处的测试数据库已经是全新的
   it('should return empty endpoints list on fresh DB (no legacy)', async () => {
     // 使用一个独立的测试逻辑：在已有端点的数据库中不会触发迁移
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const data = await res.json();
     // 数据库可能已有端点（前面的测试创建的），测试迁移幂等性
     expect(data.endpoints.length).toBeGreaterThanOrEqual(0);
@@ -473,9 +473,9 @@ runIf(server)('AC-073: Migration — Legacy Settings to Endpoints', () => {
 });
 
 runIf(server)('NF-004: Endpoint CRUD Response Time', () => {
-  it('should respond to GET /api/model-endpoints within 500ms', async () => {
+  it('should respond to GET /api/endpoints within 500ms', async () => {
     const start = performance.now();
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     const duration = performance.now() - start;
     expect(duration).toBeLessThan(500);
     expect(res.ok).toBe(true);

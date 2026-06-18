@@ -1,14 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Response } from 'express';
 import * as conversationRepo from '../repositories/conversationRepository.js';
 import * as messageRepo from '../repositories/messageRepository.js';
-import * as settingsService from './settingsService.js';
-import * as memoryService from './memoryService.js';
-import * as agentService from './agentService.js';
-import { routingService } from './routingService.js';
-import { streamChat, reactChat } from './aiProxy.js';
+import * as settingsService from './api/settingsService.js';
+import * as memoryService from './api/memoryService.js';
+import * as agentService from './api/agentService.js';
+import { routingService } from './api/routingService.js';
+import { streamChat } from './aiProxy.js';
+import { reactChat } from './reactLoopCore.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
 import { HttpError, HistoryMessage } from '../types.js';
+import { Sink } from './sink.js';
 
 export function getMessages(conversationId: string) {
   const conversation = conversationRepo.findById(conversationId);
@@ -21,7 +22,7 @@ export function getMessages(conversationId: string) {
 }
 
 // 发送消息：保存用户消息 → 路由决策 → 拼接历史 → SSE 流式调用 AI → 保存 AI 回复
-export async function sendMessage(conversationId: string, content: string, res: Response, agent?: string, regenerate?: boolean): Promise<void> {
+export async function sendMessage(conversationId: string, content: string, sink: Sink, agent?: string, regenerate?: boolean): Promise<void> {
   const conversation = conversationRepo.findById(conversationId);
   if (!conversation) {
     const err: HttpError = new Error('Conversation not found');
@@ -114,8 +115,8 @@ export async function sendMessage(conversationId: string, content: string, res: 
     }
 
     const { content: fullContent, reasoning: fullReasoning } = useReact
-      ? await reactChat(messages, settings, res, resolvedAgent, orchestratorSignal)
-      : await streamChat(messages, settings, res, resolvedAgent);
+      ? await reactChat(messages, settings, sink, resolvedAgent, orchestratorSignal)
+      : await streamChat(messages, settings, sink, resolvedAgent);
 
     clearTimeout(orchestratorTimer);
     // AI 回复完成后持久化（流式结束时才写入）
@@ -139,10 +140,9 @@ export async function sendMessage(conversationId: string, content: string, res: 
     }
   } catch (err) {
     console.error('AI streaming error:', err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'AI streaming failed' });
-    } else {
-      res.end();
+    if (!sink.writableEnded) {
+      sink.write(JSON.stringify({ error: 'AI streaming failed' }));
+      sink.end();
     }
   }
 }

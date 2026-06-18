@@ -3,8 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import * as messageService from '../services/messageService.js';
 import * as conversationRepo from '../repositories/conversationRepository.js';
 import * as messageRepo from '../repositories/messageRepository.js';
-import { generateImage } from '../services/imageService.js';
+import { generateImage } from '../services/api/imageService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { ResSink } from '../services/sink.js';
 
 const router = Router();
 
@@ -29,7 +30,14 @@ router.post('/:id/messages', asyncHandler(async (req: Request, res: Response) =>
     }
   });
 
-  await messageService.sendMessage(req.params.id as string, content, res, agent, regenerate);
+  // 设置 SSE 头后通过 ResSink 包装，再传入服务层
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const sink = new ResSink(res);
+  await messageService.sendMessage(req.params.id as string, content, sink, agent, regenerate);
 }));
 
 // 图片对话发消息
