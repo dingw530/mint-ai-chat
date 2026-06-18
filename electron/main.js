@@ -133,6 +133,12 @@ async function loadServiceModules() {
     return import(`file://${p}`);
   };
 
+  const importApiService = async (name) => {
+    const p = path.join(servicesDir, 'api', `${name}.js`);
+    if (!fs.existsSync(p)) return null;
+    return import(`file://${p}`);
+  };
+
   const repoDir = isDev
     ? path.join(__dirname, '..', 'server', 'dist', 'repositories')
     : path.join(__dirname, 'server-dist', 'repositories');
@@ -157,16 +163,16 @@ async function loadServiceModules() {
     bashSecurity,
   ] = await Promise.all([
     importService('messageService'),
-    importService('conversationService'),
-    importService('settingsService'),
-    importService('agentService'),
-    importService('endpointService'),
-    importService('memoryService'),
+    importApiService('conversationService'),
+    importApiService('settingsService'),
+    importApiService('agentService'),
+    importApiService('endpointService'),
+    importApiService('memoryService'),
     importService('sink'),
     importRepo('mcpServerRepository'),
-    importService('mcpService'),
-    importService('skillService'),
-    importService('bashSecurityService'),
+    importApiService('mcpService'),
+    importApiService('skillService'),
+    importApiService('bashSecurityService'),
   ]);
 
   services = { msgSvc, convSvc, settSvc, agentSvc, epSvc, memSvc, sinkMod, mcpRepo, mcpSvc, skillSvc, bashSecurity };
@@ -194,32 +200,31 @@ function setupIpcHandlers() {
     }
   });
 
-  // ── 会话 CRUD（匹配路由层包装格式）──
+  // ── 会话 CRUD ──
   ipcMain.handle('conversations:list', (_, type) => {
     if (!services.convSvc) throw new Error('Services not loaded');
     return { conversations: services.convSvc.list(type) };
   });
-
   ipcMain.handle('conversations:create', (_, title, type) => {
     if (!services.convSvc) throw new Error('Services not loaded');
     return { conversation: services.convSvc.create({ title, type }) };
   });
-
   ipcMain.handle('conversations:delete', (_, id) => {
     if (!services.convSvc) throw new Error('Services not loaded');
     return services.convSvc.remove(id);
   });
-
+  ipcMain.handle('conversations:clearAll', () => {
+    if (!services.convSvc) throw new Error('Services not loaded');
+    return services.convSvc.removeAll();
+  });
   ipcMain.handle('conversations:rename', (_, id, title) => {
     if (!services.convSvc) throw new Error('Services not loaded');
     return { conversation: services.convSvc.rename(id, title) };
   });
-
   ipcMain.handle('conversations:lockAgent', (_, id, agentId) => {
     if (!services.convSvc) throw new Error('Services not loaded');
     return { conversation: services.convSvc.setLockedAgent(id, agentId) };
   });
-
   ipcMain.handle('conversations:generateTitle', async (_, id) => {
     if (!services.convSvc || !services.settSvc) return { title: '' };
     const repoDir = isDev
@@ -240,18 +245,11 @@ function setupIpcHandlers() {
     return { title };
   });
 
-  // ── 消息 ──
-  ipcMain.handle('messages:list', (_, convId) => {
-    if (!services.msgSvc) throw new Error('Services not loaded');
-    return { messages: services.msgSvc.getMessages(convId) };
-  });
-
   // ── 设置 ──
   ipcMain.handle('settings:get', () => {
     if (!services.settSvc) throw new Error('Services not loaded');
     return services.settSvc.get();
   });
-
   ipcMain.handle('settings:save', (_, data) => {
     if (!services.settSvc) throw new Error('Services not loaded');
     services.settSvc.save(data);
@@ -263,71 +261,67 @@ function setupIpcHandlers() {
     if (!services.agentSvc) throw new Error('Services not loaded');
     return { agents: services.agentSvc.list() };
   });
-
   ipcMain.handle('agents:create', (_, data) => {
     if (!services.agentSvc) throw new Error('Services not loaded');
     return { agent: services.agentSvc.create(data) };
   });
-
   ipcMain.handle('agents:update', (_, id, data) => {
     if (!services.agentSvc) throw new Error('Services not loaded');
     return { agent: services.agentSvc.update(id, data) };
   });
-
   ipcMain.handle('agents:delete', (_, id) => {
     if (!services.agentSvc) throw new Error('Services not loaded');
     services.agentSvc.remove(id);
     return { success: true };
   });
 
-  // ── 端点（endpointService.list 已返回 { endpoints: [...] }）──
+  // ── 端点 ──
   ipcMain.handle('endpoints:list', () => {
     if (!services.epSvc) throw new Error('Services not loaded');
     return services.epSvc.list();
   });
-
   ipcMain.handle('endpoints:create', (_, data) => {
     if (!services.epSvc) throw new Error('Services not loaded');
     return { endpoint: services.epSvc.create(data) };
   });
-
   ipcMain.handle('endpoints:update', (_, id, data) => {
     if (!services.epSvc) throw new Error('Services not loaded');
     return { endpoint: services.epSvc.updateEndpoint(id, data) };
   });
-
   ipcMain.handle('endpoints:delete', (_, id) => {
     if (!services.epSvc) throw new Error('Services not loaded');
     services.epSvc.remove(id);
     return { success: true };
   });
-
   ipcMain.handle('endpoints:activate', (_, id) => {
     if (!services.epSvc) throw new Error('Services not loaded');
     services.epSvc.activate(id);
     return { success: true };
   });
 
-  // ── 记忆（记忆路由直接返回数组/对象，不额外包装）──
+  // ── 记忆 ──
   ipcMain.handle('memories:list', (_, category) => {
     if (!services.memSvc) throw new Error('Services not loaded');
     return services.memSvc.listMemories(category);
   });
-
   ipcMain.handle('memories:create', (_, data) => {
     if (!services.memSvc) throw new Error('Services not loaded');
     return services.memSvc.createMemory(data);
   });
-
   ipcMain.handle('memories:update', (_, id, data) => {
     if (!services.memSvc) throw new Error('Services not loaded');
     return services.memSvc.updateMemory(id, data);
   });
-
   ipcMain.handle('memories:delete', (_, id) => {
     if (!services.memSvc) throw new Error('Services not loaded');
-    services.memSvc.removeMemory(id);
+    services.memSvc.deleteMemory(id);
     return { success: true };
+  });
+
+  // ── 消息 ──
+  ipcMain.handle('messages:list', (_, convId) => {
+    if (!services.msgSvc) throw new Error('Services not loaded');
+    return { messages: services.msgSvc.getMessages(convId) };
   });
 
   // ── MCP Server（mcpService 是命名导出实例，需 .mcpService.xxx）──
@@ -445,8 +439,8 @@ function setupIpcHandlers() {
   // ── Bash 安全 ──
   ipcMain.handle('bash-security:get', () => {
     try {
-      if (!services.skillSvc) throw new Error('Skill service not loaded');
-      return bashSecurity.getBashSecurity();
+      if (!services.bashSecurity) throw new Error('Bash security service not loaded');
+      return services.bashSecurity.getBashSecurity();
     } catch (err) {
       logger.error(`bash-security:get failed: ${err.message}`);
       return { blockedCommands: [], blockedDirs: [] };
@@ -455,8 +449,8 @@ function setupIpcHandlers() {
 
   ipcMain.handle('bash-security:update', (_, data) => {
     try {
-      if (!services.skillSvc) throw new Error('Skill service not loaded');
-      bashSecurity.updateBashSecurity(data);
+      if (!services.bashSecurity) throw new Error('Bash security service not loaded');
+      services.bashSecurity.updateBashSecurity(data);
       return { success: true };
     } catch (err) {
       logger.error(`bash-security:update failed: ${err.message}`);

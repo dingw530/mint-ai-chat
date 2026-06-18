@@ -22,6 +22,13 @@ export function deleteConversation(id: string): Promise<{ success: boolean }> {
   );
 }
 
+export function clearAllConversations(): Promise<{ changes: number }> {
+  return ipcOrHttp(
+    () => electronAPI!.clearAllConversations(),
+    () => request('/conversations', { method: 'DELETE' }),
+  );
+}
+
 export function renameConversation(id: string, title: string): Promise<{ conversation: Conversation }> {
   return ipcOrHttp(
     () => electronAPI!.renameConversation(id, title),

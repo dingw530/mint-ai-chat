@@ -51,6 +51,7 @@ interface SidebarProps {
   onCreate: () => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  onClearAll: () => void;
   loading: boolean;
   activeView: string;
   onViewChange: (view: string) => void;
@@ -63,6 +64,7 @@ export default function Sidebar({
   onCreate,
   onRename,
   onDelete,
+  onClearAll,
   loading,
   activeView,
   onViewChange,
@@ -195,6 +197,21 @@ export default function Sidebar({
           </div>
         ))}
       </div>
+      {conversations.length > 0 && (
+        <div className="sidebar-footer">
+          <button
+            className="sidebar-footer-btn"
+            onClick={() => {
+              if (window.confirm('确定要清空所有对话记录吗？此操作不可撤销。')) {
+                onClearAll();
+              }
+            }}
+          >
+            <TrashIcon />
+            清空全部对话
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

@@ -246,6 +246,7 @@ export interface ElectronAPI {
   getConversations: (type?: string) => Promise<{ conversations: Conversation[] }>;
   createConversation: (title?: string, type?: string) => Promise<{ conversation: Conversation }>;
   deleteConversation: (id: string) => Promise<{ success: boolean }>;
+  clearAllConversations: () => Promise<{ changes: number }>;
   renameConversation: (id: string, title: string) => Promise<{ conversation: Conversation }>;
   lockAgent: (id: string, agentId: string | null) => Promise<{ conversation: Conversation }>;
   generateTitle: (id: string) => Promise<{ title: string }>;

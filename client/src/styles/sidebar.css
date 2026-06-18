@@ -189,6 +189,13 @@
   transition: all var(--transition-base);
 }
 
+.sidebar-footer-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
 .sidebar-footer-btn:hover {
   background: var(--bg-elevated);
   color: var(--text-secondary);

@@ -5,6 +5,7 @@ import {
   getConversations,
   createConversation,
   deleteConversation,
+  clearAllConversations,
   renameConversation,
   getEndpoints,
 } from '@/services/api';
@@ -114,6 +115,16 @@ export default function App() {
     }
   };
 
+  const handleClearAll = async () => {
+    try {
+      await clearAllConversations();
+      setConversations([]);
+      setActiveId(null);
+    } catch (err) {
+      console.error('Failed to clear conversations:', err);
+    }
+  };
+
   const handleRename = async (id: string, title: string) => {
     try {
       const data = await renameConversation(id, title);
@@ -149,6 +160,7 @@ export default function App() {
         onCreate={handleCreate}
         onRename={handleRename}
         onDelete={handleDelete}
+        onClearAll={handleClearAll}
         loading={loading}
         activeView={activeView}
         onViewChange={setActiveView}

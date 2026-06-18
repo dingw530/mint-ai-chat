@@ -183,31 +183,31 @@
     "async": false
   },
   {
-    "id": "model-endpoints:list",
-    "ipcChannel": "model-endpoints:list",
+    "id": "endpoints:list",
+    "ipcChannel": "endpoints:list",
     "preloadMethod": "getEndpoints",
     "method": "GET",
-    "httpPath": "/model-endpoints",
+    "httpPath": "/endpoints",
     "args": [],
     "result": "direct",
     "async": false
   },
   {
-    "id": "model-endpoints:create",
-    "ipcChannel": "model-endpoints:create",
+    "id": "endpoints:create",
+    "ipcChannel": "endpoints:create",
     "preloadMethod": "createEndpoint",
     "method": "POST",
-    "httpPath": "/model-endpoints",
+    "httpPath": "/endpoints",
     "args": [{ "from": "body", "name": "data" }],
     "result": "direct",
     "async": false
   },
   {
-    "id": "model-endpoints:update",
-    "ipcChannel": "model-endpoints:update",
+    "id": "endpoints:update",
+    "ipcChannel": "endpoints:update",
     "preloadMethod": "updateEndpoint",
     "method": "PUT",
-    "httpPath": "/model-endpoints/:id",
+    "httpPath": "/endpoints/:id",
     "args": [
       { "from": "path", "name": "id" },
       { "from": "body", "name": "data" }
@@ -216,21 +216,21 @@
     "async": false
   },
   {
-    "id": "model-endpoints:delete",
-    "ipcChannel": "model-endpoints:delete",
+    "id": "endpoints:delete",
+    "ipcChannel": "endpoints:delete",
     "preloadMethod": "deleteEndpoint",
     "method": "DELETE",
-    "httpPath": "/model-endpoints/:id",
+    "httpPath": "/endpoints/:id",
     "args": [{ "from": "path", "name": "id" }],
     "result": "direct",
     "async": false
   },
   {
-    "id": "model-endpoints:activate",
-    "ipcChannel": "model-endpoints:activate",
+    "id": "endpoints:activate",
+    "ipcChannel": "endpoints:activate",
     "preloadMethod": "activateEndpoint",
     "method": "PUT",
-    "httpPath": "/model-endpoints/:id/activate",
+    "httpPath": "/endpoints/:id/activate",
     "args": [{ "from": "path", "name": "id" }],
     "result": "direct",
     "async": false

@@ -2,7 +2,7 @@
 
 export { callEndpoint } from './api/_base';
 
-export { getConversations, createConversation, deleteConversation, renameConversation, lockAgent, unlockAgent, getMessages, generateTitle } from './api/conversations';
+export { getConversations, createConversation, deleteConversation, clearAllConversations, renameConversation, lockAgent, unlockAgent, getMessages, generateTitle } from './api/conversations';
 export { fetchAgents, createAgent, updateAgent, deleteAgent } from './api/agents';
 export { getMcpServers, createMcpServer, updateMcpServer, deleteMcpServer, restartMcpServer } from './api/mcpServers';
 export { getMemories, createMemory, updateMemory, deleteMemory } from './api/memories';

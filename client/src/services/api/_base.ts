@@ -1,16 +1,19 @@
-import type { ElectronAPI } from '@/types';
+import type { ElectronAPI } from "@/types";
 
 // ── 常量 ──
 
-export const BASE_URL = '/api';
+export const BASE_URL = "/api";
 export const electronAPI: ElectronAPI | undefined = (window as any).electronAPI;
 export const isElectron = !!electronAPI?.isElectron;
 
 // ── HTTP 请求 ──
 
-export async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export async function request<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
     ...options,
   });
   if (!res.ok) {
@@ -22,7 +25,10 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
 
 // ── IPC/HTTP 双通道 ──
 
-export async function ipcOrHttp<T>(ipcCall: () => Promise<T>, httpCall: () => Promise<T>): Promise<T> {
+export async function ipcOrHttp<T>(
+  ipcCall: () => Promise<T>,
+  httpCall: () => Promise<T>,
+): Promise<T> {
   if (!isElectron) return httpCall();
   try {
     return await ipcCall();
@@ -49,7 +55,7 @@ let manifestCache: ManifestEntry[] | null = null;
 export async function getManifest(): Promise<ManifestEntry[]> {
   if (manifestCache) return manifestCache;
   try {
-    const mod = await import('../../../../electron/endpoints-manifest.json');
+    const mod = await import("../../../../electron/endpoints-manifest.json");
     manifestCache = mod.default || mod;
   } catch {
     manifestCache = [];
@@ -59,7 +65,10 @@ export async function getManifest(): Promise<ManifestEntry[]> {
 
 // ── callEndpoint ──
 
-export async function callEndpoint<T = unknown>(id: string, ...args: unknown[]): Promise<T> {
+export async function callEndpoint<T = unknown>(
+  id: string,
+  ...args: unknown[]
+): Promise<T> {
   const manifest = await getManifest();
   const ep = manifest.find((e) => e.id === id);
   if (!ep) throw new Error(`Unknown endpoint: ${id}`);
@@ -84,12 +93,12 @@ function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string {
   let url = ep.httpPath;
   let argIdx = 0;
   for (const mapping of ep.args) {
-    if (mapping.from === 'path') {
+    if (mapping.from === "path") {
       url = url.replace(`:${mapping.name}`, String(args[argIdx]));
-    } else if (mapping.from === 'query') {
+    } else if (mapping.from === "query") {
       const value = args[argIdx];
       if (value !== undefined && value !== null) {
-        const sep = url.includes('?') ? '&' : '?';
+        const sep = url.includes("?") ? "&" : "?";
         url += `${sep}${mapping.name}=${encodeURIComponent(String(value))}`;
       }
     }
@@ -99,46 +108,47 @@ function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string {
 }
 
 function extractBodyFromManifest(ep: ManifestEntry, args: unknown[]): unknown {
-  const bodyMapping = ep.args.find((a) => a.from === 'body');
+  const bodyMapping = ep.args.find((a) => a.from === "body");
   if (!bodyMapping) return undefined;
   return args[ep.args.indexOf(bodyMapping)];
 }
 
 // ── SSE chunk 解析（IPC/HTTP 共享） ──
 
-import type { SendCallbacks } from '@/types';
+import type { SendCallbacks } from "@/types";
 
 export function parseSSEChunk(
   data: Record<string, unknown>,
   callbacks: SendCallbacks,
   lastThought: { value: string },
 ) {
+  console.log(data);
   if (data.type) {
     switch (data.type) {
-      case 'thought':
+      case "thought":
         if (data.content) lastThought.value += data.content;
         if (data.content) callbacks.onThought?.(data.content as string);
         if (data.reasoning) callbacks.onReasoning?.(data.reasoning as string);
         return;
-      case 'tool_call_start':
-        lastThought.value = '';
+      case "tool_call_start":
+        lastThought.value = "";
         callbacks.onToolCallStart?.(data);
         return;
-      case 'tool_call_end':
-        lastThought.value = '';
+      case "tool_call_end":
+        lastThought.value = "";
         callbacks.onToolCallEnd?.(data);
         return;
-      case 'tool_call_error':
-        lastThought.value = '';
+      case "tool_call_error":
+        lastThought.value = "";
         callbacks.onToolCallError?.(data);
         return;
-      case 'answer':
+      case "answer":
         if (data.content) callbacks.onChunk?.(data.content as string);
         if (data.reasoning) callbacks.onReasoning?.(data.reasoning as string);
         return;
-      case 'answer_ready':
+      case "answer_ready":
         if (lastThought.value) callbacks.onAnswerReady?.(lastThought.value);
-        lastThought.value = '';
+        lastThought.value = "";
         return;
     }
   }
