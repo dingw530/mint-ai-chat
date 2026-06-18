@@ -1,10 +1,10 @@
-import * as endpointService from '../../services/endpointService.js';
+import * as endpointService from '../../services/api/endpointService.js';
 import * as settingsRepo from '../../repositories/settingsRepository.js';
 import type { EndpointDescriptor } from '../types.js';
 
 export const modelEndpointsEndpoints: EndpointDescriptor[] = [
   {
-    id: 'model-endpoints:list',
+    id: 'endpoints:list',
     method: 'GET',
     path: '/',
     preloadMethod: 'getEndpoints',
@@ -24,7 +24,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
     result: 'direct',
   },
   {
-    id: 'model-endpoints:create',
+    id: 'endpoints:create',
     method: 'POST',
     path: '/',
     preloadMethod: 'createEndpoint',
@@ -32,11 +32,12 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       const endpoint = endpointService.create(data as any);
       return { endpoint };
     },
+    ipcServiceRef: { module: 'epSvc', method: 'create' },
     args: [{ from: 'body', name: 'data' }],
     result: 'direct',
   },
   {
-    id: 'model-endpoints:update',
+    id: 'endpoints:update',
     method: 'PUT',
     path: '/:id',
     preloadMethod: 'updateEndpoint',
@@ -52,7 +53,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
     result: 'direct',
   },
   {
-    id: 'model-endpoints:delete',
+    id: 'endpoints:delete',
     method: 'DELETE',
     path: '/:id',
     preloadMethod: 'deleteEndpoint',
@@ -65,7 +66,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
     result: 'direct',
   },
   {
-    id: 'model-endpoints:activate',
+    id: 'endpoints:activate',
     method: 'PUT',
     path: '/:id/activate',
     preloadMethod: 'activateEndpoint',

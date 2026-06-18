@@ -3,7 +3,7 @@
 
 import * as readline from 'node:readline';
 import chalk from 'chalk';
-import * as conversationService from '../services/conversationService.js';
+import * as conversationService from '../services/api/conversationService.js';
 import * as messageService from '../services/messageService.js';
 import { TerminalSink } from '../services/sink.js';
 

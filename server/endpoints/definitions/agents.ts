@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import * as agentService from '../../services/agentService.js';
+import * as agentService from '../../services/api/agentService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 

@@ -1,4 +1,4 @@
-import * as settingsService from '../../services/settingsService.js';
+import * as settingsService from '../../services/api/settingsService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 
@@ -25,6 +25,7 @@ export const settingsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'getSettings',
     service: settingsService.get,
+    ipcServiceRef: { module: 'settSvc', method: 'get' },
     result: 'direct',
   },
   {

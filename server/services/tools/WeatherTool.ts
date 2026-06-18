@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
-import * as qweather from '../qweatherService.js';
+import * as qweather from '../api/qweatherService.js';
 
 // ── 输入 Schema ──
 

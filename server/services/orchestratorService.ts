@@ -1,7 +1,7 @@
-import * as settingsService from './settingsService.js';
-import * as agentService from './agentService.js';
+import * as settingsService from './api/settingsService.js';
+import * as agentService from './api/agentService.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
-import { toolLoopEngine } from './toolLoopEngine.js';
+import { toolLoopEngine } from './toolRoundEngine.js';
 import { AccumulatingSink } from './sink.js';
 import { HistoryMessage, ToolDefinition, StreamResult } from '../types.js';
 

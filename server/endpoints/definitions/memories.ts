@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import * as memoryService from '../../services/memoryService.js';
+import * as memoryService from '../../services/api/memoryService.js';
 import type { EndpointDescriptor } from '../types.js';
 
 export const memoriesEndpoints: EndpointDescriptor[] = [
@@ -54,7 +54,7 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
       memoryService.deleteMemory(id);
       return { success: true };
     },
-    ipcServiceRef: { module: 'memSvc', method: 'removeMemory' },
+    ipcServiceRef: { module: 'memSvc', method: 'deleteMemory' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },

@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
-import { checkCommand } from '../bashSecurityService.js';
+import { checkCommand } from '../api/bashSecurityService.js';
 
 const execAsync = promisify(exec);
 

@@ -2,7 +2,7 @@
 // 查看和修改设置
 
 import chalk from 'chalk';
-import * as settingsService from '../../services/settingsService.js';
+import * as settingsService from '../../services/api/settingsService.js';
 
 export async function handleSettings(action: string, _key?: string, _value?: string): Promise<void> {
   switch (action) {

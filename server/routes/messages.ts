@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as messageService from '../services/messageService.js';
 import * as conversationRepo from '../repositories/conversationRepository.js';
 import * as messageRepo from '../repositories/messageRepository.js';
-import { generateImage } from '../services/imageService.js';
+import { generateImage } from '../services/api/imageService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { ResSink } from '../services/sink.js';
 

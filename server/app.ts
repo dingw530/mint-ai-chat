@@ -5,7 +5,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { createResourceRouter, endpointRegistry } from './endpoints/index.js';
 import conversationsRouter from './routes/conversations.js';
 import messagesRouter from './routes/messages.js';
-import { mcpService } from './services/mcpService.js';
+import { mcpService } from './services/api/mcpService.js';
 
 const app = express();
 

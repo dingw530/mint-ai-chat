@@ -1,4 +1,4 @@
-import { generateImage } from '../../services/imageService.js';
+import { generateImage } from '../../services/api/imageService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 

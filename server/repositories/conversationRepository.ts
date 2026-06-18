@@ -53,6 +53,12 @@ export function deleteById(id: string): { changes: number } {
   return db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
 }
 
+// 清空所有会话（messages 通过 CASCADE 自动删除）
+export function deleteAll(): { changes: number } {
+  const db = getDb();
+  return db.prepare('DELETE FROM conversations').run();
+}
+
 export function updateTitle(id: string, title: string): Conversation | null {
   const db = getDb();
   const now = new Date().toISOString();

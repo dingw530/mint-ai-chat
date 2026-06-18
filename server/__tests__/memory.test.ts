@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 
 let memoryService: any;
 try {
-  memoryService = await import('../services/memoryService.js');
+  memoryService = await import('../services/api/memoryService.js');
 } catch {
   memoryService = null;
 }

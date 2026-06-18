@@ -1,5 +1,5 @@
 import { ToolCall, ToolDefinition } from '../types.js';
-import { mcpService } from './mcpService.js';
+import { mcpService } from './api/mcpService.js';
 import * as agentRepo from '../repositories/agentRepository.js';
 import { getInvokeAgentToolDefinition, invokeAgent } from './orchestratorService.js';
 import { toolRegistry as newToolRegistry, toolExecutor } from './tools/index.js';

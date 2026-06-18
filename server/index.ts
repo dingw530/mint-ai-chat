@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import app from './app.js';
 import { createLogger } from './utils/logger.js';
-import { listSkills } from './services/skillService.js';
+import { listSkills } from './services/api/skillService.js';
 
 const log = createLogger('server');
 

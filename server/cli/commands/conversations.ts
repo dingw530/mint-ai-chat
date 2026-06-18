@@ -2,7 +2,7 @@
 // 管理会话：列出、删除
 
 import chalk from 'chalk';
-import * as conversationService from '../../services/conversationService.js';
+import * as conversationService from '../../services/api/conversationService.js';
 
 export async function handleConversations(action: string, id?: string): Promise<void> {
   switch (action) {

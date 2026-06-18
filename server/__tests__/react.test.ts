@@ -10,7 +10,7 @@ if (!process.env.AI_CHAT_ENCRYPTION_KEY) {
 
 describe('retryWrapper', () => {
   it('should succeed on first attempt', async () => {
-    const { retry } = await import('../services/retryWrapper.js');
+    const { retry } = await import('../services/utils/retryWrapper.js');
     const fn = vi.fn().mockResolvedValue('success');
     const result = await retry(fn, { maxRetries: 3, baseDelay: 1, maxDelay: 10 });
     expect(result).toBe('success');
@@ -18,7 +18,7 @@ describe('retryWrapper', () => {
   });
 
   it('should retry on failure and eventually succeed', async () => {
-    const { retry } = await import('../services/retryWrapper.js');
+    const { retry } = await import('../services/utils/retryWrapper.js');
     const fn = vi.fn()
       .mockRejectedValueOnce(new Error('fail 1'))
       .mockRejectedValueOnce(new Error('fail 2'))
@@ -29,7 +29,7 @@ describe('retryWrapper', () => {
   });
 
   it('should throw after all retries exhausted', async () => {
-    const { retry } = await import('../services/retryWrapper.js');
+    const { retry } = await import('../services/utils/retryWrapper.js');
     const fn = vi.fn().mockRejectedValue(new Error('persistent error'));
     await expect(retry(fn, { maxRetries: 2, baseDelay: 1, maxDelay: 10 }))
       .rejects.toThrow('persistent error');
@@ -37,7 +37,7 @@ describe('retryWrapper', () => {
   });
 
   it('should call onRetry callback on each failure', async () => {
-    const { retry } = await import('../services/retryWrapper.js');
+    const { retry } = await import('../services/utils/retryWrapper.js');
     const fn = vi.fn().mockRejectedValue(new Error('fail'));
     const onRetry = vi.fn();
     await expect(retry(fn, { maxRetries: 2, baseDelay: 1, maxDelay: 10, onRetry }))
@@ -48,7 +48,7 @@ describe('retryWrapper', () => {
   });
 
   it('should abort immediately when signal is already aborted', async () => {
-    const { retry } = await import('../services/retryWrapper.js');
+    const { retry } = await import('../services/utils/retryWrapper.js');
     const abortController = new AbortController();
     abortController.abort();
     const fn = vi.fn().mockRejectedValue(new Error('fail'));
@@ -58,7 +58,7 @@ describe('retryWrapper', () => {
   });
 
   it('should handle maxRetries = 0 (no retry)', async () => {
-    const { retry } = await import('../services/retryWrapper.js');
+    const { retry } = await import('../services/utils/retryWrapper.js');
     const fn = vi.fn().mockRejectedValue(new Error('fail'));
     await expect(retry(fn, { maxRetries: 0, baseDelay: 1, maxDelay: 10 }))
       .rejects.toThrow('fail');
@@ -96,11 +96,13 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
     vi.doMock('../services/aiProxy.js', () => ({
       streamChat: streamChatMock,
+    }));
+    vi.doMock('../services/reactLoopCore.js', () => ({
       reactChat: reactChatMock,
     }));
 
     // Mock other dependencies
-    vi.doMock('../services/settingsService.js', () => ({
+    vi.doMock('../services/api/settingsService.js', () => ({
       getAiSettings: vi.fn().mockReturnValue({
         apiUrl: 'https://api.test.com/v1',
         apiKey: 'test-key',
@@ -130,19 +132,19 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
       findById: vi.fn().mockReturnValue(null),
     }));
 
-    vi.doMock('../services/routingService.js', () => ({
+    vi.doMock('../services/api/routingService.js', () => ({
       routingService: {
         route: vi.fn().mockResolvedValue({ agentId: 'general', confidence: 0, method: 'fallback' }),
       },
     }));
 
-    vi.doMock('../services/memoryService.js', () => ({
+    vi.doMock('../services/api/memoryService.js', () => ({
       buildMemoryContext: vi.fn().mockReturnValue(''),
       isConversationValuable: vi.fn().mockReturnValue(false),
       performExtraction: vi.fn(),
     }));
 
-    vi.doMock('../services/agentService.js', () => ({
+    vi.doMock('../services/api/agentService.js', () => ({
       list: vi.fn().mockReturnValue([]),
       findById: vi.fn().mockReturnValue(null),
     }));
@@ -169,10 +171,12 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
     vi.doMock('../services/aiProxy.js', () => ({
       streamChat: streamChatMock,
+    }));
+    vi.doMock('../services/reactLoopCore.js', () => ({
       reactChat: reactChatMock,
     }));
 
-    vi.doMock('../services/settingsService.js', () => ({
+    vi.doMock('../services/api/settingsService.js', () => ({
       getAiSettings: vi.fn().mockReturnValue({
         apiUrl: 'https://api.test.com/v1',
         apiKey: 'test-key',
@@ -202,13 +206,13 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
       findById: vi.fn().mockReturnValue(null),
     }));
 
-    vi.doMock('../services/routingService.js', () => ({
+    vi.doMock('../services/api/routingService.js', () => ({
       routingService: {
         route: vi.fn().mockResolvedValue({ agentId: 'weather', confidence: 0.9, method: 'keyword' }),
       },
     }));
 
-    vi.doMock('../services/memoryService.js', () => ({
+    vi.doMock('../services/api/memoryService.js', () => ({
       buildMemoryContext: vi.fn().mockReturnValue(''),
       isConversationValuable: vi.fn().mockReturnValue(false),
       performExtraction: vi.fn(),
@@ -227,7 +231,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
       findAll: vi.fn().mockReturnValue([]),
     }));
 
-    vi.doMock('../services/agentService.js', () => ({
+    vi.doMock('../services/api/agentService.js', () => ({
       list: vi.fn().mockReturnValue([{ id: 'weather', name: 'Weather', type: 'weather', available: true }]),
 	      findById: vi.fn().mockReturnValue({ id: 'weather', name: 'Weather', type: 'weather', available: true, mcpServerIds: [], systemPrompt: null }),    }));
 
@@ -255,10 +259,12 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
     vi.doMock('../services/aiProxy.js', () => ({
       streamChat: streamChatMock,
+    }));
+    vi.doMock('../services/reactLoopCore.js', () => ({
       reactChat: reactChatMock,
     }));
 
-    vi.doMock('../services/settingsService.js', () => ({
+    vi.doMock('../services/api/settingsService.js', () => ({
       getAiSettings: vi.fn().mockReturnValue({
         apiUrl: 'https://api.test.com/v1',
         apiKey: 'test-key',
@@ -288,19 +294,19 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
       findById: vi.fn().mockReturnValue(null),
     }));
 
-    vi.doMock('../services/routingService.js', () => ({
+    vi.doMock('../services/api/routingService.js', () => ({
       routingService: {
         route: vi.fn().mockResolvedValue({ agentId: 'general', confidence: 0, method: 'fallback' }),
       },
     }));
 
-    vi.doMock('../services/memoryService.js', () => ({
+    vi.doMock('../services/api/memoryService.js', () => ({
       buildMemoryContext: vi.fn().mockReturnValue(''),
       isConversationValuable: vi.fn().mockReturnValue(false),
       performExtraction: vi.fn(),
     }));
 
-    vi.doMock('../services/agentService.js', () => ({
+    vi.doMock('../services/api/agentService.js', () => ({
       list: vi.fn().mockReturnValue([]),
       findById: vi.fn().mockReturnValue({ id: 'weather', name: 'Weather', type: 'weather', available: true, mcpServerIds: [], systemPrompt: null }),
     }));

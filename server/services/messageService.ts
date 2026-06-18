@@ -1,11 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as conversationRepo from '../repositories/conversationRepository.js';
 import * as messageRepo from '../repositories/messageRepository.js';
-import * as settingsService from './settingsService.js';
-import * as memoryService from './memoryService.js';
-import * as agentService from './agentService.js';
-import { routingService } from './routingService.js';
-import { streamChat, reactChat } from './aiProxy.js';
+import * as settingsService from './api/settingsService.js';
+import * as memoryService from './api/memoryService.js';
+import * as agentService from './api/agentService.js';
+import { routingService } from './api/routingService.js';
+import { streamChat } from './aiProxy.js';
+import { reactChat } from './reactLoopCore.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
 import { HttpError, HistoryMessage } from '../types.js';
 import { Sink } from './sink.js';

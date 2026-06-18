@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
-import { getSkill } from '../skillService.js';
+import { getSkill } from '../api/skillService.js';
 
 // ── 输入 Schema ──
 

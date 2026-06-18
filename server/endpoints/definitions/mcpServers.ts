@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as mcpServerRepo from '../../repositories/mcpServerRepository.js';
-import { mcpService } from '../../services/mcpService.js';
+import { mcpService } from '../../services/api/mcpService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 

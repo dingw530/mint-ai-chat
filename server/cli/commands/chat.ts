@@ -2,7 +2,7 @@
 // 支持 REPL 模式（无参数）和单条消息（有参数）
 
 import chalk from 'chalk';
-import * as conversationService from '../../services/conversationService.js';
+import * as conversationService from '../../services/api/conversationService.js';
 import * as messageService from '../../services/messageService.js';
 import { TerminalSink, AccumulatingSink } from '../../services/sink.js';
 

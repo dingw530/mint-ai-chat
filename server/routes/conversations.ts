@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import * as conversationService from '../services/conversationService.js';
+import * as conversationService from '../services/api/conversationService.js';
 import * as messageRepo from '../repositories/messageRepository.js';
-import * as settingsService from '../services/settingsService.js';
+import * as settingsService from '../services/api/settingsService.js';
 import { generateTitle } from '../services/aiProxy.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 

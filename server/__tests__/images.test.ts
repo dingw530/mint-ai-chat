@@ -66,7 +66,7 @@ runIf(server)('Image Generation — Endpoint Category CRUD', () => {
   let imageEndpointId: string;
 
   it('should create a text endpoint (default category)', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Test Chat',
@@ -82,7 +82,7 @@ runIf(server)('Image Generation — Endpoint Category CRUD', () => {
   });
 
   it('should create an image endpoint', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Test Image',
@@ -99,7 +99,7 @@ runIf(server)('Image Generation — Endpoint Category CRUD', () => {
   });
 
   it('should list endpoints with categories', async () => {
-    const res = await request!('/api/model-endpoints');
+    const res = await request!('/api/endpoints');
     expect(res.status).toBe(200);
     const data = await res.json();
     const textEps = data.endpoints.filter((ep: any) => ep.category === 'text');
@@ -109,7 +109,7 @@ runIf(server)('Image Generation — Endpoint Category CRUD', () => {
   });
 
   it('should update endpoint category', async () => {
-    const res = await request!(`/api/model-endpoints/${textEndpointId}`, {
+    const res = await request!(`/api/endpoints/${textEndpointId}`, {
       method: 'PUT',
       body: JSON.stringify({
         name: 'Test Chat Updated',
@@ -124,7 +124,7 @@ runIf(server)('Image Generation — Endpoint Category CRUD', () => {
   });
 
   it('should reject invalid category value', async () => {
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Invalid Category',
@@ -142,7 +142,7 @@ runIf(server)('Image Generation — POST /api/images/generate (validation)', () 
 
   beforeAll(async () => {
     // Create a dedicated image endpoint for these tests
-    const res = await request!('/api/model-endpoints', {
+    const res = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Test Image Gen',
@@ -188,7 +188,7 @@ runIf(server)('Image Generation — POST /api/images/generate (validation)', () 
 
   it('should return 400 when using a text endpoint', async () => {
     // Create a text endpoint
-    const textRes = await request!('/api/model-endpoints', {
+    const textRes = await request!('/api/endpoints', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Text Only',

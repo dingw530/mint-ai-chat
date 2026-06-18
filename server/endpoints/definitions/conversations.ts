@@ -1,4 +1,4 @@
-import * as conversationService from '../../services/conversationService.js';
+import * as conversationService from '../../services/api/conversationService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 
@@ -41,6 +41,16 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     service: (id: string) => conversationService.remove(id),
     ipcServiceRef: { module: 'convSvc', method: 'remove' },
     args: [{ from: 'path', name: 'id' }],
+    result: 'direct',
+  },
+  {
+    id: 'conversations:clearAll',
+    method: 'DELETE',
+    path: '/',
+    preloadMethod: '',
+    service: () => conversationService.removeAll(),
+    ipcServiceRef: { module: 'convSvc', method: 'removeAll' },
+    args: [],
     result: 'direct',
   },
   {
