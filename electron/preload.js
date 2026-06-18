@@ -64,4 +64,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── 文件 ──
   downloadFile: (url, filename) => ipcRenderer.invoke('download-file', { url, filename }),
+
+  // ── Wiki ──
+  listWiki: () => ipcRenderer.invoke('wiki:list'),
+  readWiki: (path) => ipcRenderer.invoke('wiki:read', path),
 });

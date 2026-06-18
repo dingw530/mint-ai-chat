@@ -13,6 +13,7 @@ import type { Conversation, EndpointOutput } from '@/types';
 
 const ImageChatArea = lazy(() => import('@/features/images/components/ImageChatArea'));
 const Settings = lazy(() => import('@/features/settings/components/Settings'));
+const WikiPanel = lazy(() => import('@/components/WikiPanel'));
 
 function getInitialTheme(): string {
   try {
@@ -27,6 +28,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showWiki, setShowWiki] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
@@ -164,6 +166,7 @@ export default function App() {
         loading={loading}
         activeView={activeView}
         onViewChange={setActiveView}
+        onOpenWiki={() => setShowWiki(true)}
       />
       {activeView === 'image' ? (
         <Suspense fallback={<div className="view-loading">加载中...</div>}>
@@ -196,6 +199,11 @@ export default function App() {
       {showSettings && (
         <Suspense fallback={null}>
           <Settings onClose={() => { setShowSettings(false); fetchEndpoints(); }} theme={theme} onThemeChange={setTheme} />
+        </Suspense>
+      )}
+      {showWiki && (
+        <Suspense fallback={null}>
+          <WikiPanel onClose={() => setShowWiki(false)} />
         </Suspense>
       )}
     </div>

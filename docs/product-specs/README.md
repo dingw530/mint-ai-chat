@@ -19,3 +19,4 @@
 | [多模型端点配置与实时切换](<../changes/2026-05-23-multi-model-endpoints/product-spec.md>) | 2026-05-23 | 草稿 |
 | [图片生成模型支持](<../changes/2026-05-30-image-model-support/product-spec.md>) | 2026-05-30 | 草稿 |
 | [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/design-doc.md>) | 2026-06-11 | 已完成 |
+| [LLM Wiki 知识库](<../changes/2026-06-18-llm-wiki/product-spec.md>) | 2026-06-18 | 已完成 |

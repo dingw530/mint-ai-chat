@@ -297,5 +297,25 @@
     "args": [{ "from": "path", "name": "id" }],
     "result": "direct",
     "async": true
+  },
+  {
+    "id": "wiki:list",
+    "ipcChannel": "wiki:list",
+    "preloadMethod": "listWiki",
+    "method": "GET",
+    "httpPath": "/wiki/list",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:read",
+    "ipcChannel": "wiki:read",
+    "preloadMethod": "readWiki",
+    "method": "GET",
+    "httpPath": "/wiki/read",
+    "args": [{ "from": "query", "name": "path" }],
+    "result": "direct",
+    "async": false
   }
 ]

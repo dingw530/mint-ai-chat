@@ -37,6 +37,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   const [reactMaxIterations, setReactMaxIterations] = useState(5);
   const [toolMaxRetries, setToolMaxRetries] = useState(5);
   const [showReactSteps, setShowReactSteps] = useState(true);
+  const [wikiPath, setWikiPath] = useState('');
   const [apiKeyDirty, setApiKeyDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -57,6 +58,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
         setReactMaxIterations(data.reactMaxIterations ?? 5);
         setToolMaxRetries(data.toolMaxRetries ?? 5);
         setShowReactSteps(data.showReactSteps !== false);
+        setWikiPath(data.wikiPath || '');
       })
       .catch((err) => {
         console.error('Failed to load settings:', err);
@@ -147,6 +149,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
         reactMaxIterations,
         toolMaxRetries,
         showReactSteps,
+        wikiPath: wikiPath.trim(),
       });
       showToast('success', '设置已保存');
       setTimeout(() => onClose(), 1000);
@@ -261,6 +264,8 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
                 setToolMaxRetries={setToolMaxRetries}
                 showReactSteps={showReactSteps}
                 setShowReactSteps={setShowReactSteps}
+                wikiPath={wikiPath}
+                setWikiPath={setWikiPath}
               />
             )}
             {activeTab === 'mcp' && (

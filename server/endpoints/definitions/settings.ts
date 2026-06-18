@@ -5,7 +5,7 @@ import type { EndpointDescriptor } from '../types.js';
 // ── settings:save 的包装函数（包含验证逻辑，Express/IPC 共享） ──
 
 function saveSettings(data: Record<string, unknown>) {
-  const { apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode } = data;
+  const { apiUrl, modelId } = data;
   if (!apiUrl || !modelId) {
     throw httpError(400, 'apiUrl and modelId are required');
   }
@@ -14,7 +14,7 @@ function saveSettings(data: Record<string, unknown>) {
   } catch {
     throw httpError(400, 'apiUrl must be a valid URL');
   }
-  settingsService.save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode } as any);
+  settingsService.save(data as any);
   return { success: true };
 }
 

@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { createResourceRouter, endpointRegistry } from './endpoints/index.js';
 import conversationsRouter from './routes/conversations.js';
 import messagesRouter from './routes/messages.js';
+import wikiRouter from './routes/wiki.js';
 import { mcpService } from './services/api/mcpService.js';
 
 const app = express();
@@ -16,6 +17,9 @@ app.use(express.json());
 // ── 手动路由（SSE 流式、generateTitle 等复杂端点） ──
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/conversations', messagesRouter);
+
+// ── Wiki 知识库浏览 ──
+app.use('/api/wiki', wikiRouter);
 
 // ── 自动生成路由（Endpoint Registry） ──
 for (const resource of endpointRegistry.resources()) {

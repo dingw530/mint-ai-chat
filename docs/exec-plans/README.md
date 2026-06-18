@@ -22,3 +22,4 @@
 | [图片生成模型支持](<../changes/2026-05-30-image-model-support/exec-plan.md>) | 2026-05-30 | 草稿 |
 | [Server 架构收敛](<../changes/2026-06-10-server-refactor/exec-plan.md>) | 2026-06-10 | 执行中 |
 | [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/exec-plan.md>) | 2026-06-11 | 已完成 |
+| [LLM Wiki 知识库](<../changes/2026-06-18-llm-wiki/exec-plan.md>) | 2026-06-18 | 已完成 |

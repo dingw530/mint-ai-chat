@@ -1,0 +1,360 @@
+import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { BaseTool } from './BaseTool.js';
+import type { ToolContext } from './BaseTool.js';
+import { getWikiPath, isPathSafe } from '../utils/pathSecurity.js';
+import * as settingsService from '../api/settingsService.js';
+
+const execAsync = promisify(exec);
+
+const WikiIngestInputSchema = z.object({
+  source: z.string().optional().default('').describe('要摄入的原始资料内容（文本/Markdown），与 urls 至少提供一个'),
+  title: z.string().optional().describe('原始资料标题，用于源文件名，省略则由 AI 自动生成'),
+  category: z.string().optional().describe('分类目录名，省略则 AI 自动归类'),
+  urls: z.array(z.string().url()).optional().describe('要抓取的网页 URL 列表，服务端自动获取内容（无 CORS 限制）'),
+});
+
+type WikiIngestInput = z.infer<typeof WikiIngestInputSchema>;
+
+interface WikiPageResult {
+  filename: string;
+  title: string;
+  size: number;
+}
+
+interface WikiIngestOutput {
+  sourceFile: string;
+  pages: WikiPageResult[];
+  summary: string;
+}
+
+const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM Wiki 三层架构（Schema → Wiki → Sources）。
+
+你的任务是将用户提供的原始资料编译为结构化的 Wiki 知识页面。
+
+## 三层架构说明
+- **Sources 层（sources/）**：原始资料已由工具保存，不可变
+- **Wiki 知识层（pages/）**：你需要生成结构化的 Markdown 页面，放入 pages/ 目录
+- **Schema 层（_schema.json）**：遵循此文件中的标签和分类规范
+
+## 要求
+1. 分析资料内容，提取关键知识点
+2. 根据资料长度和主题复杂度，决定建一个或多个页面
+3. 每个页面必须包含 YAML frontmatter：
+   - title: 页面标题
+   - tags: [标签列表]（从 _schema.json 中的 tags 选取，也可新增）
+   - created: YYYY-MM-DD
+   - source: 原始资料文件名（从上下文获取）
+4. 内容用 Markdown 编写，结构清晰
+5. 页面之间使用相对路径交叉链接
+6. 文件名使用英文小写 kebab-case，放在 pages/ 下
+
+## 输出格式
+纯 JSON（不要包含其他文字）：
+{
+  "pages": [
+    {
+      "filename": "pages/分类/页面名.md",
+      "title": "页面标题",
+      "tags": ["标签1"],
+      "content": "---\\ntitle: 页面标题\\ntags: [标签1]\\ncreated: YYYY-MM-DD\\nsource: 原始文件名\\n---\\n\\n正文..."
+    }
+  ],
+  "summary": "一句话总结本次摄入"
+}`;
+
+export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> {
+  readonly name = 'wiki_ingest';
+  readonly description = `将原始资料编译到 Wiki 知识库，遵循三层架构：
+1. 保存原始资料到 sources/ 目录（不可变）
+2. 调用 AI 分析并生成结构化 Markdown 页面
+3. 写入 pages/ 目录并更新 _index.md`;
+  readonly inputSchema = WikiIngestInputSchema;
+
+  isReadOnly(): boolean {
+    return false;
+  }
+
+  isIdempotent(): boolean {
+    return false;
+  }
+
+  async execute(input: WikiIngestInput, _context: ToolContext): Promise<WikiIngestOutput> {
+    const wikiPath = getWikiPath();
+    if (!wikiPath) {
+      throw new Error('Wiki 路径未配置，请在设置中配置 wikiPath');
+    }
+
+    if (!input.source && (!input.urls || input.urls.length === 0)) {
+      throw new Error('请提供 source（原始资料）或 urls（网页链接）');
+    }
+
+    const settings = settingsService.getAiSettings();
+    if (!settings.apiUrl || !settings.apiKey) {
+      throw new Error('AI API 未配置');
+    }
+
+    // 1. 获取所有内容（source + urls）
+    let combinedSource = input.source || '';
+    const fetchedUrls: string[] = [];
+
+    if (input.urls && input.urls.length > 0) {
+      for (const url of input.urls) {
+        const content = await this.fetchUrl(url);
+        combinedSource += `\n\n---\n## 来源：${url}\n\n${content}`;
+        fetchedUrls.push(url);
+      }
+    }
+
+    if (!combinedSource.trim()) {
+      throw new Error('未获取到有效内容');
+    }
+
+    // 2. 保存原始资料到 sources/
+    const sourceTitle = input.title || (input.urls?.[0] ? `web-${new Date().toISOString().slice(0, 10)}` : 'untitled');
+    const sourceFilename = this.saveSource(wikiPath, { ...input, source: combinedSource, title: sourceTitle });
+
+    // 3. 读取 _schema.json
+    const schema = this.readSchema(wikiPath);
+
+    // 4. 调用 AI 编译知识
+    const aiResult = await this.callAi(settings, { ...input, source: combinedSource }, sourceFilename, schema);
+
+    // 4. 解析 AI 输出
+    let compiled: { pages: { filename: string; title: string; tags: string[]; content: string }[]; summary: string };
+    try {
+      compiled = JSON.parse(aiResult);
+    } catch {
+      throw new Error('AI 返回格式异常，无法解析为 Wiki 页面结构');
+    }
+
+    if (!compiled.pages || compiled.pages.length === 0) {
+      throw new Error('AI 未生成任何 Wiki 页面');
+    }
+
+    // 5. 写入 pages/
+    const results: WikiPageResult[] = [];
+    for (const page of compiled.pages) {
+      // 确保路径在 wikiPath 内
+      const pagePath = page.filename.startsWith('pages/') ? page.filename : `pages/${page.filename}`;
+      if (!isPathSafe(wikiPath, pagePath)) {
+        throw new Error(`路径穿越被拒绝: ${pagePath}`);
+      }
+
+      const resolvedPath = path.resolve(wikiPath, pagePath);
+      const dir = path.dirname(resolvedPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      fs.writeFileSync(resolvedPath, page.content, 'utf-8');
+      const stat = fs.statSync(resolvedPath);
+
+      results.push({
+        filename: pagePath,
+        title: page.title,
+        size: stat.size,
+      });
+    }
+
+    // 6. 更新 _index.md
+    this.updateIndexMd(wikiPath, compiled.pages);
+
+    return {
+      sourceFile: `sources/${sourceFilename}`,
+      pages: results,
+      summary: compiled.summary || `成功创建 ${results.length} 个 Wiki 页面`,
+    };
+  }
+
+  private saveSource(wikiPath: string, input: WikiIngestInput): string {
+    const sourcesDir = path.join(wikiPath, 'sources');
+    if (!fs.existsSync(sourcesDir)) {
+      fs.mkdirSync(sourcesDir, { recursive: true });
+    }
+
+    const date = new Date().toISOString().slice(0, 10);
+    const slug = (input.title || 'untitled')
+      .toLowerCase()
+      .replace(/[^a-z0-9一-龥]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const filename = `${date}-${slug}.md`;
+
+    const sourcePath = path.join(sourcesDir, filename);
+    const sourceContent = `# ${input.title || '未命名资料'}
+
+> 原始资料，不可变。摄入日期：${date}
+
+${input.source}
+`;
+    fs.writeFileSync(sourcePath, sourceContent, 'utf-8');
+    return filename;
+  }
+
+  private readSchema(wikiPath: string): Record<string, unknown> {
+    const schemaPath = path.join(wikiPath, '_schema.json');
+    try {
+      return JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+    } catch {
+      return {};
+    }
+  }
+
+  private async fetchUrl(url: string): Promise<string> {
+    // 尝试 fetch
+    const fetchResult = await this.tryFetch(url);
+    if (fetchResult) return fetchResult;
+
+    // fetch 失败，降级到 curl
+    console.log(`[wiki_ingest] fetch failed for ${url}, falling back to curl`);
+    const curlResult = await this.tryCurl(url);
+    if (curlResult) return curlResult;
+
+    return `[${url}] 无法获取内容（fetch 和 curl 均失败）`;
+  }
+
+  private async tryFetch(url: string): Promise<string | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        },
+        redirect: 'follow',
+      });
+
+      if (!response.ok) return null;
+
+      const text = await response.text();
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) return text;
+      return this.htmlToText(text);
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async tryCurl(url: string): Promise<string | null> {
+    try {
+      const { stdout } = await execAsync(
+        `curl -sL --max-time 15 -A 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' ${JSON.stringify(url)}`,
+        { timeout: 20000, maxBuffer: 1024 * 1024 },
+      );
+
+      if (!stdout) return null;
+      return this.htmlToText(stdout);
+    } catch {
+      return null;
+    }
+  }
+
+  private htmlToText(html: string): string {
+    // 移除 script 和 style
+    let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+    // 替换换行标签为换行符
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+    text = text.replace(/<\/p>/gi, '\n\n');
+    text = text.replace(/<\/h[1-6]>/gi, '\n');
+    text = text.replace(/<\/li>/gi, '\n');
+    text = text.replace(/<\/tr>/gi, '\n');
+    text = text.replace(/<\/div>/gi, '\n');
+
+    // 移除所有 HTML 标签
+    text = text.replace(/<[^>]+>/g, '');
+
+    // 解码 HTML 实体
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/&#x27;/g, "'");
+    text = text.replace(/&#x2F;/g, '/');
+    text = text.replace(/&nbsp;/g, ' ');
+
+    // 合并空白行
+    text = text.replace(/\n{3,}/g, '\n\n');
+
+    // 截取过长内容（限制 50000 字符）
+    if (text.length > 50000) {
+      text = text.substring(0, 50000) + '\n\n...(内容已截断)';
+    }
+
+    return text.trim();
+  }
+
+  private async callAi(
+    settings: { apiUrl: string; apiKey: string; modelId: string },
+    input: WikiIngestInput,
+    sourceFilename: string,
+    schema: Record<string, unknown>,
+  ): Promise<string> {
+    const schemaInfo = JSON.stringify(schema, null, 2);
+    const userMessage = `标题：${input.title || '（AI 自动生成）'}
+分类：${input.category || '（AI 自动归类）'}
+原始文件名：${sourceFilename}
+
+当前 Schema 规范：
+\`\`\`json
+${schemaInfo}
+\`\`\`
+
+原始资料：
+${input.source}`;
+
+    const response = await fetch(`${settings.apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: settings.modelId,
+        messages: [
+          { role: 'system', content: INGEST_SYSTEM_PROMPT },
+          { role: 'user', content: userMessage },
+        ],
+        temperature: 0.3,
+        max_tokens: 4096,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => 'unknown error');
+      throw new Error(`AI API 请求失败 (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json() as { choices: { message: { content: string } }[] };
+    return data.choices?.[0]?.message?.content || '';
+  }
+
+  private updateIndexMd(wikiPath: string, pages: { filename: string; title: string }[]): void {
+    const indexPath = path.join(wikiPath, '_index.md');
+    let content = '';
+    if (fs.existsSync(indexPath)) {
+      content = fs.readFileSync(indexPath, 'utf-8');
+    } else {
+      content = `# Wiki 首页\n\n这是 LLM Wiki 知识库的首页。\n\n## 最近更新\n`;
+    }
+
+    const lines: string[] = [];
+    for (const page of pages) {
+      const linkPath = page.filename.replace(/\.md$/, '');
+      lines.push(`- [${page.title}](${linkPath})`);
+    }
+
+    fs.writeFileSync(indexPath, content + lines.join('\n') + '\n', 'utf-8');
+  }
+}

@@ -161,6 +161,7 @@ async function loadServiceModules() {
     mcpSvc,
     skillSvc,
     bashSecurity,
+    wikiSvc,
   ] = await Promise.all([
     importService('messageService'),
     importApiService('conversationService'),
@@ -173,9 +174,10 @@ async function loadServiceModules() {
     importApiService('mcpService'),
     importApiService('skillService'),
     importApiService('bashSecurityService'),
+    importApiService('wikiService'),
   ]);
 
-  services = { msgSvc, convSvc, settSvc, agentSvc, epSvc, memSvc, sinkMod, mcpRepo, mcpSvc, skillSvc, bashSecurity };
+  services = { msgSvc, convSvc, settSvc, agentSvc, epSvc, memSvc, sinkMod, mcpRepo, mcpSvc, skillSvc, bashSecurity, wikiSvc };
   logger.info('Service modules loaded');
 
   // 启动时扫描技能
@@ -456,6 +458,16 @@ function setupIpcHandlers() {
       logger.error(`bash-security:update failed: ${err.message}`);
       return { success: false };
     }
+  });
+
+  // ── Wiki ──
+  ipcMain.handle('wiki:list', () => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    return services.wikiSvc.listWiki();
+  });
+  ipcMain.handle('wiki:read', (_, filePath) => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    return services.wikiSvc.readWiki(filePath);
   });
 
   logger.info('IPC handlers registered');

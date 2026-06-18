@@ -10,6 +10,7 @@ import { agentsEndpoints } from './agents.js';
 import { modelEndpointsEndpoints } from './modelEndpoints.js';
 import { mcpServersEndpoints } from './mcpServers.js';
 import { conversationsEndpoints } from './conversations.js';
+import { wikiEndpoints } from './wiki.js';
 
 // ── 注册所有 endpoint 定义 ──
 
@@ -25,4 +26,5 @@ export function registerAllEndpoints(): void {
   endpointRegistry.registerAll(modelEndpointsEndpoints);
   endpointRegistry.registerAll(mcpServersEndpoints);
   endpointRegistry.registerAll(conversationsEndpoints);
+  endpointRegistry.registerAll(wikiEndpoints);
 }

@@ -36,6 +36,15 @@ function EditIcon() {
   );
 }
 
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -55,6 +64,7 @@ interface SidebarProps {
   loading: boolean;
   activeView: string;
   onViewChange: (view: string) => void;
+  onOpenWiki?: () => void;
 }
 
 export default function Sidebar({
@@ -68,6 +78,7 @@ export default function Sidebar({
   loading,
   activeView,
   onViewChange,
+  onOpenWiki,
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -197,8 +208,12 @@ export default function Sidebar({
           </div>
         ))}
       </div>
-      {conversations.length > 0 && (
-        <div className="sidebar-footer">
+      <div className="sidebar-footer">
+        <button className="sidebar-footer-btn" onClick={() => onOpenWiki?.()}>
+          <BookIcon />
+          Wiki 知识库
+        </button>
+        {conversations.length > 0 && (
           <button
             className="sidebar-footer-btn"
             onClick={() => {
@@ -208,10 +223,10 @@ export default function Sidebar({
             }}
           >
             <TrashIcon />
-            清空全部对话
+            清空全部
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }

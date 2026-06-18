@@ -101,6 +101,7 @@ export interface VisibleSettings {
   showReactSteps: boolean;
   activeEndpointId: string | null;
   activeEndpointName: string | null;
+  wikiPath: string;
 }
 
 export interface SettingsInput {
@@ -114,6 +115,7 @@ export interface SettingsInput {
   reactMaxIterations?: number;
   toolMaxRetries?: number;
   showReactSteps?: boolean;
+  wikiPath?: string;
 }
 
 // ── SSE 流类型 ──
@@ -294,6 +296,17 @@ export interface ElectronAPI {
 
   // 文件
   downloadFile?: (url: string, filename: string) => Promise<void>;
+
+  // Wiki
+  listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
+  readWiki: (path: string) => Promise<{ content: string; path: string; name: string; size: number }>;
+}
+
+export interface WikiFileTreeNode {
+  name: string;
+  type: 'file' | 'directory';
+  path: string;
+  children?: WikiFileTreeNode[];
 }
 
 declare global {

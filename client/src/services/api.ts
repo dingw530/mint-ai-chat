@@ -11,3 +11,4 @@ export { getSettings, saveSettings } from './api/settings';
 export { sendMessageStream } from './api/streaming';
 export { generateImage, sendImageMessage } from './api/images';
 export { getSkills } from './api/skills';
+export { listWiki, readWiki } from './api/wiki';

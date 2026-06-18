@@ -15,6 +15,12 @@ export { HttpFetchTool } from './HttpFetchTool.js';
 export { SkillTool } from './SkillTool.js';
 export { BashTool } from './BashTool.js';
 export { InvokeAgentTool } from './InvokeAgentTool.js';
+export { ReadFileTool } from './ReadFileTool.js';
+export { WriteFileTool } from './WriteFileTool.js';
+export { ListFilesTool } from './ListFilesTool.js';
+export { WikiIngestTool } from './WikiIngestTool.js';
+export { WikiQueryTool } from './WikiQueryTool.js';
+export { WikiLintTool } from './WikiLintTool.js';
 
 // 工具实例（用于注册）
 import { WeatherTool } from './WeatherTool.js';
@@ -22,6 +28,12 @@ import { HttpFetchTool } from './HttpFetchTool.js';
 import { SkillTool } from './SkillTool.js';
 import { BashTool } from './BashTool.js';
 import { InvokeAgentTool } from './InvokeAgentTool.js';
+import { ReadFileTool } from './ReadFileTool.js';
+import { WriteFileTool } from './WriteFileTool.js';
+import { ListFilesTool } from './ListFilesTool.js';
+import { WikiIngestTool } from './WikiIngestTool.js';
+import { WikiQueryTool } from './WikiQueryTool.js';
+import { WikiLintTool } from './WikiLintTool.js';
 import { toolRegistry } from './ToolRegistry.js';
 
 // 内置工具列表
@@ -31,6 +43,12 @@ export const builtinTools = [
   new SkillTool(),
   new BashTool(),
   new InvokeAgentTool(),
+  new ReadFileTool(),
+  new WriteFileTool(),
+  new ListFilesTool(),
+  new WikiIngestTool(),
+  new WikiQueryTool(),
+  new WikiLintTool(),
 ];
 
 /**

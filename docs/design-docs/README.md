@@ -20,3 +20,4 @@
 | [图片生成模型支持](<../changes/2026-05-30-image-model-support/design-doc.md>) | 2026-05-30 | 草稿 |
 | [Server 架构收敛](<../changes/2026-06-10-server-refactor/design-doc.md>) | 2026-06-10 | 设计中 |
 | [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/design-doc.md>) | 2026-06-11 | 已完成 |
+| [LLM Wiki 知识库](<../changes/2026-06-18-llm-wiki/design-doc.md>) | 2026-06-18 | 已完成 |
