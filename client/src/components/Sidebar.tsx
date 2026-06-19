@@ -1,5 +1,6 @@
-import { useState, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent, useCallback } from 'react';
 import AppIcon from '@/shared/components/AppIcon';
+import ConfirmDialog from './ConfirmDialog';
 import type { Conversation } from '@/types';
 
 function PlusIcon() {
@@ -36,11 +37,13 @@ function EditIcon() {
   );
 }
 
-function BookIcon() {
+function BookOpenIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      <path d="M6 7h.01" strokeWidth="2" />
+      <path d="M6 11h.01" strokeWidth="2" />
     </svg>
   );
 }
@@ -82,6 +85,23 @@ export default function Sidebar({
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    variant: 'danger' | 'accent';
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const showConfirm = useCallback((opts: {
+    variant: 'danger' | 'accent';
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  }) => {
+    setConfirmDialog(opts);
+  }, []);
 
   const handleCreate = () => {
     onCreate();
@@ -195,9 +215,13 @@ export default function Sidebar({
                     title="删除"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (window.confirm(`Delete "${conv.title}"?`)) {
-                        onDelete(conv.id);
-                      }
+                      showConfirm({
+                        variant: 'danger',
+                        title: '删除对话',
+                        message: `确定要删除"${conv.title}"吗？此操作不可撤销。`,
+                        confirmLabel: '删除',
+                        onConfirm: () => onDelete(conv.id),
+                      });
                     }}
                   >
                     <TrashIcon />
@@ -209,24 +233,52 @@ export default function Sidebar({
         ))}
       </div>
       <div className="sidebar-footer">
-        <button className="sidebar-footer-btn" onClick={() => onOpenWiki?.()}>
-          <BookIcon />
-          Wiki 知识库
+        <button className="sidebar-wiki-btn" onClick={() => onOpenWiki?.()}>
+          <span className="wiki-btn-icon">
+            <BookOpenIcon />
+          </span>
+          <span className="wiki-btn-text">
+            <span className="wiki-btn-label">Wiki 知识库</span>
+            <span className="wiki-btn-desc">搜索文档与资料</span>
+          </span>
+          <span className="wiki-btn-arrow">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
         </button>
         {conversations.length > 0 && (
           <button
-            className="sidebar-footer-btn"
+            className="sidebar-clear-btn"
             onClick={() => {
-              if (window.confirm('确定要清空所有对话记录吗？此操作不可撤销。')) {
-                onClearAll();
-              }
+              showConfirm({
+                variant: 'danger',
+                title: '清空全部对话',
+                message: '确定要清空所有对话记录吗？此操作不可撤销。',
+                confirmLabel: '清空全部',
+                onConfirm: onClearAll,
+              });
             }}
           >
             <TrashIcon />
-            清空全部
+            清空全部对话
           </button>
         )}
       </div>
+      {confirmDialog && (
+        <ConfirmDialog
+          open={!!confirmDialog}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          onConfirm={() => {
+            confirmDialog.onConfirm();
+            setConfirmDialog(null);
+          }}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </aside>
   );
 }

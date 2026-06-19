@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { getWikiPath, isPathSafe } from '../utils/pathSecurity.js';
+import { browserFetch } from '../utils/browserFetch.js';
 import * as settingsService from '../api/settingsService.js';
 
 const execAsync = promisify(exec);
@@ -217,18 +218,12 @@ ${input.source}
   }
 
   private async tryFetch(url: string): Promise<string | null> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-
     try {
-      const response = await fetch(url, {
-        signal: controller.signal,
+      const response = await browserFetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         },
-        redirect: 'follow',
+        timeout: 10000,
       });
 
       if (!response.ok) return null;
@@ -239,8 +234,6 @@ ${input.source}
       return this.htmlToText(text);
     } catch {
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 
