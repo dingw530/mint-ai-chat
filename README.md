@@ -72,6 +72,21 @@ Output will be in `electron/release/`.
 cd server && npm test
 ```
 
+## About This Project
+
+Mint is a hands-on project built around general AI Agent development, covering the full modern stack and core concepts:
+
+- **Agent Architecture** — Custom agent system with system prompts, auto-routing, and locked-agent modes
+- **Tool Use** — Plugin-based tool system built on BaseTool, including HTTP requests, Wiki retrieval, weather queries, and more
+- **MCP Protocol** — Model Context Protocol integration with dynamic MCP server connection management
+- **Memory System** — Long-term user memory with multi-category support (general / preferences / facts) and automatic recall
+- **Context Window** — Sliding window token management to control context consumption
+- **Skills System** — Hot-pluggable skills loaded dynamically from local Markdown files
+- **Streaming** — SSE-based real-time streaming response with chunk-by-chunk rendering
+- **Multi-Model** — Compatible with any OpenAI-format API endpoint for flexible model switching
+- **IPC Architecture** — Direct service layer invocation in Electron main process, bypassing HTTP overhead
+- **End-to-End Encryption** — API keys encrypted with AES-256-GCM
+
 ## Architecture
 
 In Electron mode, the app runs the server **in-process** — service modules are loaded directly into the main process and invoked via IPC handlers, bypassing HTTP entirely. This eliminates network overhead and gives the renderer direct access to services.
