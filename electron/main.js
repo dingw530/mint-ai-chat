@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const logger = require('./logger');
 
 let mainWindow = null;
@@ -10,9 +11,11 @@ const isDev = !app.isPackaged;
 
 // ── 尽早初始化日志（在 app ready 之前就准备好日志路径） ──
 
+const MINT_DIR = path.join(os.homedir(), '.mint');
+
 function getLogDir() {
   try {
-    return path.join(app.getPath('userData'), 'logs');
+    return path.join(MINT_DIR, 'logs');
   } catch {
     return path.join(__dirname, 'logs');
   }
@@ -51,13 +54,13 @@ function getClientDistPath() {
 }
 
 function getDbPath() {
-  return path.join(app.getPath('userData'), 'data.db');
+  return path.join(MINT_DIR, 'data.db');
 }
 
-// ── 加密密钥管理（首次启动自动生成，持久化到 userData/.env） ──
+// ── 加密密钥管理（首次启动自动生成，持久化到 .mint/.env） ──
 
 function getEnvFilePath() {
-  return path.join(app.getPath('userData'), '.env');
+  return path.join(MINT_DIR, '.env');
 }
 
 function loadOrCreateEncryptionKey() {
@@ -515,9 +518,50 @@ function createWindow(port) {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+// ── 旧 userData 迁移（~/.mint 不存在时从 userData 拷贝）──
+
+function migrateFromOldUserData() {
+  // 此时 logger 尚未初始化，用 console.log
+  try {
+    const oldDir = app.getPath('userData');
+    console.log(`[migrate] oldDir=${oldDir}, MINT_DIR=${MINT_DIR}`);
+
+    if (oldDir === MINT_DIR) { console.log('[migrate] same path, skip'); return; }
+    if (!fs.existsSync(oldDir)) { console.log('[migrate] oldDir not found, skip'); return; }
+    if (fs.existsSync(path.join(MINT_DIR, 'data.db')) || fs.existsSync(path.join(MINT_DIR, '.env'))) {
+      console.log('[migrate] .mint already has data, skip');
+      return;
+    }
+
+    const items = fs.readdirSync(oldDir).filter(f => f !== 'logs');
+    console.log(`[migrate] items to migrate: ${items.length} — ${items.join(', ') || '(none)'}`);
+    if (items.length === 0) return;
+
+    // 只搬核心数据文件，跳过 Cache / Session Storage 等 Electron 运行时目录
+    const coreFiles = items.filter(f => f === 'data.db' || f === '.env');
+    if (coreFiles.length === 0) { console.log('[migrate] no core files to migrate'); return; }
+
+    fs.mkdirSync(MINT_DIR, { recursive: true });
+
+    for (const item of coreFiles) {
+      const src = path.join(oldDir, item);
+      const dst = path.join(MINT_DIR, item);
+      fs.cpSync(src, dst, { recursive: true });
+      console.log(`[migrate] copied: ${src} → ${dst}`);
+    }
+
+    console.log(`[migrate] done: ${oldDir} → ${MINT_DIR}`);
+  } catch (err) {
+    console.error(`[migrate] FAILED: ${err.message}`);
+  }
+}
+
 // ── 应用生命周期 ──
 
 app.whenReady().then(async () => {
+  // 迁移旧数据（必须在 logger.init 之前，避免 .mint 被创建后干扰判断）
+  migrateFromOldUserData();
+
   const logDir = getLogDir();
   const logFile = logger.init(logDir);
   setupGlobalErrorHandlers();

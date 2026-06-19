@@ -18,7 +18,7 @@ export interface Skill {
 // ── 配置 ──
 
 function getSkillsDir(): string {
-  return process.env.AI_CHAT_SKILLS_DIR || join(homedir(), '.agent', 'skills');
+  return process.env.AI_CHAT_SKILLS_DIR || join(homedir(), '.mint', 'skills');
 }
 
 // ── 简易 Frontmatter 解析 ──
