@@ -77,6 +77,7 @@ cd server && npm test
 Mint is a hands-on project built around general AI Agent development, covering the full modern stack and core concepts:
 
 - **Agent Architecture** — Custom agent system with system prompts, auto-routing, and locked-agent modes
+- **ReAct Pattern** — Reasoning + Acting loop: agents observe, reason, call tools, and incorporate results into responses iteratively
 - **Tool Use** — Plugin-based tool system built on BaseTool, including HTTP requests, Wiki retrieval, weather queries, and more
 - **MCP Protocol** — Model Context Protocol integration with dynamic MCP server connection management
 - **Memory System** — Long-term user memory with multi-category support (general / preferences / facts) and automatic recall
