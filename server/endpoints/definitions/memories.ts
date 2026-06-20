@@ -19,15 +19,19 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'createMemory',
     service: (data: Record<string, unknown>) => {
+      const content = data.content as string | undefined;
+      if (content === undefined || content === null || (typeof content === 'string' && !content.trim())) {
+        throw Object.assign(new Error('内容不能为空'), { status: 400 });
+      }
       return memoryService.createMemory({
         id: uuidv4(),
-        content: data.content as string,
+        content,
         category: (data.category as string) || 'general',
         sourceConversationId: (data.sourceConversationId as string) || null,
       });
     },
     ipcServiceRef: { module: 'memSvc', method: 'createMemory' },
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
   },
   {
@@ -36,12 +40,16 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
     path: '/:id',
     preloadMethod: 'updateMemory',
     service: (id: string, data: Record<string, unknown>) => {
-      return memoryService.updateMemory(id, { content: data.content as string | undefined, category: data.category as string | undefined });
+      const result = memoryService.updateMemory(id, { content: data.content as string | undefined, category: data.category as string | undefined });
+      if (!result) {
+        throw Object.assign(new Error('记忆不存在'), { status: 404 });
+      }
+      return result;
     },
     ipcServiceRef: { module: 'memSvc', method: 'updateMemory' },
     args: [
       { from: 'path', name: 'id' },
-      { from: 'body', name: 'data' },
+      { from: 'body' },
     ],
     result: 'direct',
   },

@@ -22,7 +22,7 @@ export const bashSecurityEndpoints: EndpointDescriptor[] = [
       });
       return { success: true };
     },
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
   },
 ];

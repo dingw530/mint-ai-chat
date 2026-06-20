@@ -20,7 +20,7 @@ export const imagesEndpoints: EndpointDescriptor[] = [
     path: '/generate',
     preloadMethod: 'generateImage',
     service: generateImageEndpoint,
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
     async: true,
   },

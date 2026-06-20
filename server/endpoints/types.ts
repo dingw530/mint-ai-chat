@@ -11,7 +11,7 @@ export interface ArgMapping {
   /** 'path' = req.params[name], 'query' = req.query[name], 'body' = req.body[name] */
   from: 'path' | 'query' | 'body';
   /** 参数名（如 'id', 'category', 'data'） */
-  name: string;
+  name?: string;
   /** 标记为可选（undefined 时跳过） */
   optional?: boolean;
 }

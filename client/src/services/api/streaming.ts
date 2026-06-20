@@ -1,5 +1,5 @@
 import type { SendCallbacks, SendOptions, StreamReturn } from '@/types';
-import { BASE_URL, electronAPI, isElectron, parseSSEChunk } from '../api/_base';
+import { BASE_URL, getElectronAPI, isElectron, parseSSEChunk } from '../api/_base';
 
 export function sendMessageStream(
   conversationId: string,
@@ -22,21 +22,22 @@ export function sendMessageStream(
   options?: SendOptions,
 ): StreamReturn {
   // Electron IPC 路径
-  if (isElectron && electronAPI) {
+  if (isElectron()) {
+    const api = getElectronAPI()!;
     const lastThought = { value: '' };
 
-    electronAPI.onChunk((raw: string) => {
+    api.onChunk((raw: string) => {
       try { parseSSEChunk(JSON.parse(raw), callbacks, lastThought); } catch {}
     });
-    electronAPI.onDone(() => callbacks.onDone?.());
-    electronAPI.onError((err) => callbacks.onError?.(new Error(err)));
-    electronAPI.sendMessage(conversationId, content, agent, !!options?.regenerate);
+    api.onDone(() => callbacks.onDone?.());
+    api.onError((err: string) => callbacks.onError?.(new Error(err)));
+    api.sendMessage(conversationId, content, agent, !!options?.regenerate);
 
     return {
       abort: () => {
-        electronAPI.removeListener('chat:chunk');
-        electronAPI.removeListener('chat:done');
-        electronAPI.removeListener('chat:error');
+        api.removeListener('chat:chunk');
+        api.removeListener('chat:done');
+        api.removeListener('chat:error');
       },
     };
   }

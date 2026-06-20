@@ -300,6 +300,28 @@ export interface ElectronAPI {
   // Wiki
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
   readWiki: (path: string) => Promise<{ content: string; path: string; name: string; size: number }>;
+  uploadWiki: (data: { name: string; size: number; buffer: number[] }) => Promise<{ jobId: string; sourceFile: string; fileName: string; fileSize: number }>;
+  getJobStatus: (jobId: string) => Promise<UploadJob>;
+}
+
+export interface UploadJob {
+  id: string;
+  status: 'pending' | 'parsing' | 'compiling' | 'done' | 'error';
+  fileName: string;
+  fileSize: number;
+  progress: number;
+  step: string;
+  result?: {
+    sourceFile: string;
+    format: string;
+    textLength: number;
+    pageCount?: number;
+    preview: string;
+    pages?: { filename: string; title: string; size: number }[];
+  };
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface WikiFileTreeNode {

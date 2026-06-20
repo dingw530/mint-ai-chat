@@ -10,6 +10,7 @@ import { reactChat } from './reactLoopCore.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
 import { HttpError, HistoryMessage } from '../types.js';
 import { Sink } from './sink.js';
+import { parseFile, isSupportedFile } from './utils/fileParseService.js';
 
 export function getMessages(conversationId: string) {
   const conversation = conversationRepo.findById(conversationId);
@@ -22,7 +23,13 @@ export function getMessages(conversationId: string) {
 }
 
 // 发送消息：保存用户消息 → 路由决策 → 拼接历史 → SSE 流式调用 AI → 保存 AI 回复
-export async function sendMessage(conversationId: string, content: string, sink: Sink, agent?: string, regenerate?: boolean): Promise<void> {
+interface FileAttachment {
+  name: string;
+  content: string; // Base64
+  type?: string;
+}
+
+export async function sendMessage(conversationId: string, content: string, sink: Sink, agent?: string, regenerate?: boolean, files?: FileAttachment[]): Promise<void> {
   const conversation = conversationRepo.findById(conversationId);
   if (!conversation) {
     const err: HttpError = new Error('Conversation not found');
@@ -33,9 +40,31 @@ export async function sendMessage(conversationId: string, content: string, sink:
   const now = new Date().toISOString();
   const userMsgId = uuidv4();
 
+  // 处理文件附件：解析文件并追加到消息内容
+  let augmentedContent = content;
+  if (files && files.length > 0) {
+    const fileParts: string[] = [];
+    for (const file of files) {
+      if (!isSupportedFile(file.name)) {
+        fileParts.push(`\n[文件 ${file.name}] 不支持的文件类型，已跳过`);
+        continue;
+      }
+      try {
+        const buffer = Buffer.from(file.content, 'base64');
+        const result = await parseFile({ name: file.name, content: buffer, size: buffer.length });
+        fileParts.push(`\n--- 上传文件：${file.name} ---\n${result.text}\n--- 文件结束 ---`);
+      } catch (err) {
+        fileParts.push(`\n[文件 ${file.name}] 解析失败: ${(err as Error).message}`);
+      }
+    }
+    if (fileParts.length > 0) {
+      augmentedContent = (content || '') + '\n\n以下是从上传文件中提取的内容：\n' + fileParts.join('\n');
+    }
+  }
+
   // 先持久化用户消息（非重新生成场景），确保不丢失
   if (!regenerate) {
-    messageRepo.create({ id: userMsgId, conversationId, role: 'user', content, createdAt: now });
+    messageRepo.create({ id: userMsgId, conversationId, role: 'user', content: augmentedContent, createdAt: now });
     messageRepo.updateConversationTimestamp(conversationId, now);
   }
 

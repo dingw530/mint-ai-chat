@@ -46,7 +46,7 @@ export const agentsEndpoints: EndpointDescriptor[] = [
       });
       return { agent };
     },
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
   },
   {
@@ -70,7 +70,7 @@ export const agentsEndpoints: EndpointDescriptor[] = [
     },
     args: [
       { from: 'path', name: 'id' },
-      { from: 'body', name: 'data' },
+      { from: 'body' },
     ],
     result: 'direct',
   },

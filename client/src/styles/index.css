@@ -258,35 +258,6 @@ body {
   white-space: nowrap;
 }
 
-.settings-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 0;
-  cursor: pointer;
-  font-family: var(--font-body);
-  color: var(--text-secondary);
-  transition: all 0.15s ease;
-  -webkit-app-region: no-drag;
-}
-
-.settings-btn:hover {
-  background: var(--accent-subtle);
-  border-color: var(--accent-border);
-  color: var(--accent);
-}
-
-.settings-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
 /* --------------------------------------------
    Chat Area
    -------------------------------------------- */
@@ -1276,7 +1247,6 @@ body {
 .memory-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 10px;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -1583,7 +1553,6 @@ body {
   color: var(--text-tertiary);
   background: var(--bg-tertiary);
   padding: 2px 10px;
-  border-radius: 10px;
   font-weight: 500;
 }
 
@@ -2350,23 +2319,8 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.is-macos .settings-btn {
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.04);
-  border-color: transparent;
-}
-
-.is-macos .settings-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
-  border-color: transparent;
-}
-
-.is-macos .new-chat-btn {
-  border-radius: 10px;
-}
 
 .is-macos .view-switcher {
-  border-radius: 10px;
 }
 
 .is-macos .view-switcher-btn {
@@ -2374,11 +2328,13 @@ body {
 }
 
 .is-macos .conversation-item {
-  border-radius: 10px;
 }
 
 .is-macos .message {
   border-radius: 12px;
+}
+
+.is-macos .new-chat-btn {
 }
 
 /* Theme overrides moved to themes/ocean.css, themes/snow.css, themes/anthropic.css */

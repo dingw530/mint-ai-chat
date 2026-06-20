@@ -82,5 +82,10 @@ function takeRecentRounds(
     }
   }
 
+  // 确保不截断在 tool 消息中间：tool 消息必须跟随其 assistant(tool_calls) 消息
+  while (cutIndex < messages.length && messages[cutIndex].role === 'tool') {
+    cutIndex++;
+  }
+
   return messages.slice(cutIndex);
 }

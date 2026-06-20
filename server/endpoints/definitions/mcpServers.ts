@@ -91,7 +91,7 @@ export const mcpServersEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'createMcpServer',
     service: createMcpServer,
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
     async: true,
   },
@@ -103,7 +103,7 @@ export const mcpServersEndpoints: EndpointDescriptor[] = [
     service: updateMcpServer,
     args: [
       { from: 'path', name: 'id' },
-      { from: 'body', name: 'data' },
+      { from: 'body' },
     ],
     result: 'direct',
     async: true,

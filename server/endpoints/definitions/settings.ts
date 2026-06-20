@@ -34,7 +34,7 @@ export const settingsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'saveSettings',
     service: saveSettings,
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
   },
 ];

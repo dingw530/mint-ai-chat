@@ -68,4 +68,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Wiki ──
   listWiki: () => ipcRenderer.invoke('wiki:list'),
   readWiki: (path) => ipcRenderer.invoke('wiki:read', path),
+  uploadWiki: (data) => ipcRenderer.invoke('wiki:upload', data),
+  getJobStatus: (jobId) => ipcRenderer.invoke('wiki:getJobStatus', jobId),
 });

@@ -76,6 +76,7 @@ export interface SettingsInput {
   showReactSteps?: boolean;
   maxContextRounds?: number;
   wikiPath?: string;
+  wikiMaxFileSize?: number;
 }
 
 // AI 代理内部使用的设置（apiKey 已解密）
@@ -92,6 +93,7 @@ export interface AiSettings {
   showReactSteps: boolean;
   maxContextRounds: number;
   wikiPath: string;
+  wikiMaxFileSize: number;
 }
 
 // 返回给前端的设置（apiKey 脱敏显示）
@@ -110,6 +112,7 @@ export interface VisibleSettings {
   activeEndpointId: string | null;
   activeEndpointName: string | null;
   wikiPath: string;
+  wikiMaxFileSize: number;
 }
 
 // ── Tool call 类型（兼容 OpenAI function calling 格式） ──

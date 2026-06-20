@@ -6,15 +6,24 @@ import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { getWikiPath, isPathSafe } from '../utils/pathSecurity.js';
+import { browserFetch } from '../utils/browserFetch.js';
 import * as settingsService from '../api/settingsService.js';
+import { parseFile, isSupportedFile } from '../utils/fileParseService.js';
 
 const execAsync = promisify(exec);
 
+const FileInputSchema = z.object({
+  name: z.string().describe('原始文件名（含扩展名）'),
+  content: z.string().describe('Base64 编码的文件内容'),
+  type: z.string().optional().describe('MIME type'),
+});
+
 const WikiIngestInputSchema = z.object({
-  source: z.string().optional().default('').describe('要摄入的原始资料内容（文本/Markdown），与 urls 至少提供一个'),
+  source: z.string().optional().default('').describe('要摄入的原始资料内容（文本/Markdown），与 urls/files 至少提供一个'),
   title: z.string().optional().describe('原始资料标题，用于源文件名，省略则由 AI 自动生成'),
   category: z.string().optional().describe('分类目录名，省略则 AI 自动归类'),
   urls: z.array(z.string().url()).optional().describe('要抓取的网页 URL 列表，服务端自动获取内容（无 CORS 限制）'),
+  files: z.array(FileInputSchema).optional().describe('要上传的文件列表（Base64 编码），支持 HTML/TXT/MD/PDF'),
 });
 
 type WikiIngestInput = z.infer<typeof WikiIngestInputSchema>;
@@ -88,8 +97,8 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
       throw new Error('Wiki 路径未配置，请在设置中配置 wikiPath');
     }
 
-    if (!input.source && (!input.urls || input.urls.length === 0)) {
-      throw new Error('请提供 source（原始资料）或 urls（网页链接）');
+    if (!input.source && (!input.urls || input.urls.length === 0) && (!input.files || input.files.length === 0)) {
+      throw new Error('请提供 source（原始资料）、urls（网页链接）或 files（文件）');
     }
 
     const settings = settingsService.getAiSettings();
@@ -97,9 +106,10 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
       throw new Error('AI API 未配置');
     }
 
-    // 1. 获取所有内容（source + urls）
+    // 1. 获取所有内容（source + urls + files）
     let combinedSource = input.source || '';
     const fetchedUrls: string[] = [];
+    const fileTitles: string[] = [];
 
     if (input.urls && input.urls.length > 0) {
       for (const url of input.urls) {
@@ -109,13 +119,51 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
       }
     }
 
+    if (input.files && input.files.length > 0) {
+      const maxSize = settings.wikiMaxFileSize; // 0 = 不限制
+      for (const file of input.files) {
+        // 文件类型校验
+        if (!isSupportedFile(file.name)) {
+          throw new Error(`不支持的文件类型: ${path.extname(file.name)}，支持: HTML/TXT/MD/PDF`);
+        }
+
+        // Base64 解码
+        let buffer: Buffer;
+        try {
+          buffer = Buffer.from(file.content, 'base64');
+        } catch {
+          throw new Error(`文件 ${file.name} 内容编码异常`);
+        }
+
+        // 文件大小校验
+        if (maxSize > 0 && buffer.length > maxSize) {
+          const sizeMB = (buffer.length / 1048576).toFixed(1);
+          const limitMB = (maxSize / 1048576).toFixed(1);
+          throw new Error(`文件 ${file.name} 大小 ${sizeMB}MB 超过限制 ${limitMB}MB`);
+        }
+
+        // 解析文件内容
+        const result = await parseFile({ name: file.name, content: buffer, size: buffer.length });
+        combinedSource += `\n\n---\n## 文件：${file.name}\n\n${result.text}`;
+        fileTitles.push(file.name.replace(/\.[^.]+$/, ''));
+      }
+    }
+
     if (!combinedSource.trim()) {
       throw new Error('未获取到有效内容');
     }
 
     // 2. 保存原始资料到 sources/
-    const sourceTitle = input.title || (input.urls?.[0] ? `web-${new Date().toISOString().slice(0, 10)}` : 'untitled');
-    const sourceFilename = this.saveSource(wikiPath, { ...input, source: combinedSource, title: sourceTitle });
+    const sourceTitle = input.title
+      || (input.urls?.[0] ? `web-${new Date().toISOString().slice(0, 10)}` : '')
+      || (input.files?.[0] ? fileTitles[0] : '')
+      || 'untitled';
+    const sourceFilename = this.saveSource(wikiPath, {
+      ...input,
+      source: combinedSource,
+      title: sourceTitle,
+      files: input.files,
+    });
 
     // 3. 读取 _schema.json
     const schema = this.readSchema(wikiPath);
@@ -183,6 +231,26 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
       .replace(/^-|-$/g, '');
     const filename = `${date}-${slug}.md`;
 
+    // 保存原始上传文件（二进制或文本）
+    if (input.files && input.files.length > 0) {
+      for (const file of input.files) {
+        try {
+          const fileSlug = path.basename(file.name, path.extname(file.name))
+            .toLowerCase()
+            .replace(/[^a-z0-9一-龥]+/g, '-')
+            .replace(/^-|-$/g, '');
+          const ext = path.extname(file.name).toLowerCase();
+          const archiveName = `${date}-${fileSlug}${ext}`;
+          const archivePath = path.join(sourcesDir, archiveName);
+          const buffer = Buffer.from(file.content, 'base64');
+          fs.writeFileSync(archivePath, buffer);
+        } catch (err) {
+          console.error(`[wiki_ingest] 存档原始文件失败: ${file.name}`, err);
+        }
+      }
+    }
+
+    // 保存编译用文本源文件
     const sourcePath = path.join(sourcesDir, filename);
     const sourceContent = `# ${input.title || '未命名资料'}
 
@@ -217,18 +285,12 @@ ${input.source}
   }
 
   private async tryFetch(url: string): Promise<string | null> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-
     try {
-      const response = await fetch(url, {
-        signal: controller.signal,
+      const response = await browserFetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         },
-        redirect: 'follow',
+        timeout: 10000,
       });
 
       if (!response.ok) return null;
@@ -239,8 +301,6 @@ ${input.source}
       return this.htmlToText(text);
     } catch {
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 

@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const logger = require('./logger');
 
 let mainWindow = null;
@@ -10,9 +11,11 @@ const isDev = !app.isPackaged;
 
 // ── 尽早初始化日志（在 app ready 之前就准备好日志路径） ──
 
+const MINT_DIR = path.join(os.homedir(), '.mint');
+
 function getLogDir() {
   try {
-    return path.join(app.getPath('userData'), 'logs');
+    return path.join(MINT_DIR, 'logs');
   } catch {
     return path.join(__dirname, 'logs');
   }
@@ -51,13 +54,13 @@ function getClientDistPath() {
 }
 
 function getDbPath() {
-  return path.join(app.getPath('userData'), 'data.db');
+  return path.join(MINT_DIR, 'data.db');
 }
 
-// ── 加密密钥管理（首次启动自动生成，持久化到 userData/.env） ──
+// ── 加密密钥管理（首次启动自动生成，持久化到 .mint/.env） ──
 
 function getEnvFilePath() {
-  return path.join(app.getPath('userData'), '.env');
+  return path.join(MINT_DIR, '.env');
 }
 
 function loadOrCreateEncryptionKey() {
@@ -469,8 +472,121 @@ function setupIpcHandlers() {
     if (!services.wikiSvc) throw new Error('Services not loaded');
     return services.wikiSvc.readWiki(filePath);
   });
+  ipcMain.handle('wiki:upload', async (_, { name, size, buffer }) => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    const fileBuffer = Buffer.from(buffer);
+
+    // 存档原始文件
+    const settings = services.settSvc.get();
+    const wikiPath = settings.wikiPath;
+    if (!wikiPath) throw new Error('Wiki 路径未配置');
+    const sourcesDir = path.join(wikiPath, 'sources');
+    if (!fs.existsSync(sourcesDir)) fs.mkdirSync(sourcesDir, { recursive: true });
+
+    const date = new Date().toISOString().slice(0, 10);
+    const slug = name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9一-鿿]+/g, '-').replace(/^-|-$/g, '');
+    const ext = path.extname(name).toLowerCase();
+    const archiveName = `${date}-${slug}${ext}`;
+    const archivePath = path.join(sourcesDir, archiveName);
+    fs.writeFileSync(archivePath, fileBuffer);
+    logger.info(`wiki:upload saved ${archiveName} (${fileBuffer.length} bytes)`);
+
+    // 创建后台作业
+    const { v4: uuidv4 } = await import('uuid');
+    const jobId = uuidv4();
+    const sourceFile = `sources/${archiveName}`;
+    if (!global.__wikiJobs) global.__wikiJobs = new Map();
+
+    const job = {
+      id: jobId, status: 'pending', fileName: name, fileSize: size || fileBuffer.length,
+      progress: 0, step: '等待中',
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    global.__wikiJobs.set(jobId, job);
+
+    // 后台处理：解析 → AI 编译
+    processElectronWikiJob(jobId, archivePath, name, archiveName).catch(err => {
+      logger.error(`wiki job ${jobId} failed: ${err.message}`);
+      const j = global.__wikiJobs.get(jobId);
+      if (j) Object.assign(j, { status: 'error', error: err.message, updatedAt: new Date().toISOString() });
+    });
+
+    return { jobId, sourceFile, fileName: name, fileSize: size || fileBuffer.length };
+  });
+
+  ipcMain.handle('wiki:getJobStatus', (_, jobId) => {
+    const jobs = global.__wikiJobs;
+    if (!jobs) throw new Error('No jobs');
+    const job = jobs.get(jobId);
+    if (!job) throw new Error('Job not found');
+    return job;
+  });
 
   logger.info('IPC handlers registered');
+}
+
+// ── Wiki 后台作业处理 ──
+
+async function processElectronWikiJob(jobId, archivePath, name, archiveName) {
+  const jobs = global.__wikiJobs;
+  const update = (updates) => {
+    const j = jobs.get(jobId);
+    if (j) Object.assign(j, updates, { updatedAt: new Date().toISOString() });
+  };
+  const log = (msg) => logger.info(`[wiki:job:${jobId}] ${msg}`);
+
+  const settings = services.settSvc.get();
+  const wikiPath = settings.wikiPath;
+  if (!wikiPath) { update({ status: 'error', error: 'Wiki 路径未配置' }); return; }
+  log(`start, archivePath=${archivePath}`);
+
+  // 1. 解析文件
+  update({ status: 'parsing', progress: 30, step: '解析文件中' });
+  const parseMod = isDev
+    ? await import(`file://${path.join(__dirname, '..', 'server', 'dist', 'services', 'utils', 'fileParseService.js')}`)
+    : await import(`file://${path.join(__dirname, 'server-dist', 'services', 'utils', 'fileParseService.js')}`);
+  const savedContent = fs.readFileSync(archivePath);
+  log(`file size=${savedContent.length}`);
+  const result = await parseMod.parseFile({ name, content: savedContent, size: savedContent.length });
+  log(`parse done, format=${result.format} textLength=${result.text.length}`);
+  const preview = result.text.length > 500 ? result.text.substring(0, 500) + '\n...' : result.text;
+
+  // 2. AI 编译
+  update({ status: 'compiling', progress: 60, step: 'AI 编译中' });
+  let compiledPages = [];
+  let compileError;
+  try {
+    const compileMod = isDev
+      ? await import(`file://${path.join(__dirname, '..', 'server', 'dist', 'services', 'utils', 'wikiCompiler.js')}`)
+      : await import(`file://${path.join(__dirname, 'server-dist', 'services', 'utils', 'wikiCompiler.js')}`);
+    const aiSettings = services.settSvc.getAiSettings();
+    log(`compileSource start, apiUrl=${aiSettings.apiUrl}, model=${aiSettings.modelId}, apiKey=${aiSettings.apiKey ? 'set(' + aiSettings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
+    const compiled = await compileMod.compileSource(aiSettings, wikiPath, result.text, archiveName, {
+      title: name.replace(/\.[^.]+$/, ''),
+    });
+    compiledPages = compiled.pages;
+    log(`compileSource done, pages=${compiled.pages.length}`);
+  } catch (err) {
+    compileError = err.message;
+    log(`compileSource ERROR: ${err.message}`);
+    log(`compileSource stack: ${err.stack ? err.stack.substring(0, 500) : 'no stack'}`);
+  }
+
+  // 3. 完成
+  update({
+    status: compileError ? 'error' : 'done',
+    progress: 100,
+    step: compileError ? '编译失败' : '完成',
+    error: compileError,
+    result: {
+      sourceFile: `sources/${archiveName}`,
+      format: result.format,
+      textLength: result.text.length,
+      pageCount: result.pageCount,
+      preview,
+      pages: compiledPages.length > 0 ? compiledPages : undefined,
+    },
+  });
 }
 
 // ── 窗口管理 ──
@@ -515,9 +631,50 @@ function createWindow(port) {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+// ── 旧 userData 迁移（~/.mint 不存在时从 userData 拷贝）──
+
+function migrateFromOldUserData() {
+  // 此时 logger 尚未初始化，用 console.log
+  try {
+    const oldDir = app.getPath('userData');
+    console.log(`[migrate] oldDir=${oldDir}, MINT_DIR=${MINT_DIR}`);
+
+    if (oldDir === MINT_DIR) { console.log('[migrate] same path, skip'); return; }
+    if (!fs.existsSync(oldDir)) { console.log('[migrate] oldDir not found, skip'); return; }
+    if (fs.existsSync(path.join(MINT_DIR, 'data.db')) || fs.existsSync(path.join(MINT_DIR, '.env'))) {
+      console.log('[migrate] .mint already has data, skip');
+      return;
+    }
+
+    const items = fs.readdirSync(oldDir).filter(f => f !== 'logs');
+    console.log(`[migrate] items to migrate: ${items.length} — ${items.join(', ') || '(none)'}`);
+    if (items.length === 0) return;
+
+    // 只搬核心数据文件，跳过 Cache / Session Storage 等 Electron 运行时目录
+    const coreFiles = items.filter(f => f === 'data.db' || f === '.env');
+    if (coreFiles.length === 0) { console.log('[migrate] no core files to migrate'); return; }
+
+    fs.mkdirSync(MINT_DIR, { recursive: true });
+
+    for (const item of coreFiles) {
+      const src = path.join(oldDir, item);
+      const dst = path.join(MINT_DIR, item);
+      fs.cpSync(src, dst, { recursive: true });
+      console.log(`[migrate] copied: ${src} → ${dst}`);
+    }
+
+    console.log(`[migrate] done: ${oldDir} → ${MINT_DIR}`);
+  } catch (err) {
+    console.error(`[migrate] FAILED: ${err.message}`);
+  }
+}
+
 // ── 应用生命周期 ──
 
 app.whenReady().then(async () => {
+  // 迁移旧数据（必须在 logger.init 之前，避免 .mint 被创建后干扰判断）
+  migrateFromOldUserData();
+
   const logDir = getLogDir();
   const logFile = logger.init(logDir);
   setupGlobalErrorHandlers();
