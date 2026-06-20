@@ -33,7 +33,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       return { endpoint };
     },
     ipcServiceRef: { module: 'epSvc', method: 'create' },
-    args: [{ from: 'body', name: 'data' }],
+    args: [{ from: 'body' }],
     result: 'direct',
   },
   {
@@ -48,7 +48,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
     ipcServiceRef: { module: 'epSvc', method: 'updateEndpoint' },
     args: [
       { from: 'path', name: 'id' },
-      { from: 'body', name: 'data' },
+      { from: 'body' },
     ],
     result: 'direct',
   },
