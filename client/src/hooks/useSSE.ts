@@ -21,6 +21,11 @@ export default function useSSE(): UseSSEReturn {
   const abortRef = useRef<(() => void) | null>(null);
 
   const send = useCallback<UseSSEReturn['send']>((conversationId, content, callbacks, agent, options = {}) => {
+    // 先清理上一次的 listener/connection，防止 Electron IPC listener 累积导致事件重复
+    if (abortRef.current) {
+      abortRef.current();
+      abortRef.current = null;
+    }
     const { abort } = sendMessageStream(conversationId, content, {
       ...callbacks,
       regenerate: options.regenerate,

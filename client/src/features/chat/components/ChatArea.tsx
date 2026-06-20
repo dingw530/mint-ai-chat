@@ -165,13 +165,20 @@ export default function ChatArea({
       const flushStream = () => {
         const buf = streamBufferRef.current;
         if (!buf.content) return;
-        const content = buf.content;
+        const text = buf.content;
         buf.content = ''; // reset after flush
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && (last as Message & { _tempId?: string })._tempId === tempId) {
-            updated[updated.length - 1] = { ...last, content };
+            const segments = [...(last.segments || [])];
+            const lastSeg = segments[segments.length - 1];
+            if (lastSeg && lastSeg.type === 'text') {
+              segments[segments.length - 1] = { ...lastSeg, content: text };
+            } else {
+              segments.push({ type: 'text' as const, content: text });
+            }
+            updated[updated.length - 1] = { ...last, content: text, segments };
           }
           return updated;
         });
@@ -226,7 +233,14 @@ export default function ChatArea({
             const updated = [...prev];
             const last = updated[updated.length - 1];
             if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
-              updated[updated.length - 1] = { ...last, content: last.content + content };
+              const segments = [...(last.segments || [])];
+              const lastSeg = segments[segments.length - 1];
+              if (lastSeg && lastSeg.type === 'text') {
+                segments[segments.length - 1] = { ...lastSeg, content: lastSeg.content + content };
+              } else {
+                segments.push({ type: 'text' as const, content });
+              }
+              updated[updated.length - 1] = { ...last, content: last.content + content, segments };
             }
             return updated;
           });
@@ -379,13 +393,20 @@ export default function ChatArea({
     const regenFlush = () => {
       const buf = streamBufferRef.current;
       if (!buf.content) return;
-      const content = buf.content;
+      const text = buf.content;
       buf.content = '';
       setMessages((prev) => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last && (last as Message & { _tempId?: string })._tempId === regenTempId) {
-          updated[updated.length - 1] = { ...last, content };
+          const segments = [...(last.segments || [])];
+          const lastSeg = segments[segments.length - 1];
+          if (lastSeg && lastSeg.type === 'text') {
+            segments[segments.length - 1] = { ...lastSeg, content: text };
+          } else {
+            segments.push({ type: 'text' as const, content: text });
+          }
+          updated[updated.length - 1] = { ...last, content: text, segments };
         }
         return updated;
       });
@@ -427,7 +448,14 @@ export default function ChatArea({
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && (last as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId) {
-            updated[updated.length - 1] = { ...last, content: last.content + content };
+            const segments = [...(last.segments || [])];
+            const lastSeg = segments[segments.length - 1];
+            if (lastSeg && lastSeg.type === 'text') {
+              segments[segments.length - 1] = { ...lastSeg, content: lastSeg.content + content };
+            } else {
+              segments.push({ type: 'text' as const, content });
+            }
+            updated[updated.length - 1] = { ...last, content: last.content + content, segments };
           }
           return updated;
         });

@@ -137,7 +137,7 @@ export interface ToolCallDelta {
   };
 }
 
-// ── 内容段类型（线性展示思维链 + 工具调用） ──
+// ── 内容段类型（按时间顺序展示思维链 + 工具调用 + 正文） ──
 
 export interface ThinkingSegment {
   type: 'thinking';
@@ -155,7 +155,12 @@ export interface ToolCallSegment {
   retryCount?: number;
 }
 
-export type ContentSegment = ThinkingSegment | ToolCallSegment;
+export interface TextSegment {
+  type: 'text';
+  content: string;
+}
+
+export type ContentSegment = ThinkingSegment | ToolCallSegment | TextSegment;
 
 // ── ReAct 步骤类型 ──
 
