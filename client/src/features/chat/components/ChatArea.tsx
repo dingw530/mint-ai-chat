@@ -20,7 +20,6 @@ function LoadingSpinner() {
 interface ChatAreaProps {
   activeConversation: string | null;
   conversations: Conversation[];
-  onOpenSettings: () => void;
   onAutoCreate: (title?: string) => Promise<string | undefined>;
   onRefreshConversations?: () => void;
   onTitleUpdate: (id: string, title: string) => void;
@@ -33,7 +32,6 @@ interface ChatAreaProps {
 export default function ChatArea({
   activeConversation,
   conversations,
-  onOpenSettings,
   onAutoCreate,
   onRefreshConversations,
   onTitleUpdate,
@@ -485,7 +483,6 @@ export default function ChatArea({
         activeEndpoint={activeEndpoint}
         endpoints={endpoints}
         onEndpointChange={onEndpointChange}
-        onOpenSettings={onOpenSettings}
       />
       <div className="chat-area">
         {loading ? (

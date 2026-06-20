@@ -93,6 +93,7 @@ export function get(): VisibleSettings {
     activeEndpointId: activeEndpoint?.id || null,
     activeEndpointName: activeEndpoint?.name || null,
     wikiPath: raw.wikiPath || '',
+    wikiMaxFileSize: parseInt(raw.wikiMaxFileSize || '10485760', 10),
   };
 }
 
@@ -122,6 +123,7 @@ export function getAiSettings(): AiSettings {
       showReactSteps: raw.showReactSteps !== 'false',
       maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
       wikiPath: raw.wikiPath || '',
+      wikiMaxFileSize: parseInt(raw.wikiMaxFileSize || '10485760', 10),
     };
   }
   // 兜底：旧 settings 表（过渡期兼容）
@@ -140,12 +142,13 @@ export function getAiSettings(): AiSettings {
     showReactSteps: raw.showReactSteps !== 'false',
     maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
     wikiPath: raw.wikiPath || '',
+    wikiMaxFileSize: parseInt(raw.wikiMaxFileSize || '10485760', 10),
   };
 }
 
 // 保存设置：API Key 加密后写入，仅在有新 key 时更新
 // @deprecated — 同步端点逻辑将在后续版本移除，前端直接操作 model_endpoints 接口
-export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode, reactMaxIterations, toolMaxRetries, showReactSteps, wikiPath }: SettingsInput): void {
+export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode, reactMaxIterations, toolMaxRetries, showReactSteps, wikiPath, wikiMaxFileSize }: SettingsInput): void {
   const settings: Record<string, string> = {
     apiUrl,
     modelId,
@@ -157,6 +160,7 @@ export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memo
     toolMaxRetries: String(toolMaxRetries ?? 5),
     showReactSteps: showReactSteps !== undefined ? String(showReactSteps) : 'true',
     wikiPath: wikiPath || '',
+    wikiMaxFileSize: String(wikiMaxFileSize ?? 10485760),
   };
   if (apiKey) {
     settings.apiKey = encrypt(apiKey);

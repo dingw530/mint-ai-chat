@@ -76,7 +76,7 @@ function buildFileTree(rootDir: string, currentDir: string): FileTreeNode[] {
     if (stat.isDirectory()) {
       const children = buildFileTree(rootDir, fullPath);
       entries.push({ name: item, type: 'directory', path: relativePath, children });
-    } else if ((item.endsWith('.md') || item === '_schema.json') && item !== '.gitkeep') {
+    } else if ((item.endsWith('.md') || item === '_schema.json' || /\.(html?|txt|pdf)$/i.test(item)) && item !== '.gitkeep') {
       entries.push({ name: item, type: 'file', path: relativePath });
     }
   }

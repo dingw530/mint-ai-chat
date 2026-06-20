@@ -13,3 +13,14 @@ __pycache__/
 *.egg-info/
 .idea/
 electron/.playwright-cli/
+
+# Build artifacts
+server/build/
+*.gypi
+
+# Test results
+client/test-results/
+
+# Large generated images (keep SVG, skip PNG)
+architecture.png
+docs/harness-system.png

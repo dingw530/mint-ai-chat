@@ -17,7 +17,8 @@
     "electron:build:mac": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:mac",
     "electron:build:win": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:win",
     "electron:build:linux": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:linux",
-    "prepare": "husky"
+    "prepare": "husky",
+    "gc": "npx tsx scripts/gc/run.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

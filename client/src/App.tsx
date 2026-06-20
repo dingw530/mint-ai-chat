@@ -28,11 +28,11 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [showWiki, setShowWiki] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
   const [activeView, setActiveView] = useState('chat');
+  const [wikiSelectedFile, setWikiSelectedFile] = useState<string | null>(null);
 
   const fetchConversations = useCallback(async (type?: string) => {
     try {
@@ -165,10 +165,15 @@ export default function App() {
         onClearAll={handleClearAll}
         loading={loading}
         activeView={activeView}
-        onViewChange={setActiveView}
-        onOpenWiki={() => setShowWiki(true)}
+        onViewChange={(view) => { setActiveView(view); if (view !== 'wiki') setWikiSelectedFile(null); }}
+        onOpenSettings={() => setShowSettings(true)}
+        onWikiFileSelect={setWikiSelectedFile}
       />
-      {activeView === 'image' ? (
+      {activeView === 'wiki' ? (
+        <Suspense fallback={<div className="view-loading">加载中...</div>}>
+          <WikiPanel filePath={wikiSelectedFile} />
+        </Suspense>
+      ) : activeView === 'image' ? (
         <Suspense fallback={<div className="view-loading">加载中...</div>}>
           <ImageChatArea
             activeConversation={activeId}
@@ -183,7 +188,6 @@ export default function App() {
         <ChatArea
           activeConversation={activeId}
           conversations={conversations}
-          onOpenSettings={() => setShowSettings(true)}
           onAutoCreate={handleCreate}
           onTitleUpdate={handleTitleUpdate}
           onUpdateConversation={(convId: string, updates: Partial<Conversation>) => {
@@ -199,11 +203,6 @@ export default function App() {
       {showSettings && (
         <Suspense fallback={null}>
           <Settings onClose={() => { setShowSettings(false); fetchEndpoints(); }} theme={theme} onThemeChange={setTheme} />
-        </Suspense>
-      )}
-      {showWiki && (
-        <Suspense fallback={null}>
-          <WikiPanel onClose={() => setShowWiki(false)} />
         </Suspense>
       )}
     </div>

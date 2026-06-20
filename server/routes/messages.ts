@@ -17,8 +17,8 @@ router.get('/:id/messages', (req: Request, res: Response) => {
 
 // 发送消息：保存用户消息后以 SSE 流式返回 AI 回复
 router.post('/:id/messages', asyncHandler(async (req: Request, res: Response) => {
-  const { content, agent, regenerate } = req.body;
-  if (!content) {
+  const { content, agent, regenerate, files } = req.body;
+  if (!content && !files?.length) {
     res.status(400).json({ error: 'Content is required' });
     return;
   }
@@ -37,7 +37,7 @@ router.post('/:id/messages', asyncHandler(async (req: Request, res: Response) =>
   res.setHeader('X-Accel-Buffering', 'no');
 
   const sink = new ResSink(res);
-  await messageService.sendMessage(req.params.id as string, content, sink, agent, regenerate);
+  await messageService.sendMessage(req.params.id as string, content || '', sink, agent, regenerate, files);
 }));
 
 // 图片对话发消息

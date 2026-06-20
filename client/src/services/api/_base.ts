@@ -3,8 +3,14 @@ import type { ElectronAPI } from "@/types";
 // ── 常量 ──
 
 export const BASE_URL = "/api";
-export const electronAPI: ElectronAPI | undefined = (window as any).electronAPI;
-export const isElectron = !!electronAPI?.isElectron;
+
+// 运行时检测 Electron 环境（避免模块加载时序问题）
+export function getElectronAPI(): ElectronAPI | undefined {
+  return (window as any).electronAPI;
+}
+export function isElectron(): boolean {
+  return !!getElectronAPI()?.isElectron;
+}
 
 // ── HTTP 请求 ──
 
@@ -20,7 +26,13 @@ export async function request<T>(
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
-  return res.json();
+  const text = await res.text();
+  console.log(`[request] ${options?.method || 'GET'} ${path} => ${text.length} bytes, preview=${text.substring(0, 60)}`);
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`HTTP 响应非 JSON 格式（${path}），请确认后端运行在 3001 端口`);
+  }
 }
 
 // ── IPC/HTTP 双通道 ──
@@ -29,7 +41,7 @@ export async function ipcOrHttp<T>(
   ipcCall: () => Promise<T>,
   httpCall: () => Promise<T>,
 ): Promise<T> {
-  if (!isElectron) return httpCall();
+  if (!isElectron()) return httpCall();
   try {
     return await ipcCall();
   } catch {
@@ -76,7 +88,8 @@ export async function callEndpoint<T = unknown>(
   return ipcOrHttp(
     () => {
       if (!ep.preloadMethod) throw new Error(`No preload method for ${id}`);
-      return (electronAPI as any)[ep.preloadMethod](...args);
+      const api = getElectronAPI();
+      return (api as any)[ep.preloadMethod](...args);
     },
     () => {
       const url = buildUrlFromManifest(ep, args);
