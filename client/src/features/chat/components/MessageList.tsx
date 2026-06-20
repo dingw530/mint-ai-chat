@@ -189,13 +189,17 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
             return (
               <div key={i} className={`tool-call-segment tool-call-${seg.status}`}>
                 <div className="tool-call-header">
-                  <svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z" fill="currentColor"/>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}>
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                   </svg>
                   <span className="tool-call-label">
-                    {seg.status === 'done' ? '工具返回' : seg.status === 'error' ? '工具失败' : '调用工具'}: {seg.toolName}
-                    {seg.status === 'done' && seg.duration != null ? ` (${(Number(seg.duration) / 1000).toFixed(1)}s)` : ''}
-                    {seg.status === 'error' && seg.retryCount ? ` (重试 ${seg.retryCount} 次)` : ''}
+                    {seg.toolName}
+                    {seg.status === 'done' && seg.duration != null && (
+                      <span className="tool-call-label-id"> {(Number(seg.duration) / 1000).toFixed(1)}s</span>
+                    )}
+                    {seg.status === 'error' && seg.retryCount != null && (
+                      <span className="tool-call-label-id"> retry ×{seg.retryCount}</span>
+                    )}
                   </span>
                   {statusIcon}
                 </div>
@@ -208,6 +212,13 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                 {seg.status === 'error' && seg.error && (
                   <div className="tool-call-error-body">{seg.error.length > 200 ? seg.error.substring(0, 200) + '...' : seg.error}</div>
                 )}
+              </div>
+            );
+          }
+          if (seg.type === 'text') {
+            return (
+              <div key={i} className="text-segment">
+                <MarkdownRenderer content={seg.content} />
               </div>
             );
           }
@@ -238,7 +249,6 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
               {msg.role === 'assistant' && hasSegments ? (
                 <>
                   {renderSegments(msg.segments!)}
-                  {msg.content && <MarkdownRenderer content={msg.content} />}
                 </>
               ) : (
                 <>

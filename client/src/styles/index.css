@@ -563,68 +563,95 @@ body {
 }
 
 .tool-call-segment {
-  font-size: 0.85em;
-  line-height: 1.4;
-  margin-bottom: 6px;
-  padding: 6px 10px;
-  border-left: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 5px 10px;
+  border-left: 2px solid var(--border-default);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--bg-tertiary);
+  font-size: 12px;
+  line-height: 1;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.tool-call-segment.tool-call-done {
+  opacity: 0.55;
+}
+
+.tool-call-segment.tool-call-running {
+  opacity: 1;
+  border-left-color: var(--accent);
+}
+
+.tool-call-segment.tool-call-error {
+  opacity: 1;
+  border-left-color: var(--error-text);
 }
 
 .tool-call-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-secondary);
 }
 
 .tool-call-label {
-  font-size: 0.82em;
+  font-family: var(--font-body);
+  font-size: 12px;
   font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  letter-spacing: -0.1px;
+}
+
+.tool-call-label-id {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-left: 2px;
 }
 
 .tool-call-cursor {
   animation: blink 1s step-end infinite;
   color: var(--accent);
-  font-size: 0.6em;
-  margin-left: 2px;
+  font-size: 6px;
 }
 
 .tool-call-status-error {
-  color: #e74c3c;
-  font-size: 0.75em;
-  margin-left: 2px;
+  color: var(--error-text);
+  font-size: 11px;
 }
 
 .tool-call-error-body {
-  color: #e74c3c;
-  font-size: 0.85em;
+  color: var(--error-text);
+  font-size: 12px;
   margin-top: 4px;
-  margin-left: 20px;
+  padding: 4px 8px;
+  background: var(--error-bg);
+  border-radius: var(--radius-sm);
 }
 
 .tool-call-result-details {
-  margin-top: 6px;
-  margin-left: 20px;
+  margin-top: 4px;
+  margin-left: 18px;
 }
 
 .tool-call-result-summary {
   cursor: pointer;
-  font-size: 0.82em;
-  color: var(--accent);
+  font-size: 11px;
+  color: var(--text-tertiary);
   user-select: none;
 }
 
 .tool-call-result-body {
   margin-top: 4px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  font-size: 0.85em;
-  line-height: 1.4;
-  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
   max-height: 300px;
   overflow: auto;
   white-space: pre-wrap;

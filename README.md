@@ -10,6 +10,10 @@
 
 A native desktop AI chat application built with Electron. Connect to any OpenAI-compatible API endpoint with your own credentials — your data stays on your machine.
 
+<p align="center">
+  <img src="screenshots/mint-preview.png" alt="Mint Preview" width="800" />
+</p>
+
 ## Features
 
 - Native desktop experience (macOS, Windows, Linux)
