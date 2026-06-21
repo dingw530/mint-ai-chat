@@ -12,15 +12,19 @@
     "postinstall": "electron-rebuild"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/server-everything": "^2026.1.26",
     "better-sqlite3": "^11.0.0",
     "chalk": "^4.1.2",
+    "commander": "^12.1.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "jose": "^6.2.3",
-    "uuid": "^9.0.0",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@modelcontextprotocol/server-everything": "^2026.1.26"
+    "multer": "^2.2.0",
+    "pdfjs-dist": "^6.0.227",
+    "undici": "^5.29.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
@@ -43,16 +47,24 @@
     ],
     "asar": false,
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity",
       "icon": "icon.png"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "icon.png"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Network",
       "icon": "icon.png"
     }
