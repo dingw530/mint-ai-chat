@@ -36,7 +36,7 @@ function WikiIcon() {
 
 function FileIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
       <polyline points="14 2 14 8 20 8" />
     </svg>
@@ -45,7 +45,7 @@ function FileIcon() {
 
 function FolderIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
     </svg>
   );
@@ -231,7 +231,7 @@ export default function Sidebar({
     pollingRefs.current.set(id, interval);
   }, [loadWikiTree]);
 
-  const handleFileUpload = async (file: File) => {
+  const uploadSingleFile = async (file: File) => {
     const validTypes = ['.html', '.htm', '.txt', '.md', '.pdf'];
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!validTypes.includes(ext)) {
@@ -267,17 +267,23 @@ export default function Sidebar({
     }
   };
 
+  const handleFileUpload = async (files: FileList) => {
+    for (let i = 0; i < files.length; i++) {
+      uploadSingleFile(files[i]);
+    }
+  };
+
   const handleWikiDragOver = (e: React.DragEvent) => { e.preventDefault(); setWikiDragOver(true); };
   const handleWikiDragLeave = () => setWikiDragOver(false);
   const handleWikiDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setWikiDragOver(false);
-    if (e.dataTransfer.files[0]) handleFileUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files);
   };
 
   const handleWikiFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
+    const files = e.target.files;
+    if (files && files.length > 0) handleFileUpload(files);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -406,7 +412,7 @@ export default function Sidebar({
           <div className="wiki-tree-header-bar">
             <span className="wiki-tree-header-label">文件</span>
             <div className="wiki-tree-header-actions">
-              <input type="file" ref={fileInputRef} onChange={handleWikiFileSelect} accept=".html,.htm,.txt,.md,.pdf" style={{ display: 'none' }} />
+              <input type="file" ref={fileInputRef} onChange={handleWikiFileSelect} accept=".html,.htm,.txt,.md,.pdf" multiple style={{ display: 'none' }} />
               <button className="wiki-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={isWikiUploading}>+</button>
               <button className="wiki-tree-refresh" onClick={loadWikiTree}>
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" /></svg>
