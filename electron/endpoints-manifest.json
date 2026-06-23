@@ -15,7 +15,11 @@
     "preloadMethod": "saveSettings",
     "method": "PUT",
     "httpPath": "/settings",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -25,7 +29,13 @@
     "preloadMethod": "getMemories",
     "method": "GET",
     "httpPath": "/memories",
-    "args": [{ "from": "query", "name": "category", "optional": true }],
+    "args": [
+      {
+        "from": "query",
+        "name": "category",
+        "optional": true
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -35,7 +45,11 @@
     "preloadMethod": "createMemory",
     "method": "POST",
     "httpPath": "/memories",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -46,8 +60,13 @@
     "method": "PUT",
     "httpPath": "/memories/:id",
     "args": [
-      { "from": "path", "name": "id" },
-      { "from": "body", "name": "data" }
+      {
+        "from": "path",
+        "name": "id"
+      },
+      {
+        "from": "body"
+      }
     ],
     "result": "direct",
     "async": false
@@ -58,7 +77,12 @@
     "preloadMethod": "deleteMemory",
     "method": "DELETE",
     "httpPath": "/memories/:id",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -78,7 +102,11 @@
     "preloadMethod": "updateBashSecurity",
     "method": "PUT",
     "httpPath": "/bash-security",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -99,8 +127,15 @@
     "method": "GET",
     "httpPath": "/weather/query",
     "args": [
-      { "from": "query", "name": "city" },
-      { "from": "query", "name": "days", "optional": true }
+      {
+        "from": "query",
+        "name": "city"
+      },
+      {
+        "from": "query",
+        "name": "days",
+        "optional": true
+      }
     ],
     "result": "direct",
     "async": true
@@ -112,9 +147,21 @@
     "method": "GET",
     "httpPath": "/routing-logs",
     "args": [
-      { "from": "query", "name": "conversationId", "optional": true },
-      { "from": "query", "name": "page", "optional": true },
-      { "from": "query", "name": "pageSize", "optional": true }
+      {
+        "from": "query",
+        "name": "conversationId",
+        "optional": true
+      },
+      {
+        "from": "query",
+        "name": "page",
+        "optional": true
+      },
+      {
+        "from": "query",
+        "name": "pageSize",
+        "optional": true
+      }
     ],
     "result": "direct",
     "async": false
@@ -125,7 +172,11 @@
     "preloadMethod": "generateImage",
     "method": "POST",
     "httpPath": "/images/generate",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": true
   },
@@ -145,7 +196,12 @@
     "preloadMethod": "getAgent",
     "method": "GET",
     "httpPath": "/agents/:id",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -155,7 +211,11 @@
     "preloadMethod": "createAgent",
     "method": "POST",
     "httpPath": "/agents",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -166,8 +226,13 @@
     "method": "PUT",
     "httpPath": "/agents/:id",
     "args": [
-      { "from": "path", "name": "id" },
-      { "from": "body", "name": "data" }
+      {
+        "from": "path",
+        "name": "id"
+      },
+      {
+        "from": "body"
+      }
     ],
     "result": "direct",
     "async": false
@@ -178,7 +243,12 @@
     "preloadMethod": "deleteAgent",
     "method": "DELETE",
     "httpPath": "/agents/:id",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -198,7 +268,11 @@
     "preloadMethod": "createEndpoint",
     "method": "POST",
     "httpPath": "/endpoints",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -209,8 +283,13 @@
     "method": "PUT",
     "httpPath": "/endpoints/:id",
     "args": [
-      { "from": "path", "name": "id" },
-      { "from": "body", "name": "data" }
+      {
+        "from": "path",
+        "name": "id"
+      },
+      {
+        "from": "body"
+      }
     ],
     "result": "direct",
     "async": false
@@ -221,7 +300,12 @@
     "preloadMethod": "deleteEndpoint",
     "method": "DELETE",
     "httpPath": "/endpoints/:id",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -231,7 +315,12 @@
     "preloadMethod": "activateEndpoint",
     "method": "PUT",
     "httpPath": "/endpoints/:id/activate",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -251,7 +340,12 @@
     "preloadMethod": "getMcpServer",
     "method": "GET",
     "httpPath": "/mcp-servers/:id",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": false
   },
@@ -261,7 +355,11 @@
     "preloadMethod": "createMcpServer",
     "method": "POST",
     "httpPath": "/mcp-servers",
-    "args": [{ "from": "body", "name": "data" }],
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
     "result": "direct",
     "async": true
   },
@@ -272,8 +370,13 @@
     "method": "PUT",
     "httpPath": "/mcp-servers/:id",
     "args": [
-      { "from": "path", "name": "id" },
-      { "from": "body", "name": "data" }
+      {
+        "from": "path",
+        "name": "id"
+      },
+      {
+        "from": "body"
+      }
     ],
     "result": "direct",
     "async": true
@@ -284,7 +387,12 @@
     "preloadMethod": "deleteMcpServer",
     "method": "DELETE",
     "httpPath": "/mcp-servers/:id",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": true
   },
@@ -294,9 +402,95 @@
     "preloadMethod": "restartMcpServer",
     "method": "POST",
     "httpPath": "/mcp-servers/:id/restart",
-    "args": [{ "from": "path", "name": "id" }],
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
     "result": "direct",
     "async": true
+  },
+  {
+    "id": "conversations:list",
+    "ipcChannel": "conversations:list",
+    "preloadMethod": "getConversations",
+    "method": "GET",
+    "httpPath": "/conversations",
+    "args": [
+      {
+        "from": "query",
+        "name": "type",
+        "optional": true
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "conversations:create",
+    "ipcChannel": "conversations:create",
+    "preloadMethod": "createConversation",
+    "method": "POST",
+    "httpPath": "/conversations",
+    "args": [
+      {
+        "from": "body",
+        "name": "title",
+        "optional": true
+      },
+      {
+        "from": "body",
+        "name": "type",
+        "optional": true
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "conversations:delete",
+    "ipcChannel": "conversations:delete",
+    "preloadMethod": "deleteConversation",
+    "method": "DELETE",
+    "httpPath": "/conversations/:id",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "conversations:clearAll",
+    "ipcChannel": "conversations:clearAll",
+    "preloadMethod": null,
+    "method": "DELETE",
+    "httpPath": "/conversations",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "conversations:patch",
+    "ipcChannel": "conversations:patch",
+    "preloadMethod": "patchConversation",
+    "method": "PATCH",
+    "httpPath": "/conversations/:id",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      },
+      {
+        "from": "body",
+        "name": ""
+      }
+    ],
+    "result": "direct",
+    "async": false
   },
   {
     "id": "wiki:list",
@@ -314,7 +508,52 @@
     "preloadMethod": "readWiki",
     "method": "GET",
     "httpPath": "/wiki/read",
-    "args": [{ "from": "query", "name": "path" }],
+    "args": [
+      {
+        "from": "query",
+        "name": "path"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:schema",
+    "ipcChannel": "wiki:schema",
+    "preloadMethod": "getWikiSchema",
+    "method": "GET",
+    "httpPath": "/wiki/schema",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:addCategory",
+    "ipcChannel": "wiki:addCategory",
+    "preloadMethod": "addWikiCategory",
+    "method": "POST",
+    "httpPath": "/wiki/categories",
+    "args": [
+      {
+        "from": "body",
+        "name": "category"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:removeCategory",
+    "ipcChannel": "wiki:removeCategory",
+    "preloadMethod": "removeWikiCategory",
+    "method": "DELETE",
+    "httpPath": "/wiki/categories/:category",
+    "args": [
+      {
+        "from": "path",
+        "name": "category"
+      }
+    ],
     "result": "direct",
     "async": false
   }
