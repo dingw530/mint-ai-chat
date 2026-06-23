@@ -307,7 +307,9 @@ export interface ElectronAPI {
   readWiki: (path: string) => Promise<{ content: string; path: string; name: string; size: number }>;
   uploadWiki: (data: { name: string; size: number; buffer: number[] }) => Promise<{ jobId: string; sourceFile: string; fileName: string; fileSize: number }>;
   getJobStatus: (jobId: string) => Promise<UploadJob>;
-}
+  getWikiSchema: () => Promise<{ categories: string[] }>;
+  addWikiCategory: (category: string) => Promise<{ categories: string[] }>;
+  removeWikiCategory: (category: string) => Promise<{ categories: string[] }>;}
 
 export interface UploadJob {
   id: string;

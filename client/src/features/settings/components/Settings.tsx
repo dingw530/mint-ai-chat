@@ -6,6 +6,7 @@ import AgentsPanel from './AgentsPanel';
 import MemoriesPanel from './MemoriesPanel';
 import EndpointsPanel from './EndpointsPanel';
 import SkillsPanel from './SkillsPanel';
+import WikiPanel from './WikiPanel';
 import BashSecurityPanel from './BashSecurityPanel';
 import type { VisibleSettings } from '@/types';
 
@@ -168,6 +169,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     { id: 'skills', label: '技能', icon: 'skill' as const },
     { id: 'bash', label: 'Bash 安全', icon: 'bash' as const },
     { id: 'memories', label: '记忆', icon: 'memory' as const },
+    { id: 'wiki', label: '知识库', icon: 'wiki' as const },
   ];
 
   const tabIcon: Record<string, React.ReactNode> = {
@@ -206,6 +208,11 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     bash: (
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M4 3H3v18h1V3zm3 0v18h1V3H7zm4 0v18h1V3h-1zm4 0v18h2V3h-2zm5 0v18h1V3h-1z" />
+      </svg>
+    ),
+    wiki: (
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 6H2v14a2 2 0 002 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H8V4h12v12zM10 9h8v2h-8V9zm0 4h6v2h-6v2H8v-2h2v-2z"/>
       </svg>
     ),
   };
@@ -283,12 +290,15 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
             {activeTab === 'memories' && (
               <MemoriesPanel onToast={showToast} />
             )}
+            {activeTab === 'wiki' && (
+              <WikiPanel wikiPath={wikiPath} setWikiPath={setWikiPath} onToast={showToast} />
+            )}
             {activeTab === 'endpoints' && (
               <EndpointsPanel onToast={showToast} />
             )}
           </div>
         </div>
-        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'skills' && activeTab !== 'bash' && activeTab !== 'memories' && (
+        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'skills' && activeTab !== 'bash' && activeTab !== 'memories' && activeTab !== 'wiki' && (
           <div className="modal-actions">
             <button className="btn-secondary" onClick={onClose}>
               取消
