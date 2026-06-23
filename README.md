@@ -61,11 +61,7 @@ npm run electron:dev
 # macOS
 npm run electron:build:mac
 
-# Windows
-npm run electron:build:win
 
-# Linux
-npm run electron:build:linux
 ```
 
 Output will be in `electron/release/`.

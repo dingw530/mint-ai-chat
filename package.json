@@ -4,27 +4,31 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently -n server,client -c yellow,cyan \"cd server && npm run dev\" \"cd client && npm run dev\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
-    "build": "cd server && npm run build && cd ../client && npm run build",
-    "start": "cd server && npm start",
-    "docker:build": "docker compose build",
-    "docker:up": "docker compose up",
-    "electron:rebuild": "cd electron && npx @electron/rebuild -f -w better-sqlite3 --module-dir ../server",
-    "electron:dev": "cd server && npm run build && cd .. && npm run electron:rebuild && concurrently -k \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\" && npm run server:rebuild",
-    "electron:dev:server": "concurrently -k \"cd server && npm run dev\" \"cd client && npm run dev\" \"sleep 3 && cd electron && npx electron .\"",
-    "electron:build:mac": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:mac",
-    "electron:build:win": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:win",
-    "electron:build:linux": "cd server && npm run build && cd ../client && ELECTRON=true npm run build && cd ../electron && npm run build:linux",
+    "dev": "concurrently -n server,client -c yellow,cyan \"npm run dev -w mint-server\" \"npm run dev -w mint-client\"",
+    "dev:server": "npm run dev -w mint-server",
+    "dev:client": "npm run dev -w mint-client",
+    "build": "npm run build -w mint-server && npm run build -w mint-client",
+    "start": "npm run start -w mint-server",
+    "electron:rebuild": "cd electron && npx @electron/rebuild -w better-sqlite3 --module-dir ../server",
+    "electron:dev": "npm run build:bundle -w mint-server && npm run electron:rebuild && concurrently -k \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
+    "electron:dev:server": "npm run build:bundle -w mint-server && concurrently -k \"npm run dev -w mint-server\" \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
+    "electron:build:mac": "npm run build:bundle -w mint-server && ELECTRON=true npm run build -w mint-client && cd electron && npm run build:mac",
     "prepare": "husky",
     "gc": "npx tsx scripts/gc/run.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
+    "esbuild": "^0.28.1",
     "husky": "^9.1.7"
   },
+  "workspaces": [
+    "server",
+    "client",
+    "electron"
+  ],
   "dependencies": {
-    "sharp": "^0.35.1"
+    "electron": "^33.4.11",
+    "sharp": "^0.35.1",
+    "undici": "^5.29.0"
   }
 }
