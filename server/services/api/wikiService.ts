@@ -91,3 +91,53 @@ function countFiles(tree: FileTreeNode[]): number {
   }
   return count;
 }
+
+// ── Schema / Category Management ──
+
+interface WikiSchema {
+  version?: number;
+  description?: string;
+  categories: string[];
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+export function getSchema(): WikiSchema {
+  const rootPath = getRootPath();
+  const schemaPath = path.join(rootPath, '_schema.json');
+  if (!fs.existsSync(schemaPath)) {
+    return { categories: [] };
+  }
+  try {
+    return JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+  } catch {
+    return { categories: [] };
+  }
+}
+
+export function updateSchema(schema: WikiSchema): WikiSchema {
+  const rootPath = getRootPath();
+  const schemaPath = path.join(rootPath, '_schema.json');
+  fs.writeFileSync(schemaPath, JSON.stringify(schema, null, 2), 'utf-8');
+  return schema;
+}
+
+export function addCategory(category: string): { categories: string[] } {
+  const schema = getSchema();
+  if (!schema.categories) schema.categories = [];
+  const cat = category.trim();
+  if (!cat) throw new Error('分类名不能为空');
+  if (schema.categories.includes(cat)) throw new Error(`分类 "${cat}" 已存在`);
+  schema.categories.push(cat);
+  schema.categories.sort();
+  updateSchema(schema);
+  return { categories: schema.categories };
+}
+
+export function removeCategory(category: string): { categories: string[] } {
+  const schema = getSchema();
+  if (!schema.categories) schema.categories = [];
+  schema.categories = schema.categories.filter((c: string) => c !== category);
+  updateSchema(schema);
+  return { categories: schema.categories };
+}
