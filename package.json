@@ -13,7 +13,7 @@
     "electron:dev": "npm run build -w mint-server && npm run electron:rebuild && concurrently -k \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
     "electron:dev:server": "npm run build -w mint-server && concurrently -k \"npm run dev -w mint-server\" \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
     "electron:build:mac": "npm run build -w mint-server && ELECTRON=true npm run build -w mint-client && cd electron && npm run build:mac",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "gc": "npx tsx scripts/gc/run.ts"
   },
   "devDependencies": {
