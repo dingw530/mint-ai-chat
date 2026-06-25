@@ -21,6 +21,7 @@ export { ListFilesTool } from './ListFilesTool.js';
 export { WikiIngestTool } from './WikiIngestTool.js';
 export { WikiQueryTool } from './WikiQueryTool.js';
 export { WikiLintTool } from './WikiLintTool.js';
+export { WikiSearchTool } from './WikiSearchTool.js';
 
 // 工具实例（用于注册）
 import { WeatherTool } from './WeatherTool.js';
@@ -34,6 +35,7 @@ import { ListFilesTool } from './ListFilesTool.js';
 import { WikiIngestTool } from './WikiIngestTool.js';
 import { WikiQueryTool } from './WikiQueryTool.js';
 import { WikiLintTool } from './WikiLintTool.js';
+import { WikiSearchTool } from './WikiSearchTool.js';
 import { toolRegistry } from './ToolRegistry.js';
 
 // 内置工具列表
@@ -45,10 +47,9 @@ export const builtinTools = [
   new InvokeAgentTool(),
   new ReadFileTool(),
   new WriteFileTool(),
-  new ListFilesTool(),
   new WikiIngestTool(),
-  new WikiQueryTool(),
   new WikiLintTool(),
+  new WikiSearchTool(),
 ];
 
 /**

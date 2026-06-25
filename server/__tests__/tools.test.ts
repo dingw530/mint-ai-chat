@@ -58,6 +58,7 @@ import { WikiQueryTool } from '../services/tools/WikiQueryTool.js';
 import { WikiLintTool } from '../services/tools/WikiLintTool.js';
 import { BashTool } from '../services/tools/BashTool.js';
 import { HttpFetchTool } from '../services/tools/HttpFetchTool.js';
+import { WikiSearchTool } from '../services/tools/WikiSearchTool.js';
 
 const ctx = { conversationId: 'test-conv' };
 let tmpDir: string;
@@ -325,5 +326,57 @@ describe('HttpFetchTool', () => {
   it('should validate input schema', () => {
     expect(tool.validate({ url: 'https://example.com' }).valid).toBe(true);
     expect(tool.validate({}).valid).toBe(false);
+  });
+});
+
+
+// ══════════════════════════════════════════
+// WikiSearchTool
+// ══════════════════════════════════════════
+describe('WikiSearchTool', () => {
+  const tool = new WikiSearchTool();
+
+  it('should have correct metadata', () => {
+    expect(tool.name).toBe('wiki_search');
+    expect(tool.isReadOnly()).toBe(true);
+    expect(tool.isConcurrencySafe()).toBe(true);
+  });
+
+  it('should find matching content via search', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/react.md'), '# React\nReact 是一个前端框架。');
+    const result = await tool.execute({ question: 'React 前端' }, ctx);
+    expect(result.results.length).toBeGreaterThan(0);
+    expect(result.results[0].file).toContain('react.md');
+    expect(result.results[0].content.length).toBeGreaterThan(0);
+  });
+
+  it('should read files via paths parameter', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/test.md'), '# Test\nHello world');
+    const result = await tool.execute({ question: 'unused', paths: ['pages/test.md'] }, ctx);
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].content).toContain('Hello world');
+  });
+
+  it('should list directory when path is directory', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/a.md'), 'a');
+    const result = await tool.execute({ question: 'unused', paths: ['pages'] }, ctx);
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].content).toContain('[FILE] a.md');
+  });
+
+  it('should return empty for no matches', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/empty.md'), '# 空页面\n没有相关内容。');
+    const result = await tool.execute({ question: '量子计算 人工智能' }, ctx);
+    expect(result.results.length).toBe(0);
+  });
+
+  it('should throw when wikiPath not configured', async () => {
+    mockWikiPath = null;
+    await expect(tool.execute({ question: 'test' }, ctx))
+      .rejects.toThrow('Wiki 路径未配置');
   });
 });

@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
-import { readWiki } from '../services/api';
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
+import { readWiki } from '@/services/api';
 
 interface WikiPanelProps {
   filePath: string | null;
+  onAskQuestion?: (question: string) => void;
 }
 
-export default function WikiPanel({ filePath }: WikiPanelProps) {
+export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
   const fileName = filePath?.split('/').pop() || '';
   const fileDir = filePath?.split('/').slice(0, -1).join('/') || '';
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!filePath) {
@@ -25,6 +28,26 @@ export default function WikiPanel({ filePath }: WikiPanelProps) {
       .catch((err) => setError((err as Error).message || '加载失败'))
       .finally(() => setLoading(false));
   }, [filePath]);
+
+  useEffect(() => {
+    if (!filePath && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [filePath]);
+
+  const handleSubmit = () => {
+    const trimmed = query.trim();
+    if (!trimmed || !onAskQuestion) return;
+    onAskQuestion(trimmed);
+    setQuery('');
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
   const renderMarkdown = (text: string) => {
     const lines = text.split('\n');
@@ -71,6 +94,41 @@ export default function WikiPanel({ filePath }: WikiPanelProps) {
           </div>
           <h2>知识库</h2>
           <p>选择文件查看内容，或上传新文件</p>
+          <div className="wiki-search-container">
+            <div className="wiki-search-box">
+              <div className="wiki-search-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <input
+                ref={inputRef}
+                type="text"
+                className="wiki-search-input"
+                placeholder="基于知识库提问..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+              <button
+                className="wiki-search-btn"
+                onClick={handleSubmit}
+                disabled={!query.trim()}
+                aria-label="提问"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            <div className="wiki-search-hints">
+              <span className="wiki-search-hint">
+                <kbd>Enter</kbd> 发送
+              </span>
+            </div>
+          </div>
         </div>
       )}
       {!loading && !error && content && (() => {

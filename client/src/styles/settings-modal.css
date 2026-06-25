@@ -5,24 +5,24 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(45, 45, 45, 0.25);
+  background: rgba(30, 30, 30, 0.30);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px) saturate(120%);
   animation: overlayIn 0.2s var(--ease-out);
 }
 
 .modal {
-  background: var(--bg-secondary);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xxl);
   padding: 20px 20px 16px;
   width: 680px;
   max-width: 90vw;
   max-height: 85vh;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-xl), 0 0 60px rgba(0, 0, 0, 0.08);
   animation: modalBounce 0.5s var(--ease-spring);
   position: relative;
   overflow: hidden;

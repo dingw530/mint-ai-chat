@@ -23,3 +23,4 @@
 | [Server 架构收敛](<../changes/2026-06-10-server-refactor/exec-plan.md>) | 2026-06-10 | 执行中 |
 | [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/exec-plan.md>) | 2026-06-11 | 已完成 |
 | [LLM Wiki 知识库](<../changes/2026-06-18-llm-wiki/exec-plan.md>) | 2026-06-18 | 已完成 |
+| [Client 路由架构重构](<../changes/2026-06-24-路由架构重构/exec-plan.md>) | 2026-06-24 | 已完成 |

@@ -127,10 +127,10 @@ export class WikiQueryTool extends BaseTool<WikiQueryInput, WikiQueryOutput> {
       }
     }
 
-    if (bestIdx < 0) return content.substring(0, 200);
+    if (bestIdx < 0) return content.length <= 2000 ? content : content.substring(0, 2000) + "...";
 
-    const start = Math.max(0, bestIdx - 80);
-    const end = Math.min(content.length, bestIdx + 120);
+    const start = Math.max(0, bestIdx - 500);
+    const end = Math.min(content.length, bestIdx + 1500);
     const prefix = start > 0 ? '...' : '';
     const suffix = end < content.length ? '...' : '';
 

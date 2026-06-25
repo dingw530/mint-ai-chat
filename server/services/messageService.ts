@@ -126,6 +126,24 @@ export async function sendMessage(conversationId: string, content: string, sink:
     }
   }
 
+  // Wiki 工具使用指南：当 Wiki 路径已配置时自动追加
+  if (settings.wikiPath) {
+    const wikiGuide = [
+      'Wiki 知识库使用指南：',
+      '- 使用 wiki_search 工具搜索和读取 Wiki 知识库，这是访问 Wiki 文件的唯一方式',
+      '- 禁止使用 bash（cat/ls/grep 等）读取或搜索 Wiki 目录下的文件',
+      '- wiki_search 支持两种模式：question 搜索关键词返回匹配页面内容，paths 直接读取指定文件',
+      '- 如果搜索结果已足够回答，不要再调用其他工具',
+      '- 避免反复搜索不同关键词，一次搜索结果通常已包含足够信息',
+    ].join('\n');
+    const sysIdx = messages.findIndex(m => m.role === 'system');
+    if (sysIdx >= 0) {
+      messages[sysIdx].content += wikiGuide;
+    } else {
+      messages.unshift({ role: 'system', content: wikiGuide });
+    }
+  }
+
   try {
     // 判断是否启用 ReAct 循环：Agent 有工具 且 reactMaxIterations > 0
     const agentTools = resolvedAgent ? await getAllToolDefinitions(resolvedAgent) : [];

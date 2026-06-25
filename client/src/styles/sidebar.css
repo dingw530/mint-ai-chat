@@ -10,6 +10,7 @@
   height: 100%;
   position: relative;
   transition: background 0.3s ease;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.02);
 }
 
 /* ── Header ── */
@@ -208,6 +209,10 @@
 }
 
 .conversation-item:hover {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.conversation-item:hover {
   background: var(--accent-subtle);
   border-color: var(--accent-border);
 }
@@ -391,6 +396,7 @@
   background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .wiki-tree-node.selected::before {
@@ -490,11 +496,12 @@
 }
 
 .wiki-job-item {
-  background: var(--bg-primary);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   padding: 8px 11px;
   transition: border-color 0.2s, opacity 0.3s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .wiki-job-item.active {
