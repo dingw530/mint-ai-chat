@@ -26,6 +26,11 @@ export function sendMessageStream(
     const api = getElectronAPI()!;
     const lastThought = { value: '' };
 
+    // 先清除旧监听器，防止重复触发
+    api.removeListener('chat:chunk');
+    api.removeListener('chat:done');
+    api.removeListener('chat:error');
+
     api.onChunk((raw: string) => {
       try { parseSSEChunk(JSON.parse(raw), callbacks, lastThought); } catch {}
     });

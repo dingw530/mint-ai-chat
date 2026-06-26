@@ -27,6 +27,8 @@ interface ChatAreaProps {
   activeEndpoint: EndpointOutput | null;
   endpoints: EndpointOutput[];
   onEndpointChange: () => Promise<void>;
+  initialMessage?: string | null;
+  onInitialMessageSent?: () => void;
 }
 
 export default function ChatArea({
@@ -39,6 +41,8 @@ export default function ChatArea({
   activeEndpoint,
   endpoints,
   onEndpointChange,
+  initialMessage,
+  onInitialMessageSent,
 }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -83,6 +87,12 @@ export default function ChatArea({
 
   useEffect(() => {
     if (activeConversation) {
+      if (initialMessage) {
+        // Wiki -> Chat 跳转: 对话刚创建无消息, handleSend 会加 temp 消息
+        setLoading(false);
+        setMessages([]);
+        return;
+      }
       setLoading(true);
       setMessages([]);
       getMessages(activeConversation)
@@ -113,6 +123,14 @@ export default function ChatArea({
     setAutoRoutedAgent(null);
     setReactSteps([]);
   }, [activeConversation]);
+
+  // Auto-send initial message from external source (e.g. wiki -> chat)
+  // Conversation is already created by App; just send the message.
+  useEffect(() => {
+    if (!initialMessage || sending) return;
+    handleSend(initialMessage);
+    onInitialMessageSent?.();
+  }, [initialMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = useCallback(
     async (content: string) => {
@@ -309,7 +327,7 @@ export default function ChatArea({
           flushStream(); // commit any buffered content
           setSending(false);
           setStreamingId(null);
-          if (convTitle === 'New Conversation') {
+          if (!convTitle || convTitle === 'New Conversation') {
             generateTitle(convId).then((data) => {
               if (data?.title && onTitleUpdate) onTitleUpdate(convId, data.title);
             }).catch(() => {});

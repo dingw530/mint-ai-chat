@@ -9,6 +9,7 @@ import { getWikiPath, isPathSafe } from '../utils/pathSecurity.js';
 import { browserFetch } from '../utils/browserFetch.js';
 import * as settingsService from '../api/settingsService.js';
 import { parseFile, isSupportedFile } from '../utils/fileParseService.js';
+import { INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd } from '../utils/wikiShared.js';
 
 const execAsync = promisify(exec);
 
@@ -39,42 +40,6 @@ interface WikiIngestOutput {
   pages: WikiPageResult[];
   summary: string;
 }
-
-const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM Wiki 三层架构（Schema → Wiki → Sources）。
-
-你的任务是将用户提供的原始资料编译为结构化的 Wiki 知识页面。
-
-## 三层架构说明
-- **Sources 层（sources/）**：原始资料已由工具保存，不可变
-- **Wiki 知识层（pages/）**：你需要生成结构化的 Markdown 页面，放入 pages/ 目录
-- **Schema 层（_schema.json）**：遵循此文件中的标签和分类规范
-
-## 要求
-1. 分析资料内容，提取关键知识点
-2. 根据资料长度和主题复杂度，决定建一个或多个页面
-3. 每个页面必须包含 YAML frontmatter：
-   - title: 页面标题
-   - tags: [标签列表]（从 _schema.json 中的 tags 选取，也可新增）
-   - created: YYYY-MM-DD
-   - source: 原始资料文件名（从上下文获取）
-4. 内容用 Markdown 编写，结构清晰
-5. 页面之间使用相对路径交叉链接
-6. 文件名使用英文小写 kebab-case，放在 pages/ 下
-
-## 输出格式
-纯 JSON（不要包含其他文字）：
-{
-  "pages": [
-    {
-      "filename": "pages/分类/页面名.md",
-      "title": "页面标题",
-      "tags": ["标签1"],
-      "content": "---\\ntitle: 页面标题\\ntags: [标签1]\\ncreated: YYYY-MM-DD\\nsource: 原始文件名\\n---\\n\\n正文..."
-    }
-  ],
-  "summary": "一句话总结本次摄入"
-}`;
-
 export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> {
   readonly name = 'wiki_ingest';
   readonly description = `将原始资料编译到 Wiki 知识库，遵循三层架构：
@@ -172,44 +137,23 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
     const aiResult = await this.callAi(settings, { ...input, source: combinedSource }, sourceFilename, schema);
 
     // 4. 解析 AI 输出
-    let compiled: { pages: { filename: string; title: string; tags: string[]; content: string }[]; summary: string };
-    try {
-      compiled = JSON.parse(aiResult);
-    } catch {
-      throw new Error('AI 返回格式异常，无法解析为 Wiki 页面结构');
+    const parsed = tryParseLooseJson(aiResult);
+    if (!parsed) {
+      console.error(`[wiki_ingest] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
+      console.error(aiResult);
+      throw new Error('AI 返回格式异常，完整返回已打印到日志');
     }
+    const compiled = parsed;
 
     if (!compiled.pages || compiled.pages.length === 0) {
       throw new Error('AI 未生成任何 Wiki 页面');
     }
 
     // 5. 写入 pages/
-    const results: WikiPageResult[] = [];
-    for (const page of compiled.pages) {
-      // 确保路径在 wikiPath 内
-      const pagePath = page.filename.startsWith('pages/') ? page.filename : `pages/${page.filename}`;
-      if (!isPathSafe(wikiPath, pagePath)) {
-        throw new Error(`路径穿越被拒绝: ${pagePath}`);
-      }
-
-      const resolvedPath = path.resolve(wikiPath, pagePath);
-      const dir = path.dirname(resolvedPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      fs.writeFileSync(resolvedPath, page.content, 'utf-8');
-      const stat = fs.statSync(resolvedPath);
-
-      results.push({
-        filename: pagePath,
-        title: page.title,
-        size: stat.size,
-      });
-    }
+    const results = writeWikiPages(wikiPath, compiled.pages);
 
     // 6. 更新 _index.md
-    this.updateIndexMd(wikiPath, compiled.pages);
+    updateIndexMd(wikiPath, compiled.pages);
 
     return {
       sourceFile: `sources/${sourceFilename}`,
@@ -362,10 +306,11 @@ ${input.source}
     schema: Record<string, unknown>,
   ): Promise<string> {
     const schemaInfo = JSON.stringify(schema, null, 2);
-    const userMessage = `标题：${input.title || '（AI 自动生成）'}
+    const categories = (schema.categories as string[]) || [];    const userMessage = `标题：${input.title || '（AI 自动生成）'}
 分类：${input.category || '（AI 自动归类）'}
 原始文件名：${sourceFilename}
 
+当前可用分类：${JSON.stringify(categories)}
 当前 Schema 规范：
 \`\`\`json
 ${schemaInfo}
@@ -383,7 +328,7 @@ ${input.source}`;
       body: JSON.stringify({
         model: settings.modelId,
         messages: [
-          { role: 'system', content: INGEST_SYSTEM_PROMPT },
+          { role: 'system', content: SHARED_PROMPT },
           { role: 'user', content: userMessage },
         ],
         temperature: 0.3,
@@ -400,21 +345,4 @@ ${input.source}`;
     return data.choices?.[0]?.message?.content || '';
   }
 
-  private updateIndexMd(wikiPath: string, pages: { filename: string; title: string }[]): void {
-    const indexPath = path.join(wikiPath, '_index.md');
-    let content = '';
-    if (fs.existsSync(indexPath)) {
-      content = fs.readFileSync(indexPath, 'utf-8');
-    } else {
-      content = `# Wiki 首页\n\n这是 LLM Wiki 知识库的首页。\n\n## 最近更新\n`;
-    }
-
-    const lines: string[] = [];
-    for (const page of pages) {
-      const linkPath = page.filename.replace(/\.md$/, '');
-      lines.push(`- [${page.title}](${linkPath})`);
-    }
-
-    fs.writeFileSync(indexPath, content + lines.join('\n') + '\n', 'utf-8');
   }
-}

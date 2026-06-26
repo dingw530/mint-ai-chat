@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
 import { checkCommand } from '../api/bashSecurityService.js';
+import { getWikiPath } from '../utils/pathSecurity.js';
 
 const execAsync = promisify(exec);
 
@@ -29,7 +30,7 @@ interface BashOutput {
 
 export class BashTool extends BaseTool<BashInput, BashOutput> {
   readonly name = 'bash';
-  readonly description = '执行 shell 命令并返回输出结果。适合运行脚本、文件操作、代码编译等场景';
+  readonly description = '执行 shell 命令并返回输出结果。适合运行脚本、代码编译等场景。注意：Wiki 知识库文件必须使用 wiki_search 工具读取，禁止通过 bash 读取。';
   readonly inputSchema = BashInputSchema;
 
   isEnabled(): boolean {
@@ -49,6 +50,17 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
     if (!result.allowed) {
       return { allowed: false, reason: result.reason };
     }
+
+    // 拦截对 Wiki 目录的读取操作（必须使用 wiki_search）
+    const wikiPath = getWikiPath();
+    if (wikiPath) {
+      const cmd = input.command;
+      const readCmds = /^(cat|head|tail|less|more|grep|rg|find|ls|wc|diff|sort|uniq|awk|sed|xargs)/;
+      if (readCmds.test(cmd.trim()) && cmd.includes(wikiPath)) {
+        return { allowed: false, reason: 'Wiki 知识库文件必须使用 wiki_search 工具读取，禁止使用 bash' };
+      }
+    }
+
     return { allowed: true };
   }
 

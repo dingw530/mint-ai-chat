@@ -1,19 +1,7 @@
-import { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
-import Sidebar from '@/components/Sidebar';
-import ChatArea from '@/features/chat/components/ChatArea';
-import {
-  getConversations,
-  createConversation,
-  deleteConversation,
-  clearAllConversations,
-  renameConversation,
-  getEndpoints,
-} from '@/services/api';
-import type { Conversation, EndpointOutput } from '@/types';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { Outlet } from 'react-router-dom';
 
-const ImageChatArea = lazy(() => import('@/features/images/components/ImageChatArea'));
 const Settings = lazy(() => import('@/features/settings/components/Settings'));
-const WikiPanel = lazy(() => import('@/components/WikiPanel'));
 
 function getInitialTheme(): string {
   try {
@@ -23,56 +11,9 @@ function getInitialTheme(): string {
   }
 }
 
-export default function App() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function AppProvider() {
   const [showSettings, setShowSettings] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
-  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
-  const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
-  const [activeView, setActiveView] = useState('chat');
-  const [wikiSelectedFile, setWikiSelectedFile] = useState<string | null>(null);
-
-  const fetchConversations = useCallback(async (type?: string) => {
-    try {
-      const data = await getConversations(type);
-      setConversations(data.conversations || []);
-    } catch (err) {
-      console.error('Failed to fetch conversations:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchEndpoints = useCallback(async () => {
-    try {
-      const data = await getEndpoints();
-      const list = data.endpoints || [];
-      setEndpoints(list);
-      const active = list.find((ep: EndpointOutput) => ep.isActive) || null;
-      setActiveEndpoint(active);
-    } catch (err) {
-      console.error('Failed to fetch endpoints:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchConversations(activeView === 'image' ? 'image' : undefined);
-    fetchEndpoints();
-  }, [fetchConversations, fetchEndpoints, activeView]);
-
-  useEffect(() => {
-    if (!loading) {
-      if (conversations.length > 0) {
-        if (!activeId || !conversations.find((c) => c.id === activeId)) {
-          setActiveId(conversations[0].id);
-        }
-      } else {
-        setActiveId(null);
-      }
-    }
-  }, [loading, conversations, activeId]);
 
   useEffect(() => {
     document.documentElement.classList.remove('theme-mint', 'theme-snow', 'theme-anthropic', 'theme-reddot');
@@ -93,116 +34,16 @@ export default function App() {
     }
   }, [showSettings]);
 
-  const handleCreate = async (title?: string): Promise<string | undefined> => {
-    try {
-      const convType = activeView === 'image' ? 'image' : undefined;
-      const data = await createConversation(title || 'New Conversation', convType);
-      setConversations((prev) => [data.conversation, ...prev]);
-      setActiveId(data.conversation.id);
-      return data.conversation.id;
-    } catch (err) {
-      console.error('Failed to create conversation:', err);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteConversation(id);
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeId === id) {
-        setActiveId(null);
-      }
-    } catch (err) {
-      console.error('Failed to delete conversation:', err);
-    }
-  };
-
-  const handleClearAll = async () => {
-    try {
-      await clearAllConversations();
-      setConversations([]);
-      setActiveId(null);
-    } catch (err) {
-      console.error('Failed to clear conversations:', err);
-    }
-  };
-
-  const handleRename = async (id: string, title: string) => {
-    try {
-      const data = await renameConversation(id, title);
-      setConversations((prev) =>
-        prev.map((c) => (c.id === id ? data.conversation : c))
-      );
-    } catch (err) {
-      console.error('Failed to rename conversation:', err);
-    }
-  };
-
-  const handleTitleUpdate = useCallback((convId: string, title: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === convId ? { ...c, title } : c))
-    );
-  }, []);
-
-  const handleEndpointChange = useCallback(async () => {
-    try {
-      const data = await getEndpoints();
-      setEndpoints(data.endpoints || []);
-      const active = (data.endpoints || []).find((ep: EndpointOutput) => ep.isActive) || null;
-      setActiveEndpoint(active);
-    } catch { /* ignore */ }
-  }, []);
-
   return (
     <div className="app-container">
-      <Sidebar
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={setActiveId}
-        onCreate={handleCreate}
-        onRename={handleRename}
-        onDelete={handleDelete}
-        onClearAll={handleClearAll}
-        loading={loading}
-        activeView={activeView}
-        onViewChange={(view) => { setActiveView(view); if (view !== 'wiki') setWikiSelectedFile(null); }}
-        onOpenSettings={() => setShowSettings(true)}
-        onWikiFileSelect={setWikiSelectedFile}
-      />
-      {activeView === 'wiki' ? (
-        <Suspense fallback={<div className="view-loading">加载中...</div>}>
-          <WikiPanel filePath={wikiSelectedFile} />
-        </Suspense>
-      ) : activeView === 'image' ? (
-        <Suspense fallback={<div className="view-loading">加载中...</div>}>
-          <ImageChatArea
-            activeConversation={activeId}
-            conversations={conversations}
-            endpoints={endpoints}
-            onOpenSettings={() => setShowSettings(true)}
-            onAutoCreate={handleCreate}
-            onTitleUpdate={handleTitleUpdate}
-          />
-        </Suspense>
-      ) : (
-        <ChatArea
-          activeConversation={activeId}
-          conversations={conversations}
-          onAutoCreate={handleCreate}
-          onTitleUpdate={handleTitleUpdate}
-          onUpdateConversation={(convId: string, updates: Partial<Conversation>) => {
-            setConversations((prev) =>
-              prev.map((c) => (c.id === convId ? { ...c, ...updates } : c))
-            );
-          }}
-          activeEndpoint={activeEndpoint}
-          endpoints={endpoints}
-          onEndpointChange={handleEndpointChange}
-        />
-      )}
+      <Outlet context={{ onOpenSettings: () => setShowSettings(true) }} />
       {showSettings && (
         <Suspense fallback={null}>
-          <Settings onClose={() => { setShowSettings(false); fetchEndpoints(); }} theme={theme} onThemeChange={setTheme} />
+          <Settings
+            onClose={() => { setShowSettings(false); }}
+            theme={theme}
+            onThemeChange={setTheme}
+          />
         </Suspense>
       )}
     </div>

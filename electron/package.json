@@ -1,15 +1,11 @@
 {
-  "name": "mint-ai-chat",
+  "name": "mint-electron",
   "version": "1.0.0",
   "private": true,
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "prepare": "node prepare.js",
-    "build:mac": "npm run prepare && electron-builder --mac",
-    "build:win": "npm run prepare && electron-builder --win",
-    "build:linux": "npm run prepare && electron-builder --linux",
-    "postinstall": "electron-rebuild"
+    "build:mac": "node prepare.js && electron-builder --mac"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
@@ -23,9 +19,9 @@
     "@modelcontextprotocol/server-everything": "^2026.1.26"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.6.0",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "33.4.11",
+    "electron-builder": "^25.0.0",
+    "@electron/rebuild": "^3.6.0"
   },
   "build": {
     "appId": "com.mint.aichat",
@@ -43,17 +39,11 @@
     ],
     "asar": false,
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity",
-      "icon": "icon.png"
-    },
-    "win": {
-      "target": ["nsis"],
-      "icon": "icon.png"
-    },
-    "linux": {
-      "target": ["AppImage", "deb"],
-      "category": "Network",
       "icon": "icon.png"
     }
   }

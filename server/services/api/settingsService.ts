@@ -19,18 +19,13 @@ const WIKI_SCHEMA = {
 
 const WIKI_INDEX_CONTENT = `# Wiki 首页
 
-这是一个 LLM Wiki 知识库，遵循三层架构（Schema → Wiki → Sources）。
+这是 LLM Wiki 知识库的首页。
 
-## 目录结构
-
-- \`_schema.json\` — Schema 层：规范、标签、分类、页面结构约定
-- \`_index.md\` — 本文件，Wiki 首页
-- \`sources/\` — Sources 层：原始资料，不可变
-- \`pages/\` — Wiki 知识层：LLM 编译的结构化 Markdown 页面
+## 分类索引
 
 ## 最近更新
 
-`;
+`
 
 function ensureWikiPath(wikiPath: string): void {
   if (!wikiPath) return;

@@ -15,8 +15,6 @@ npm run dev:server          # server only (dev mode)
 npm run dev:client          # client only (dev mode)
 npm run build               # build server (tsc) + client (vite)
 npm run start               # start server in production mode
-npm run docker:build        # docker compose build
-npm run docker:up           # docker compose up
 ```
 
 ### Electron desktop app
@@ -25,8 +23,6 @@ npm run electron:rebuild        # rebuild native modules for Electron
 npm run electron:dev            # build server + rebuild + dev mode
 npm run electron:dev:server     # server+client dev + launch Electron
 npm run electron:build:mac      # package macOS .dmg
-npm run electron:build:win      # package Windows installer
-npm run electron:build:linux    # package Linux AppImage
 ```
 
 ### TypeScript Server (port 3001)
@@ -88,7 +84,6 @@ cd server && npx tsx cli/repl.ts     # Interactive REPL for testing
 - **Backend**: Express 4, better-sqlite3 (SQLite), TypeScript throughout, compiled with tsc.
 - **Desktop**: Electron with electron-builder for macOS/Windows/Linux packaging.
 - **Testing**: Vitest 1.x — integration tests spin up a real Express server on port 3099.
-- **Container**: Docker Compose (server + client).
 
 ### Project Structure
 ```

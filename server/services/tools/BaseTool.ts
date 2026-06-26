@@ -175,56 +175,23 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
    * 这是一个简化版本，生产环境可使用 zod-to-json-schema 库
    */
   protected zodToJsonSchema(schema: z.ZodType<unknown>): Record<string, unknown> {
-    // 简化实现：返回基本的 JSON Schema
-    // 生产环境建议使用 zod-to-json-schema 库
-    if (schema instanceof z.ZodObject) {
-      const shape = schema.shape;
-      const properties: Record<string, unknown> = {};
-      const required: string[] = [];
-
-      for (const [key, value] of Object.entries(shape)) {
-        if (value instanceof z.ZodString) {
-          properties[key] = { type: 'string', description: value.description };
-        } else if (value instanceof z.ZodNumber) {
-          properties[key] = { type: 'number', description: value.description };
-        } else if (value instanceof z.ZodBoolean) {
-          properties[key] = { type: 'boolean', description: value.description };
-        } else if (value instanceof z.ZodEnum) {
-          properties[key] = {
-            type: 'string',
-            enum: value.options,
-            description: value.description,
-          };
-        } else if (value instanceof z.ZodOptional) {
-          // Optional 字段
-          const innerType = value.unwrap();
-          if (innerType instanceof z.ZodString) {
-            properties[key] = { type: 'string', description: innerType.description };
-          } else if (innerType instanceof z.ZodNumber) {
-            properties[key] = { type: 'number', description: innerType.description };
-          } else if (innerType instanceof z.ZodBoolean) {
-            properties[key] = { type: 'boolean', description: innerType.description };
-          }
-          // Optional 字段不加入 required
-        } else {
-          // 默认为 string
-          properties[key] = { type: 'string' };
-        }
-
-        // 检查是否为 required
-        if (!(value instanceof z.ZodOptional)) {
-          required.push(key);
-        }
+    // Use Zod v4 built-in toJSONSchema for accurate type/constraint generation
+    if (typeof (schema as any).toJSONSchema === 'function') {
+      const full = (schema as any).toJSONSchema() as Record<string, unknown>;
+      const result: Record<string, unknown> = { type: 'object', properties: full.properties || {} };
+      // Remove from required any field that carries a default (optional+default should not be required)
+      const props = (full.properties || {}) as Record<string, Record<string, unknown>>;
+      if (Array.isArray(full.required)) {
+        const required = full.required.filter((key: string) => {
+          const prop = props[key];
+          return prop && prop.default === undefined;
+        });
+        if (required.length > 0) result.required = required;
       }
-
-      return {
-        type: 'object',
-        properties,
-        required: required.length > 0 ? required : undefined,
-      };
+      return result;
     }
 
-    // 默认返回空对象
+    // Fallback for non-ZodObject schemas
     return { type: 'object', properties: {} };
   }
 }

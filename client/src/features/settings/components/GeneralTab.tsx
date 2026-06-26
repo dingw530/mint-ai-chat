@@ -18,7 +18,6 @@ export interface GeneralTabProps {
   reactMaxIterations: number; setReactMaxIterations: NumberSetter;
   toolMaxRetries: number; setToolMaxRetries: NumberSetter;
   showReactSteps: boolean; setShowReactSteps: BooleanSetter;
-  wikiPath: string; setWikiPath: StringSetter;
 }
 
 export default function GeneralTab({
@@ -28,7 +27,7 @@ export default function GeneralTab({
   errors, setErrors, apiKeyDirty, setApiKeyDirty,
   theme, setTheme, reactMaxIterations, setReactMaxIterations,
   toolMaxRetries, setToolMaxRetries, showReactSteps, setShowReactSteps,
-  wikiPath, setWikiPath,
+
 }: GeneralTabProps) {
   return (
     <>
@@ -113,15 +112,6 @@ export default function GeneralTab({
         <p className="form-help">自动模式下，AI 会根据消息内容自动选择合适的 Agent。</p>
       </div>
       <div className="form-group">
-        <label htmlFor="wikiPath">Wiki 知识库路径</label>
-        <input
-          id="wikiPath"
-          type="text"
-          value={wikiPath}
-          onChange={(e) => setWikiPath(e.target.value)}
-          placeholder="/Users/me/my-wiki"
-        />
-        <p className="form-help">Agent 将在此目录下创建和维护知识页面。支持绝对路径，留空禁用 Wiki 功能。</p>
       </div>
       <div className="form-group">
         <label>主题皮肤</label>

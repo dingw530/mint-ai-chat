@@ -6,37 +6,37 @@
   --bg-secondary: #FFFFFF;
   --bg-tertiary: #F7F7F7;
   --bg-elevated: #FFFFFF;
-  --bg-hover: rgba(0, 0, 0, 0.03);
+  --bg-hover: rgba(42, 168, 125, 0.05);
 
-  --text-primary: #1A1A1A;
-  --text-secondary: #666666;
-  --text-tertiary: #999999;
+  --text-primary: #1C1C1C;
+  --text-secondary: #5E5E5E;
+  --text-tertiary: #9A9A9A;
   --text-inverse: #FFFFFF;
 
   --accent: #2AA87D;
-  --accent-hover: #269770;
+  --accent-hover: #249570;
   --accent-gradient: #2AA87D;
-  --accent-glow: rgba(42, 168, 125, 0.08);
-  --accent-subtle: rgba(42, 168, 125, 0.05);
-  --accent-border: rgba(42, 168, 125, 0.15);
+  --accent-glow: rgba(42, 168, 125, 0.10);
+  --accent-subtle: rgba(42, 168, 125, 0.06);
+  --accent-border: rgba(42, 168, 125, 0.18);
 
   --secondary: #5B8FB9;
   --secondary-hover: #4A7EA8;
-  --secondary-glow: rgba(91, 143, 185, 0.08);
-  --secondary-subtle: rgba(91, 143, 185, 0.05);
-  --secondary-border: rgba(91, 143, 185, 0.15);
+  --secondary-glow: rgba(91, 143, 185, 0.10);
+  --secondary-subtle: rgba(91, 143, 185, 0.06);
+  --secondary-border: rgba(91, 143, 185, 0.18);
 
   --sunny: #D8BC74;
   --sunny-subtle: rgba(216, 188, 116, 0.10);
 
-  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-subtle: rgba(0, 0, 0, 0.05);
   --border-default: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.13);
 
   --user-avatar: #2AA87D;
   --assistant-avatar: #5B8FB9;
   --user-bubble: #FFFFFF;
-  --user-bubble-text: #1A1A1A;
+  --user-bubble-text: #1C1C1C;
   --assistant-bubble: #FFFFFF;
   --assistant-bubble-border: rgba(0, 0, 0, 0.06);
 
@@ -46,6 +46,132 @@
 
   --success-bg: rgba(91, 143, 185, 0.06);
 
-  --shadow-glow: 0 0 12px rgba(42, 168, 125, 0.06);
-  --shadow-teal: 0 0 12px rgba(91, 143, 185, 0.06);
+  --shadow-glow: 0 0 16px rgba(42, 168, 125, 0.08);
+  --shadow-teal: 0 0 16px rgba(91, 143, 185, 0.08);
+}
+
+/* Atmospheric background — sage bloom */
+.theme-mint body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 900px 700px at 0% 0%, rgba(42, 168, 125, 0.035) 0%, transparent 55%),
+    radial-gradient(ellipse 600px 500px at 100% 100%, rgba(91, 143, 185, 0.025) 0%, transparent 50%);
+}
+
+/* Sidebar — deeper warm tone */
+.theme-mint .sidebar {
+  background: var(--bg-secondary);
+}
+
+/* Sidebar header gradient */
+.theme-mint .sidebar-header {
+  background: linear-gradient(180deg, rgba(42, 168, 125, 0.06) 0%, rgba(42, 168, 125, 0.02) 60%, transparent 100%);
+}
+
+/* Conversation active — warm tint */
+.theme-mint .conversation-item.active {
+  background: rgba(42, 168, 125, 0.07);
+  border-color: rgba(42, 168, 125, 0.2);
+}
+
+/* Welcome screen */
+.theme-mint .welcome-screen::before {
+  background: radial-gradient(circle, rgba(42, 168, 125, 0.06) 0%, transparent 70%);
+}
+
+.theme-mint .welcome-screen h2 {
+  color: var(--accent);
+}
+
+/* Code blocks — warm grey */
+.theme-mint .code-block {
+  background: #FAFAFA;
+}
+
+.theme-mint .code-block-header {
+  background: var(--bg-tertiary);
+}
+
+/* Highlight.js — Mint syntax */
+.theme-mint .hljs-keyword,
+.theme-mint .hljs-selector-tag,
+.theme-mint .hljs-type,
+.theme-mint .hljs-literal {
+  color: #3DAA7E;
+  font-weight: 600;
+}
+
+.theme-mint .hljs-string,
+.theme-mint .hljs-addition,
+.theme-mint .hljs-attribute,
+.theme-mint .hljs-template-variable {
+  color: #C49A6A;
+}
+
+.theme-mint .hljs-comment,
+.theme-mint .hljs-quote,
+.theme-mint .hljs-deletion {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.theme-mint .hljs-number,
+.theme-mint .hljs-selector-attr,
+.theme-mint .hljs-selector-pseudo {
+  color: #6AABB8;
+}
+
+.theme-mint .hljs-built_in,
+.theme-mint .hljs-builtin-name {
+  color: #4DAE8B;
+}
+
+.theme-mint .hljs-title,
+.theme-mint .hljs-section,
+.theme-mint .hljs-name {
+  color: #6AABB8;
+  font-weight: 600;
+}
+
+.theme-mint .hljs-function {
+  color: #6AABB8;
+}
+
+.theme-mint .hljs-attr,
+.theme-mint .hljs-params {
+  color: var(--text-secondary);
+}
+
+.theme-mint .hljs-regexp,
+.theme-mint .hljs-link {
+  color: #8DC4D4;
+}
+
+.theme-mint .hljs-symbol,
+.theme-mint .hljs-bullet {
+  color: #3DAA7E;
+}
+
+.theme-mint .hljs-meta {
+  color: var(--text-tertiary);
+}
+
+/* Scrollbar — warm tint */
+.theme-mint ::-webkit-scrollbar-thumb {
+  background: rgba(42, 168, 125, 0.15);
+  border-radius: 8px;
+}
+
+.theme-mint ::-webkit-scrollbar-thumb:hover {
+  background: rgba(42, 168, 125, 0.30);
+}
+
+/* Input focus — richer glow */
+.theme-mint .input-box textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(42, 168, 125, 0.15), 0 0 0 4px rgba(42, 168, 125, 0.06);
 }

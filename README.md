@@ -61,11 +61,7 @@ npm run electron:dev
 # macOS
 npm run electron:build:mac
 
-# Windows
-npm run electron:build:win
 
-# Linux
-npm run electron:build:linux
 ```
 
 Output will be in `electron/release/`.
@@ -93,6 +89,10 @@ Mint is a hands-on project built around general AI Agent development, covering t
 - **End-to-End Encryption** — API keys encrypted with AES-256-GCM
 
 ## Architecture
+
+<p align="center">
+  <img src="architecture.svg" alt="Mint Architecture" width="900" />
+</p>
 
 In Electron mode, the app runs the server **in-process** — service modules are loaded directly into the main process and invoked via IPC handlers, bypassing HTTP entirely. This eliminates network overhead and gives the renderer direct access to services.
 

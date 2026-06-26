@@ -13,6 +13,10 @@ export interface WikiReadResponse {
   size: number;
 }
 
+export interface WikiSchema {
+  categories: string[];
+  [key: string]: unknown;
+}
 export interface UploadJob {
   id: string;
   status: 'pending' | 'parsing' | 'compiling' | 'done' | 'error';
@@ -128,4 +132,16 @@ export async function getJobStatus(jobId: string): Promise<UploadJob> {
   } catch {
     throw new Error(`服务返回异常（非 JSON 格式），请确认后端服务运行在端口 3001`);
   }
+}
+
+export function getWikiSchema(): Promise<WikiSchema> {
+  return callEndpoint<WikiSchema>('wiki:schema');
+}
+
+export function addWikiCategory(category: string): Promise<{ categories: string[] }> {
+  return callEndpoint<{ categories: string[] }>('wiki:addCategory', category);
+}
+
+export function removeWikiCategory(category: string): Promise<{ categories: string[] }> {
+  return callEndpoint<{ categories: string[] }>('wiki:removeCategory', category);
 }

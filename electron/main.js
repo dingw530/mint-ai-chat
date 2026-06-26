@@ -103,13 +103,13 @@ async function startServer() {
   process.env.AI_CHAT_CLIENT_DIST = getClientDistPath();
   process.env.NODE_ENV = 'production';
 
-  const serverModulePath = path.join(__dirname, 'server-dist', 'index.js');
-  if (!fs.existsSync(serverModulePath)) {
-    throw new Error(`Server module not found: ${serverModulePath}`);
+  const bundlePath = path.join(__dirname, 'server-dist', 'index.js');
+  if (!fs.existsSync(bundlePath)) {
+    throw new Error(`Server bundle not found: ${bundlePath}`);
   }
 
-  const serverModule = await import(serverModulePath);
-  const actualPort = await serverModule.startServer();
+  const bundle = await import(bundlePath);
+  const actualPort = await bundle.startServer();
   logger.info(`Server started on port ${actualPort}`);
   return actualPort;
 }
@@ -119,73 +119,49 @@ async function startServer() {
 let services = {};
 
 async function loadServiceModules() {
-  const servicesDir = isDev
-    ? path.join(__dirname, '..', 'server', 'dist', 'services')
-    : path.join(__dirname, 'server-dist', 'services');
+  const bundlePath = isDev
+    ? path.join(__dirname, '..', 'server', 'dist', 'electron-bundle.js')
+    : path.join(__dirname, 'server-dist', 'index.js');
 
-  if (!fs.existsSync(servicesDir)) {
-    logger.warn(`Services directory not found: ${servicesDir} — IPC disabled`);
+  if (!fs.existsSync(bundlePath)) {
+    logger.warn(`Server bundle not found: ${bundlePath} — IPC disabled`);
     return false;
   }
 
-  logger.info(`Loading service modules from: ${servicesDir}`);
+  logger.info(`Loading server bundle: ${bundlePath}`);
 
-  const importService = async (name) => {
-    const p = path.join(servicesDir, `${name}.js`);
-    if (!fs.existsSync(p)) return null;
-    return import(`file://${p}`);
+  let bundle;
+  try {
+    bundle = await import(`file://${bundlePath}`);
+  } catch (err) {
+    logger.error(`Failed to load server bundle: ${err.message}`);
+    return false;
+  }
+
+  services = {
+    msgSvc: bundle.messageService,
+    convSvc: bundle.conversationService,
+    settSvc: bundle.settingsService,
+    agentSvc: bundle.agentService,
+    epSvc: bundle.endpointService,
+    memSvc: bundle.memoryService,
+    sinkMod: bundle,
+    mcpRepo: bundle.mcpServerRepository,
+    mcpSvc: { mcpService: bundle.mcpService },
+    skillSvc: bundle.skillService,
+    bashSecurity: bundle.bashSecurityService,
+    wikiSvc: bundle.wikiService,
+    // For generateTitle / parseFile / compileSource
+    aiProxy: bundle,
+    fileParseService: bundle,
+    wikiCompiler: bundle,
+    messageRepository: bundle.messageRepository,
   };
-
-  const importApiService = async (name) => {
-    const p = path.join(servicesDir, 'api', `${name}.js`);
-    if (!fs.existsSync(p)) return null;
-    return import(`file://${p}`);
-  };
-
-  const repoDir = isDev
-    ? path.join(__dirname, '..', 'server', 'dist', 'repositories')
-    : path.join(__dirname, 'server-dist', 'repositories');
-
-  const importRepo = async (name) => {
-    const p = path.join(repoDir, `${name}.js`);
-    if (!fs.existsSync(p)) return null;
-    return import(`file://${p}`);
-  };
-
-  const [
-    msgSvc,
-    convSvc,
-    settSvc,
-    agentSvc,
-    epSvc,
-    memSvc,
-    sinkMod,
-    mcpRepo,
-    mcpSvc,
-    skillSvc,
-    bashSecurity,
-    wikiSvc,
-  ] = await Promise.all([
-    importService('messageService'),
-    importApiService('conversationService'),
-    importApiService('settingsService'),
-    importApiService('agentService'),
-    importApiService('endpointService'),
-    importApiService('memoryService'),
-    importService('sink'),
-    importRepo('mcpServerRepository'),
-    importApiService('mcpService'),
-    importApiService('skillService'),
-    importApiService('bashSecurityService'),
-    importApiService('wikiService'),
-  ]);
-
-  services = { msgSvc, convSvc, settSvc, agentSvc, epSvc, memSvc, sinkMod, mcpRepo, mcpSvc, skillSvc, bashSecurity, wikiSvc };
   logger.info('Service modules loaded');
 
   // 启动时扫描技能
-  if (skillSvc) {
-    skillSvc.listSkills().catch(err => logger.error('Skill scan failed: ' + err.message));
+  if (services.skillSvc) {
+    services.skillSvc.listSkills().catch(err => logger.error('Skill scan failed: ' + err.message));
   }
 
   return true;
@@ -232,20 +208,12 @@ function setupIpcHandlers() {
   });
   ipcMain.handle('conversations:generateTitle', async (_, id) => {
     if (!services.convSvc || !services.settSvc) return { title: '' };
-    const repoDir = isDev
-      ? path.join(__dirname, '..', 'server', 'dist', 'repositories')
-      : path.join(__dirname, 'server-dist', 'repositories');
-    const msgRepo = await import(`file://${path.join(repoDir, 'messageRepository.js')}`);
-    const messages = msgRepo.findByConversationId(id);
+    const messages = services.messageRepository.findByConversationId(id);
     const firstUser = messages.find((m) => m.role === 'user');
     const firstAssistant = messages.find((m) => m.role === 'assistant');
     if (!firstUser || !firstAssistant) return { title: '' };
     const settings = services.settSvc.getAiSettings();
-    const aiDir = isDev
-      ? path.join(__dirname, '..', 'server', 'dist', 'services')
-      : path.join(__dirname, 'server-dist', 'services');
-    const aiMod = await import(`file://${path.join(aiDir, 'aiProxy.js')}`);
-    const title = await aiMod.generateTitle(settings, firstUser.content, firstAssistant.content);
+    const title = await services.aiProxy.generateTitle(settings, firstUser.content, firstAssistant.content);
     if (title) services.convSvc.rename(id, title);
     return { title };
   });
@@ -522,7 +490,18 @@ function setupIpcHandlers() {
     return job;
   });
 
-  logger.info('IPC handlers registered');
+  ipcMain.handle('wiki:schema', () => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    return services.wikiSvc.getSchema();
+  });
+  ipcMain.handle('wiki:addCategory', (_, category) => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    return services.wikiSvc.addCategory(category);
+  });
+  ipcMain.handle('wiki:removeCategory', (_, category) => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    return services.wikiSvc.removeCategory(category);
+  });  logger.info('IPC handlers registered');
 }
 
 // ── Wiki 后台作业处理 ──
@@ -542,9 +521,7 @@ async function processElectronWikiJob(jobId, archivePath, name, archiveName) {
 
   // 1. 解析文件
   update({ status: 'parsing', progress: 30, step: '解析文件中' });
-  const parseMod = isDev
-    ? await import(`file://${path.join(__dirname, '..', 'server', 'dist', 'services', 'utils', 'fileParseService.js')}`)
-    : await import(`file://${path.join(__dirname, 'server-dist', 'services', 'utils', 'fileParseService.js')}`);
+  const parseMod = services.fileParseService;
   const savedContent = fs.readFileSync(archivePath);
   log(`file size=${savedContent.length}`);
   const result = await parseMod.parseFile({ name, content: savedContent, size: savedContent.length });
@@ -556,9 +533,7 @@ async function processElectronWikiJob(jobId, archivePath, name, archiveName) {
   let compiledPages = [];
   let compileError;
   try {
-    const compileMod = isDev
-      ? await import(`file://${path.join(__dirname, '..', 'server', 'dist', 'services', 'utils', 'wikiCompiler.js')}`)
-      : await import(`file://${path.join(__dirname, 'server-dist', 'services', 'utils', 'wikiCompiler.js')}`);
+    const compileMod = services.wikiCompiler;
     const aiSettings = services.settSvc.getAiSettings();
     log(`compileSource start, apiUrl=${aiSettings.apiUrl}, model=${aiSettings.modelId}, apiKey=${aiSettings.apiKey ? 'set(' + aiSettings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
     const compiled = await compileMod.compileSource(aiSettings, wikiPath, result.text, archiveName, {
@@ -594,10 +569,6 @@ async function processElectronWikiJob(jobId, archivePath, name, archiveName) {
 function createWindow(port) {
   logger.info('Creating main window...');
 
-  const url = isDev
-    ? 'http://localhost:5173'
-    : `http://localhost:${port}`;
-
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -614,7 +585,11 @@ function createWindow(port) {
     },
   });
 
-  mainWindow.loadURL(url);
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
+  }
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     logger.error(`Page load failed: ${errorDescription} (code: ${errorCode}) URL: ${validatedURL}`);

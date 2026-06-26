@@ -5,6 +5,35 @@ import { getAllToolDefinitions } from './toolRegistry.js';
 import { Sink } from './sink.js';
 import { trimContext } from './utils/contextWindow.js';
 
+
+// ── 编辑距离相似度（用于循环检测） ──
+function levenshteinSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const lenA = a.length;
+  const lenB = b.length;
+  if (lenA === 0 || lenB === 0) return 0;
+
+  const maxLen = Math.max(lenA, lenB);
+  const matrix: number[][] = Array.from({ length: lenA + 1 }, () => Array(lenB + 1).fill(0));
+
+  for (let i = 0; i <= lenA; i++) matrix[i][0] = i;
+  for (let j = 0; j <= lenB; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= lenA; i++) {
+    for (let j = 1; j <= lenB; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  const distance = matrix[lenA][lenB];
+  return 1 - distance / maxLen;
+}
+
 // ── ReAct 循环引擎 ──
 export async function reactChat(messages: HistoryMessage[], settings: AiSettings, sink: Sink, agent?: string, signal?: AbortSignal): Promise<StreamResult> {
   const { apiUrl, apiKey } = settings;
@@ -32,6 +61,9 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
   let streamedAsAnswer = false;
 
   let iteration = 0;
+  const recentCallSignatures: string[] = [];
+  let forceFinalAnswer = false;
+
 
   while (iteration < maxIterations) {
     if (sink.writableEnded || signal?.aborted) break;
@@ -41,7 +73,7 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
       maxRounds: settings.maxContextRounds || 10,
     });
 
-    const isLast = iteration === maxIterations - 1;
+    const isLast = forceFinalAnswer || iteration === maxIterations - 1;
     const label = isLast ? 'react-answer' : 'react-thought';
 
     let result: StreamResult;
@@ -111,6 +143,29 @@ export async function reactChat(messages: HistoryMessage[], settings: AiSettings
 
     await Promise.all(toolPromises);
     currentMessages.push(...toolMessages);
+
+    // ── 循环检测：连续 3 轮相同工具+相似参数 → 强制回答 ──
+    if (result.toolCalls && result.toolCalls.length > 0) {
+      const signature = result.toolCalls
+        .map(tc => `${tc.function.name}:${tc.function.arguments}`)
+        .sort()
+        .join('|');
+      recentCallSignatures.push(signature);
+
+      if (recentCallSignatures.length >= 3) {
+        const last3 = recentCallSignatures.slice(-3);
+        if (last3.every(s => levenshteinSimilarity(s, last3[0]) > 0.7)) {
+          forceFinalAnswer = true;
+          if (!sink.writableEnded) {
+            sink.write(JSON.stringify({
+              type: 'loop_detected',
+              message: '检测到重复工具调用，强制生成最终答案',
+            }));
+          }
+        }
+      }
+    }
+
     iteration++;
   }
 

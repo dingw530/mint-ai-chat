@@ -1,6 +1,6 @@
 // ── 公共 API ──
 
-export { EndpointDescriptor, ArgMapping, ResultMapping, ServiceRef, ManifestEntry } from './types.js';
+export type { EndpointDescriptor, ArgMapping, ResultMapping, ServiceRef, ManifestEntry } from './types.js';
 export { EndpointRegistry, endpointRegistry } from './registry.js';
 export { extractArgs, wrapResult, httpError } from './helpers.js';
 export { createResourceRouter } from './generate/expressRoutes.js';
