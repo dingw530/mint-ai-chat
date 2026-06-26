@@ -1,5 +1,5 @@
 import { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
-import { ApiAdapter, ParsedChunk, registerAdapter } from './apiAdapter.js';
+import { ApiAdapter, ParsedChunk, CallOptions, registerAdapter } from './apiAdapter.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('anthropic-adapter');
@@ -171,6 +171,53 @@ export const anthropicAdapter: ApiAdapter = {
         log.debug('parseChunk:unknown', { type });
         return null;
     }
+  },
+
+  async call(
+    messages: { role: string; content: string }[],
+    settings: { modelId: string },
+    apiUrl: string,
+    apiKey: string,
+    options?: CallOptions,
+  ): Promise<string> {
+    const url = this.getUrl(apiUrl);
+    const headers = this.getHeaders(apiKey);
+
+    // Anthropic: system 提取到顶层，messages 中移除 system role
+    let systemPrompt = '';
+    const msgs: { role: string; content: string }[] = [];
+    for (const m of messages) {
+      if (m.role === 'system') {
+        systemPrompt = m.content;
+      } else {
+        msgs.push({ role: m.role, content: m.content });
+      }
+    }
+
+    const body: Record<string, unknown> = {
+      model: settings.modelId,
+      messages: msgs,
+      max_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature ?? 0,
+    };
+    if (systemPrompt) {
+      body.system = systemPrompt;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal: options?.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`AI API error (${response.status}): ${errText.substring(0, 200)}`);
+    }
+
+    const data = (await response.json()) as any;
+    return data.content?.[0]?.text || '';
   },
 };
 

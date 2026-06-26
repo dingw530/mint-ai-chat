@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { getAdapter } from '../adapters/apiAdapter.js';
 import { isPathSafe } from './pathSecurity.js';
 import { CompiledPage, INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd, discoverCategoriesFromDir } from './wikiShared.js';
 import type { AiSettings } from '../../types.js';
@@ -36,44 +37,25 @@ ${schemaInfo}
 原始资料：
 ${sourceText}`;
 
-  const url = settings.apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
-  console.log(`[wikiCompiler] calling AI: url=${url}, model=${settings.modelId}, apiKey=${settings.apiKey ? 'set(' + settings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
+  console.log(`[wikiCompiler] calling AI: url=${settings.apiUrl}, model=${settings.modelId}, apiKey=${settings.apiKey ? 'set(' + settings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: settings.modelId,
-      messages: [
-        { role: 'system', content: prompt },
-        { role: 'user', content: userMessage },
-      ],
-      temperature: 0.3,
-      max_tokens: 4096,
-    }),
-  });
+  const adapter = getAdapter(settings.apiType || 'openai-chat');
+  if (!adapter) throw new Error('Adapter not found');
 
-  console.log(`[wikiCompiler] AI response status=${response.status} ${response.statusText}`);
+  const result = await adapter.call(
+    [
+      { role: 'system', content: prompt },
+      { role: 'user', content: userMessage },
+    ],
+    { modelId: settings.modelId },
+    settings.apiUrl,
+    settings.apiKey,
+    { maxTokens: 4096, temperature: 0.3 },
+  );
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => 'unknown error');
-    console.log(`[wikiCompiler] AI error body (first 500): ${errText.substring(0, 500)}`);
-    throw new Error(`AI API 请求失败 (${response.status}): ${errText.substring(0, 200)}`);
-  }
+  console.log(`[wikiCompiler] AI response received, length=${result.length}, preview=${result.substring(0, 100)}`);
 
-  const respText = await response.text();
-  console.log(`[wikiCompiler] AI response body length=${respText.length}, preview=${respText.substring(0, 100)}`);
-
-  let data: { choices: { message: { content: string } }[] };
-  try {
-    data = JSON.parse(respText);
-  } catch {
-    throw new Error(`AI API 返回非 JSON 格式, 前 200 字符: ${respText.substring(0, 200)}`);
-  }
-  return data.choices?.[0]?.message?.content || '';
+  return result;
 }
 
 /**

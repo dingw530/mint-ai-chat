@@ -9,6 +9,7 @@ import { getWikiPath, isPathSafe } from '../utils/pathSecurity.js';
 import { browserFetch } from '../utils/browserFetch.js';
 import * as settingsService from '../api/settingsService.js';
 import { parseFile, isSupportedFile } from '../utils/fileParseService.js';
+import { getAdapter } from '../adapters/apiAdapter.js';
 import { INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd } from '../utils/wikiShared.js';
 
 const execAsync = promisify(exec);
@@ -300,7 +301,7 @@ ${input.source}
   }
 
   private async callAi(
-    settings: { apiUrl: string; apiKey: string; modelId: string },
+    settings: { apiUrl: string; apiKey: string; modelId: string; apiType: string },
     input: WikiIngestInput,
     sourceFilename: string,
     schema: Record<string, unknown>,
@@ -319,30 +320,18 @@ ${schemaInfo}
 原始资料：
 ${input.source}`;
 
-    const response = await fetch(`${settings.apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: settings.modelId,
-        messages: [
-          { role: 'system', content: SHARED_PROMPT },
-          { role: 'user', content: userMessage },
-        ],
-        temperature: 0.3,
-        max_tokens: 4096,
-      }),
-    });
+    const adapter = getAdapter(settings.apiType || 'openai-chat');
+    if (!adapter) throw new Error('Adapter not found');
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => 'unknown error');
-      throw new Error(`AI API 请求失败 (${response.status}): ${errText}`);
-    }
-
-    const data = await response.json() as { choices: { message: { content: string } }[] };
-    return data.choices?.[0]?.message?.content || '';
+    return await adapter.call(
+      [
+        { role: 'system', content: SHARED_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      { modelId: settings.modelId },
+      settings.apiUrl,
+      settings.apiKey,
+      { maxTokens: 4096, temperature: 0.3 },
+    );
   }
-
-  }
+}

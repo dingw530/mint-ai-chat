@@ -1,5 +1,5 @@
 import { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
-import { ApiAdapter, ParsedChunk, registerAdapter } from './apiAdapter.js';
+import { ApiAdapter, ParsedChunk, CallOptions, registerAdapter } from './apiAdapter.js';
 
 export const openaiResponsesAdapter: ApiAdapter = {
   getUrl(baseUrl: string): string {
@@ -78,6 +78,39 @@ export const openaiResponsesAdapter: ApiAdapter = {
       default:
         return null;
     }
+  },
+
+  async call(
+    messages: { role: string; content: string }[],
+    settings: { modelId: string },
+    apiUrl: string,
+    apiKey: string,
+    options?: CallOptions,
+  ): Promise<string> {
+    const url = this.getUrl(apiUrl);
+    const headers = this.getHeaders(apiKey);
+
+    const body: Record<string, unknown> = {
+      model: settings.modelId,
+      input: messages.map(m => ({ role: m.role, content: m.content })),
+      max_output_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature ?? 0,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal: options?.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`AI API error (${response.status}): ${errText.substring(0, 200)}`);
+    }
+
+    const data = (await response.json()) as any;
+    return data.output?.[0]?.content?.[0]?.text || '';
   },
 };
 
