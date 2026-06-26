@@ -20,8 +20,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
-      - run: cd server && npm install
-      - run: cd client && npm install
+      - run: npm install
       - run: cd server && npx tsc --noEmit
 
   test:
@@ -31,7 +30,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
-      - run: cd server && npm install
+      - run: npm install
       - run: cd server && npm test
 
   build:
@@ -42,5 +41,6 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
-      - run: cd server && npm install && npm run build
-      - run: cd client && npm install && npm run build
+      - run: npm install
+      - run: cd server && npm run build
+      - run: cd client && npm run build
