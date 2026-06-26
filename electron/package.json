@@ -5,8 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "prepare": "node prepare.js",
-    "build:mac": "npm run prepare && electron-builder --mac"
+    "build:mac": "node prepare.js && electron-builder --mac"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
