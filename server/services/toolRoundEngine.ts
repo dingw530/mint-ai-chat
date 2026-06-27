@@ -170,7 +170,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 8000),
+      content: resultStr.substring(0, 50000),
     };
 
     return { assistantMsg, toolMsg, succeeded: true };
@@ -207,7 +207,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 8000),
+      content: resultStr.substring(0, 50000),
     };
 
     return { assistantMsg, toolMsg, succeeded };

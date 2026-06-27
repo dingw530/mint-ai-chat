@@ -4,6 +4,7 @@ import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
 import { checkCommand } from '../api/bashSecurityService.js';
+import * as path from 'path';
 import { getWikiPath } from '../utils/pathSecurity.js';
 
 const execAsync = promisify(exec);
@@ -55,8 +56,14 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
     const wikiPath = getWikiPath();
     if (wikiPath) {
       const cmd = input.command;
-      const readCmds = /^(cat|head|tail|less|more|grep|rg|find|ls|wc|diff|sort|uniq|awk|sed|xargs)/;
-      if (readCmds.test(cmd.trim()) && cmd.includes(wikiPath)) {
+      const wikiDirName = path.basename(wikiPath);
+      // 读取命令匹配
+      const readCmdRe = /^(cat|head|tail|less|more|grep|rg|find|ls|wc|diff|sort|uniq|awk|sed|xargs|cd)/;
+      // 检测命令是否访问 Wiki 目录：包含绝对路径、包含目录名、或 cd 进 wiki 目录
+      const accessesWiki = cmd.includes(wikiPath)
+        || new RegExp(`\\b${wikiDirName}\\b`).test(cmd)
+        || (cmd.trim().startsWith('cd ') && cmd.includes(wikiDirName));
+      if (readCmdRe.test(cmd.trim()) && accessesWiki) {
         return { allowed: false, reason: 'Wiki 知识库文件必须使用 wiki_search 工具读取，禁止使用 bash' };
       }
     }

@@ -4,10 +4,13 @@ import * as path from 'path';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { isPathSafe, getWikiPath } from '../utils/pathSecurity.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('wiki-search');
 
 const WikiSearchInputSchema = z.object({
-  question: z.string().min(1).describe('搜索问题或关键词'),
-  paths: z.array(z.string()).optional().describe('直接读取指定文件路径（相对 Wiki 根目录），跳过搜索'),
+  question: z.string().optional().describe('搜索问题或关键词（二选一：question 或 paths）'),
+  paths: z.array(z.string()).optional().describe('直接读取指定文件路径（相对 Wiki 根目录），跳过搜索（二选一：question 或 paths）'),
   maxResults: z.coerce.number().optional().default(5).describe('搜索时返回 top N 结果，默认 5'),
   includeContent: z.coerce.boolean().optional().default(true).describe('是否返回完整文件内容，默认 true'),
 });
@@ -27,12 +30,13 @@ interface WikiSearchOutput {
 }
 
 /**
- * 复合 Wiki 搜索工具：一次调用完成搜索 + 读取。
- * 替代原 wiki_query + list_files + read_file 三个独立工具。
+ * 复合 Wiki 搜索工具：支持批量读取和关键词搜索。
+ * 当你知道需要哪些文件时，始终用 paths 一次性批量读取多个文件，减少循环次数。
+ * 也可以在一轮中并行调用多个 wiki_search，加快多篇查询速度。
  */
 export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> {
   readonly name = 'wiki_search';
-  readonly description = '搜索并读取 Wiki 知识库。输入 question 进行关键词搜索（返回匹配页面的完整内容），或输入 paths 直接读取指定文件。所有 Wiki 文件的读取和搜索必须使用此工具，禁止使用 bash 读取 Wiki 文件。';
+  readonly description = '搜索并读取 Wiki 知识库。支持 paths 批量读取多个文件（一次传入任意数量路径），也支持 question 关键词搜索返回匹配页面。所有 Wiki 文件访问必须通过此工具，禁止使用 bash。当你需要多个文件时，把所有路径放入 paths 一次读完，不要分多次调用。你也可以在一轮中并行发起多个 wiki_search 调用加速处理。';
   readonly inputSchema = WikiSearchInputSchema;
 
   isReadOnly(): boolean { return true; }
@@ -46,11 +50,21 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
 
     // 路径模式：直接读取指定文件
     if (input.paths && input.paths.length > 0) {
-      return this.readFiles(wikiPath, input.paths);
+      log.info('[wiki_search] mode=paths', { pathCount: input.paths.length, paths: input.paths.slice(0, 10) });
+      const result = this.readFiles(wikiPath, input.paths);
+      log.info('[wiki_search] paths result', { totalResults: result.total, message: result.message });
+      return result;
+    }
+
+    if (!input.question) {
+      throw new Error('question 或 paths 至少需要提供一个');
     }
 
     // 搜索模式：关键词搜索 + 返回完整内容
-    return this.searchAndRead(wikiPath, input.question, input.maxResults, input.includeContent);
+    log.info('[wiki_search] mode=question', { question: input.question.substring(0, 100), maxResults: input.maxResults, includeContent: input.includeContent });
+    const result = this.searchAndRead(wikiPath, input.question, input.maxResults, input.includeContent);
+    log.info('[wiki_search] search result', { totalResults: result.total, topFiles: result.results.slice(0, 5).map(r => r.file) });
+    return result;
   }
 
   private readFiles(wikiPath: string, paths: string[]): WikiSearchOutput {
@@ -80,7 +94,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
         results.push({ file: filePath, content: listing, score: 1 });
       } else {
         const content = fs.readFileSync(resolvedPath, 'utf-8');
-        results.push({ file: filePath, content: content.substring(0, 4000), score: 1 });
+        results.push({ file: filePath, content: content.substring(0, 100000), score: 1 });
       }
     }
 
@@ -92,6 +106,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
   }
 
   private searchAndRead(wikiPath: string, question: string, maxResults: number, includeContent: boolean): WikiSearchOutput {
+    maxResults = Math.max(maxResults, 10);
     const keywords = this.extractKeywords(question);
     if (keywords.length === 0) {
       return { results: [], total: 0, message: '未能从问题中提取有效关键词' };
@@ -106,7 +121,9 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
 
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
-        const score = this.matchScore(content, keywords);
+        let score = this.matchScore(content, keywords);
+        // 文件名匹配大幅加分，让按文章名搜索能准确命中
+        score += this.matchFileName(relativePath, keywords) * 50;
         if (score > 0) {
           scored.push({ file: relativePath, score, content });
         }
@@ -121,16 +138,17 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
     const results: WikiSearchResult[] = top.map(item => ({
       file: item.file,
       content: includeContent
-        ? (item.content.length <= 4000 ? item.content : item.content.substring(0, 4000) + '...')
+        ? (item.content.length <= 100000 ? item.content : item.content.substring(0, 100000) + '...')
         : this.extractSnippet(item.content, keywords),
       score: item.score,
     }));
 
+    const filesList = results.map(r => r.file).join('\n');
     return {
       results,
       total: scored.length,
       message: scored.length > 0
-        ? `找到 ${scored.length} 个相关页面，已返回前 ${results.length} 个的完整内容`
+        ? `找到 ${scored.length} 个相关页面，已返回前 ${results.length} 个。可用 paths 直接读取以下文件：\n${filesList}`
         : '未找到相关内容',
     };
   }
@@ -160,6 +178,17 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
         } else {
           score += matches.length;
         }
+      }
+    }
+    return score;
+  }
+
+  private matchFileName(relativePath: string, keywords: string[]): number {
+    const fileName = path.basename(relativePath, '.md').toLowerCase();
+    let score = 0;
+    for (const kw of keywords) {
+      if (fileName.includes(kw.toLowerCase())) {
+        score += 1;
       }
     }
     return score;
