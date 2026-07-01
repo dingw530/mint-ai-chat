@@ -1,20 +1,29 @@
 /**
  * Electron 构建准备脚本
  *
- * esbuild 将 server 打包为单一 ESM 文件（index.js），JS 依赖全部内联。
+ * 生产包使用 server/electron-dist 下的单文件 ESM bundle，普通 JS 依赖全部内联。
  * 此脚本仅需拷贝：
  *   1. 原生模块（better-sqlite3、pdfjs-dist）→ electron/node_modules/
- *   2. server 编译产物 → electron/server-dist/
+ *   2. server bundle → electron/server-dist/
  *   3. client 构建产物 → electron/client-dist/
  */
-const { cp, rm, readFile, writeFile, access } = require('fs/promises');
+const { cp, rm, writeFile, access } = require('fs/promises');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const rootDir = path.join(__dirname, '..');
 const electronDir = __dirname;
 
 // 仅原生/WASM 模块需要从 node_modules 拷贝
 const NATIVE_MODULES = ['better-sqlite3', 'pdfjs-dist'];
+
+function buildServerBundle() {
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npmCmd, ['run', 'build:bundle', '-w', 'mint-server'], {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+}
 
 async function copyNativeModules() {
   const rootNm = path.join(rootDir, 'node_modules');
@@ -40,6 +49,8 @@ async function copyNativeModules() {
 }
 
 async function prepare() {
+  buildServerBundle();
+
   // 拷贝原生模块（先清理旧 node_modules）
   await copyNativeModules();
 
@@ -47,9 +58,9 @@ async function prepare() {
   await rm(path.join(electronDir, 'server-dist'), { recursive: true, force: true });
   await rm(path.join(electronDir, 'client-dist'), { recursive: true, force: true });
 
-  // 复制 server 编译产物（esbuild bundle）
+  // 复制 server bundle
   await cp(
-    path.join(rootDir, 'server', 'dist'),
+    path.join(rootDir, 'server', 'electron-dist'),
     path.join(electronDir, 'server-dist'),
     { recursive: true }
   );

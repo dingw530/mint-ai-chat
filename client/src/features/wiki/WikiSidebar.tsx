@@ -257,7 +257,16 @@ export default function WikiSidebar({ selectedFile, onFileSelect }: WikiSidebarP
         onDragLeave={handleWikiDragLeave}
         onDrop={handleWikiDrop}
       >
-        {wikiLoading && <div className="wiki-loading">加载中...</div>}
+        {wikiLoading && (
+          <div className="wiki-tree-skeleton">
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="skeleton-wiki-item" style={{ paddingLeft: `${12 + (i % 3) * 16}px` }}>
+                <div className="skeleton skeleton-icon" />
+                <div className="skeleton skeleton-text" />
+              </div>
+            ))}
+          </div>
+        )}
         {wikiError && <div className="wiki-error">{wikiError}</div>}
         {!wikiLoading && !wikiError && wikiTree.length === 0 && (
           <div className="wiki-empty">暂无文件</div>

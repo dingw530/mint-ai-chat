@@ -13,6 +13,30 @@ export interface CompiledPage {
   content: string;
 }
 
+export interface WikiManifestEntry {
+  id: string;
+  sourceFile: string;
+  archivedFiles: string[];
+  pageFiles: string[];
+  summary: string;
+  createdAt: string;
+}
+
+export interface WikiManifest {
+  version: number;
+  entries: WikiManifestEntry[];
+}
+
+export interface ParsedWikiPage {
+  file: string;
+  title: string;
+  tags: string[];
+  created: string;
+  source: string;
+  headings: string[];
+  body: string;
+}
+
 // ── Prompt ──
 
 export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM Wiki 三层架构（Schema → Wiki → Sources）。
@@ -125,6 +149,127 @@ export function tryParseLooseJson(text: string): any {
   return null;
 }
 
+/**
+ * 判断路径是否属于 Wiki 系统文件，系统文件不会参与普通 question 搜索结果。
+ */
+export function isSystemWikiPath(relativePath: string): boolean {
+  const normalized = relativePath.replace(/\\/g, '/');
+  const baseName = path.basename(normalized);
+  return normalized === '_index.md'
+    || normalized === '_schema.json'
+    || normalized === '_manifest.json'
+    || baseName.startsWith('_');
+}
+
+/**
+ * 从 Markdown 中解析 YAML frontmatter。解析失败或不存在时返回 null。
+ */
+export function parseWikiFrontmatter(content: string): Record<string, unknown> | null {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+
+  const result: Record<string, unknown> = {};
+  for (const line of match[1].split('\n')) {
+    const [key, ...rest] = line.split(':');
+    if (!key || rest.length === 0) continue;
+
+    let value = rest.join(':').trim();
+    if (value.startsWith('[') && value.endsWith(']')) {
+      value = value.slice(1, -1);
+      result[key.trim()] = value
+        .split(',')
+        .map(v => v.trim().replace(/^['"]|['"]$/g, ''))
+        .filter(Boolean);
+    } else {
+      result[key.trim()] = value.replace(/^['"]|['"]$/g, '');
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 去掉 Markdown frontmatter，仅保留正文内容。
+ */
+export function stripWikiFrontmatter(content: string): string {
+  return content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+}
+
+/**
+ * 提取 Markdown 正文中的所有 heading 文本，供搜索与 lint 共享。
+ */
+export function extractWikiHeadings(content: string): string[] {
+  const body = stripWikiFrontmatter(content);
+  return body
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => /^#{1,6}\s+/.test(line))
+    .map(line => line.replace(/^#{1,6}\s+/, '').trim())
+    .filter(Boolean);
+}
+
+/**
+ * 将 Wiki Markdown 页面统一解析为结构化对象，兼容缺失 frontmatter 的旧页面。
+ */
+export function parseWikiPage(relativePath: string, content: string): ParsedWikiPage {
+  const frontmatter = parseWikiFrontmatter(content) || {};
+  const title = typeof frontmatter.title === 'string' && frontmatter.title
+    ? frontmatter.title
+    : path.basename(relativePath, path.extname(relativePath));
+  const tags = Array.isArray(frontmatter.tags)
+    ? frontmatter.tags.filter((tag): tag is string => typeof tag === 'string')
+    : [];
+  const created = typeof frontmatter.created === 'string' ? frontmatter.created : '';
+  const source = typeof frontmatter.source === 'string' ? frontmatter.source : '';
+  const body = stripWikiFrontmatter(content);
+
+  return {
+    file: relativePath.replace(/\\/g, '/'),
+    title,
+    tags,
+    created,
+    source,
+    headings: extractWikiHeadings(content),
+    body,
+  };
+}
+
+function getManifestPath(wikiPath: string): string {
+  return path.join(wikiPath, '_manifest.json');
+}
+
+/**
+ * 读取 `_manifest.json`，缺失或损坏时返回空 manifest 结构。
+ */
+export function readWikiManifest(wikiPath: string): WikiManifest {
+  const manifestPath = getManifestPath(wikiPath);
+  try {
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as Partial<WikiManifest>;
+    return {
+      version: parsed.version || 1,
+      entries: Array.isArray(parsed.entries) ? parsed.entries as WikiManifestEntry[] : [],
+    };
+  } catch {
+    return { version: 1, entries: [] };
+  }
+}
+
+/**
+ * 覆盖写入 Wiki manifest。
+ */
+export function writeWikiManifest(wikiPath: string, manifest: WikiManifest): void {
+  fs.writeFileSync(getManifestPath(wikiPath), JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
+/**
+ * 追加一条 manifest 记录，供共享编译服务统一调用。
+ */
+export function appendWikiManifestEntry(wikiPath: string, entry: WikiManifestEntry): void {
+  const manifest = readWikiManifest(wikiPath);
+  manifest.entries.push(entry);
+  writeWikiManifest(wikiPath, manifest);
+}
+
 // ── Write pages ──
 
 /**
@@ -181,30 +326,35 @@ function parseFrontmatterTitle(md: string): string | null {
   return m ? m[1].trim() : null;
 }
 
-/** Scan pages/ directory and group by category. */
+/** Scan pages/ directory recursively and group by top-level category. */
 function scanPagesByCategory(wikiPath: string): Record<string, { filename: string; title: string }[]> {
   const pagesDir = path.join(wikiPath, 'pages');
   const grouped: Record<string, { filename: string; title: string }[]> = {};
   if (!fs.existsSync(pagesDir)) return grouped;
 
-  for (const catDir of fs.readdirSync(pagesDir).sort()) {
-    const catPath = path.join(pagesDir, catDir);
-    if (!fs.statSync(catPath).isDirectory() || catDir === '.gitkeep' || catDir.startsWith('.')) continue;
-
-    const entries: { filename: string; title: string }[] = [];
-    for (const file of fs.readdirSync(catPath).sort()) {
-      if (!file.endsWith('.md') || file === '.gitkeep') continue;
-      const fullPath = path.join(catPath, file);
+  const walk = (currentDir: string): void => {
+    for (const entry of fs.readdirSync(currentDir).sort()) {
+      const fullPath = path.join(currentDir, entry);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        if (entry === '.gitkeep' || entry.startsWith('.')) continue;
+        walk(fullPath);
+        continue;
+      }
+      if (!entry.endsWith('.md') || entry === '.gitkeep') continue;
       try {
+        const relativePath = path.relative(wikiPath, fullPath).replace(/\\/g, '/');
+        const segments = relativePath.split('/');
+        const category = segments.length >= 2 ? segments[1] : 'uncategorized';
         const fileContent = fs.readFileSync(fullPath, 'utf-8');
-        const title = parseFrontmatterTitle(fileContent) || file.replace(/\.md$/, '');
-        entries.push({ filename: `pages/${catDir}/${file}`, title });
+        const title = parseFrontmatterTitle(fileContent) || entry.replace(/\.md$/, '');
+        if (!grouped[category]) grouped[category] = [];
+        grouped[category].push({ filename: relativePath, title });
       } catch { /* skip unreadable files */ }
     }
-    if (entries.length > 0) {
-      grouped[catDir] = entries;
-    }
-  }
+  };
+
+  walk(pagesDir);
   return grouped;
 }
 

@@ -1,12 +1,14 @@
 /**
- * esbuild wrapper: bundle electron-bundle.ts -> dist/index.js
+ * esbuild wrapper: bundle electron-bundle.ts -> electron-dist/index.js
  * 然后在文件头部注入 createRequire shim，确保动态 require() 在 ESM 环境下可用。
  */
 const { buildSync } = require('esbuild');
 const fs = require('fs');
 const path = require('path');
 
-const outdir = path.join(__dirname, '..', 'dist');
+const outdir = path.join(__dirname, '..', 'electron-dist');
+fs.rmSync(outdir, { recursive: true, force: true });
+fs.mkdirSync(outdir, { recursive: true });
 
 buildSync({
   entryPoints: [path.join(__dirname, '..', 'electron-bundle.ts')],

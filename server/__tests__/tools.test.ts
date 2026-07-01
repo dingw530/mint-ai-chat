@@ -234,7 +234,14 @@ describe('WikiQueryTool', () => {
 describe('WikiLintTool', () => {
   const tool = new WikiLintTool();
 
-  it('should report healthy for empty wiki', async () => {
+  it('should report manifest missing for uninitialized wiki', async () => {
+    const result = await tool.execute({}, ctx);
+    expect(result.healthy).toBe(false);
+    expect(result.issues.some(i => i.type === 'manifest_missing')).toBe(true);
+  });
+
+  it('should report healthy for initialized empty wiki', async () => {
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({ version: 1, entries: [] }, null, 2));
     const result = await tool.execute({}, ctx);
     expect(result.healthy).toBe(true);
     expect(result.issues).toHaveLength(0);
@@ -266,6 +273,104 @@ describe('WikiLintTool', () => {
     fs.writeFileSync(path.join(tmpDir, 'pages/good.md'), '---\ntitle: Good\ntags: [test]\n---\n# Good page');
     const result = await tool.execute({}, ctx);
     expect(result.issues.some(i => i.type === 'missing_frontmatter')).toBe(false);
+  });
+
+  it('should detect missing required fields, manifest mismatch and index drift together', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({
+      version: 1,
+      entries: [{
+        id: 'm1',
+        sourceFile: 'sources/source-a.md',
+        archivedFiles: [],
+        pageFiles: ['pages/topic/missing.md'],
+        summary: 'summary',
+        createdAt: '2026-06-30T00:00:00.000Z',
+      }],
+    }, null, 2));
+    fs.writeFileSync(path.join(tmpDir, '_index.md'), '# Wiki 首页\n\n- [Ghost](pages/topic/ghost.md)\n');
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/live.md'), '---\ntitle: Live\ntags: [test]\ncreated: 2026-06-30\n---\n# Live');
+
+    const result = await tool.execute({}, ctx);
+    expect(result.issues.some(i => i.type === 'missing_required_field' && i.description.includes('"source"'))).toBe(true);
+    expect(result.issues.some(i => i.type === 'manifest_mismatch')).toBe(true);
+    expect(result.issues.some(i => i.type === 'index_drift')).toBe(true);
+  });
+
+  it('should detect page source mismatch against manifest entry', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({
+      version: 1,
+      entries: [{
+        id: 'm1',
+        sourceFile: 'sources/source-a.md',
+        archivedFiles: ['sources/archive-a.pdf'],
+        pageFiles: ['pages/topic/live.md'],
+        summary: 'summary',
+        createdAt: '2026-06-30T00:00:00.000Z',
+      }],
+    }, null, 2));
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/live.md'), '---\ntitle: Live\ntags: [test]\ncreated: 2026-06-30\nsource: other-source.md\n---\n# Live');
+
+    const result = await tool.execute({}, ctx);
+    expect(result.issues.some(i =>
+      i.type === 'manifest_mismatch' && i.description.includes('页面 source 未匹配到 manifest 记录'),
+    )).toBe(true);
+  });
+
+  it('should handle nested directories and cross links at 10+ page scale', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/alpha/core'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'pages/beta/deep'), { recursive: true });
+    const manifestEntries = [];
+    const indexLines = ['# Wiki 首页', '', '## 分类索引', ''];
+
+    for (let i = 1; i <= 12; i += 1) {
+      const category = i <= 6 ? 'alpha/core' : 'beta/deep';
+      const filename = `pages/${category}/page-${i}.md`;
+      const nextCategory = i === 12 ? 'alpha/core' : (i + 1 <= 6 ? 'alpha/core' : 'beta/deep');
+      const nextIndex = i === 12 ? 1 : i + 1;
+      const content = `---\ntitle: Page ${i}\ntags: [wiki, batch]\ncreated: 2026-06-30\nsource: source-${i}.md\n---\n# Page ${i}\n\n## Section ${i}\n\nLink to [next](../../${nextCategory}/page-${nextIndex}.md)\n`;
+      fs.writeFileSync(path.join(tmpDir, filename), content);
+      manifestEntries.push({
+        id: `m-${i}`,
+        sourceFile: `sources/source-${i}.md`,
+        archivedFiles: [],
+        pageFiles: [filename],
+        summary: `summary-${i}`,
+        createdAt: '2026-06-30T00:00:00.000Z',
+      });
+      indexLines.push(`- [Page ${i}](${filename})`);
+      fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, `sources/source-${i}.md`), `# Source ${i}`);
+    }
+
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({ version: 1, entries: manifestEntries }, null, 2));
+    fs.writeFileSync(path.join(tmpDir, '_index.md'), `${indexLines.join('\n')}\n`);
+
+    const result = await tool.execute({}, ctx);
+    expect(result.totalPages).toBe(12);
+    expect(result.issues).toHaveLength(0);
+    expect(result.healthy).toBe(true);
+  });
+
+  it('should output formatted and sorted issue descriptions', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/a.md'), '# A\n[link](./missing)');
+    const result = await tool.execute({}, ctx);
+    expect(result.issues[0].description).toBe('Wiki 健康检查 / _manifest.json / manifest 文件不存在');
+    expect(result.issues[0].type).toBe('manifest_missing');
+  });
+
+  it('should dedupe repeated issue types on the same file', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({ version: 1, entries: [] }, null, 2));
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/multi-missing.md'), '---\ntags: [test]\n---\n# Missing');
+
+    const result = await tool.execute({}, ctx);
+    const requiredFieldIssues = result.issues.filter(i =>
+      i.file === 'pages/topic/multi-missing.md' && i.type === 'missing_required_field',
+    );
+    expect(requiredFieldIssues).toHaveLength(1);
   });
 });
 
@@ -359,6 +464,14 @@ describe('WikiSearchTool', () => {
     expect(result.results[0].content).toContain('Hello world');
   });
 
+  it('should apply default search options when execute is called directly', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/direct.md'), '# Direct\nDirect execute keeps full content by default.');
+    const result = await tool.execute({ question: 'Direct' }, ctx);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].content).toContain('Direct execute keeps full content by default.');
+  });
+
   it('should list directory when path is directory', async () => {
     fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'pages/a.md'), 'a');
@@ -372,6 +485,43 @@ describe('WikiSearchTool', () => {
     fs.writeFileSync(path.join(tmpDir, 'pages/empty.md'), '# 空页面\n没有相关内容。');
     const result = await tool.execute({ question: '量子计算 人工智能' }, ctx);
     expect(result.results.length).toBe(0);
+  });
+
+  it('should rank title and tags above body-only matches', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/ranking'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/ranking/body-only.md'), '---\ntitle: Notes\ntags: [misc]\ncreated: 2026-06-30\nsource: notes.md\n---\n# Notes\n\nMint Mint Mint Mint Mint\n');
+    fs.writeFileSync(path.join(tmpDir, 'pages/ranking/title-hit.md'), '---\ntitle: Mint Platform\ntags: [knowledge]\ncreated: 2026-06-30\nsource: title.md\n---\n# Mint Platform\n\nOnly one body mention.\n');
+    fs.writeFileSync(path.join(tmpDir, 'pages/ranking/tag-hit.md'), '---\ntitle: Search Notes\ntags: [mint]\ncreated: 2026-06-30\nsource: tag.md\n---\n# Search Notes\n\nBody without repeated keyword.\n');
+
+    const result = await tool.execute({ question: 'Mint', includeContent: false, maxResults: 3 }, ctx);
+    expect(result.results.map(item => item.file)).toEqual([
+      'pages/ranking/title-hit.md',
+      'pages/ranking/tag-hit.md',
+      'pages/ranking/body-only.md',
+    ]);
+  });
+
+  it('should return snippet near matching heading', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/snippets'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/snippets/heading.md'), `---\ntitle: Guide\ntags: [guide]\ncreated: 2026-06-30\nsource: guide.md\n---\n# Intro\n\n${'x'.repeat(400)}\n\n## Rate Limit Strategy\n\nThis section explains timeout and retry details.\n`);
+
+    const result = await tool.execute({ question: 'Rate Limit', includeContent: false }, ctx);
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].content).toContain('## Rate Limit Strategy');
+    expect(result.results[0].content).toContain('timeout and retry details');
+  });
+
+  it('should filter system files from question search but still read them via paths', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/system'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({ version: 1, entries: [] }, null, 2));
+    fs.writeFileSync(path.join(tmpDir, 'pages/system/real-page.md'), '---\ntitle: Real Page\ntags: [wiki]\ncreated: 2026-06-30\nsource: real.md\n---\n# Real Page\n\nManifest keyword in body.\n');
+
+    const searchResult = await tool.execute({ question: 'manifest' }, ctx);
+    expect(searchResult.results.every(item => item.file !== '_manifest.json')).toBe(true);
+
+    const readResult = await tool.execute({ paths: ['_manifest.json'] }, ctx);
+    expect(readResult.results[0].file).toBe('_manifest.json');
+    expect(readResult.results[0].content).toContain('"version": 1');
   });
 
   it('should throw when wikiPath not configured', async () => {

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent, FormEvent } from 'react';
+import SelectField from '@/shared/components/SelectField';
 
 const SIZES = [
   '1024x1024',
@@ -100,44 +101,28 @@ export default function ImageInputBar({ imageEndpoints, onSend, sending }: Image
     <div className="image-input-bar">
       <form onSubmit={handleSubmit}>
         <div className="image-input-model-row">
-          <select
+          <SelectField
+            options={imageEndpoints.map((ep) => ({ value: ep.id, label: `${ep.name} (${ep.modelId})` }))}
             value={selectedEndpointId}
-            onChange={(e) => setSelectedEndpointId(e.target.value)}
-            className="image-input-select"
+            onChange={setSelectedEndpointId}
             disabled={sending}
-          >
-            {imageEndpoints.map((ep) => (
-              <option key={ep.id} value={ep.id}>
-                {ep.name} ({ep.modelId})
-              </option>
-            ))}
-          </select>
+            className="small"
+            placeholder="选择模型"
+          />
         </div>
 
         <div className="image-input-params">
           <div className="image-input-param-group">
             <label>尺寸</label>
-            <select value={size} onChange={(e) => setSize(e.target.value)} className="image-input-select" disabled={sending}>
-              {SIZES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            <SelectField options={SIZES} value={size} onChange={setSize} disabled={sending} className="small" />
           </div>
           <div className="image-input-param-group">
             <label>质量</label>
-            <select value={quality} onChange={(e) => setQuality(e.target.value)} className="image-input-select" disabled={sending}>
-              {QUALITY_OPTIONS.map((q) => (
-                <option key={q.value} value={q.value}>{q.label}</option>
-              ))}
-            </select>
+            <SelectField options={QUALITY_OPTIONS} value={quality} onChange={setQuality} disabled={sending} className="small" />
           </div>
           <div className="image-input-param-group">
             <label>格式</label>
-            <select value={format} onChange={(e) => setFormat(e.target.value)} className="image-input-select" disabled={sending}>
-              {FORMAT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </select>
+            <SelectField options={FORMAT_OPTIONS} value={format} onChange={setFormat} disabled={sending} className="small" />
           </div>
         </div>
 

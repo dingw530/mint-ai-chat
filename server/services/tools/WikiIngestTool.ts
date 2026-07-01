@@ -5,12 +5,11 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
-import { getWikiPath, isPathSafe } from '../utils/pathSecurity.js';
+import { getWikiPath } from '../utils/pathSecurity.js';
 import { browserFetch } from '../utils/browserFetch.js';
 import * as settingsService from '../api/settingsService.js';
 import { parseFile, isSupportedFile } from '../utils/fileParseService.js';
-import { getAdapter } from '../adapters/apiAdapter.js';
-import { INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd } from '../utils/wikiShared.js';
+import { ingestWikiSource, buildWikiSourceText } from '../api/wikiIngestionService.js';
 
 const execAsync = promisify(exec);
 
@@ -74,14 +73,13 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
 
     // 1. 获取所有内容（source + urls + files）
     let combinedSource = input.source || '';
-    const fetchedUrls: string[] = [];
+    const segments: Array<{ kind: 'url' | 'file'; name: string; content: string }> = [];
     const fileTitles: string[] = [];
 
     if (input.urls && input.urls.length > 0) {
       for (const url of input.urls) {
         const content = await this.fetchUrl(url);
-        combinedSource += `\n\n---\n## 来源：${url}\n\n${content}`;
-        fetchedUrls.push(url);
+        segments.push({ kind: 'url', name: url, content });
       }
     }
 
@@ -110,10 +108,12 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
 
         // 解析文件内容
         const result = await parseFile({ name: file.name, content: buffer, size: buffer.length });
-        combinedSource += `\n\n---\n## 文件：${file.name}\n\n${result.text}`;
+        segments.push({ kind: 'file', name: file.name, content: result.text });
         fileTitles.push(file.name.replace(/\.[^.]+$/, ''));
       }
     }
+
+    combinedSource = buildWikiSourceText(combinedSource, segments);
 
     if (!combinedSource.trim()) {
       throw new Error('未获取到有效内容');
@@ -124,96 +124,23 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
       || (input.urls?.[0] ? `web-${new Date().toISOString().slice(0, 10)}` : '')
       || (input.files?.[0] ? fileTitles[0] : '')
       || 'untitled';
-    const sourceFilename = this.saveSource(wikiPath, {
-      ...input,
-      source: combinedSource,
-      title: sourceTitle,
-      files: input.files,
+    const archivedFiles = input.files?.map(file => ({
+      name: file.name,
+      buffer: Buffer.from(file.content, 'base64'),
+    })) || [];
+    const ingestion = await ingestWikiSource(settings, wikiPath, {
+      sourceText: combinedSource,
+      sourceTitle,
+      sourceFilenameHint: sourceTitle,
+      category: input.category,
+      archivedFiles,
     });
 
-    // 3. 读取 _schema.json
-    const schema = this.readSchema(wikiPath);
-
-    // 4. 调用 AI 编译知识
-    const aiResult = await this.callAi(settings, { ...input, source: combinedSource }, sourceFilename, schema);
-
-    // 4. 解析 AI 输出
-    const parsed = tryParseLooseJson(aiResult);
-    if (!parsed) {
-      console.error(`[wiki_ingest] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
-      console.error(aiResult);
-      throw new Error('AI 返回格式异常，完整返回已打印到日志');
-    }
-    const compiled = parsed;
-
-    if (!compiled.pages || compiled.pages.length === 0) {
-      throw new Error('AI 未生成任何 Wiki 页面');
-    }
-
-    // 5. 写入 pages/
-    const results = writeWikiPages(wikiPath, compiled.pages);
-
-    // 6. 更新 _index.md
-    updateIndexMd(wikiPath, compiled.pages);
-
     return {
-      sourceFile: `sources/${sourceFilename}`,
-      pages: results,
-      summary: compiled.summary || `成功创建 ${results.length} 个 Wiki 页面`,
+      sourceFile: ingestion.sourceFile,
+      pages: ingestion.pages,
+      summary: ingestion.summary,
     };
-  }
-
-  private saveSource(wikiPath: string, input: WikiIngestInput): string {
-    const sourcesDir = path.join(wikiPath, 'sources');
-    if (!fs.existsSync(sourcesDir)) {
-      fs.mkdirSync(sourcesDir, { recursive: true });
-    }
-
-    const date = new Date().toISOString().slice(0, 10);
-    const slug = (input.title || 'untitled')
-      .toLowerCase()
-      .replace(/[^a-z0-9一-龥]+/g, '-')
-      .replace(/^-|-$/g, '');
-    const filename = `${date}-${slug}.md`;
-
-    // 保存原始上传文件（二进制或文本）
-    if (input.files && input.files.length > 0) {
-      for (const file of input.files) {
-        try {
-          const fileSlug = path.basename(file.name, path.extname(file.name))
-            .toLowerCase()
-            .replace(/[^a-z0-9一-龥]+/g, '-')
-            .replace(/^-|-$/g, '');
-          const ext = path.extname(file.name).toLowerCase();
-          const archiveName = `${date}-${fileSlug}${ext}`;
-          const archivePath = path.join(sourcesDir, archiveName);
-          const buffer = Buffer.from(file.content, 'base64');
-          fs.writeFileSync(archivePath, buffer);
-        } catch (err) {
-          console.error(`[wiki_ingest] 存档原始文件失败: ${file.name}`, err);
-        }
-      }
-    }
-
-    // 保存编译用文本源文件
-    const sourcePath = path.join(sourcesDir, filename);
-    const sourceContent = `# ${input.title || '未命名资料'}
-
-> 原始资料，不可变。摄入日期：${date}
-
-${input.source}
-`;
-    fs.writeFileSync(sourcePath, sourceContent, 'utf-8');
-    return filename;
-  }
-
-  private readSchema(wikiPath: string): Record<string, unknown> {
-    const schemaPath = path.join(wikiPath, '_schema.json');
-    try {
-      return JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
-    } catch {
-      return {};
-    }
   }
 
   private async fetchUrl(url: string): Promise<string> {
@@ -298,40 +225,5 @@ ${input.source}
     }
 
     return text.trim();
-  }
-
-  private async callAi(
-    settings: { apiUrl: string; apiKey: string; modelId: string; apiType: string },
-    input: WikiIngestInput,
-    sourceFilename: string,
-    schema: Record<string, unknown>,
-  ): Promise<string> {
-    const schemaInfo = JSON.stringify(schema, null, 2);
-    const categories = (schema.categories as string[]) || [];    const userMessage = `标题：${input.title || '（AI 自动生成）'}
-分类：${input.category || '（AI 自动归类）'}
-原始文件名：${sourceFilename}
-
-当前可用分类：${JSON.stringify(categories)}
-当前 Schema 规范：
-\`\`\`json
-${schemaInfo}
-\`\`\`
-
-原始资料：
-${input.source}`;
-
-    const adapter = getAdapter(settings.apiType || 'openai-chat');
-    if (!adapter) throw new Error('Adapter not found');
-
-    return await adapter.call(
-      [
-        { role: 'system', content: SHARED_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      { modelId: settings.modelId },
-      settings.apiUrl,
-      settings.apiKey,
-      { maxTokens: 4096, temperature: 0.3 },
-    );
   }
 }

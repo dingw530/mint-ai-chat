@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tryParseLooseJson, writeWikiPages, CompiledPage } from '../services/utils/wikiShared.js';
+import { tryParseLooseJson, writeWikiPages, updateIndexMd, CompiledPage } from '../services/utils/wikiShared.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
@@ -124,5 +124,22 @@ describe('writeWikiPages', () => {
     // body should have real newlines, not literal \n
     expect(content).toContain('# Title\n\nParagraph 1\n\nParagraph 2');
     expect(content).not.toContain('\\n');
+  });
+
+  it('重建索引时保留多级目录页面', () => {
+    const pages: CompiledPage[] = [{
+      filename: 'pages/topic/sub/page.md',
+      title: 'Nested Page',
+      tags: ['tag1'],
+      created: '2026-06-23',
+      source: 'source.txt',
+      content: '# Nested',
+    }];
+
+    writeWikiPages(tmpDir, pages);
+    updateIndexMd(tmpDir, pages);
+
+    const indexContent = fs.readFileSync(path.join(tmpDir, '_index.md'), 'utf-8');
+    expect(indexContent).toContain('[Nested Page](pages/topic/sub/page.md)');
   });
 });

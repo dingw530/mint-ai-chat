@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import SelectField from '@/shared/components/SelectField';
 import { getEndpoints, createEndpoint, updateEndpoint, deleteEndpoint, activateEndpoint } from '@/services/api';
 import type { EndpointOutput, EndpointInput } from '@/types';
 
@@ -153,7 +154,14 @@ export default function EndpointsPanel({ onToast }: EndpointsPanelProps) {
     }
   };
 
-  if (loading) return <div className="panel-loading">加载端点配置中...</div>;
+  if (loading) return (
+    <div className="skeleton-panel">
+      <div className="skeleton skeleton-panel-header" />
+      <div className="skeleton skeleton-panel-row" />
+      <div className="skeleton skeleton-panel-row" />
+      <div className="skeleton skeleton-panel-row short" />
+    </div>
+  );
 
   return (
     <div className="endpoints-panel">
@@ -232,19 +240,29 @@ export default function EndpointsPanel({ onToast }: EndpointsPanelProps) {
               </div>
               <div className="form-group">
                 <label htmlFor="epType">API 类型</label>
-                <select id="epType" value={form.apiType} onChange={(e) => setForm({ ...form, apiType: e.target.value })} style={{ width: '100%', padding: '9px 13px', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, outline: 'none', background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                  <option value="openai-chat">OpenAI Chat Completions</option>
-                  <option value="anthropic">Anthropic Messages API</option>
-                  <option value="openai-responses">OpenAI Responses API</option>
-                </select>
+                <SelectField
+                  id="epType"
+                  options={[
+                    { value: 'openai-chat', label: 'OpenAI Chat Completions' },
+                    { value: 'anthropic', label: 'Anthropic Messages API' },
+                    { value: 'openai-responses', label: 'OpenAI Responses API' },
+                  ]}
+                  value={form.apiType}
+                  onChange={(v) => setForm({ ...form, apiType: v })}
+                />
                 <p className="form-help">选择 API 类型后，服务端会自动适配请求格式和响应解析。</p>
               </div>
               <div className="form-group">
                 <label htmlFor="epCategory">分类</label>
-                <select id="epCategory" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as 'text' | 'image' })} style={{ width: '100%', padding: '9px 13px', border: '2px solid var(--border-strong)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500, outline: 'none', background: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                  <option value="text">文本对话</option>
-                  <option value="image">图片生成</option>
-                </select>
+                <SelectField
+                  id="epCategory"
+                  options={[
+                    { value: 'text', label: '文本对话' },
+                    { value: 'image', label: '图片生成' },
+                  ]}
+                  value={form.category}
+                  onChange={(v) => setForm({ ...form, category: v as 'text' | 'image' })}
+                />
                 <p className="form-help">选择"图片生成"后，该端点不会出现在聊天模型选择器中。</p>
               </div>
               <div className="form-group">

@@ -3,12 +3,14 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import SidebarHeader from '@/shared/components/SidebarHeader';
 import WikiSidebar from './WikiSidebar';
 import WikiPanel from './WikiPanel';
+import { useSidebarResize } from '@/hooks/useSidebarResize';
 import { createConversation } from '@/services/api';
 
 type AppContext = { onOpenSettings: () => void };
 
 export default function WikiPage() {
   const { onOpenSettings } = useOutletContext<AppContext>();
+  const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useSidebarResize();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -23,11 +25,17 @@ export default function WikiPage() {
 
   return (
     <>
-      <aside className="sidebar sidebar--wiki">
+      <aside className="sidebar sidebar--wiki" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
         <SidebarHeader onOpenSettings={onOpenSettings} />
         <WikiSidebar selectedFile={selectedFile} onFileSelect={setSelectedFile} />
+        <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
       </aside>
-      <WikiPanel filePath={selectedFile} onAskQuestion={handleAskQuestion} />
+      <WikiPanel
+        filePath={selectedFile}
+        onAskQuestion={handleAskQuestion}
+        onBack={() => setSelectedFile(null)}
+        onFileSelect={setSelectedFile}
+      />
     </>
   );
 }

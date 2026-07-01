@@ -1,19 +1,144 @@
-import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react';
 import { readWiki } from '@/services/api';
+import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
+
+type WikiFrontmatter = {
+  title?: string;
+  tags?: string[];
+  created?: string;
+  source?: string;
+};
+
+type WikiDocument = {
+  title: string;
+  fileName: string;
+  fileDir: string;
+  fileExt: string;
+  frontmatter: WikiFrontmatter;
+  body: string;
+};
+
+function isExternalWikiLink(href: string): boolean {
+  return /^(https?:|mailto:|tel:|\/\/)/i.test(href);
+}
+
+function resolveWikiLinkPath(currentPath: string, href: string): string | null {
+  const trimmedHref = href.trim();
+  if (!trimmedHref || trimmedHref.startsWith('#')) return null;
+  if (isExternalWikiLink(trimmedHref)) return null;
+
+  const [pathPart] = trimmedHref.split(/[?#]/, 1);
+  // URL-decode the path: AI-generated links may contain percent-encoded Chinese characters
+  // (e.g., %E5%AE%9E for 实), which are already encoded once in the markdown href.
+  // Without decoding here, buildUrlFromManifest's encodeURIComponent would double-encode them,
+  // resulting in a filesystem path mismatch.  decodeURIComponent is a no-op for ASCII-only paths.
+  let decodedPart = pathPart.replace(/\\/g, '/');
+  try { decodedPart = decodeURIComponent(decodedPart); } catch { /* use raw path on malformed input */ }
+  const normalizedHref = decodedPart;
+  const currentDirParts = currentPath.split('/').slice(0, -1).filter(Boolean);
+  let parts: string[];
+
+  if (normalizedHref.startsWith('/')) {
+    const rootRelative = normalizedHref.slice(1);
+    if (rootRelative.startsWith('_')) {
+      parts = rootRelative.split('/');
+    } else if (rootRelative.startsWith('pages/') || rootRelative.startsWith('sources/')) {
+      parts = rootRelative.split('/');
+    } else {
+      parts = ['pages', ...rootRelative.split('/')];
+    }
+  } else if (normalizedHref.startsWith('pages/') || normalizedHref.startsWith('sources/')) {
+    parts = normalizedHref.split('/');
+  } else {
+    parts = [...currentDirParts, ...normalizedHref.split('/')];
+  }
+
+  const resolvedParts: string[] = [];
+  for (const part of parts) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      resolvedParts.pop();
+      continue;
+    }
+    resolvedParts.push(part);
+  }
+
+  let resolvedPath = resolvedParts.join('/');
+  if (!resolvedPath) return null;
+
+  const lastSegment = resolvedParts[resolvedParts.length - 1] || '';
+  if (!/\.[^.\/]+$/.test(lastSegment)) {
+    resolvedPath += '.md';
+  }
+
+  return resolvedPath;
+}
+
+function parseWikiDocument(filePath: string, content: string): WikiDocument {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
+  const frontmatter: WikiFrontmatter = {};
+  let body = content;
+
+  if (match) {
+    const rawFrontmatter = match[1];
+    body = content.slice(match[0].length);
+
+    for (const line of rawFrontmatter.split('\n')) {
+      const separatorIndex = line.indexOf(':');
+      if (separatorIndex === -1) continue;
+
+      const key = line.slice(0, separatorIndex).trim();
+      const rawValue = line.slice(separatorIndex + 1).trim();
+      if (!key) continue;
+
+      if (key === 'tags' && rawValue.startsWith('[') && rawValue.endsWith(']')) {
+        frontmatter.tags = rawValue
+          .slice(1, -1)
+          .split(',')
+          .map((tag) => tag.trim().replace(/^['"]|['"]$/g, ''))
+          .filter(Boolean);
+        continue;
+      }
+
+      const value = rawValue.replace(/^['"]|['"]$/g, '');
+      if (key === 'title') frontmatter.title = value;
+      if (key === 'created') frontmatter.created = value;
+      if (key === 'source') frontmatter.source = value;
+    }
+  }
+
+  const fileName = filePath.split('/').pop() || filePath;
+  const fileDir = filePath.split('/').slice(0, -1).join('/');
+  const fileExt = fileName.split('.').pop()?.toLowerCase() || 'md';
+
+  return {
+    title: frontmatter.title?.trim() || fileName,
+    fileName,
+    fileDir,
+    fileExt,
+    frontmatter,
+    body,
+  };
+}
 
 interface WikiPanelProps {
   filePath: string | null;
   onAskQuestion?: (question: string) => void;
+  onBack?: () => void;
+  onFileSelect?: (path: string) => void;
 }
 
-export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
-  const fileName = filePath?.split('/').pop() || '';
-  const fileDir = filePath?.split('/').slice(0, -1).join('/') || '';
+export default function WikiPanel({ filePath, onAskQuestion, onBack, onFileSelect }: WikiPanelProps) {
+  const unsupportedExts = new Set(['pdf', 'html', 'htm']);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const document = filePath && content !== null ? parseWikiDocument(filePath, content) : null;
+  const hasFrontmatterMeta = Boolean(
+    document?.frontmatter.created || document?.frontmatter.source || document?.frontmatter.tags?.length,
+  );
 
   useEffect(() => {
     if (!filePath) {
@@ -22,6 +147,7 @@ export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
       return;
     }
     setLoading(true);
+    setContent(null);
     setError(null);
     readWiki(filePath)
       .then((data) => setContent(data.content))
@@ -49,19 +175,13 @@ export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
     }
   };
 
-  const renderMarkdown = (text: string) => {
-    const lines = text.split('\n');
-    const html = lines.map((line) => {
-      if (line.startsWith('### ')) return `<h3>${line.slice(4)}</h3>`;
-      if (line.startsWith('## ')) return `<h2>${line.slice(3)}</h2>`;
-      if (line.startsWith('# ')) return `<h1>${line.slice(2)}</h1>`;
-      if (line.startsWith('- ')) return `<li>${line.slice(2)}</li>`;
-      if (line.startsWith('> ')) return `<blockquote>${line.slice(2)}</blockquote>`;
-      if (line.startsWith('```')) return '<hr/>';
-      if (line === '') return '<br/>';
-      return `<p>${line}</p>`;
-    }).join('\n');
-    return html;
+  const handleWikiLinkClick = (href: string, event: MouseEvent<HTMLAnchorElement>) => {
+    if (!filePath) return;
+    const nextPath = resolveWikiLinkPath(filePath, href);
+    if (!nextPath) return;
+
+    event.preventDefault();
+    onFileSelect?.(nextPath);
   };
 
   return (
@@ -69,16 +189,33 @@ export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
       <div className="wiki-content-header">
         {filePath ? (
           <div className="wiki-content-breadcrumb">
-            <span>{fileDir || '知识库'}</span>
+            <span className="wiki-content-breadcrumb-link" onClick={onBack}>知识库</span>
+            {document?.fileDir && (
+              <>
+                <span className="wiki-content-breadcrumb-sep">/</span>
+                <span>{document.fileDir}</span>
+              </>
+            )}
             <span className="wiki-content-breadcrumb-sep">/</span>
-            <span className="wiki-content-breadcrumb-current">{fileName}</span>
+            <span className="wiki-content-breadcrumb-current">{document?.fileName || ''}</span>
           </div>
         ) : (
           <span className="wiki-content-title">知识库</span>
         )}
       </div>
       <div className="wiki-content-scroll">
-      {loading && <div className="wiki-loading">加载中...</div>}
+      {loading && (
+        <div className="skeleton-wiki-content">
+          <div className="skeleton skeleton-title-block" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line short" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line short" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </div>
+      )}
       {error && <div className="wiki-error">{error}</div>}
       {!filePath && !loading && (
         <div className="wiki-welcome">
@@ -131,10 +268,8 @@ export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
           </div>
         </div>
       )}
-      {!loading && !error && content && (() => {
-        const ext = fileName.split('.').pop()?.toLowerCase() || '';
-        const unsupportedExts = ['pdf', 'html', 'htm'];
-        if (unsupportedExts.includes(ext)) {
+      {!loading && !error && content !== null && (() => {
+        if (document && unsupportedExts.has(document.fileExt)) {
           return (
             <div className="wiki-unsupported">
               <div className="wiki-unsupported-icon">
@@ -144,11 +279,53 @@ export default function WikiPanel({ filePath, onAskQuestion }: WikiPanelProps) {
                 </svg>
               </div>
               <p className="wiki-unsupported-text">暂不支持预览</p>
-              <p className="wiki-unsupported-hint">该文件格式 ({ext.toUpperCase()}) 当前暂不支持在线预览</p>
+              <p className="wiki-unsupported-hint">该文件格式 ({document.fileExt.toUpperCase()}) 当前暂不支持在线预览</p>
             </div>
           );
         }
-        return <div className="wiki-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />;
+        return (
+          <div className="wiki-document-shell">
+            <div className="wiki-document-hero">
+              <div className="wiki-document-hero-main">
+                <div className="wiki-document-kicker">知识库文档</div>
+                <h1 className="wiki-document-title">{document?.title || document?.fileName || ''}</h1>
+                <div className="wiki-document-path">
+                  {document?.fileDir ? document.fileDir : '根目录'}
+                </div>
+                {hasFrontmatterMeta && document && (
+                  <div className="wiki-document-meta">
+                    {document.frontmatter.created && (
+                      <span className="wiki-document-meta-item">
+                        <span className="wiki-document-meta-label">创建</span>
+                        <span>{document.frontmatter.created}</span>
+                      </span>
+                    )}
+                    {document.frontmatter.source && (
+                      <span className="wiki-document-meta-item">
+                        <span className="wiki-document-meta-label">来源</span>
+                        <span>{document.frontmatter.source}</span>
+                      </span>
+                    )}
+                    {document.frontmatter.tags?.length ? (
+                      <span className="wiki-document-meta-tags">
+                        {document.frontmatter.tags.map((tag) => (
+                          <span key={tag} className="wiki-document-tag">{tag}</span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              <span className="wiki-document-badge">{document?.fileExt.toUpperCase() || 'MD'}</span>
+            </div>
+            <div className="wiki-document-body">
+              <MarkdownRenderer
+                content={document ? document.body : (content || '')}
+                onLinkClick={handleWikiLinkClick}
+              />
+            </div>
+          </div>
+        );
       })()}
       </div>
     </div>

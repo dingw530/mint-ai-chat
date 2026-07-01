@@ -14,7 +14,7 @@
 @import "./settings-modal.css";
 @import "./image-generator.css";
 @import "./wiki.css";
-
+@import "./shared.css";
 
 /* --------------------------------------------
    Design Tokens
@@ -406,7 +406,7 @@ body::after {
 }
 
 .message-avatar-wrapper.assistant .message-avatar {
-  background: var(--assistant-avatar);
+  background: transparent;
 }
 
 .message-avatar-wrapper.error .message-avatar {
@@ -2317,6 +2317,106 @@ body::after {
 
 .hljs-strong {
   font-weight: 700;
+}
+
+/* --------------------------------------------
+   Skeleton Screen — Simple pulse blocks
+   -------------------------------------------- */
+@keyframes skeleton-pulse {
+  0% { opacity: 0.06; }
+  50% { opacity: 0.12; }
+  100% { opacity: 0.06; }
+}
+
+.skeleton {
+  background: var(--text-primary);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Sidebar conversation list skeleton */
+.skeleton-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+}
+
+.skeleton-sidebar-item .skeleton-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.skeleton-sidebar-item .skeleton-title {
+  flex: 1;
+  height: 14px;
+  max-width: 140px;
+}
+
+/* Wiki tree skeleton */
+.skeleton-wiki-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.skeleton-wiki-item .skeleton-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.skeleton-wiki-item .skeleton-text {
+  flex: 1;
+  height: 13px;
+  max-width: 120px;
+}
+
+/* Wiki content skeleton */
+.skeleton-wiki-content {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-wiki-content .skeleton-title-block {
+  height: 28px;
+  width: 60%;
+  margin-bottom: 4px;
+}
+
+.skeleton-wiki-content .skeleton-line {
+  height: 14px;
+  width: 100%;
+}
+
+.skeleton-wiki-content .skeleton-line.short {
+  width: 70%;
+}
+
+/* Settings panel skeleton */
+.skeleton-panel {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.skeleton-panel-header {
+  height: 20px;
+  width: 30%;
+}
+
+.skeleton-panel-row {
+  height: 14px;
+  width: 100%;
+}
+
+.skeleton-panel-row.short {
+  width: 55%;
 }
 
 /* --------------------------------------------

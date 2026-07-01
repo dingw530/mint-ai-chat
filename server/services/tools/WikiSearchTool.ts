@@ -4,6 +4,7 @@ import * as path from 'path';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { isPathSafe, getWikiPath } from '../utils/pathSecurity.js';
+import { isSystemWikiPath, parseWikiPage } from '../utils/wikiShared.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('wiki-search');
@@ -43,26 +44,36 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
   isConcurrencySafe(): boolean { return true; }
 
   async execute(input: WikiSearchInput, _context: ToolContext): Promise<WikiSearchOutput> {
+    const normalizedInput = this.inputSchema.parse(input);
     const wikiPath = getWikiPath();
     if (!wikiPath) {
       throw new Error('Wiki 路径未配置，请在设置中配置 wikiPath');
     }
 
     // 路径模式：直接读取指定文件
-    if (input.paths && input.paths.length > 0) {
-      log.info('[wiki_search] mode=paths', { pathCount: input.paths.length, paths: input.paths.slice(0, 10) });
-      const result = this.readFiles(wikiPath, input.paths);
+    if (normalizedInput.paths && normalizedInput.paths.length > 0) {
+      log.info('[wiki_search] mode=paths', { pathCount: normalizedInput.paths.length, paths: normalizedInput.paths.slice(0, 10) });
+      const result = this.readFiles(wikiPath, normalizedInput.paths);
       log.info('[wiki_search] paths result', { totalResults: result.total, message: result.message });
       return result;
     }
 
-    if (!input.question) {
+    if (!normalizedInput.question) {
       throw new Error('question 或 paths 至少需要提供一个');
     }
 
     // 搜索模式：关键词搜索 + 返回完整内容
-    log.info('[wiki_search] mode=question', { question: input.question.substring(0, 100), maxResults: input.maxResults, includeContent: input.includeContent });
-    const result = this.searchAndRead(wikiPath, input.question, input.maxResults, input.includeContent);
+    log.info('[wiki_search] mode=question', {
+      question: normalizedInput.question.substring(0, 100),
+      maxResults: normalizedInput.maxResults,
+      includeContent: normalizedInput.includeContent,
+    });
+    const result = this.searchAndRead(
+      wikiPath,
+      normalizedInput.question,
+      normalizedInput.maxResults,
+      normalizedInput.includeContent,
+    );
     log.info('[wiki_search] search result', { totalResults: result.total, topFiles: result.results.slice(0, 5).map(r => r.file) });
     return result;
   }
@@ -106,26 +117,31 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
   }
 
   private searchAndRead(wikiPath: string, question: string, maxResults: number, includeContent: boolean): WikiSearchOutput {
-    maxResults = Math.max(maxResults, 10);
+    maxResults = Math.max(1, maxResults);
     const keywords = this.extractKeywords(question);
     if (keywords.length === 0) {
       return { results: [], total: 0, message: '未能从问题中提取有效关键词' };
     }
 
-    const mdFiles = this.findMdFiles(wikiPath);
-    const scored: { file: string; score: number; content: string }[] = [];
+    const pagesDir = path.join(wikiPath, 'pages');
+    const mdFiles = this.findMdFiles(pagesDir);
+    const scored: { file: string; score: number; content: string; snippet: string }[] = [];
 
     for (const filePath of mdFiles) {
       const relativePath = path.relative(wikiPath, filePath);
-      if (relativePath.startsWith('_')) continue;
+      if (isSystemWikiPath(relativePath)) continue;
 
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
-        let score = this.matchScore(content, keywords);
-        // 文件名匹配大幅加分，让按文章名搜索能准确命中
-        score += this.matchFileName(relativePath, keywords) * 50;
+        const parsed = parseWikiPage(relativePath, content);
+        const score = this.scorePage(parsed, keywords);
         if (score > 0) {
-          scored.push({ file: relativePath, score, content });
+          scored.push({
+            file: relativePath,
+            score,
+            content,
+            snippet: this.extractSnippet(parsed.body, keywords, parsed.headings),
+          });
         }
       } catch {
         // 跳过无法读取的文件
@@ -139,7 +155,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       file: item.file,
       content: includeContent
         ? (item.content.length <= 100000 ? item.content : item.content.substring(0, 100000) + '...')
-        : this.extractSnippet(item.content, keywords),
+        : item.snippet,
       score: item.score,
     }));
 
@@ -165,36 +181,45 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       .filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
   }
 
-  private matchScore(content: string, keywords: string[]): number {
+  private countMatches(content: string, keywords: string[]): number {
     const lowerContent = content.toLowerCase();
     let score = 0;
     for (const kw of keywords) {
       const lowerKw = kw.toLowerCase();
       const regex = new RegExp(lowerKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
       const matches = lowerContent.match(regex);
-      if (matches) {
-        if (lowerContent.startsWith('#') && lowerContent.split('\n')[0].includes(lowerKw)) {
-          score += matches.length * 3;
-        } else {
-          score += matches.length;
-        }
-      }
+      if (matches) score += matches.length;
     }
     return score;
   }
 
-  private matchFileName(relativePath: string, keywords: string[]): number {
-    const fileName = path.basename(relativePath, '.md').toLowerCase();
-    let score = 0;
-    for (const kw of keywords) {
-      if (fileName.includes(kw.toLowerCase())) {
-        score += 1;
-      }
-    }
-    return score;
+  private scorePage(
+    page: { file: string; title: string; tags: string[]; headings: string[]; body: string },
+    keywords: string[],
+  ): number {
+    const pathScore = this.countMatches(page.file, keywords) * 40;
+    const titleScore = this.countMatches(page.title, keywords) * 50;
+    const tagScore = this.countMatches(page.tags.join(' '), keywords) * 35;
+    const headingScore = this.countMatches(page.headings.join('\n'), keywords) * 20;
+    const bodyScore = this.countMatches(page.body, keywords);
+    return pathScore + titleScore + tagScore + headingScore + bodyScore;
   }
 
-  private extractSnippet(content: string, keywords: string[]): string {
+  private extractSnippet(content: string, keywords: string[], headings: string[]): string {
+    const headingContext = headings.find(heading =>
+      keywords.some(kw => heading.toLowerCase().includes(kw.toLowerCase())),
+    );
+    if (headingContext) {
+      const headingIndex = content.toLowerCase().indexOf(headingContext.toLowerCase());
+      if (headingIndex >= 0) {
+        const start = Math.max(0, headingIndex - 80);
+        const end = Math.min(content.length, headingIndex + 720);
+        const prefix = start > 0 ? '...' : '';
+        const suffix = end < content.length ? '...' : '';
+        return prefix + content.substring(start, end) + suffix;
+      }
+    }
+
     const lowerContent = content.toLowerCase();
     let bestIdx = -1;
     for (const kw of keywords) {

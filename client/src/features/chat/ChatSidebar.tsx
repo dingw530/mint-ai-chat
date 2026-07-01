@@ -99,10 +99,17 @@ export default function ChatSidebar({
         </button>
       </div>
       <div className="conversation-list">
-        {conversations.length === 0 && (
-          <div className="empty-state">
-            {loading ? 'Loading...' : '暂无对话，点击上方按钮新建'}
+        {loading ? (
+          <div className="conversation-list-skeleton">
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="skeleton-sidebar-item">
+                <div className="skeleton skeleton-icon" />
+                <div className="skeleton skeleton-title" />
+              </div>
+            ))}
           </div>
+        ) : conversations.length === 0 && (
+          <div className="empty-state">暂无对话，点击上方按钮新建</div>
         )}
         {conversations.map((conv) => (
           <div

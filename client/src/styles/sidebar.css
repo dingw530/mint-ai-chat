@@ -815,3 +815,49 @@
 .confirm-btn:active {
   transform: scale(0.97);
 }
+
+/* ── Resize Handle ── */
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s ease;
+}
+
+.sidebar-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 1px;
+  background: var(--border-default);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar-resize-handle:hover::after {
+  opacity: 1;
+  background: var(--accent);
+}
+
+.sidebar-resize-handle:active::after {
+  opacity: 1;
+  background: var(--accent);
+  height: 48px;
+}
+
+/* ── AI Avatar ── */
+
+.ai-avatar {
+  display: block;
+}
+
+

@@ -21,3 +21,4 @@
 | [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/design-doc.md>) | 2026-06-11 | 已完成 |
 | [LLM Wiki 知识库](<../changes/2026-06-18-llm-wiki/product-spec.md>) | 2026-06-18 | 已完成 |
 | [Client 路由架构重构](<../changes/2026-06-24-路由架构重构/product-spec.md>) | 2026-06-24 | 已完成 |
+| [Electron Server Bundle 打包修复](<../changes/2026-06-30-electron-server-bundle/product-spec.md>) | 2026-06-30 | 已完成 |

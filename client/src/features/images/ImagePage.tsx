@@ -3,6 +3,7 @@ import SidebarHeader from '@/shared/components/SidebarHeader';
 import ImageSidebar from './ImageSidebar';
 import ImageChatArea from './components/ImageChatArea';
 import { useConversations } from '@/hooks/useConversations';
+import { useSidebarResize } from '@/hooks/useSidebarResize';
 import { useState, useEffect, useCallback } from 'react';
 import { getEndpoints } from '@/services/api';
 import type { EndpointOutput } from '@/types';
@@ -11,6 +12,7 @@ type AppContext = { onOpenSettings: () => void };
 
 export default function ImagePage() {
   const { onOpenSettings } = useOutletContext<AppContext>();
+  const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useSidebarResize();
   const {
     conversations,
     loading,
@@ -39,7 +41,7 @@ export default function ImagePage() {
 
   return (
     <>
-      <aside className="sidebar sidebar--image">
+      <aside className="sidebar sidebar--image" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
         <SidebarHeader onOpenSettings={onOpenSettings} />
         <ImageSidebar
           conversations={conversations}
@@ -50,6 +52,7 @@ export default function ImagePage() {
           onRename={rename}
           onDelete={deleteConv}
         />
+        <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
       </aside>
       <ImageChatArea
         activeConversation={activeId}
