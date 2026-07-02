@@ -318,6 +318,27 @@ describe('WikiLintTool', () => {
     )).toBe(true);
   });
 
+  it('should allow manually created pages without source metadata when manifest has no source', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '_manifest.json'), JSON.stringify({
+      version: 1,
+      entries: [{
+        id: 'm1',
+        sourceFile: '',
+        archivedFiles: [],
+        pageFiles: ['pages/topic/manual.md'],
+        summary: 'manual page',
+        createdAt: '2026-06-30T00:00:00.000Z',
+      }],
+    }, null, 2));
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/manual.md'), '---\ntitle: Manual\ntags: [test]\ncreated: 2026-06-30\n---\n# Manual');
+
+    const result = await tool.execute({}, ctx);
+    expect(result.issues.some(i =>
+      i.type === 'manifest_mismatch' && i.file === 'pages/topic/manual.md',
+    )).toBe(false);
+  });
+
   it('should handle nested directories and cross links at 10+ page scale', async () => {
     fs.mkdirSync(path.join(tmpDir, 'pages/alpha/core'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, 'pages/beta/deep'), { recursive: true });

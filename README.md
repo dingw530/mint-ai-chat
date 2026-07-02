@@ -74,7 +74,7 @@ cd server && npm test
 
 ## About This Project
 
-Mint is a hands-on project built around general AI Agent development, covering the full modern stack and core concepts:
+Mint is a personal knowledge chat engine deeply integrated with LLM Wiki, covering the full modern stack and core concepts:
 
 - **Agent Architecture** — Custom agent system with system prompts, auto-routing, and locked-agent modes
 - **ReAct Pattern** — Reasoning + Acting loop: agents observe, reason, call tools, and incorporate results into responses iteratively

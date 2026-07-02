@@ -170,14 +170,19 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
           entry.pageFiles.map(item => item.replace(/\\/g, '/')).includes(page.file),
         );
         if (entryByPageFile) {
-          const sourceCandidates = [entryByPageFile.sourceFile, ...entryByPageFile.archivedFiles]
-            .map(item => path.basename(item));
-          if (!page.source || !sourceCandidates.includes(path.basename(page.source))) {
-            issues.push({
-              type: 'manifest_mismatch',
-              file: relPath,
-              description: '页面 source 未匹配到 manifest 记录',
-            });
+          // 如果 manifest 记录明确无源文件（sourceFile 为空且无 archivedFiles），
+          // 说明是手动创建的页面，不报 mismatch
+          const hasNoSource = !entryByPageFile.sourceFile && entryByPageFile.archivedFiles.length === 0;
+          if (!hasNoSource) {
+            const sourceCandidates = [entryByPageFile.sourceFile, ...entryByPageFile.archivedFiles]
+              .map(item => path.basename(item));
+            if (!page.source || !sourceCandidates.includes(path.basename(page.source))) {
+              issues.push({
+                type: 'manifest_mismatch',
+                file: relPath,
+                description: '页面 source 未匹配到 manifest 记录',
+              });
+            }
           }
         } else {
           const hasSourceMatch = page.source
