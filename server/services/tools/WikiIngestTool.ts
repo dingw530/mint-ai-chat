@@ -1,17 +1,13 @@
 import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { getWikiPath } from '../utils/pathSecurity.js';
-import { browserFetch } from '../utils/browserFetch.js';
 import * as settingsService from '../api/settingsService.js';
 import { parseFile, isSupportedFile } from '../utils/fileParseService.js';
 import { ingestWikiSource, buildWikiSourceText } from '../api/wikiIngestionService.js';
-
-const execAsync = promisify(exec);
+import { captureWikiPage } from '../utils/wikiPageCapture.js';
 
 const FileInputSchema = z.object({
   name: z.string().describe('原始文件名（含扩展名）'),
@@ -23,7 +19,7 @@ const WikiIngestInputSchema = z.object({
   source: z.string().optional().default('').describe('要摄入的原始资料内容（文本/Markdown），与 urls/files 至少提供一个'),
   title: z.string().optional().describe('原始资料标题，用于源文件名，省略则由 AI 自动生成'),
   category: z.string().optional().describe('分类目录名，省略则 AI 自动归类'),
-  urls: z.array(z.string().url()).optional().describe('要抓取的网页 URL 列表，服务端自动获取内容（无 CORS 限制）'),
+  urls: z.array(z.string().url().refine(value => /^https?:\/\//i.test(value), '仅支持 http/https URL')).optional().describe('要抓取的网页 URL 列表，服务端自动获取内容（无 CORS 限制）'),
   files: z.array(FileInputSchema).optional().describe('要上传的文件列表（Base64 编码），支持 HTML/TXT/MD/PDF'),
 });
 
@@ -75,11 +71,14 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
     let combinedSource = input.source || '';
     const segments: Array<{ kind: 'url' | 'file'; name: string; content: string }> = [];
     const fileTitles: string[] = [];
+    const capturedUrlTitles: string[] = [];
 
     if (input.urls && input.urls.length > 0) {
       for (const url of input.urls) {
-        const content = await this.fetchUrl(url);
-        segments.push({ kind: 'url', name: url, content });
+        const captured = await this.captureAndParseUrl(url, _context);
+        const displayName = captured.title ? `${captured.title} (${captured.url})` : captured.url;
+        segments.push({ kind: 'url', name: displayName, content: captured.text });
+        if (captured.title) capturedUrlTitles.push(captured.title);
       }
     }
 
@@ -121,6 +120,7 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
 
     // 2. 保存原始资料到 sources/
     const sourceTitle = input.title
+      || capturedUrlTitles[0]
       || (input.urls?.[0] ? `web-${new Date().toISOString().slice(0, 10)}` : '')
       || (input.files?.[0] ? fileTitles[0] : '')
       || 'untitled';
@@ -143,87 +143,39 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
     };
   }
 
-  private async fetchUrl(url: string): Promise<string> {
-    // 尝试 fetch
-    const fetchResult = await this.tryFetch(url);
-    if (fetchResult) return fetchResult;
+  private async captureAndParseUrl(url: string, context: ToolContext): Promise<{ url: string; text: string; title?: string }> {
+    const captured = await captureWikiPage(url, {
+      signal: context.signal,
+    });
 
-    // fetch 失败，降级到 curl
-    console.log(`[wiki_ingest] fetch failed for ${url}, falling back to curl`);
-    const curlResult = await this.tryCurl(url);
-    if (curlResult) return curlResult;
+    const parsed = await parseFile({
+      name: this.buildCaptureFileName(captured.finalUrl || url, captured.mode),
+      content: Buffer.from(captured.content, 'utf-8'),
+      size: Buffer.byteLength(captured.content),
+    });
 
-    return `[${url}] 无法获取内容（fetch 和 curl 均失败）`;
+    return {
+      url: captured.finalUrl || url,
+      title: captured.title,
+      text: parsed.text,
+    };
   }
 
-  private async tryFetch(url: string): Promise<string | null> {
+  private buildCaptureFileName(url: string, mode: 'html' | 'text'): string {
     try {
-      const response = await browserFetch(url, {
-        headers: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-        timeout: 10000,
-      });
-
-      if (!response.ok) return null;
-
-      const text = await response.text();
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) return text;
-      return this.htmlToText(text);
+      const parsed = new URL(url);
+      const host = parsed.hostname.replace(/^www\./i, '');
+      const pathPart = parsed.pathname
+        .replace(/\/+/g, '-')
+        .replace(/^-|-$/g, '')
+        .replace(/[^a-zA-Z0-9\u4e00-\u9fa5-]+/g, '-');
+      const base = [host, pathPart, parsed.search ? 'query' : '']
+        .filter(Boolean)
+        .join('-')
+        .replace(/-+/g, '-');
+      return `${base || 'web-page'}.${mode === 'html' ? 'html' : 'txt'}`;
     } catch {
-      return null;
+      return `web-page.${mode === 'html' ? 'html' : 'txt'}`;
     }
-  }
-
-  private async tryCurl(url: string): Promise<string | null> {
-    try {
-      const { stdout } = await execAsync(
-        `curl -sL --max-time 15 -A 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' ${JSON.stringify(url)}`,
-        { timeout: 20000, maxBuffer: 1024 * 1024 },
-      );
-
-      if (!stdout) return null;
-      return this.htmlToText(stdout);
-    } catch {
-      return null;
-    }
-  }
-
-  private htmlToText(html: string): string {
-    // 移除 script 和 style
-    let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-    text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-
-    // 替换换行标签为换行符
-    text = text.replace(/<br\s*\/?>/gi, '\n');
-    text = text.replace(/<\/p>/gi, '\n\n');
-    text = text.replace(/<\/h[1-6]>/gi, '\n');
-    text = text.replace(/<\/li>/gi, '\n');
-    text = text.replace(/<\/tr>/gi, '\n');
-    text = text.replace(/<\/div>/gi, '\n');
-
-    // 移除所有 HTML 标签
-    text = text.replace(/<[^>]+>/g, '');
-
-    // 解码 HTML 实体
-    text = text.replace(/&amp;/g, '&');
-    text = text.replace(/&lt;/g, '<');
-    text = text.replace(/&gt;/g, '>');
-    text = text.replace(/&quot;/g, '"');
-    text = text.replace(/&#39;/g, "'");
-    text = text.replace(/&#x27;/g, "'");
-    text = text.replace(/&#x2F;/g, '/');
-    text = text.replace(/&nbsp;/g, ' ');
-
-    // 合并空白行
-    text = text.replace(/\n{3,}/g, '\n\n');
-
-    // 截取过长内容（限制 50000 字符）
-    if (text.length > 50000) {
-      text = text.substring(0, 50000) + '\n\n...(内容已截断)';
-    }
-
-    return text.trim();
   }
 }

@@ -7,6 +7,7 @@ const logger = require('./logger');
 
 let mainWindow = null;
 let serverBundlePromise = null;
+let electronServiceBootstrapPromise = null;
 
 const isDev = !app.isPackaged;
 
@@ -135,6 +136,25 @@ async function getServerBundle() {
   return serverBundlePromise;
 }
 
+async function loadElectronServiceBootstrap() {
+  if (electronServiceBootstrapPromise) return electronServiceBootstrapPromise;
+
+  const bootstrapPath = isDev
+    ? path.join(__dirname, 'services', 'bootstrap.js')
+    : path.join(__dirname, 'services', 'bootstrap.js');
+
+  if (!fs.existsSync(bootstrapPath)) {
+    throw new Error(`Electron service bootstrap not found: ${bootstrapPath}`);
+  }
+
+  electronServiceBootstrapPromise = import(`file://${bootstrapPath}`).catch((err) => {
+    electronServiceBootstrapPromise = null;
+    throw err;
+  });
+
+  return electronServiceBootstrapPromise;
+}
+
 async function loadServiceModules() {
   let bundle;
   try {
@@ -164,6 +184,16 @@ async function loadServiceModules() {
     messageRepository: bundle.messageRepository,
   };
   logger.info('Service modules loaded');
+
+  try {
+    const bootstrap = await loadElectronServiceBootstrap();
+    if (bootstrap?.registerElectronServices) {
+      bootstrap.registerElectronServices(bundle);
+      logger.info('Electron service bootstrap registered');
+    }
+  } catch (err) {
+    logger.warn(`Electron service bootstrap skipped: ${err.message}`);
+  }
 
   // 启动时扫描技能
   if (services.skillSvc) {

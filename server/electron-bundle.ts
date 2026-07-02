@@ -23,3 +23,4 @@ export * as messageRepository from './repositories/messageRepository.js';
 export { generateTitle } from './services/aiProxy.js';
 export { parseFile } from './services/utils/fileParseService.js';
 export { compileSource } from './services/utils/wikiCompiler.js';
+export * as pageCaptureService from './services/utils/wikiPageCapture.js';

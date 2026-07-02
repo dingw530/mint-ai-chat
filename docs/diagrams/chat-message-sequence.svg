@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">聊天消息发送时序图</title>
+  <desc id="desc">展示用户在 Web 或 Electron 模式下发送消息后，React UI、API 封装层、传输层、后端入口、服务层、仓储层与 AI 调用之间的时序关系。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#334155"/>
+    </marker>
+    <marker id="arrowSoft" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { font: 700 28px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .lane-label { font: 700 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .lane-sub { font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .message { font: 600 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .note { font: 500 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+      .small { font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #64748b; }
+      .lane-box { rx: 16; ry: 16; }
+      .lifeline { stroke: #cbd5e1; stroke-width: 2; stroke-dasharray: 8 8; }
+      .activation { fill: #dbeafe; stroke: #60a5fa; stroke-width: 1.2; rx: 8; ry: 8; }
+      .frame { fill: rgba(255,255,255,0.75); stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 8 8; rx: 18; ry: 18; }
+      .frame-label { font: 700 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" fill="url(#bg)"/>
+
+  <text class="title" x="800" y="54" text-anchor="middle">聊天消息发送时序图</text>
+  <text class="subtitle" x="800" y="80" text-anchor="middle">Web 模式走 /api + SSE，Electron 模式走 preload/main IPC，最终汇合到同一套服务层</text>
+
+  <!-- Participants -->
+  <g transform="translate(50,0)">
+    <rect class="lane-box" x="0" y="110" width="120" height="52" fill="#fff7ed" stroke="#fb923c"/>
+    <text class="lane-label" x="60" y="133" text-anchor="middle">用户</text>
+    <text class="lane-sub" x="60" y="150" text-anchor="middle">输入消息</text>
+    <line class="lifeline" x1="60" y1="162" x2="60" y2="775"/>
+  </g>
+
+  <g transform="translate(220,0)">
+    <rect class="lane-box" x="0" y="110" width="120" height="52" fill="#eff6ff" stroke="#60a5fa"/>
+    <text class="lane-label" x="60" y="133" text-anchor="middle">React UI</text>
+    <text class="lane-sub" x="60" y="150" text-anchor="middle">ChatArea</text>
+    <line class="lifeline" x1="60" y1="162" x2="60" y2="775"/>
+    <rect class="activation" x="51" y="220" width="18" height="88"/>
+    <rect class="activation" x="51" y="580" width="18" height="92"/>
+  </g>
+
+  <g transform="translate(390,0)">
+    <rect class="lane-box" x="0" y="110" width="140" height="52" fill="#ecfeff" stroke="#22d3ee"/>
+    <text class="lane-label" x="70" y="133" text-anchor="middle">API 封装层</text>
+    <text class="lane-sub" x="70" y="150" text-anchor="middle">callEndpoint / SSE</text>
+    <line class="lifeline" x1="70" y1="162" x2="70" y2="775"/>
+    <rect class="activation" x="61" y="266" width="18" height="62"/>
+    <rect class="activation" x="61" y="556" width="18" height="110"/>
+  </g>
+
+  <g transform="translate(580,0)">
+    <rect class="lane-box" x="0" y="110" width="160" height="52" fill="#f5f3ff" stroke="#a78bfa"/>
+    <text class="lane-label" x="80" y="133" text-anchor="middle">传输层</text>
+    <text class="lane-sub" x="80" y="150" text-anchor="middle">Web SSE / IPC</text>
+    <line class="lifeline" x1="80" y1="162" x2="80" y2="775"/>
+    <rect class="activation" x="71" y="316" width="18" height="72"/>
+    <rect class="activation" x="71" y="560" width="18" height="106"/>
+  </g>
+
+  <g transform="translate(785,0)">
+    <rect class="lane-box" x="0" y="110" width="170" height="52" fill="#f0fdf4" stroke="#4ade80"/>
+    <text class="lane-label" x="85" y="132" text-anchor="middle">后端入口</text>
+    <text class="lane-sub" x="85" y="149" text-anchor="middle">route / main process</text>
+    <line class="lifeline" x1="85" y1="162" x2="85" y2="775"/>
+    <rect class="activation" x="76" y="356" width="18" height="88"/>
+    <rect class="activation" x="76" y="548" width="18" height="116"/>
+  </g>
+
+  <g transform="translate(1000,0)">
+    <rect class="lane-box" x="0" y="110" width="170" height="52" fill="#fff1f2" stroke="#fb7185"/>
+    <text class="lane-label" x="85" y="132" text-anchor="middle">服务层</text>
+    <text class="lane-sub" x="85" y="149" text-anchor="middle">message / aiProxy</text>
+    <line class="lifeline" x1="85" y1="162" x2="85" y2="775"/>
+    <rect class="activation" x="76" y="398" width="18" height="160"/>
+    <rect class="activation" x="76" y="592" width="18" height="90"/>
+  </g>
+
+  <g transform="translate(1215,0)">
+    <rect class="lane-box" x="0" y="110" width="205" height="52" fill="#f8fafc" stroke="#94a3b8"/>
+    <text class="lane-label" x="102" y="132" text-anchor="middle">仓储 / AI</text>
+    <text class="lane-sub" x="102" y="149" text-anchor="middle">SQLite / Adapter / Tool</text>
+    <line class="lifeline" x1="102" y1="162" x2="102" y2="775"/>
+    <rect class="activation" x="93" y="438" width="18" height="118"/>
+  </g>
+
+  <!-- Messages -->
+  <g>
+    <line x1="110" y1="210" x2="280" y2="210" stroke="#334155" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="195" y="198" text-anchor="middle">点击发送</text>
+
+    <line x1="340" y1="266" x2="460" y2="266" stroke="#0ea5e9" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="400" y="254" text-anchor="middle">sendMessageStream()</text>
+
+    <line x1="530" y1="320" x2="660" y2="320" stroke="#8b5cf6" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="595" y="308" text-anchor="middle">环境分流</text>
+
+    <line x1="740" y1="378" x2="870" y2="378" stroke="#10b981" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="805" y="366" text-anchor="middle">Web: /api + SSE</text>
+
+    <line x1="740" y1="418" x2="870" y2="418" stroke="#10b981" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="805" y="406" text-anchor="middle">Electron: preload + IPC</text>
+
+    <line x1="955" y1="468" x2="1080" y2="468" stroke="#22c55e" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="1018" y="456" text-anchor="middle">sendMessage()</text>
+
+    <line x1="1160" y1="510" x2="1300" y2="510" stroke="#ef4444" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="1230" y="498" text-anchor="middle">AI 调用 / 保存消息</text>
+
+    <line x1="1300" y1="568" x2="1160" y2="568" stroke="#64748b" stroke-width="2.4" marker-end="url(#arrowSoft)"/>
+    <text class="message" x="1230" y="556" text-anchor="middle">结果 / chunk</text>
+
+    <line x1="1080" y1="626" x2="955" y2="626" stroke="#64748b" stroke-width="2.4" marker-end="url(#arrowSoft)"/>
+    <text class="message" x="1018" y="614" text-anchor="middle">SSE / IPC 回传</text>
+
+    <line x1="460" y1="684" x2="280" y2="684" stroke="#0f172a" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="370" y="672" text-anchor="middle">渲染增量内容</text>
+
+    <line x1="280" y1="730" x2="110" y2="730" stroke="#334155" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text class="message" x="195" y="718" text-anchor="middle">看到回复</text>
+  </g>
+
+  <!-- Footer -->
+  <rect x="48" y="820" width="1504" height="52" rx="16" ry="16" fill="#ffffff" fill-opacity="0.7" stroke="#cbd5e1"/>
+  <text class="subtitle" x="800" y="852" text-anchor="middle">消息流核心不变：前端负责状态和渲染，传输层负责通道选择，服务层负责业务编排，Repository / Adapter 负责落库与模型调用</text>
+</svg>
