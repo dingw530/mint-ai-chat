@@ -3,7 +3,7 @@
  * 每个工具都是自包含模块，定义输入 schema、执行逻辑、权限检查
  */
 
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { ToolCall, ToolDefinition } from '../../types.js';
 
 // ── 类型定义 ──
