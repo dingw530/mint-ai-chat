@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -59,6 +60,8 @@ import { WikiLintTool } from '../services/tools/WikiLintTool.js';
 import { BashTool } from '../services/tools/BashTool.js';
 import { HttpFetchTool } from '../services/tools/HttpFetchTool.js';
 import { WikiSearchTool } from '../services/tools/WikiSearchTool.js';
+import { BaseTool } from '../services/tools/BaseTool.js';
+import { toolExecutor } from '../services/tools/ToolExecutor.js';
 
 const ctx = { conversationId: 'test-conv' };
 let tmpDir: string;
@@ -549,5 +552,33 @@ describe('WikiSearchTool', () => {
     mockWikiPath = null;
     await expect(tool.execute({ question: 'test' }, ctx))
       .rejects.toThrow('Wiki 路径未配置');
+  });
+});
+
+// ══════════════════════════════════════════
+// ToolExecutor timeout override
+// ══════════════════════════════════════════
+describe('ToolExecutor timeout override', () => {
+  class SlowTool extends BaseTool<{ delayMs: number }, { ok: boolean }> {
+    readonly name = 'slow_tool';
+    readonly description = 'slow tool';
+    readonly inputSchema = z.object({ delayMs: z.number() });
+    readonly executionTimeoutMs = 20;
+
+    async execute(input: { delayMs: number }): Promise<{ ok: boolean }> {
+      await new Promise(resolve => setTimeout(resolve, input.delayMs));
+      return { ok: true };
+    }
+  }
+
+  beforeEach(() => {
+    const registry = (toolExecutor as any).registry;
+    registry.register(new SlowTool());
+  });
+
+  it('should prefer tool execution timeout over default timeout', async () => {
+    const result = await toolExecutor.execute('slow_tool', { delayMs: 50 }, ctx);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('timed out after 20ms');
   });
 });

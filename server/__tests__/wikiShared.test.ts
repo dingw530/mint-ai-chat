@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { tryParseLooseJson, writeWikiPages, updateIndexMd, CompiledPage } from '../services/utils/wikiShared.js';
+import type { CompiledPage } from '../services/utils/wikiShared.js';
+import { tryParseLooseJson, writeWikiPages, updateIndexMd } from '../services/utils/wikiShared.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
@@ -65,7 +66,7 @@ describe('tryParseLooseJson', () => {
       "filename": "pages/ai/test.md",
       "title": "测试",
       "tags": ["tag"],
-      "content": "作者认为「这样」是\"正确\"的。"
+      "content": "作者认为「这样」是"正确"的。"
     }
   ]
 }`;

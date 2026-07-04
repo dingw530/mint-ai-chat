@@ -1,5 +1,5 @@
 import { getDb } from '../db.js';
-import { MemoryRow, Memory, CreateMemoryParams, UpdateMemoryParams } from '../types.js';
+import type { MemoryRow, Memory, CreateMemoryParams, UpdateMemoryParams } from '../types.js';
 
 function toCamelCase(row: MemoryRow): Memory {
   return {

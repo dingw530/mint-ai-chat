@@ -7,11 +7,13 @@ import { useSidebarResize } from '@/hooks/useSidebarResize';
 import { createConversation } from '@/services/api';
 
 type AppContext = { onOpenSettings: () => void };
+type ViewMode = 'file' | 'graph';
 
 export default function WikiPage() {
   const { onOpenSettings } = useOutletContext<AppContext>();
   const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useSidebarResize();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('file');
   const navigate = useNavigate();
 
   const handleAskQuestion = useCallback(async (question: string) => {
@@ -23,18 +25,24 @@ export default function WikiPage() {
     }
   }, [navigate]);
 
+  const handleFileSelect = useCallback((path: string | null) => {
+    setSelectedFile(path);
+    if (path) setViewMode('file');
+  }, []);
+
   return (
     <>
       <aside className="sidebar sidebar--wiki" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
         <SidebarHeader onOpenSettings={onOpenSettings} />
-        <WikiSidebar selectedFile={selectedFile} onFileSelect={setSelectedFile} />
+        <WikiSidebar selectedFile={selectedFile} onFileSelect={handleFileSelect} viewMode={viewMode} onViewModeChange={setViewMode} />
         <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
       </aside>
       <WikiPanel
         filePath={selectedFile}
+        viewMode={viewMode}
         onAskQuestion={handleAskQuestion}
         onBack={() => setSelectedFile(null)}
-        onFileSelect={setSelectedFile}
+        onFileSelect={handleFileSelect}
       />
     </>
   );

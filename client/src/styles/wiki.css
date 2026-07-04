@@ -677,3 +677,309 @@
 .wiki-content-breadcrumb-link:hover {
   color: var(--accent-hover);
 }
+
+/* ── Sidebar Mode Toggle ── */
+
+.wiki-mode-row {
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.wiki-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.wiki-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+.wiki-mode-btn:hover {
+  color: var(--text-secondary);
+}
+
+.wiki-mode-btn.active {
+  color: var(--accent);
+}
+
+.wiki-mode-btn svg {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.wiki-mode-btn.active svg {
+  opacity: 1;
+}
+
+.wiki-mode-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* ── Knowledge Graph Colors (legacy; component uses inline palette) ── */
+
+:root {
+  --graph-node-concept-bg: #E3F2FD;
+  --graph-node-concept-border: #42A5F5;
+  --graph-node-practice-bg: #FFF3E0;
+  --graph-node-practice-border: #FF8A65;
+  --graph-node-methodology-bg: #FFF8E1;
+  --graph-node-methodology-border: #FFD54F;
+  --graph-node-font-color: var(--text-primary);
+  --graph-edge-color: #d4d4d4;
+  --graph-edge-font-color: var(--text-tertiary);
+}
+
+/* ── Knowledge Graph ── */
+
+.wiki-graph-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+.wiki-graph-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wiki-graph-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.wiki-graph-search-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.wiki-graph-search-input {
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 180px;
+}
+
+.wiki-graph-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.wiki-graph-error {
+  font-size: 12px;
+  color: var(--error-text);
+}
+
+.wiki-graph-loading {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.wiki-graph-canvas {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.wiki-graph-canvas > canvas {
+  display: block;
+}
+
+/* ── Graph Empty State ── */
+
+.wiki-graph-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-tertiary);
+  padding: 40px;
+}
+
+.wiki-graph-empty-icon {
+  opacity: 0.4;
+  margin-bottom: 8px;
+}
+
+.wiki-graph-empty h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.wiki-graph-empty p {
+  margin: 0;
+  font-size: 13px;
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+/* ── Node Detail Panel ── */
+
+.graph-node-detail {
+  position: absolute;
+  right: 16px;
+  top: 56px;
+  width: 280px;
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.graph-node-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.graph-node-detail-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.graph-node-detail-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--text-tertiary);
+  padding: 0;
+  line-height: 1;
+}
+
+.graph-node-detail-close:hover {
+  color: var(--text-primary);
+}
+
+.graph-node-detail-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.graph-node-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.graph-node-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.graph-node-detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.graph-node-detail-link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.graph-node-detail-link:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}
+
+.graph-node-detail-props {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 6px 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.graph-node-detail-relations {
+  padding: 0 16px 12px;
+}
+
+.graph-node-detail-section-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.graph-node-detail-relation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.graph-node-detail-relation-arrow {
+  color: var(--accent);
+  font-weight: 600;
+  width: 14px;
+  text-align: center;
+}
+
+.graph-node-detail-relation-label {
+  color: var(--text-primary);
+}
+
+.graph-node-detail-relation-node {
+  color: var(--accent);
+  font-weight: 500;
+  margin-left: auto;
+}

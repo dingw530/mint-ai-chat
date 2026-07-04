@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import * as fs from 'fs';
 import * as path from 'path';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
@@ -38,6 +37,7 @@ interface WikiIngestOutput {
 }
 export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> {
   readonly name = 'wiki_ingest';
+  readonly executionTimeoutMs = 120000;
   readonly description = `将原始资料编译到 Wiki 知识库，遵循三层架构：
 1. 保存原始资料到 sources/ 目录（不可变）
 2. 调用 AI 分析并生成结构化 Markdown 页面

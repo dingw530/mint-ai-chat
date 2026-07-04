@@ -1,9 +1,10 @@
 import { getAllToolDefinitions } from './toolRegistry.js';
-import { HistoryMessage, AiSettings, StreamResult } from '../types.js';
-import { ApiAdapter, getAdapter } from './adapters/apiAdapter.js';
+import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
+import type { ApiAdapter} from './adapters/apiAdapter.js';
+import { getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
-import { Sink } from './sink.js';
+import type { Sink } from './sink.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -175,7 +176,7 @@ export async function generateTitle(settings: AiSettings, userContent: string, a
 
     console.log('[generateTitle] raw response:', JSON.stringify(content));
 
-    let title = content.replace(/^["'「「『""]+|["'」」』""]+$/g, '').trim();
+    const title = content.replace(/^["'「「『""]+|["'」」』""]+$/g, '').trim();
 
     console.log('[generateTitle] result:', JSON.stringify(title));
     if (!title) {

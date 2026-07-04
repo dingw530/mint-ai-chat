@@ -1,7 +1,7 @@
 import * as settingsRepo from '../../repositories/settingsRepository.js';
 import * as endpointRepo from '../../repositories/endpointRepository.js';
 import { encrypt, decrypt, maskApiKey } from '../utils/encryption.js';
-import { RawSettings, SettingsInput, AiSettings, VisibleSettings } from '../../types.js';
+import type { RawSettings, SettingsInput, AiSettings, VisibleSettings } from '../../types.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

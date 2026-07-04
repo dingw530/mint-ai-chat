@@ -91,7 +91,7 @@ export class WikiQueryTool extends BaseTool<WikiQueryInput, WikiQueryOutput> {
   private extractKeywords(text: string): string[] {
     // 简单分词：按空格和常见标点分割，过滤短词和停用词
     const stopWords = new Set(['的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个', '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好', '自己', '这', '他', '她', '它', '们', '什么', '怎么', '如何', '为什么', '哪些', '哪个', '请', '吗', '吧', '呢', '啊', 'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'about']);
-    const words = text.split(/[\s,，。.！？、；：""''（）()【】\[\]{}]+/);
+    const words = text.split(/[\]\s,，。.！？、；：""''（）()【】[{}]+/);
     return words.filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
   }
 

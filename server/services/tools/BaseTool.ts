@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { ToolCall, ToolDefinition } from '../../types.js';
+import type { ToolCall, ToolDefinition } from '../../types.js';
 
 // ── 类型定义 ──
 
@@ -48,6 +48,12 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
    * 输入参数 Schema（Zod）
    */
   abstract readonly inputSchema: z.ZodType<Input>;
+
+  /**
+   * 工具执行超时时间（毫秒）。
+   * 未设置时由 ToolExecutor 使用全局默认值。
+   */
+  executionTimeoutMs?: number;
 
   /**
    * 是否启用（可根据环境动态控制）

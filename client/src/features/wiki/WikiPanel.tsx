@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react';
 import { readWiki } from '@/services/api';
 import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
+import WikiGraphPanel from './WikiGraphPanel';
 
 type WikiFrontmatter = {
   title?: string;
@@ -123,12 +124,13 @@ function parseWikiDocument(filePath: string, content: string): WikiDocument {
 
 interface WikiPanelProps {
   filePath: string | null;
+  viewMode: 'file' | 'graph';
   onAskQuestion?: (question: string) => void;
   onBack?: () => void;
   onFileSelect?: (path: string) => void;
 }
 
-export default function WikiPanel({ filePath, onAskQuestion, onBack, onFileSelect }: WikiPanelProps) {
+export default function WikiPanel({ filePath, viewMode, onAskQuestion, onBack, onFileSelect }: WikiPanelProps) {
   const unsupportedExts = new Set(['pdf', 'html', 'htm']);
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -187,7 +189,7 @@ export default function WikiPanel({ filePath, onAskQuestion, onBack, onFileSelec
   return (
     <div className="wiki-content-area">
       <div className="wiki-content-header">
-        {filePath ? (
+        {viewMode === 'file' && filePath ? (
           <div className="wiki-content-breadcrumb">
             <span className="wiki-content-breadcrumb-link" onClick={onBack}>知识库</span>
             {document?.fileDir && (
@@ -199,10 +201,13 @@ export default function WikiPanel({ filePath, onAskQuestion, onBack, onFileSelec
             <span className="wiki-content-breadcrumb-sep">/</span>
             <span className="wiki-content-breadcrumb-current">{document?.fileName || ''}</span>
           </div>
-        ) : (
+        ) : viewMode === 'file' ? (
           <span className="wiki-content-title">知识库</span>
-        )}
+        ) : null}
       </div>
+      {viewMode === 'graph' ? (
+        <WikiGraphPanel onOpenFile={onFileSelect} />
+      ) : (
       <div className="wiki-content-scroll">
       {loading && (
         <div className="skeleton-wiki-content">
@@ -328,6 +333,7 @@ export default function WikiPanel({ filePath, onAskQuestion, onBack, onFileSelec
         );
       })()}
       </div>
+      )}
     </div>
   );
 }

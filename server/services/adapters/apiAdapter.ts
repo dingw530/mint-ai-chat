@@ -1,4 +1,4 @@
-import { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
+import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
 
 export interface ParsedChunk {
   content?: string;

@@ -22,6 +22,7 @@ export { WikiIngestTool } from './WikiIngestTool.js';
 export { WikiQueryTool } from './WikiQueryTool.js';
 export { WikiLintTool } from './WikiLintTool.js';
 export { WikiSearchTool } from './WikiSearchTool.js';
+export { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
 
 // 工具实例（用于注册）
 import { WeatherTool } from './WeatherTool.js';
@@ -31,11 +32,10 @@ import { BashTool } from './BashTool.js';
 import { InvokeAgentTool } from './InvokeAgentTool.js';
 import { ReadFileTool } from './ReadFileTool.js';
 import { WriteFileTool } from './WriteFileTool.js';
-import { ListFilesTool } from './ListFilesTool.js';
 import { WikiIngestTool } from './WikiIngestTool.js';
-import { WikiQueryTool } from './WikiQueryTool.js';
 import { WikiLintTool } from './WikiLintTool.js';
 import { WikiSearchTool } from './WikiSearchTool.js';
+import { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
 import { toolRegistry } from './ToolRegistry.js';
 
 // 内置工具列表
@@ -50,6 +50,7 @@ export const builtinTools = [
   new WikiIngestTool(),
   new WikiLintTool(),
   new WikiSearchTool(),
+  new KnowledgeGraphTool(),
 ];
 
 /**

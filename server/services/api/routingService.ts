@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../utils/logger.js';
 import * as settingsService from './settingsService.js';
 import * as routingLogRepo from '../../repositories/routingLogRepository.js';
-import { Agent } from '../../types.js';
+import type { Agent } from '../../types.js';
 import { getAdapter } from '../adapters/apiAdapter.js';
 
 // ── 类型定义 ──

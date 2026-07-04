@@ -4,8 +4,9 @@
  */
 
 import type { ToolContext } from './BaseTool.js';
-import { ToolRegistry, toolRegistry } from './ToolRegistry.js';
-import { ToolCall } from '../../types.js';
+import type { ToolRegistry} from './ToolRegistry.js';
+import { toolRegistry } from './ToolRegistry.js';
+import type { ToolCall } from '../../types.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('tool-executor');
@@ -50,7 +51,7 @@ export class ToolExecutor {
   ): Promise<ExecutionResult<T>> {
     const startTime = Date.now();
     const {
-      timeout = 30000,
+      timeout,
       retries = 0,
       retryDelay = 1000,
       validateInput = true,
@@ -65,6 +66,8 @@ export class ToolExecutor {
         duration: Date.now() - startTime,
       };
     }
+
+    const effectiveTimeout = timeout ?? tool.executionTimeoutMs ?? 30000;
 
     if (!tool.isEnabled()) {
       return {
@@ -106,7 +109,7 @@ export class ToolExecutor {
       try {
         const result = await this.executeWithTimeout(
           () => tool.execute(input, context),
-          timeout,
+          effectiveTimeout,
         );
 
         return {

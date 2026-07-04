@@ -8,8 +8,8 @@ import { routingService } from './api/routingService.js';
 import { streamChat } from './aiProxy.js';
 import { reactChat } from './reactLoopCore.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
-import { HttpError, HistoryMessage } from '../types.js';
-import { Sink } from './sink.js';
+import type { HttpError, HistoryMessage } from '../types.js';
+import type { Sink } from './sink.js';
 import { parseFile, isSupportedFile } from './utils/fileParseService.js';
 
 export function getMessages(conversationId: string) {
@@ -113,22 +113,18 @@ export async function sendMessage(conversationId: string, content: string, sink:
     ? [{ role: 'system', content: systemPrompt }, ...history]
     : history;
 
-  // 注入记忆上下文
+  // 收集 system 附加上下文，统一追加到第一条 system message 末尾
+  const systemExtras: string[] = [];
+
   if (settings.memoryEnabled) {
     const memoryContext = memoryService.buildMemoryContext();
     if (memoryContext) {
-      const sysIdx = messages.findIndex(m => m.role === 'system');
-      if (sysIdx >= 0) {
-        messages.splice(sysIdx + 1, 0, { role: 'system', content: memoryContext });
-      } else {
-        messages.unshift({ role: 'system', content: memoryContext });
-      }
+      systemExtras.push(memoryContext);
     }
   }
 
-  // Wiki 工具使用指南：当 Wiki 路径已配置时自动追加
   if (settings.wikiPath) {
-    const wikiGuide = [
+    systemExtras.push([
       `⚠️ Wiki 知识库使用规则（必须遵守）：知识库根目录: ${settings.wikiPath}`,
       '',
       '【禁止操作】',
@@ -155,12 +151,15 @@ export async function sendMessage(conversationId: string, content: string, sink:
       '- 一次 search 返回的结果通常已包含足够信息，避免反复换关键词搜索。',
       '- 如需查阅多个页面，优先使用 paths 批量读取或并行调用，减少工具调用轮次。',
       '- 对知识库不熟悉时，先读取 _index.md 了解整体结构，再决定要查阅哪些页面。',
-    ].join('\n');
+    ].join('\n'));
+  }
+
+  if (systemExtras.length > 0) {
     const sysIdx = messages.findIndex(m => m.role === 'system');
     if (sysIdx >= 0) {
-      messages[sysIdx].content += wikiGuide;
+      messages[sysIdx].content += '\n\n' + systemExtras.join('\n\n');
     } else {
-      messages.unshift({ role: 'system', content: wikiGuide });
+      messages.unshift({ role: 'system', content: systemExtras.join('\n\n') });
     }
   }
 

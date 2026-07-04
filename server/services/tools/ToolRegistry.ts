@@ -127,7 +127,7 @@ export class ToolRegistry {
         data: result,
       };
     } catch (err) {
-      log.error(`Tool execution failed: ${name}`, err);
+      log.error(`Tool execution failed: ${name}`, { error: String(err) });
       return {
         success: false,
         error: (err as Error).message,

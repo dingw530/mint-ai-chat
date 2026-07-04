@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as memoryRepo from '../../repositories/memoryRepository.js';
 import { getAdapter } from '../adapters/apiAdapter.js';
-import { Memory, CreateMemoryParams, UpdateMemoryParams, AiSettings } from '../../types.js';
+import type { Memory, CreateMemoryParams, UpdateMemoryParams, AiSettings } from '../../types.js';
 
 const CATEGORY_ORDER = ['personal', 'preference', 'feedback', 'project', 'goal', 'general'];
 const CATEGORY_LABELS: Record<string, string> = {

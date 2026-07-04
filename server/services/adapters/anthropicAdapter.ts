@@ -1,5 +1,6 @@
-import { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
-import { ApiAdapter, ParsedChunk, CallOptions, registerAdapter } from './apiAdapter.js';
+import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
+import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
+import { registerAdapter } from './apiAdapter.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('anthropic-adapter');

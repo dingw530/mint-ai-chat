@@ -177,7 +177,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'about',
     ]);
     return text
-      .split(/[\s,，。.！？、；：""''（）()【】\[\]{}]+/)
+      .split(/[\]\s,，。.！？、；：""''（）()【】[{}]+/)
       .filter(w => w.length >= 2 && !stopWords.has(w.toLowerCase()));
   }
 

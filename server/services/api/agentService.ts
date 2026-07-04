@@ -1,5 +1,5 @@
 import * as agentRepo from '../../repositories/agentRepository.js';
-import { Agent } from '../../types.js';
+import type { Agent } from '../../types.js';
 
 // 编排 Agent 的默认系统提示词后缀
 const ORCHESTRATOR_INSTRUCTION = `

@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import multer from 'multer';
 import * as wikiService from '../services/api/wikiService.js';
 import { ingestWikiSource, buildWikiSourceText, archiveWikiRawFile } from '../services/api/wikiIngestionService.js';

@@ -6,7 +6,7 @@
 //   TerminalSink   → CLI 终端彩色输出 (chalk)
 //   AccumulatingSink → 内存累加 (测试/非流式)
 
-import { Response as ExpressResponse } from 'express';
+import type { Response as ExpressResponse } from 'express';
 import chalk from 'chalk';
 
 export interface Sink {

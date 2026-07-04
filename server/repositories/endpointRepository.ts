@@ -1,5 +1,5 @@
 import { getDb } from '../db.js';
-import { EndpointRow, Endpoint } from '../types.js';
+import type { EndpointRow, Endpoint } from '../types.js';
 
 function toCamelCase(row: EndpointRow): Endpoint {
   return {

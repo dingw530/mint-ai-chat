@@ -5,7 +5,7 @@
  * 策略：保留 system 消息 + 最近 N 轮对话，连带保留关联的 tool 消息。
  */
 
-import { HistoryMessage } from '../../types.js';
+import type { HistoryMessage } from '../../types.js';
 
 export interface TrimOptions {
   /** 保留的最新对话轮数，默认 10 */

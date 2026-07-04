@@ -272,6 +272,16 @@ export function appendWikiManifestEntry(wikiPath: string, entry: WikiManifestEnt
 
 // ── Write pages ──
 
+/** Replace whitespace in filename portion of a wiki path with hyphens. */
+function sanitizeWikiFilename(pagePath: string): string {
+  const parts = pagePath.split('/');
+  if (parts.length > 2) {
+    const filename = parts.pop()!;
+    parts.push(filename.replace(/[\s]+/g, '-'));
+  }
+  return parts.join('/');
+}
+
 /**
  * Write compiled pages to disk, assembling YAML frontmatter from separate fields + markdown body.
  */
@@ -283,13 +293,17 @@ export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filen
     if (!isPathSafe(wikiPath, pagePath)) {
       throw new Error(`路径穿越被拒绝: ${pagePath}`);
     }
+    // sanitize: replace whitespace in filename (not category dirs) with hyphens
+    const sanitizedPath = sanitizeWikiFilename(pagePath);
+    page.filename = sanitizedPath; // update for caller (e.g. updateIndexMd)
+
     // require a category directory in the path (pages/category/file.md)
-    const pathSegments = pagePath.split('/');
+    const pathSegments = sanitizedPath.split('/');
     if (pathSegments.length < 3) {
-      throw new Error(`页面缺少分类目录: ${pagePath}，格式必须为 pages/分类/文件名.md`);
+      throw new Error(`页面缺少分类目录: ${sanitizedPath}，格式必须为 pages/分类/文件名.md`);
     }
 
-    const resolvedPath = path.resolve(wikiPath, pagePath);
+    const resolvedPath = path.resolve(wikiPath, sanitizedPath);
     const dir = path.dirname(resolvedPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -309,7 +323,7 @@ export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filen
     const stat = fs.statSync(resolvedPath);
 
     results.push({
-      filename: pagePath,
+      filename: sanitizedPath, // return sanitized path
       title: page.title,
       size: stat.size,
     });

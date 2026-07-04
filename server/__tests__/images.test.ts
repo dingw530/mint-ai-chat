@@ -63,6 +63,7 @@ const runIf = (condition: any) => (condition ? describe : describe.skip);
 
 runIf(server)('Image Generation — Endpoint Category CRUD', () => {
   let textEndpointId: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let imageEndpointId: string;
 
   it('should create a text endpoint (default category)', async () => {

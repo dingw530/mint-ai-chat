@@ -36,9 +36,11 @@ function formatFileSize(bytes: number): string {
 interface WikiSidebarProps {
   selectedFile: string | null;
   onFileSelect: (path: string | null) => void;
+  viewMode: 'file' | 'graph';
+  onViewModeChange: (mode: 'file' | 'graph') => void;
 }
 
-export default function WikiSidebar({ selectedFile, onFileSelect }: WikiSidebarProps) {
+export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onViewModeChange }: WikiSidebarProps) {
   const [wikiTree, setWikiTree] = useState<WikiFileTreeNode[]>([]);
   const [wikiLoading, setWikiLoading] = useState(false);
   const [wikiError, setWikiError] = useState<string | null>(null);
@@ -230,6 +232,38 @@ export default function WikiSidebar({ selectedFile, onFileSelect }: WikiSidebarP
 
   return (
     <div className="sidebar-wiki-content">
+      <div className="wiki-mode-row">
+        <div className="wiki-mode-toggle">
+          <button
+            className={`wiki-mode-btn ${viewMode === 'file' ? 'active' : ''}`}
+            onClick={() => onViewModeChange('file')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+              <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            文档
+          </button>
+          <span className="wiki-mode-sep" />
+          <button
+            className={`wiki-mode-btn ${viewMode === 'graph' ? 'active' : ''}`}
+            onClick={() => onViewModeChange('graph')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+              <circle cx="12" cy="12" r="3" />
+              <circle cx="5" cy="5" r="2" />
+              <circle cx="19" cy="5" r="2" />
+              <circle cx="5" cy="19" r="2" />
+              <circle cx="19" cy="19" r="2" />
+              <line x1="9" y1="9" x2="7" y2="7" />
+              <line x1="15" y1="9" x2="17" y2="7" />
+              <line x1="9" y1="15" x2="7" y2="17" />
+              <line x1="15" y1="15" x2="17" y2="17" />
+            </svg>
+            图谱
+          </button>
+        </div>
+      </div>
       <div className="wiki-tree-header-bar">
         <span className="wiki-tree-header-label">文件</span>
         <div className="wiki-tree-header-actions">

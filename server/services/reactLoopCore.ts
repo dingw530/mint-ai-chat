@@ -1,8 +1,8 @@
-import { HistoryMessage, AiSettings, StreamResult } from '../types.js';
+import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine } from './toolRoundEngine.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
-import { Sink } from './sink.js';
+import type { Sink } from './sink.js';
 import { trimContext } from './utils/contextWindow.js';
 
 

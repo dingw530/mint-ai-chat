@@ -80,7 +80,7 @@ export async function listSkills(): Promise<Skill[]> {
   try {
     entries = await readdir(dir);
   } catch (err) {
-    log.error(`Failed to read skills directory: ${dir}`, err);
+    log.error(`Failed to read skills directory: ${dir}`, { error: String(err) });
     cachedSkills = [];
     return cachedSkills;
   }
@@ -124,7 +124,7 @@ export async function listSkills(): Promise<Skill[]> {
 
       log.debug(`Loaded skill: ${resolvedName}`);
     } catch (err) {
-      log.error(`Failed to load skill file: ${filePath}`, err);
+      log.error(`Failed to load skill file: ${filePath}`, { error: String(err) });
     }
   }
 
