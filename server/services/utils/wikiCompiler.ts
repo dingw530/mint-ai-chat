@@ -1,12 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getAdapter } from '../adapters/apiAdapter.js';
-import { isPathSafe } from './pathSecurity.js';
-import { CompiledPage, INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd, discoverCategoriesFromDir } from './wikiShared.js';
+import type { CompiledPage} from './wikiShared.js';
+import { INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd, discoverCategoriesFromDir } from './wikiShared.js';
 import type { AiSettings } from '../../types.js';
 
 export interface CompileResult {
   pages: { filename: string; title: string; size: number }[];
+  compiledPages: CompiledPage[];  // 完整页面数据（含 tags/content），供图构建使用
   summary: string;
 }
 
@@ -106,16 +107,13 @@ export async function compileSource(
     options?.category,
   );
 
-  let compiled: { pages: CompiledPage[]; summary: string };
   // AI 常在 content 字段中输出字面换行符，导致 JSON.parse 失败，先尝试宽松解析
-  let parsed: any = tryParseLooseJson(aiResult);
-  if (!parsed) {
-    const preview = aiResult.length > 500 ? aiResult.substring(0, 500) + '...' : aiResult;
+  const compiled: { pages: CompiledPage[]; summary: string } = tryParseLooseJson(aiResult);
+  if (!compiled) {
     console.error(`[wikiCompiler] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
     console.error(aiResult);
     throw new Error(`AI 返回格式异常，完整返回已打印到日志`);
   }
-  compiled = parsed;
 
   if (!compiled.pages || compiled.pages.length === 0) {
     throw new Error('AI 未生成任何 Wiki 页面');
@@ -126,6 +124,7 @@ export async function compileSource(
 
   return {
     pages: results,
+    compiledPages: compiled.pages,
     summary: compiled.summary || `成功创建 ${results.length} 个 Wiki 页面`,
   };
 }

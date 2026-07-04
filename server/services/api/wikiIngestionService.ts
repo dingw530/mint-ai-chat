@@ -3,6 +3,11 @@ import * as path from 'path';
 import type { AiSettings } from '../../types.js';
 import { compileSource } from '../utils/wikiCompiler.js';
 import { appendWikiManifestEntry } from '../utils/wikiShared.js';
+import { buildGraphFromPages } from '../graphBuilder.js';
+import { createLogger } from '../../utils/logger.js';
+
+
+const log = createLogger('wiki-ingestion');
 
 /**
  * 原始归档文件输入。上传链路可直接传 buffer，异步作业链路可复用既有相对路径。
@@ -101,7 +106,6 @@ function archiveRawFiles(wikiPath: string, files: WikiArchivedFileInput[] | unde
 
   const sourcesDir = path.join(wikiPath, 'sources');
   ensureDir(sourcesDir);
-  const date = new Date().toISOString().slice(0, 10);
   const archivedPaths: string[] = [];
 
   for (const file of files) {
@@ -178,6 +182,17 @@ export async function ingestWikiSource(
     path.basename(sourceFile),
     { title: request.sourceTitle, category: request.category },
   );
+
+  // 摄入后自动构建知识图谱（方案 C Phase 1 + 2）
+  try {
+    const graphResult = buildGraphFromPages(compileResult.compiledPages);
+    if (graphResult.errors.length > 0) {
+      log.warn('[graphBuilder] 部分构建失败:', { errors: graphResult.errors });
+    }
+  } catch (err) {
+    // 图谱构建失败不应阻塞摄入主流程
+    log.error('[graphBuilder] 构建异常:', { error: (err as Error).message });
+  }
 
   const manifestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   appendWikiManifestEntry(wikiPath, {

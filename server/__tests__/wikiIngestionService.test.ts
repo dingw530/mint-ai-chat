@@ -8,6 +8,9 @@ vi.mock('../services/utils/wikiCompiler.js', () => ({
     pages: [
       { filename: 'pages/wiki/result.md', title: 'Result Page', size: 123 },
     ],
+    compiledPages: [
+      { filename: 'pages/wiki/result.md', title: 'Result Page', tags: ['tag1'], content: '# Result' },
+    ],
     summary: '编译摘要',
   }),
 }));
