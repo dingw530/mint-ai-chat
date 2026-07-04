@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import SelectField from '@/shared/components/SelectField';
 import { getMemories, createMemory, updateMemory, deleteMemory } from '@/services/api';
 import type { Memory } from '@/types';
 
@@ -142,7 +143,15 @@ export default function MemoriesPanel({ onToast }: MemoriesPanelProps) {
   const isFormVisible = editingId !== null;
 
   if (loading) {
-    return <div className="panel-loading">加载中...</div>;
+    return (
+      <div className="skeleton-panel">
+        <div className="skeleton skeleton-panel-header" />
+        <div className="skeleton skeleton-panel-row" />
+        <div className="skeleton skeleton-panel-row" />
+        <div className="skeleton skeleton-panel-row short" />
+        <div className="skeleton skeleton-panel-row" />
+      </div>
+    );
   }
 
   return (
@@ -178,17 +187,18 @@ export default function MemoriesPanel({ onToast }: MemoriesPanelProps) {
           </div>
           <div className="form-group">
             <label>分类</label>
-            <select
+            <SelectField
+              options={[
+                { value: '', label: '通用' },
+                { value: 'personal', label: '个人信息' },
+                { value: 'preference', label: '偏好' },
+                { value: 'feedback', label: '反馈' },
+                { value: 'project', label: '项目' },
+                { value: 'goal', label: '目标' },
+              ]}
               value={form.category}
-              onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
-            >
-              <option value="">通用</option>
-              <option value="personal">个人信息</option>
-              <option value="preference">偏好</option>
-              <option value="feedback">反馈</option>
-              <option value="project">项目</option>
-              <option value="goal">目标</option>
-            </select>
+              onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
+            />
           </div>
           <div className="form-actions">
             <button className="btn-secondary" onClick={handleCancel}>取消</button>

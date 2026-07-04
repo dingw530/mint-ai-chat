@@ -62,7 +62,7 @@
     radial-gradient(ellipse 600px 500px at 100% 100%, rgba(91, 143, 185, 0.025) 0%, transparent 50%);
 }
 
-/* Sidebar — deeper warm tone */
+
 .theme-mint .sidebar {
   background: var(--bg-secondary);
 }

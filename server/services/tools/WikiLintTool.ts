@@ -4,19 +4,31 @@ import * as path from 'path';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { getWikiPath } from '../utils/pathSecurity.js';
+import { parseWikiFrontmatter, parseWikiPage, readWikiManifest } from '../utils/wikiShared.js';
+import { WikiSearchTool } from './WikiSearchTool.js';
 
 const WikiLintInputSchema = z.object({});
 
 type WikiLintInput = z.infer<typeof WikiLintInputSchema>;
 
 interface LintIssue {
-  type: 'orphan' | 'broken_link' | 'missing_frontmatter' | 'schema_mismatch' | 'uncompiled_source';
+  type:
+    | 'orphan'
+    | 'broken_link'
+    | 'missing_frontmatter'
+    | 'missing_required_field'
+    | 'schema_mismatch'
+    | 'uncompiled_source'
+    | 'manifest_missing'
+    | 'manifest_mismatch'
+    | 'index_drift';
   file: string;
   description: string;
 }
 
 interface WikiLintOutput {
   healthy: boolean;
+  directoryTree: string;
   issues: LintIssue[];
   totalSourceFiles: number;
   totalPages: number;
@@ -25,9 +37,9 @@ interface WikiLintOutput {
 
 export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
   readonly name = 'wiki_lint';
-  readonly description = `检查 Wiki 知识库的健康状况（三层架构）。
+  readonly description = `检查 Wiki 知识库的健康状况。输出目录结构、元数据检查，并通过 wiki_search 验证所有内部链接是否断裂。
 检查范围：pages/（Wiki 知识层）和 sources/（Sources 层）。
-检查项：孤立页面、断裂链接、缺少 frontmatter、Schema 合规性、未编译的原始资料。`;
+检查项：缺少 frontmatter、必填字段缺失、Schema 标签合规性、未编译资料、断裂链接、孤立页面、manifest 一致性、索引漂移。`;
   readonly inputSchema = WikiLintInputSchema;
 
   isReadOnly(): boolean {
@@ -49,7 +61,15 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
     // 读取 Schema
     const schema = this.readSchema(wikiPath);
     const validTags = new Set<string>((schema.tags as string[]) || []);
-    void (schema.categories); // 预留
+    const manifest = readWikiManifest(wikiPath);
+    const manifestPath = path.join(wikiPath, '_manifest.json');
+    if (!fs.existsSync(manifestPath)) {
+      issues.push({
+        type: 'manifest_missing',
+        file: '_manifest.json',
+        description: 'manifest 文件不存在',
+      });
+    }
 
     // 扫描 sources/ 和 pages/
     const sourcesDir = path.join(wikiPath, 'sources');
@@ -58,14 +78,35 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
     const sourceFiles = this.findMdFiles(sourcesDir);
     const pageFiles = this.findMdFiles(pagesDir);
 
-    // 检查 pages/ 中的页面
-    const pageNames = new Set<string>();
-    const backlinks = new Map<string, string[]>();
+    // 生成目录树
+    const treeLines: string[] = ['pages/'];
+    for (const filePath of pageFiles) {
+      const relPath = path.relative(pagesDir, filePath);
+      treeLines.push('  ' + relPath);
+    }
+    treeLines.push('sources/');
+    for (const filePath of sourceFiles) {
+      const relPath = path.relative(sourcesDir, filePath);
+      if (relPath === '.gitkeep') continue;
+      treeLines.push('  ' + relPath);
+    }
+    const directoryTree = treeLines.join('\n');
+
+    // 第二轮：检查页面元数据 + 提取内部链接
+    const linksToVerify: Array<{ source: string; target: string }> = [];
+    const inboundTargets = new Set<string>();
+    const indexedPages = this.readIndexedPages(wikiPath);
+    const pageSet = new Set<string>();
+    const manifestPageSet = new Set<string>();
+    for (const entry of manifest.entries) {
+      for (const pageFile of entry.pageFiles) {
+        manifestPageSet.add(pageFile.replace(/\\/g, '/'));
+      }
+    }
 
     for (const filePath of pageFiles) {
       const relPath = path.relative(wikiPath, filePath);
-      const pageName = relPath.replace(/\.md$/, '');
-      pageNames.add(pageName);
+      pageSet.add(relPath.replace(/\\/g, '/'));
 
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
@@ -78,11 +119,18 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
             description: '缺少 YAML frontmatter',
           });
         } else {
-          // 解析 frontmatter 检查 schema 合规性
-          const frontmatter = this.parseFrontmatter(content);
+          const frontmatter = parseWikiFrontmatter(content);
           if (frontmatter) {
-            // 检查 tags 是否在 schema 中
             const tags: string[] = (frontmatter.tags as string[]) || [];
+            for (const field of ['title', 'created', 'source']) {
+              if (!frontmatter[field] || typeof frontmatter[field] !== 'string' || !(frontmatter[field] as string).trim()) {
+                issues.push({
+                  type: 'missing_required_field',
+                  file: relPath,
+                  description: `frontmatter 缺少必填字段 "${field}"`,
+                });
+              }
+            }
             if (validTags.size > 0) {
               for (const tag of tags) {
                 if (!validTags.has(tag)) {
@@ -97,58 +145,151 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
           }
         }
 
-        // 提取链接
+        // 提取内部 Markdown 链接
         const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
         let match: RegExpExecArray | null;
         while ((match = linkRegex.exec(content)) !== null) {
-          const linkTarget = match[2].replace(/\.md$/, '').replace(/^\.\//, '');
-          if (!backlinks.has(linkTarget)) {
-            backlinks.set(linkTarget, []);
-          }
-          backlinks.get(linkTarget)!.push(relPath);
+          const rawTarget = match[2];
+          const stripped = rawTarget.replace(/\.md$/, '');
+          // 只处理内部相对链接
+          if (stripped.startsWith('http') || stripped.startsWith('#') || stripped.startsWith('/')) continue;
 
-          // 检查断裂链接
-          if (!linkTarget.startsWith('http') && !linkTarget.startsWith('#') && !linkTarget.startsWith('/')) {
-            if (!pageNames.has(linkTarget)) {
+          const fileDir = path.dirname(relPath);
+          let resolved = path.join(fileDir, stripped);
+          resolved = path.normalize(resolved).replace(/\\/g, '/');
+
+          // 检查目标是否在 pages/ 中
+          if (!resolved.startsWith('pages/')) continue;
+
+          linksToVerify.push({ source: relPath, target: resolved });
+          inboundTargets.add(`${resolved}.md`);
+        }
+
+        const page = parseWikiPage(relPath, content);
+        const entryByPageFile = manifest.entries.find(entry =>
+          entry.pageFiles.map(item => item.replace(/\\/g, '/')).includes(page.file),
+        );
+        if (entryByPageFile) {
+          // 如果 manifest 记录明确无源文件（sourceFile 为空且无 archivedFiles），
+          // 说明是手动创建的页面，不报 mismatch
+          const hasNoSource = !entryByPageFile.sourceFile && entryByPageFile.archivedFiles.length === 0;
+          if (!hasNoSource) {
+            const sourceCandidates = [entryByPageFile.sourceFile, ...entryByPageFile.archivedFiles]
+              .map(item => path.basename(item));
+            if (!page.source || !sourceCandidates.includes(path.basename(page.source))) {
               issues.push({
-                type: 'broken_link',
+                type: 'manifest_mismatch',
                 file: relPath,
-                description: `断裂链接: "${linkTarget}" 目标页面不存在`,
+                description: '页面 source 未匹配到 manifest 记录',
               });
             }
+          }
+        } else {
+          const hasSourceMatch = page.source
+            ? manifest.entries.some(entry => {
+              const sourceCandidates = [entry.sourceFile, ...entry.archivedFiles].map(item => path.basename(item));
+              return sourceCandidates.includes(path.basename(page.source));
+            })
+            : false;
+          if (!hasSourceMatch) {
+            issues.push({
+              type: 'manifest_mismatch',
+              file: relPath,
+              description: '页面未匹配到对应的 manifest 记录',
+            });
           }
         }
       } catch { /* skip unreadable */ }
     }
 
-    // 检查孤立页面
-    for (const filePath of pageFiles) {
-      const relPath = path.relative(wikiPath, filePath);
-      if (relPath === 'pages/index.md') continue;
+    // 第三轮：用 WikiSearchTool 批量验证链接有效性
+    if (linksToVerify.length > 0) {
+      // 去重，只验证每个目标文件一次
+      const seen = new Set<string>();
+      const uniquePaths: string[] = [];
+      for (const link of linksToVerify) {
+        const fullPath = link.target + '.md';
+        if (!seen.has(fullPath)) {
+          seen.add(fullPath);
+          uniquePaths.push(fullPath);
+        }
+      }
 
-      const pageName = relPath.replace(/\.md$/, '');
-      const linkedBy = backlinks.get(pageName) || [];
-      if (linkedBy.length === 0) {
+      const wsTool = new WikiSearchTool();
+      const verifyResult = await wsTool.execute(
+        { paths: uniquePaths, maxResults: 1, includeContent: false },
+        { conversationId: '' },
+      );
+
+      // 收集不存在的文件路径
+      const nonExistent = new Set<string>();
+      for (const r of verifyResult.results) {
+        if (r.content.startsWith('[文件不存在')) {
+          nonExistent.add(r.file);
+        }
+      }
+
+      // 原路映射回所有引用关系
+      for (const link of linksToVerify) {
+        if (nonExistent.has(link.target + '.md')) {
+          issues.push({
+            type: 'broken_link',
+            file: link.source,
+            description: `断裂链接: "${link.target}.md" 目标页面不存在`,
+          });
+        }
+      }
+    }
+
+    for (const manifestPage of manifestPageSet) {
+      if (!pageSet.has(manifestPage)) {
         issues.push({
-          type: 'orphan',
-          file: relPath,
-          description: '孤立页面：未被任何其他页面链接',
+          type: 'manifest_mismatch',
+          file: manifestPage,
+          description: 'manifest 记录的页面不存在',
         });
       }
     }
 
-    // 检查未编译的原始资料（sources/ 中有但 pages/ 中无对应内容）
+    for (const page of pageSet) {
+      if (!indexedPages.has(page)) {
+        issues.push({
+          type: 'index_drift',
+          file: '_index.md',
+          description: `页面 "${page}" 未被索引覆盖`,
+        });
+      }
+      if (!indexedPages.has(page) && !inboundTargets.has(page)) {
+        issues.push({
+          type: 'orphan',
+          file: page,
+          description: '页面未被索引也未被其他页面引用',
+        });
+      }
+    }
+
+    for (const indexedPage of indexedPages) {
+      if (!pageSet.has(indexedPage)) {
+        issues.push({
+          type: 'index_drift',
+          file: '_index.md',
+          description: `索引引用了不存在的页面 "${indexedPage}"`,
+        });
+      }
+    }
+
+    // 检查未编译的原始资料
     const compiledSources = new Set<string>();
     for (const filePath of pageFiles) {
+      const relPath = path.relative(wikiPath, filePath);
       const content = fs.readFileSync(filePath, 'utf-8');
-      const sourceMatch = content.match(/^source:\s*(.+)$/m);
-      if (sourceMatch) {
-        compiledSources.add(sourceMatch[1].trim());
+      const page = parseWikiPage(relPath, content);
+      if (page.source) {
+        compiledSources.add(path.basename(page.source));
       }
     }
     for (const filePath of sourceFiles) {
       const filename = path.basename(filePath);
-      // 跳过 .gitkeep
       if (filename === '.gitkeep') continue;
       if (!compiledSources.has(filename)) {
         const relPath = path.relative(wikiPath, filePath);
@@ -160,21 +301,33 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
       }
     }
 
-    const healthy = issues.length === 0;
+    const normalizedIssues = this.normalizeIssues(issues);
+    const brokenCount = normalizedIssues.filter(i => i.type === 'broken_link').length;
+    const frontmatterCount = normalizedIssues.filter(i => i.type === 'missing_frontmatter').length;
+    const requiredFieldCount = normalizedIssues.filter(i => i.type === 'missing_required_field').length;
+    const schemaCount = normalizedIssues.filter(i => i.type === 'schema_mismatch').length;
+    const uncompiledCount = normalizedIssues.filter(i => i.type === 'uncompiled_source').length;
+    const orphanCount = normalizedIssues.filter(i => i.type === 'orphan').length;
+    const manifestCount = normalizedIssues.filter(i => i.type === 'manifest_missing' || i.type === 'manifest_mismatch').length;
+    const indexDriftCount = normalizedIssues.filter(i => i.type === 'index_drift').length;
 
     return {
-      healthy,
-      issues,
+      healthy: normalizedIssues.length === 0,
+      directoryTree,
+      issues: normalizedIssues,
       totalSourceFiles: sourceFiles.filter(f => !f.endsWith('.gitkeep')).length,
       totalPages: pageFiles.length,
-      summary: healthy
+      summary: normalizedIssues.length === 0
         ? `Wiki 健康状态良好（${sourceFiles.length} 个原始资料，${pageFiles.length} 个页面）`
-        : `发现 ${issues.length} 个问题：` +
-          issues.filter(i => i.type === 'orphan').length + ' 个孤立页面, ' +
-          issues.filter(i => i.type === 'broken_link').length + ' 个断裂链接, ' +
-          issues.filter(i => i.type === 'missing_frontmatter').length + ' 个缺少 frontmatter, ' +
-          issues.filter(i => i.type === 'schema_mismatch').length + ' 个 Schema 不匹配, ' +
-          issues.filter(i => i.type === 'uncompiled_source').length + ' 个未编译资料',
+        : `发现 ${normalizedIssues.length} 个问题：` +
+          (brokenCount ? brokenCount + ' 个断裂链接, ' : '') +
+          (frontmatterCount ? frontmatterCount + ' 个缺少 frontmatter, ' : '') +
+          (requiredFieldCount ? requiredFieldCount + ' 个缺少必填字段, ' : '') +
+          (schemaCount ? schemaCount + ' 个 Schema 不匹配, ' : '') +
+          (manifestCount ? manifestCount + ' 个 manifest 问题, ' : '') +
+          (indexDriftCount ? indexDriftCount + ' 个索引漂移, ' : '') +
+          (orphanCount ? orphanCount + ' 个孤立页面, ' : '') +
+          (uncompiledCount ? uncompiledCount + ' 个未编译资料' : ''),
     };
   }
 
@@ -186,25 +339,36 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
     }
   }
 
-  private parseFrontmatter(content: string): Record<string, unknown> | null {
-    const match = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!match) return null;
+  private normalizeIssues(issues: LintIssue[]): LintIssue[] {
+    const order: Record<LintIssue['type'], number> = {
+      manifest_missing: 0,
+      manifest_mismatch: 1,
+      missing_frontmatter: 2,
+      missing_required_field: 3,
+      schema_mismatch: 4,
+      broken_link: 5,
+      index_drift: 6,
+      orphan: 7,
+      uncompiled_source: 8,
+    };
 
-    const result: Record<string, unknown> = {};
-    for (const line of match[1].split('\n')) {
-      const [key, ...rest] = line.split(':');
-      if (key && rest.length > 0) {
-        let value = rest.join(':').trim();
-        // Parse arrays [a, b, c]
-        if (value.startsWith('[') && value.endsWith(']')) {
-          value = value.slice(1, -1);
-          result[key.trim()] = value.split(',').map(v => v.trim().replace(/^['"]|['"]$/g, ''));
-        } else {
-          result[key.trim()] = value.replace(/^['"]|['"]$/g, '');
-        }
+    const deduped = new Map<string, LintIssue>();
+    for (const issue of issues) {
+      const formatted: LintIssue = {
+        ...issue,
+        description: `Wiki 健康检查 / ${issue.file} / ${issue.description}`,
+      };
+      const dedupeKey = `${formatted.type}|${formatted.file}`;
+      if (!deduped.has(dedupeKey)) {
+        deduped.set(dedupeKey, formatted);
       }
     }
-    return result;
+
+    return Array.from(deduped.values()).sort((a, b) =>
+      order[a.type] - order[b.type]
+      || a.file.localeCompare(b.file)
+      || a.description.localeCompare(b.description),
+    );
   }
 
   private findMdFiles(dirPath: string): string[] {
@@ -223,5 +387,19 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
       }
     } catch { /* skip */ }
     return files;
+  }
+
+  private readIndexedPages(wikiPath: string): Set<string> {
+    const indexPath = path.join(wikiPath, '_index.md');
+    if (!fs.existsSync(indexPath)) return new Set();
+
+    const content = fs.readFileSync(indexPath, 'utf-8');
+    const linkRegex = /\[[^\]]+\]\((pages\/[^)]+\.md)\)/g;
+    const indexedPages = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = linkRegex.exec(content)) !== null) {
+      indexedPages.add(match[1].replace(/\\/g, '/'));
+    }
+    return indexedPages;
   }
 }

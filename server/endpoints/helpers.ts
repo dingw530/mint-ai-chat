@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import type { Request } from 'express';
 import type { ArgMapping, ResultMapping, HttpError } from './types.js';
 
 // ── 从 Express Request 提取服务参数 ──
@@ -9,10 +9,10 @@ export function extractArgs(req: Request, args: ArgMapping[]): unknown[] {
     let value: unknown;
     switch (arg.from) {
       case 'path':
-        value = req.params[arg.name];
+        value = req.params[arg.name!];
         break;
       case 'query':
-        value = req.query[arg.name];
+        value = req.query[arg.name!];
         break;
       case 'body':
         value = arg.name ? req.body?.[arg.name] : req.body;

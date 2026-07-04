@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { tryParseLooseJson, writeWikiPages, CompiledPage } from '../services/utils/wikiShared.js';
+import type { CompiledPage } from '../services/utils/wikiShared.js';
+import { tryParseLooseJson, writeWikiPages, updateIndexMd } from '../services/utils/wikiShared.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
@@ -65,7 +66,7 @@ describe('tryParseLooseJson', () => {
       "filename": "pages/ai/test.md",
       "title": "测试",
       "tags": ["tag"],
-      "content": "作者认为「这样」是\"正确\"的。"
+      "content": "作者认为「这样」是"正确"的。"
     }
   ]
 }`;
@@ -124,5 +125,22 @@ describe('writeWikiPages', () => {
     // body should have real newlines, not literal \n
     expect(content).toContain('# Title\n\nParagraph 1\n\nParagraph 2');
     expect(content).not.toContain('\\n');
+  });
+
+  it('重建索引时保留多级目录页面', () => {
+    const pages: CompiledPage[] = [{
+      filename: 'pages/topic/sub/page.md',
+      title: 'Nested Page',
+      tags: ['tag1'],
+      created: '2026-06-23',
+      source: 'source.txt',
+      content: '# Nested',
+    }];
+
+    writeWikiPages(tmpDir, pages);
+    updateIndexMd(tmpDir, pages);
+
+    const indexContent = fs.readFileSync(path.join(tmpDir, '_index.md'), 'utf-8');
+    expect(indexContent).toContain('[Nested Page](pages/topic/sub/page.md)');
   });
 });

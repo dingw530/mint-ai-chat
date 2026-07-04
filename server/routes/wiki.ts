@@ -1,9 +1,10 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import multer from 'multer';
 import * as wikiService from '../services/api/wikiService.js';
+import { ingestWikiSource, buildWikiSourceText, archiveWikiRawFile } from '../services/api/wikiIngestionService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { parseFile, isSupportedFile } from '../services/utils/fileParseService.js';
-import { compileSource } from '../services/utils/wikiCompiler.js';
 import * as settingsService from '../services/api/settingsService.js';
 import { getWikiPath } from '../services/utils/pathSecurity.js';
 import { createJob, updateJob, getJob } from '../services/utils/jobStore.js';
@@ -49,29 +50,16 @@ router.post('/upload', upload.single('file'), asyncHandler(async (req: Request, 
     return;
   }
 
-  // 保存原始文件到 sources/
-  const sourcesDir = path.join(wikiPath, 'sources');
-  if (!fs.existsSync(sourcesDir)) {
-    fs.mkdirSync(sourcesDir, { recursive: true });
-  }
-  const date = new Date().toISOString().slice(0, 10);
-  const slug = originalname.replace(/\.[^.]+$/, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9一-鿿]+/g, '-')
-    .replace(/^-|-$/g, '');
-  const archiveName = `${date}-${slug}${path.extname(originalname).toLowerCase()}`;
-  const archivePath = path.join(sourcesDir, archiveName);
-  fs.writeFileSync(archivePath, buffer);
+  const archivedRelativePath = archiveWikiRawFile(wikiPath, originalname, buffer);
 
   // 创建后台作业
   const jobId = createJob(originalname, size);
-  const sourceFile = `sources/${archiveName}`;
 
   // 立即返回 jobId（不等待解析和编译）
-  res.json({ jobId, sourceFile, fileName: originalname, fileSize: size });
+  res.json({ jobId, sourceFile: archivedRelativePath, fileName: originalname, fileSize: size });
 
   // 后台异步处理：解析 → AI 编译
-  processJob(jobId, archivePath, originalname, archiveName, settings, wikiPath).catch(err => {
+  processJob(jobId, archivedRelativePath, originalname, settings, wikiPath).catch(err => {
     console.error(`[wiki] background job ${jobId} failed:`, err);
     updateJob(jobId, { status: 'error', error: err.message, progress: 0, step: '处理失败' });
   });
@@ -79,14 +67,14 @@ router.post('/upload', upload.single('file'), asyncHandler(async (req: Request, 
 
 async function processJob(
   jobId: string,
-  archivePath: string,
+  archivedRelativePath: string,
   originalName: string,
-  archiveName: string,
   settings: ReturnType<typeof settingsService.getAiSettings>,
   wikiPath: string,
 ): Promise<void> {
   // 1. 解析文件
   updateJob(jobId, { status: 'parsing', progress: 30, step: '解析文件中' });
+  const archivePath = path.join(wikiPath, archivedRelativePath);
   const savedBuffer = fs.readFileSync(archivePath);
   const result = await parseFile({ name: originalName, content: savedBuffer, size: savedBuffer.length });
 
@@ -95,13 +83,18 @@ async function processJob(
   // 2. AI 编译
   updateJob(jobId, { status: 'compiling', progress: 60, step: 'AI 编译中' });
   let compiledPages: { filename: string; title: string; size: number }[] = [];
+  let compiledSourceFile = '';
   let compileError: string | undefined;
 
   try {
-    const compiled = await compileSource(settings, wikiPath, result.text, archiveName, {
-      title: originalName.replace(/\.[^.]+$/, ''),
+    const compiled = await ingestWikiSource(settings, wikiPath, {
+      sourceText: buildWikiSourceText('', [{ kind: 'file', name: originalName, content: result.text }]),
+      sourceTitle: originalName.replace(/\.[^.]+$/, ''),
+      sourceFilenameHint: path.basename(archivedRelativePath),
+      archivedFiles: [{ name: originalName, existingRelativePath: archivedRelativePath }],
     });
     compiledPages = compiled.pages;
+    compiledSourceFile = compiled.sourceFile;
   } catch (err) {
     compileError = (err as Error).message;
   }
@@ -113,7 +106,7 @@ async function processJob(
     step: compileError ? '编译失败' : '完成',
     error: compileError,
     result: {
-      sourceFile: `sources/${archiveName}`,
+      sourceFile: compiledSourceFile || archivedRelativePath,
       format: result.format,
       textLength: result.text.length,
       pageCount: result.pageCount,

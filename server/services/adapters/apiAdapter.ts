@@ -1,10 +1,16 @@
-import { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
+import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
 
 export interface ParsedChunk {
   content?: string;
   reasoning?: string;
   toolCallDelta?: ToolCallDelta;
   isFinished?: boolean;
+}
+
+export interface CallOptions {
+  maxTokens?: number;
+  temperature?: number;
+  signal?: AbortSignal;
 }
 
 export interface ApiAdapter {
@@ -23,6 +29,15 @@ export interface ApiAdapter {
 
   /** 解析单条 SSE `data:` 行，返回解析结果或 null（忽略该行） */
   parseChunk(data: string): ParsedChunk | null;
+
+  /** 非流式单次调用 AI，返回纯文本响应内容 */
+  call(
+    messages: { role: string; content: string }[],
+    settings: { modelId: string },
+    apiUrl: string,
+    apiKey: string,
+    options?: CallOptions,
+  ): Promise<string>;
 }
 
 /** 注册表：apiType -> Adapter 实例 */

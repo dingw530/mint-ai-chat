@@ -22,3 +22,5 @@
 | [In-Process 架构转型](<../changes/2026-06-11-in-process-architecture/design-doc.md>) | 2026-06-11 | 已完成 |
 | [LLM Wiki 知识库](<../changes/2026-06-18-llm-wiki/design-doc.md>) | 2026-06-18 | 已完成 |
 | [Client 路由架构重构](<../changes/2026-06-24-路由架构重构/design-doc.md>) | 2026-06-24 | 已完成 |
+| [Electron Server Bundle 打包修复](<../changes/2026-06-30-electron-server-bundle/design-doc.md>) | 2026-06-30 | 已完成 |
+| [三元关系图谱展示功能](<../changes/2026-07-03-knowledge-graph-mvp/design-doc.md>) | 2026-07-03 | 已完成 |

@@ -1,9 +1,10 @@
 import { getAllToolDefinitions } from './toolRegistry.js';
-import { HistoryMessage, AiSettings, StreamResult } from '../types.js';
-import { ApiAdapter, getAdapter } from './adapters/apiAdapter.js';
+import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
+import type { ApiAdapter} from './adapters/apiAdapter.js';
+import { getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
-import { Sink } from './sink.js';
+import type { Sink } from './sink.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -154,51 +155,28 @@ export async function generateTitle(settings: AiSettings, userContent: string, a
   const { apiUrl, apiKey } = settings;
   if (!apiUrl || !apiKey) return '';
 
-  const url = apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
-
-  const body = {
-    model: settings.modelId,
-    messages: [
-      { role: 'system', content: '根据对话内容生成一个简短的标题（最多6个汉字或12个英文字符）。只返回标题本身，不要引号、标点和解释。\nGenerate a very short title (max 6 Chinese characters or 12 English characters) for this conversation. Return ONLY the title.' },
-      { role: 'user', content: userContent },
-      { role: 'assistant', content: assistantContent },
-    ],
-    stream: false,
-    max_tokens: 60,
-    temperature: 0.5,
-    thinking: { type: 'disabled' },
-  };
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error('[generateTitle] API error:', response.status, errText);
+    const adapter = getAdapter(settings.apiType || 'openai-chat');
+    if (!adapter) {
+      console.error('[generateTitle] Adapter not found');
       return fallbackTitle(userContent);
     }
 
-    const data = await response.json() as any;
-    console.log('[generateTitle] full response:', JSON.stringify(data).substring(0, 500));
+    const content = await adapter.call(
+      [
+        { role: 'system', content: '根据对话内容生成一个简短的标题（最多6个汉字或12个英文字符）。只返回标题本身，不要引号、标点和解释。\nGenerate a very short title (max 6 Chinese characters or 12 English characters) for this conversation. Return ONLY the title.' },
+        { role: 'user', content: userContent },
+        { role: 'assistant', content: assistantContent },
+      ],
+      { modelId: settings.modelId },
+      apiUrl,
+      apiKey,
+      { maxTokens: 60, temperature: 0.5 },
+    );
 
-    let title = '';
-    const msg = data.choices?.[0]?.message;
-    if (msg?.content?.trim()) {
-      title = msg.content.trim();
-    } else if (msg?.reasoning_content?.trim()) {
-      title = msg.reasoning_content.trim();
-    } else if (data.choices?.[0]?.text) {
-      title = data.choices[0].text.trim();
-    }
+    console.log('[generateTitle] raw response:', JSON.stringify(content));
 
-    title = title.replace(/^["'「「『""]+|["'」」』""]+$/g, '').trim();
+    const title = content.replace(/^["'「「『""]+|["'」」』""]+$/g, '').trim();
 
     console.log('[generateTitle] result:', JSON.stringify(title));
     if (!title) {

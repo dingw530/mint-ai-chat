@@ -10,6 +10,7 @@
     "start": "node --dns-result-order=ipv4first dist/index.js",
     "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' tsx watch index.ts",
     "build": "tsc",
+    "build:mcp": "esbuild mcp/cli.ts --bundle --platform=node --target=node18 --outfile=dist/mcp-server.cjs --external:better-sqlite3",
     "test": "vitest run",
     "test:watch": "vitest",
     "build:bundle": "node scripts/bundle.cjs",

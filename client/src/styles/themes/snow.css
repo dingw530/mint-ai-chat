@@ -1,4 +1,4 @@
-/* Blue Snowflake Theme (#727CC6) — 蓝雪花 */
+/* Blue Snowflake Theme (#5575CF) — 蓝雪花 */
 :root.theme-snow,
 .theme-snow {
   --bg-deep: #F5F5F5;
@@ -13,12 +13,12 @@
   --text-tertiary: #999999;
   --text-inverse: #FFFFFF;
 
-  --accent: #727CC6;
-  --accent-hover: #626CB6;
-  --accent-gradient: #727CC6;
-  --accent-glow: rgba(114, 124, 198, 0.08);
-  --accent-subtle: rgba(114, 124, 198, 0.05);
-  --accent-border: rgba(114, 124, 198, 0.15);
+  --accent: #5575CF;
+  --accent-hover: #4862B8;
+  --accent-gradient: #5575CF;
+  --accent-glow: rgba(85, 117, 207, 0.08);
+  --accent-subtle: rgba(85, 117, 207, 0.05);
+  --accent-border: rgba(85, 117, 207, 0.15);
 
   --secondary: #7EC8E3;
   --secondary-hover: #6DB8D3;
@@ -33,7 +33,7 @@
   --border-default: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.12);
 
-  --user-avatar: #727CC6;
+  --user-avatar: #5575CF;
   --assistant-avatar: #7EC8E3;
   --user-bubble: #FFFFFF;
   --user-bubble-text: #1A1A1A;
@@ -46,14 +46,14 @@
 
   --success-bg: rgba(126, 200, 227, 0.06);
 
-  --shadow-glow: 0 0 12px rgba(114, 124, 198, 0.06);
+  --shadow-glow: 0 0 12px rgba(85, 117, 207, 0.06);
   --shadow-teal: 0 0 12px rgba(126, 200, 227, 0.06);
 }
 
 /* Atmospheric background — frost bloom */
 .theme-snow body::before {
   background:
-    radial-gradient(ellipse 600px 500px at 5% 10%, rgba(114, 124, 198, 0.03) 0%, transparent 60%);
+    radial-gradient(ellipse 600px 500px at 5% 10%, rgba(85, 117, 207, 0.03) 0%, transparent 60%);
 }
 
 .theme-snow .sidebar-brand-text {
@@ -63,7 +63,7 @@
 }
 
 .theme-snow .modal::before {
-  background: linear-gradient(90deg, #727CC6, #7EC8E3);
+  background: linear-gradient(90deg, #5575CF, #7EC8E3);
   opacity: 0.2;
 }
 
@@ -76,8 +76,8 @@
 }
 
 .theme-snow .app-icon.welcome {
-  background: linear-gradient(135deg, #727CC6, #7EC8E3);
-  box-shadow: 0 4px 16px rgba(114, 124, 198, 0.12);
+  background: linear-gradient(135deg, #5575CF, #7EC8E3);
+  box-shadow: 0 4px 16px rgba(85, 117, 207, 0.12);
   position: relative;
   overflow: hidden;
 }
@@ -110,7 +110,7 @@
 .theme-snow .hljs-selector-tag,
 .theme-snow .hljs-type,
 .theme-snow .hljs-literal {
-  color: #727CC6;
+  color: #5575CF;
 }
 
 .theme-snow .hljs-string,

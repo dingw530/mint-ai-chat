@@ -3,9 +3,9 @@
  * 参考 Claude Code 的工具注册系统设计
  */
 
-import { BaseTool } from './BaseTool.js';
+import type { BaseTool } from './BaseTool.js';
 import type { ToolContext, ToolResult } from './BaseTool.js';
-import { ToolCall, ToolDefinition } from '../../types.js';
+import type { ToolCall, ToolDefinition } from '../../types.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('tool-registry');
@@ -127,7 +127,7 @@ export class ToolRegistry {
         data: result,
       };
     } catch (err) {
-      log.error(`Tool execution failed: ${name}`, err);
+      log.error(`Tool execution failed: ${name}`, { error: String(err) });
       return {
         success: false,
         error: (err as Error).message,

@@ -1,4 +1,5 @@
 import React from 'react';
+import NumberInput from '@/shared/components/NumberInput';
 
 type StringSetter = (value: string) => void;
 type BooleanSetter = (value: boolean) => void;
@@ -121,7 +122,7 @@ export default function GeneralTab({
             Mint 沁绿
           </button>
           <button type="button" className={theme === 'snow' ? 'active' : ''} onClick={() => setTheme('snow')}>
-            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#727CC6', marginRight: 6, verticalAlign: 'middle' }}></span>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: '#5575CF', marginRight: 6, verticalAlign: 'middle' }}></span>
             蓝雪花
           </button>
           <button type="button" className={theme === 'anthropic' ? 'active' : ''} onClick={() => setTheme('anthropic')}>
@@ -139,25 +140,23 @@ export default function GeneralTab({
       <h4 className="settings-subheading">ReAct 推理设置</h4>
       <div className="form-group">
         <label htmlFor="reactMaxIterations">最大迭代次数</label>
-        <input
+        <NumberInput
           id="reactMaxIterations"
-          type="number"
-          min="0"
-          max="20"
           value={reactMaxIterations}
-          onChange={(e) => setReactMaxIterations(Math.max(0, Math.min(20, parseInt(e.target.value) || 5)))}
+          onChange={setReactMaxIterations}
+          min={0}
+          max={20}
         />
         <p className="form-help">AI 在单次回复中最多可连续调用工具的轮数（0~20）。设为 0 则使用传统模式。</p>
       </div>
       <div className="form-group">
         <label htmlFor="toolMaxRetries">工具重试次数</label>
-        <input
+        <NumberInput
           id="toolMaxRetries"
-          type="number"
-          min="0"
-          max="10"
           value={toolMaxRetries}
-          onChange={(e) => setToolMaxRetries(Math.max(0, Math.min(10, parseInt(e.target.value) || 5)))}
+          onChange={setToolMaxRetries}
+          min={0}
+          max={10}
         />
         <p className="form-help">工具调用失败时的最大重试次数（0~10）。设为 0 则不重试。</p>
       </div>

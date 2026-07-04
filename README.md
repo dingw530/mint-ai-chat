@@ -22,6 +22,8 @@ A native desktop AI chat application built with Electron. Connect to any OpenAI-
 - Custom agent & endpoint configuration
 - MCP Server support (Model Context Protocol)
 - User memory system for context retention
+- **LLM Wiki** — AI-powered knowledge base generation from documents, URLs, and chat
+- **Knowledge Graph** — Visual entity-relation graph (concept / practice / methodology) with auto-build from wiki ingestion
 - Weather forecast via QWeather API
 - Encrypted API key storage (AES-256-GCM)
 - Custom window frame with frameless titlebar
@@ -74,7 +76,7 @@ cd server && npm test
 
 ## About This Project
 
-Mint is a hands-on project built around general AI Agent development, covering the full modern stack and core concepts:
+Mint is a personal knowledge chat engine deeply integrated with LLM Wiki, covering the full modern stack and core concepts:
 
 - **Agent Architecture** — Custom agent system with system prompts, auto-routing, and locked-agent modes
 - **ReAct Pattern** — Reasoning + Acting loop: agents observe, reason, call tools, and incorporate results into responses iteratively
@@ -83,6 +85,7 @@ Mint is a hands-on project built around general AI Agent development, covering t
 - **Memory System** — Long-term user memory with multi-category support (general / preferences / facts) and automatic recall
 - **Context Window** — Sliding window token management to control context consumption
 - **Skills System** — Hot-pluggable skills loaded dynamically from local Markdown files
+- **Knowledge Graph** — Entity-relation graph with three node types (concept / practice / methodology), vis-network force-directed rendering, and auto-building from wiki ingestion. Nodes are deduplicated by label; cross-batch edges are created via AI-specified relations or shared tags.
 - **Streaming** — SSE-based real-time streaming response with chunk-by-chunk rendering
 - **Multi-Model** — Compatible with any OpenAI-format API endpoint for flexible model switching
 - **IPC Architecture** — Direct service layer invocation in Electron main process, bypassing HTTP overhead

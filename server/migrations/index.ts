@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import type { Migration } from './types.js';
 
 // ── 迁移定义 ──
@@ -61,6 +61,36 @@ const migrations: Migration[] = [
     name: 'add-image-data-to-messages',
     up: (db) => {
       db.exec('ALTER TABLE messages ADD COLUMN image_data TEXT');
+    },
+  },
+  {
+    id: 9,
+    name: 'add-graph-tables',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS graph_nodes (
+          id TEXT PRIMARY KEY,
+          label TEXT NOT NULL,
+          type TEXT NOT NULL CHECK(type IN ('concept', 'practice', 'methodology')),
+          source_file TEXT,
+          properties TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS graph_edges (
+          id TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          relation TEXT NOT NULL,
+          target_id TEXT NOT NULL,
+          properties TEXT NOT NULL DEFAULT '{}',
+          source TEXT NOT NULL DEFAULT 'manual' CHECK(source IN ('manual', 'auto-extracted', 'ai-generated')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (source_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_id) REFERENCES graph_nodes(id) ON DELETE CASCADE
+        )
+      `);
     },
   },
 ];

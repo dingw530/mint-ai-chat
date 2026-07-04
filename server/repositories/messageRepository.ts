@@ -1,5 +1,5 @@
 import { getDb } from '../db.js';
-import { MessageRow, Message, HistoryMessage, CreateMessageParams } from '../types.js';
+import type { MessageRow, Message, HistoryMessage, CreateMessageParams } from '../types.js';
 
 // 数据库 snake_case → API camelCase 转换
 function toCamelCase(row: MessageRow): Message {

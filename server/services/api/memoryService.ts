@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as memoryRepo from '../../repositories/memoryRepository.js';
-import { Memory, CreateMemoryParams, UpdateMemoryParams, AiSettings } from '../../types.js';
+import { getAdapter } from '../adapters/apiAdapter.js';
+import type { Memory, CreateMemoryParams, UpdateMemoryParams, AiSettings } from '../../types.js';
 
 const CATEGORY_ORDER = ['personal', 'preference', 'feedback', 'project', 'goal', 'general'];
 const CATEGORY_LABELS: Record<string, string> = {
@@ -114,8 +115,6 @@ export async function performExtraction(
   const { apiUrl, apiKey } = settings;
   if (!apiUrl || !apiKey) return;
 
-  const url = apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
-
   const systemPrompt = `你是一个记忆提取助手。从以下对话中提取关于用户的重要信息，按分类输出。
 
 分类标签：
@@ -134,41 +133,27 @@ export async function performExtraction(
 - 如果没有新信息，输出空
 - 每行格式必须严格为 [分类] 内容`;
 
-  const body = {
-    model: settings.modelId,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userContent },
-      { role: 'assistant', content: assistantContent },
-    ],
-    stream: false,
-    max_tokens: 500,
-    temperature: 0.3,
-    thinking: { type: 'disabled' },
-  };
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    const adapter = getAdapter(settings.apiType || 'openai-chat');
+    if (!adapter) return;
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error('[memory] Extraction API error:', response.status, errText);
-      return;
-    }
+    const content = await adapter.call(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+        { role: 'assistant', content: assistantContent },
+      ],
+      { modelId: settings.modelId },
+      apiUrl,
+      apiKey,
+      { maxTokens: 500, temperature: 0.3, signal: controller.signal },
+    );
 
-    const data = (await response.json()) as any;
-    const content = data.choices?.[0]?.message?.content;
+    clearTimeout(timeout);
+
     if (!content || !content.trim()) return;
 
     const entries = extractMemoriesFromResponse(content);

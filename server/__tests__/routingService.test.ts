@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RoutingService, RouteResult, RoutingContext } from '../services/api/routingService.js';
-import { Agent } from '../types.js';
+import { RoutingService } from '../services/api/routingService.js';
+import type { Agent } from '../types.js';
 
 // 模拟 settingsService（llmClassify 需要）
 vi.mock('../services/api/settingsService.js', () => ({
@@ -208,7 +208,7 @@ describe('RoutingService - route', () => {
 
   it('should call beforeRoute hook and use modified message', async () => {
     service = new RoutingService({
-      beforeRoute: async (msg, _ctx) => ({ message: '天气' }),
+      beforeRoute: async (_msg, _ctx) => ({ message: '天气' }),
     });
     const result = await service.route('写一首诗', {
       agents: [weatherAgent, generalAgent],

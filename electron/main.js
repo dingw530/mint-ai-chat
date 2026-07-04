@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -6,6 +6,8 @@ const os = require('os');
 const logger = require('./logger');
 
 let mainWindow = null;
+let serverBundlePromise = null;
+let electronServiceBootstrapPromise = null;
 
 const isDev = !app.isPackaged;
 
@@ -103,12 +105,7 @@ async function startServer() {
   process.env.AI_CHAT_CLIENT_DIST = getClientDistPath();
   process.env.NODE_ENV = 'production';
 
-  const bundlePath = path.join(__dirname, 'server-dist', 'index.js');
-  if (!fs.existsSync(bundlePath)) {
-    throw new Error(`Server bundle not found: ${bundlePath}`);
-  }
-
-  const bundle = await import(bundlePath);
+  const bundle = await getServerBundle();
   const actualPort = await bundle.startServer();
   logger.info(`Server started on port ${actualPort}`);
   return actualPort;
@@ -118,21 +115,50 @@ async function startServer() {
 
 let services = {};
 
-async function loadServiceModules() {
+async function getServerBundle() {
+  if (serverBundlePromise) return serverBundlePromise;
+
   const bundlePath = isDev
     ? path.join(__dirname, '..', 'server', 'dist', 'electron-bundle.js')
     : path.join(__dirname, 'server-dist', 'index.js');
 
   if (!fs.existsSync(bundlePath)) {
-    logger.warn(`Server bundle not found: ${bundlePath} — IPC disabled`);
-    return false;
+    throw new Error(`Server bundle not found: ${bundlePath}`);
   }
 
   logger.info(`Loading server bundle: ${bundlePath}`);
 
+  serverBundlePromise = import(`file://${bundlePath}`).catch((err) => {
+    serverBundlePromise = null;
+    throw err;
+  });
+
+  return serverBundlePromise;
+}
+
+async function loadElectronServiceBootstrap() {
+  if (electronServiceBootstrapPromise) return electronServiceBootstrapPromise;
+
+  const bootstrapPath = isDev
+    ? path.join(__dirname, 'services', 'bootstrap.js')
+    : path.join(__dirname, 'services', 'bootstrap.js');
+
+  if (!fs.existsSync(bootstrapPath)) {
+    throw new Error(`Electron service bootstrap not found: ${bootstrapPath}`);
+  }
+
+  electronServiceBootstrapPromise = import(`file://${bootstrapPath}`).catch((err) => {
+    electronServiceBootstrapPromise = null;
+    throw err;
+  });
+
+  return electronServiceBootstrapPromise;
+}
+
+async function loadServiceModules() {
   let bundle;
   try {
-    bundle = await import(`file://${bundlePath}`);
+    bundle = await getServerBundle();
   } catch (err) {
     logger.error(`Failed to load server bundle: ${err.message}`);
     return false;
@@ -158,6 +184,16 @@ async function loadServiceModules() {
     messageRepository: bundle.messageRepository,
   };
   logger.info('Service modules loaded');
+
+  try {
+    const bootstrap = await loadElectronServiceBootstrap();
+    if (bootstrap?.registerElectronServices) {
+      bootstrap.registerElectronServices(bundle);
+      logger.info('Electron service bootstrap registered');
+    }
+  } catch (err) {
+    logger.warn(`Electron service bootstrap skipped: ${err.message}`);
+  }
 
   // 启动时扫描技能
   if (services.skillSvc) {
@@ -570,12 +606,13 @@ function createWindow(port) {
   logger.info('Creating main window...');
 
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1440,
+    height: 900,
     minWidth: 800,
     minHeight: 600,
-    title: 'Mint · 叶语',
+    title: 'Mint',
     icon: path.join(__dirname, 'icon.png'),
+    backgroundColor: '#f1f5f3',
     frame: false,
     titleBarStyle: 'hiddenInset',
     webPreferences: {
@@ -591,6 +628,15 @@ function createWindow(port) {
     mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
   }
 
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:|^mailto:|^tel:/i.test(url)) {
+      shell.openExternal(url).catch((err) => {
+        logger.error(`Failed to open external URL: ${url} (${err.message})`);
+      });
+    }
+    return { action: 'deny' };
+  });
+
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     logger.error(`Page load failed: ${errorDescription} (code: ${errorCode}) URL: ${validatedURL}`);
   });
@@ -601,9 +647,17 @@ function createWindow(port) {
     if (level >= 2) logger.debug(`[renderer] ${message}`);
   });
 
-  if (isDev) mainWindow.webContents.openDevTools();
-
   mainWindow.on('closed', () => { mainWindow = null; });
+}
+
+function loadClientApp() {
+  if (!mainWindow) return;
+
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
+  }
 }
 
 // ── 旧 userData 迁移（~/.mint 不存在时从 userData 拷贝）──
@@ -659,13 +713,21 @@ app.whenReady().then(async () => {
   loadOrCreateEncryptionKey();
   process.env.AI_CHAT_DB_PATH = getDbPath();
 
-  // 加载服务模块并注册 IPC handlers
-  const servicesLoaded = await loadServiceModules();
-  if (servicesLoaded) setupIpcHandlers();
-
   try {
-    const port = await startServer();
-    createWindow(port);
+    createWindow();
+
+
+    // 加载服务模块并启动 server
+    const [servicesLoaded] = await Promise.all([
+      loadServiceModules(),
+      startServer(),
+    ]);
+
+    if (servicesLoaded) {
+      setupIpcHandlers();
+    }
+
+    loadClientApp();
   } catch (err) {
     logger.error(`Failed to start: ${err.message}`);
     const { dialog } = require('electron');
@@ -679,5 +741,12 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') { logger.close(); app.quit(); }
 });
 
-app.on('activate', () => { if (mainWindow === null) createWindow(); });
-app.on('will-quit', () => { logger.close(); });
+app.on('activate', () => {
+  if (mainWindow === null) {
+    createWindow();
+    loadClientApp();
+  }
+});
+app.on('will-quit', () => {
+  logger.close();
+});

@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import type { Request, Response } from 'express';
+import { Router } from 'express';
 import * as conversationService from '../services/api/conversationService.js';
 import * as messageRepo from '../repositories/messageRepository.js';
 import * as settingsService from '../services/api/settingsService.js';

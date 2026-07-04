@@ -1,4 +1,5 @@
-import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import { Router } from 'express';
 import type { EndpointDescriptor } from '../types.js';
 import { extractArgs, wrapResult } from '../helpers.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';

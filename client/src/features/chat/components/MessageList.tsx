@@ -2,6 +2,7 @@ import { useState, useEffect, RefObject } from 'react';
 import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
 import ReActStep from './ReActStep';
 import AppIcon from '@/shared/components/AppIcon';
+import AiAvatar from '@/shared/components/AiAvatar';
 import type { Message, ReActStep as ReActStepData, ContentSegment } from '@/types';
 
 async function downloadImage(src: string, filename = 'image.png') {
@@ -237,7 +238,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
           <div key={msg.id || (msg as any)._tempId} className="message-wrapper">
             <div className={`message-avatar-wrapper ${msg.role}`}>
               <div className="message-avatar">
-                {msg.role === 'user' ? '你' : msg.role === 'error' ? '!' : 'AI'}
+                {msg.role === 'user' ? '你' : msg.role === 'error' ? '!' : <AiAvatar size={32} />}
               </div>
             </div>
             <div

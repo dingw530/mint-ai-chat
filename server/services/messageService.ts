@@ -8,8 +8,8 @@ import { routingService } from './api/routingService.js';
 import { streamChat } from './aiProxy.js';
 import { reactChat } from './reactLoopCore.js';
 import { getAllToolDefinitions } from './toolRegistry.js';
-import { HttpError, HistoryMessage } from '../types.js';
-import { Sink } from './sink.js';
+import type { HttpError, HistoryMessage } from '../types.js';
+import type { Sink } from './sink.js';
 import { parseFile, isSupportedFile } from './utils/fileParseService.js';
 
 export function getMessages(conversationId: string) {
@@ -113,34 +113,53 @@ export async function sendMessage(conversationId: string, content: string, sink:
     ? [{ role: 'system', content: systemPrompt }, ...history]
     : history;
 
-  // 注入记忆上下文
+  // 收集 system 附加上下文，统一追加到第一条 system message 末尾
+  const systemExtras: string[] = [];
+
   if (settings.memoryEnabled) {
     const memoryContext = memoryService.buildMemoryContext();
     if (memoryContext) {
-      const sysIdx = messages.findIndex(m => m.role === 'system');
-      if (sysIdx >= 0) {
-        messages.splice(sysIdx + 1, 0, { role: 'system', content: memoryContext });
-      } else {
-        messages.unshift({ role: 'system', content: memoryContext });
-      }
+      systemExtras.push(memoryContext);
     }
   }
 
-  // Wiki 工具使用指南：当 Wiki 路径已配置时自动追加
   if (settings.wikiPath) {
-    const wikiGuide = [
-      'Wiki 知识库使用指南：',
-      '- 使用 wiki_search 工具搜索和读取 Wiki 知识库，这是访问 Wiki 文件的唯一方式',
-      '- 禁止使用 bash（cat/ls/grep 等）读取或搜索 Wiki 目录下的文件',
-      '- wiki_search 支持两种模式：question 搜索关键词返回匹配页面内容，paths 直接读取指定文件',
-      '- 如果搜索结果已足够回答，不要再调用其他工具',
-      '- 避免反复搜索不同关键词，一次搜索结果通常已包含足够信息',
-    ].join('\n');
+    systemExtras.push([
+      `⚠️ Wiki 知识库使用规则（必须遵守）：知识库根目录: ${settings.wikiPath}`,
+      '',
+      '【禁止操作】',
+      '- 严禁使用 bash 工具读取、搜索或列出 Wiki 目录下的任何文件。bash 的读文件操作（cat/ls/grep/cd 等）已被系统拦截，执行会直接报错。',
+      '- 不要尝试 cd 到 Wiki 目录，不要用 cat 打开 .md 文件，不要用 grep 搜索关键词。所有 Wiki 文件访问必须使用 wiki_search 工具。',
+      '',
+      '【wiki_search 工具使用指南】',
+      '- 该工具返回的是文件的**完整内容**（单文件可达数万字），不存在截断问题。',
+      '- 支持两种模式：',
+      '  · question 模式：输入关键词搜索，返回匹配度最高的页面完整内容',
+      '  · paths 模式：直接传入文件路径列表，批量读取多个文件的完整内容',
+      '- 已知文件路径时，始终用 paths 模式一次读完，paths 接受任意数量的路径。',
+      '- 如需同时搜索多个关键词，可以在**同一轮**中并行发起多个 wiki_search 调用。',
+      '',
+      '【知识库结构】',
+      '- Wiki 根目录下的 _index.md 是首页，包含分类索引和最近更新，建议先读取了解整体结构。',
+      '- Wiki 根目录下分 pages/（结构化页面）、sources/（原始材料）等子目录。',
+      '- pages/ 下的文件是正式知识页面，按领域/主题组织子目录。',
+      '- sources/ 下的文件是原始材料（直播转录、笔记等）。',
+      '- 文件名格式通常为 "主题-子主题.md"，如 pages/AI实践/LLM-Wiki-系统架构与编译流水线.md。',
+      '- 第一次搜索获取到文件路径后，后续直接使用 paths 模式读取即可，无需再次搜索。',
+      '',
+      '【效率建议】',
+      '- 一次 search 返回的结果通常已包含足够信息，避免反复换关键词搜索。',
+      '- 如需查阅多个页面，优先使用 paths 批量读取或并行调用，减少工具调用轮次。',
+      '- 对知识库不熟悉时，先读取 _index.md 了解整体结构，再决定要查阅哪些页面。',
+    ].join('\n'));
+  }
+
+  if (systemExtras.length > 0) {
     const sysIdx = messages.findIndex(m => m.role === 'system');
     if (sysIdx >= 0) {
-      messages[sysIdx].content += wikiGuide;
+      messages[sysIdx].content += '\n\n' + systemExtras.join('\n\n');
     } else {
-      messages.unshift({ role: 'system', content: wikiGuide });
+      messages.unshift({ role: 'system', content: systemExtras.join('\n\n') });
     }
   }
 

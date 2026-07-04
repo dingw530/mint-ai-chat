@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as endpointRepo from '../../repositories/endpointRepository.js';
 import { encrypt, decrypt, maskApiKey } from '../utils/encryption.js';
-import { EndpointInput, EndpointOutput, EndpointList, Endpoint } from '../../types.js';
+import type { EndpointInput, EndpointOutput, EndpointList, Endpoint } from '../../types.js';
 
 function toOutput(endpoint: Endpoint): EndpointOutput {
   let apiKeyMasked = '';

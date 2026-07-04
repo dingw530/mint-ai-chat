@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../utils/logger.js';
 import * as settingsService from './settingsService.js';
 import * as routingLogRepo from '../../repositories/routingLogRepository.js';
-import { Agent } from '../../types.js';
+import type { Agent } from '../../types.js';
+import { getAdapter } from '../adapters/apiAdapter.js';
 
 // ── 类型定义 ──
 
@@ -180,36 +181,26 @@ export class RoutingService {
       const settings = settingsService.getAiSettings();
       if (!settings.apiUrl || !settings.apiKey) return null;
 
-      const url = settings.apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
+      const adapter = getAdapter(settings.apiType || 'openai-chat');
+      if (!adapter) return null;
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${settings.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: settings.modelId,
-          messages: [
-            { role: 'system', content: prompt },
-            { role: 'user', content: message },
-          ],
-          stream: false,
-          max_tokens: 10,
-          temperature: 0,
-        }),
-        signal: controller.signal,
-      });
+      const content = await adapter.call(
+        [
+          { role: 'system', content: prompt },
+          { role: 'user', content: message },
+        ],
+        { modelId: settings.modelId },
+        settings.apiUrl,
+        settings.apiKey,
+        { maxTokens: 10, temperature: 0, signal: controller.signal },
+      );
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) return null;
-
-      const data = (await response.json()) as any;
-      const agentId = data.choices?.[0]?.message?.content?.trim();
+      const agentId = content.trim();
 
       // 验证返回的 agentId 是否在候选列表中
       if (agentId && candidates.some(a => a.id === agentId)) {
@@ -220,8 +211,7 @@ export class RoutingService {
     } catch {
       // 网络错误或超时 → 返回 null 降级
       return null;
-    }
-  }
+    }  }
 
   /**
    * 构建 LLM 分类 prompt

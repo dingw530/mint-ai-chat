@@ -1,5 +1,6 @@
-import { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
-import { ApiAdapter, ParsedChunk, registerAdapter } from './apiAdapter.js';
+import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
+import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
+import { registerAdapter } from './apiAdapter.js';
 
 export const openaiChatAdapter: ApiAdapter = {
   getUrl(baseUrl: string): string {
@@ -71,6 +72,40 @@ export const openaiChatAdapter: ApiAdapter = {
     }
 
     return Object.keys(result).length > 0 ? result : null;
+  },
+
+  async call(
+    messages: { role: string; content: string }[],
+    settings: { modelId: string },
+    apiUrl: string,
+    apiKey: string,
+    options?: CallOptions,
+  ): Promise<string> {
+    const url = this.getUrl(apiUrl);
+    const headers = this.getHeaders(apiKey);
+
+    const body: Record<string, unknown> = {
+      model: settings.modelId,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      stream: false,
+      max_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature ?? 0,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal: options?.signal,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`AI API error (${response.status}): ${errText.substring(0, 200)}`);
+    }
+
+    const data = (await response.json()) as any;
+    return data.choices?.[0]?.message?.content || '';
   },
 };
 

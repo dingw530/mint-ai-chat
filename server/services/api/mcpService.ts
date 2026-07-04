@@ -1,12 +1,13 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { spawn, ChildProcess, execSync } from 'child_process';
+import type { ChildProcess} from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import * as mcpServerRepo from '../../repositories/mcpServerRepository.js';
 import { decrypt } from '../utils/encryption.js';
-import { ToolDefinition } from '../../types.js';
+import type { ToolDefinition } from '../../types.js';
 import { log } from '../utils/logger.js';
 
 // macOS GUI 应用不继承 shell PATH，需要手动解析命令路径

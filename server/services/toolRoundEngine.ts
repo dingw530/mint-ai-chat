@@ -2,11 +2,12 @@
 // 将"一轮工具调用往返"（构建请求 → fetch → 解析 SSE → 返回结构化结果）抽象为统一引擎
 // 不依赖 Express，可单元测试
 
-import { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
-import { ApiAdapter, getAdapter } from './adapters/apiAdapter.js';
+import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
+import type { ApiAdapter} from './adapters/apiAdapter.js';
+import { getAdapter } from './adapters/apiAdapter.js';
 import { executeTool } from './toolRegistry.js';
 import { createLogger } from '../utils/logger.js';
-import { Sink } from './sink.js';
+import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
 
 // 导入 Adapter 实现
@@ -170,7 +171,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 8000),
+      content: resultStr.substring(0, 50000),
     };
 
     return { assistantMsg, toolMsg, succeeded: true };
@@ -207,7 +208,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 8000),
+      content: resultStr.substring(0, 50000),
     };
 
     return { assistantMsg, toolMsg, succeeded };

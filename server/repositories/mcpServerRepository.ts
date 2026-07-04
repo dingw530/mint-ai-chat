@@ -1,5 +1,5 @@
 import { getDb } from '../db.js';
-import { McpServerRow, McpServer } from '../types.js';
+import type { McpServerRow, McpServer } from '../types.js';
 
 function toCamelCase(row: McpServerRow): McpServer {
   return {

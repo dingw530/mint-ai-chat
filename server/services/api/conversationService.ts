@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as conversationRepo from '../../repositories/conversationRepository.js';
 import * as settingsRepo from '../../repositories/settingsRepository.js';
-import { HttpError } from '../../types.js';
+import type { HttpError } from '../../types.js';
 
 function getSettingsRoutingMode(): string {
   const raw = settingsRepo.getAll();

@@ -6,6 +6,9 @@ import rehypeSanitize from 'rehype-sanitize';
 import { defaultSchema } from 'hast-util-sanitize';
 import CodeBlock from './CodeBlock';
 import type { Components } from 'react-markdown';
+import type { MouseEvent } from 'react';
+
+type LinkClickHandler = (href: string, event: MouseEvent<HTMLAnchorElement>) => void;
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -21,9 +24,11 @@ const sanitizeSchema = {
 
 interface MarkdownRendererProps {
   content: string;
+  linkTarget?: '_blank' | '_self';
+  onLinkClick?: LinkClickHandler;
 }
 
-export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export default function MarkdownRenderer({ content, linkTarget = '_blank', onLinkClick }: MarkdownRendererProps) {
   return useMemo(() => {
     if (!content) return null;
 
@@ -40,7 +45,14 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
           return <span>{children}</span>;
         }
         return (
-          <a href={href} target="_blank" rel="noopener noreferrer">
+          <a
+            href={href}
+            target={linkTarget}
+            rel={linkTarget === '_blank' ? 'noopener noreferrer' : undefined}
+            onClick={(event) => {
+              onLinkClick?.(href, event);
+            }}
+          >
             {children}
           </a>
         );
@@ -58,5 +70,5 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
         </ReactMarkdown>
       </div>
     );
-  }, [content]);
+  }, [content, linkTarget, onLinkClick]);
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, KeyboardEvent } from 'react';
+import SelectField from '@/shared/components/SelectField';
 import { generateImage } from '@/services/api';
 import type { EndpointOutput, GenerateImageResult } from '@/types';
 
@@ -105,17 +106,12 @@ export default function ImageGenerator({ endpoints, onOpenSettings }: ImageGener
         <div className="image-gen-panel">
           <div className="form-group">
             <label>图片模型</label>
-            <select
+            <SelectField
+              options={imageEndpoints.map((ep) => ({ value: ep.id, label: `${ep.name} (${ep.modelId})` }))}
               value={selectedEndpointId}
-              onChange={(e) => setSelectedEndpointId(e.target.value)}
-              className="image-gen-select"
-            >
-              {imageEndpoints.map((ep) => (
-                <option key={ep.id} value={ep.id}>
-                  {ep.name} ({ep.modelId})
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedEndpointId}
+              placeholder="选择模型"
+            />
           </div>
 
           <div className="form-group">
@@ -136,27 +132,15 @@ export default function ImageGenerator({ endpoints, onOpenSettings }: ImageGener
           <div className="image-gen-params">
             <div className="form-group">
               <label>尺寸</label>
-              <select value={size} onChange={(e) => setSize(e.target.value)} className="image-gen-select">
-                {SIZES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              <SelectField options={SIZES} value={size} onChange={setSize} />
             </div>
             <div className="form-group">
               <label>质量</label>
-              <select value={quality} onChange={(e) => setQuality(e.target.value)} className="image-gen-select">
-                {QUALITY_OPTIONS.map((q) => (
-                  <option key={q.value} value={q.value}>{q.label}</option>
-                ))}
-              </select>
+              <SelectField options={QUALITY_OPTIONS} value={quality} onChange={setQuality} />
             </div>
             <div className="form-group">
               <label>格式</label>
-              <select value={format} onChange={(e) => setFormat(e.target.value)} className="image-gen-select">
-                {FORMAT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+              <SelectField options={FORMAT_OPTIONS} value={format} onChange={setFormat} />
             </div>
           </div>
 

@@ -115,6 +115,28 @@ function createSchema(): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS graph_nodes (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('concept', 'practice', 'methodology')),
+      source_file TEXT,
+      properties TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS graph_edges (
+      id TEXT PRIMARY KEY,
+      source_id TEXT NOT NULL,
+      relation TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      properties TEXT NOT NULL DEFAULT '{}',
+      source TEXT NOT NULL DEFAULT 'manual' CHECK(source IN ('manual', 'auto-extracted', 'ai-generated')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (source_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_id) REFERENCES graph_nodes(id) ON DELETE CASCADE
+    );
   `);
 }
 

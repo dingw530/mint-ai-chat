@@ -1,7 +1,7 @@
 import * as settingsRepo from '../../repositories/settingsRepository.js';
 import * as endpointRepo from '../../repositories/endpointRepository.js';
 import { encrypt, decrypt, maskApiKey } from '../utils/encryption.js';
-import { RawSettings, SettingsInput, AiSettings, VisibleSettings } from '../../types.js';
+import type { RawSettings, SettingsInput, AiSettings, VisibleSettings } from '../../types.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -27,6 +27,11 @@ const WIKI_INDEX_CONTENT = `# Wiki 首页
 
 `
 
+const WIKI_MANIFEST_CONTENT = JSON.stringify({
+  version: 1,
+  entries: [],
+}, null, 2) + '\n';
+
 function ensureWikiPath(wikiPath: string): void {
   if (!wikiPath) return;
   try {
@@ -43,6 +48,11 @@ function ensureWikiPath(wikiPath: string): void {
     const indexPath = path.join(resolved, '_index.md');
     if (!fs.existsSync(indexPath)) {
       fs.writeFileSync(indexPath, WIKI_INDEX_CONTENT, 'utf-8');
+    }
+    // 摄入追溯清单
+    const manifestPath = path.join(resolved, '_manifest.json');
+    if (!fs.existsSync(manifestPath)) {
+      fs.writeFileSync(manifestPath, WIKI_MANIFEST_CONTENT, 'utf-8');
     }
     // Sources 层
     const sourcesDir = path.join(resolved, 'sources');

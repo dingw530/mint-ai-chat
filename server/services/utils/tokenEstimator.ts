@@ -9,7 +9,7 @@
  *   混合文本取中间值，统一按 3 字符/token
  */
 
-import { HistoryMessage } from '../../types.js';
+import type { HistoryMessage } from '../../types.js';
 
 const CHARS_PER_TOKEN = 3;
 

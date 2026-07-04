@@ -5,6 +5,7 @@ import SidebarFooter from '@/shared/components/SidebarFooter';
 import ChatSidebar from './ChatSidebar';
 import ChatArea from './components/ChatArea';
 import { useConversations } from '@/hooks/useConversations';
+import { useSidebarResize } from '@/hooks/useSidebarResize';
 import { getEndpoints } from '@/services/api';
 import type { EndpointOutput } from '@/types';
 
@@ -12,6 +13,7 @@ type AppContext = { onOpenSettings: () => void };
 
 export default function ChatPage() {
   const { onOpenSettings } = useOutletContext<AppContext>();
+  const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useSidebarResize();
   const {
     conversations,
     loading,
@@ -65,7 +67,7 @@ export default function ChatPage() {
 
   return (
     <>
-      <aside className="sidebar sidebar--chat">
+      <aside className="sidebar sidebar--chat" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
         <SidebarHeader onOpenSettings={onOpenSettings} />
         <ChatSidebar
           conversations={conversations}
@@ -77,6 +79,7 @@ export default function ChatPage() {
           onDelete={deleteConv}
         />
         <SidebarFooter showClear onClearAll={clearAll} />
+        <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
       </aside>
       <ChatArea
         activeConversation={activeId}

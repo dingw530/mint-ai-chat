@@ -1,4 +1,4 @@
-import { callEndpoint, isElectron, getElectronAPI } from '../api/_base';
+import { callEndpoint, isElectron, getElectronAPI, request } from '../api/_base';
 import type { WikiFileTreeNode } from '@/types';
 
 export interface WikiListResponse {
@@ -144,4 +144,61 @@ export function addWikiCategory(category: string): Promise<{ categories: string[
 
 export function removeWikiCategory(category: string): Promise<{ categories: string[] }> {
   return callEndpoint<{ categories: string[] }>('wiki:removeCategory', category);
+}
+
+// ── 知识图谱 API ──
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  sourceFile: string | null;
+  properties: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GraphEdge {
+  id: string;
+  sourceId: string;
+  relation: string;
+  targetId: string;
+  properties: Record<string, unknown>;
+  source: string;
+  createdAt: string;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export function getGraphData(): Promise<GraphData> {
+  return request<GraphData>('/graph/data');
+}
+
+export function getGraphNode(id: string): Promise<{ node: GraphNode; edges: GraphEdge[] } | null> {
+  return request<{ node: GraphNode; edges: GraphEdge[] } | null>(`/graph/node/${encodeURIComponent(id)}`);
+}
+
+export function getGraphNodeNeighbors(id: string): Promise<{ node: GraphNode; edges: GraphEdge[] } | null> {
+  return request<{ node: GraphNode; edges: GraphEdge[] } | null>(`/graph/node/${encodeURIComponent(id)}/neighbors`);
+}
+
+export function searchGraphNodes(query: string): Promise<GraphNode[]> {
+  return request<GraphNode[]>(`/graph/search?query=${encodeURIComponent(query)}`);
+}
+
+export function createGraphNode(data: { label: string; type: string; sourceFile?: string; properties?: Record<string, unknown> }): Promise<GraphNode> {
+  return request<GraphNode>('/graph/node', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createGraphEdge(data: { sourceId: string; relation: string; targetId: string; properties?: Record<string, unknown>; source?: string }): Promise<GraphEdge> {
+  return request<GraphEdge>('/graph/edge', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }

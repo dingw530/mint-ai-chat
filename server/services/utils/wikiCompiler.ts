@@ -1,11 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { isPathSafe } from './pathSecurity.js';
-import { CompiledPage, INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd, discoverCategoriesFromDir } from './wikiShared.js';
+import { getAdapter } from '../adapters/apiAdapter.js';
+import type { CompiledPage} from './wikiShared.js';
+import { INGEST_SYSTEM_PROMPT as SHARED_PROMPT, tryParseLooseJson, writeWikiPages, updateIndexMd, discoverCategoriesFromDir } from './wikiShared.js';
 import type { AiSettings } from '../../types.js';
 
 export interface CompileResult {
   pages: { filename: string; title: string; size: number }[];
+  compiledPages: CompiledPage[];  // 完整页面数据（含 tags/content），供图构建使用
   summary: string;
 }
 
@@ -36,44 +38,25 @@ ${schemaInfo}
 原始资料：
 ${sourceText}`;
 
-  const url = settings.apiUrl.replace(/\/+$/, '') + '/v1/chat/completions';
-  console.log(`[wikiCompiler] calling AI: url=${url}, model=${settings.modelId}, apiKey=${settings.apiKey ? 'set(' + settings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
+  console.log(`[wikiCompiler] calling AI: url=${settings.apiUrl}, model=${settings.modelId}, apiKey=${settings.apiKey ? 'set(' + settings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: settings.modelId,
-      messages: [
-        { role: 'system', content: prompt },
-        { role: 'user', content: userMessage },
-      ],
-      temperature: 0.3,
-      max_tokens: 4096,
-    }),
-  });
+  const adapter = getAdapter(settings.apiType || 'openai-chat');
+  if (!adapter) throw new Error('Adapter not found');
 
-  console.log(`[wikiCompiler] AI response status=${response.status} ${response.statusText}`);
+  const result = await adapter.call(
+    [
+      { role: 'system', content: prompt },
+      { role: 'user', content: userMessage },
+    ],
+    { modelId: settings.modelId },
+    settings.apiUrl,
+    settings.apiKey,
+    { maxTokens: 4096, temperature: 0.3 },
+  );
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => 'unknown error');
-    console.log(`[wikiCompiler] AI error body (first 500): ${errText.substring(0, 500)}`);
-    throw new Error(`AI API 请求失败 (${response.status}): ${errText.substring(0, 200)}`);
-  }
+  console.log(`[wikiCompiler] AI response received, length=${result.length}, preview=${result.substring(0, 100)}`);
 
-  const respText = await response.text();
-  console.log(`[wikiCompiler] AI response body length=${respText.length}, preview=${respText.substring(0, 100)}`);
-
-  let data: { choices: { message: { content: string } }[] };
-  try {
-    data = JSON.parse(respText);
-  } catch {
-    throw new Error(`AI API 返回非 JSON 格式, 前 200 字符: ${respText.substring(0, 200)}`);
-  }
-  return data.choices?.[0]?.message?.content || '';
+  return result;
 }
 
 /**
@@ -124,16 +107,13 @@ export async function compileSource(
     options?.category,
   );
 
-  let compiled: { pages: CompiledPage[]; summary: string };
   // AI 常在 content 字段中输出字面换行符，导致 JSON.parse 失败，先尝试宽松解析
-  let parsed: any = tryParseLooseJson(aiResult);
-  if (!parsed) {
-    const preview = aiResult.length > 500 ? aiResult.substring(0, 500) + '...' : aiResult;
+  const compiled: { pages: CompiledPage[]; summary: string } = tryParseLooseJson(aiResult);
+  if (!compiled) {
     console.error(`[wikiCompiler] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
     console.error(aiResult);
     throw new Error(`AI 返回格式异常，完整返回已打印到日志`);
   }
-  compiled = parsed;
 
   if (!compiled.pages || compiled.pages.length === 0) {
     throw new Error('AI 未生成任何 Wiki 页面');
@@ -144,6 +124,7 @@ export async function compileSource(
 
   return {
     pages: results,
+    compiledPages: compiled.pages,
     summary: compiled.summary || `成功创建 ${results.length} 个 Wiki 页面`,
   };
 }

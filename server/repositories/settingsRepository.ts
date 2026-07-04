@@ -1,5 +1,5 @@
 import { getDb } from '../db.js';
-import { RawSettings } from '../types.js';
+import type { RawSettings } from '../types.js';
 
 // 读取所有设置为键值对
 export function getAll(): RawSettings {
