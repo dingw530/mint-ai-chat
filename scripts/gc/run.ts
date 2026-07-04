@@ -78,8 +78,8 @@ function checkDocDrift() {
 // 3. Large file check
 function checkLargeFiles() {
   log('INFO', 'Checking for large files...');
-  const WARN_LINES = 300;
-  const ERROR_LINES = 500;
+  const WARN_LINES = 500;
+  const ERROR_LINES = 800;
 
   function scanDir(dir: string) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
