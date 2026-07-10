@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db.js';
+import { normalizeGraphRelation } from '../utils/graphOntology.js';
 
 // ── 类型定义 ──
 
@@ -50,7 +51,7 @@ export interface GraphData {
 
 export interface CreateNodeParams {
   label: string;
-  type: 'concept' | 'practice' | 'methodology';
+  type: string;
   sourceFile?: string | null;
   properties?: Record<string, unknown>;
 }
@@ -90,19 +91,27 @@ function toCamelCaseEdge(row: GraphEdgeRow): GraphEdge {
 }
 
 function parseJson(raw: string): Record<string, unknown> {
-  try { return JSON.parse(raw); } catch { return {}; }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 }
 
 // ── Graph Data ──
 
 export function getGraphData(): GraphData {
   const db = getDb();
-  const nodes = db.prepare(
-    'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes ORDER BY label'
-  ).all() as GraphNodeRow[];
-  const edges = db.prepare(
-    'SELECT id, source_id, relation, target_id, properties, source, created_at FROM graph_edges ORDER BY created_at'
-  ).all() as GraphEdgeRow[];
+  const nodes = db
+    .prepare(
+      'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes ORDER BY label',
+    )
+    .all() as GraphNodeRow[];
+  const edges = db
+    .prepare(
+      'SELECT id, source_id, relation, target_id, properties, source, created_at FROM graph_edges ORDER BY created_at',
+    )
+    .all() as GraphEdgeRow[];
   return {
     nodes: nodes.map(toCamelCaseNode),
     edges: edges.map(toCamelCaseEdge),
@@ -111,33 +120,69 @@ export function getGraphData(): GraphData {
 
 export function getNode(id: string): GraphNode | null {
   const db = getDb();
-  const row = db.prepare(
-    'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE id = ?'
-  ).get(id) as GraphNodeRow | undefined;
+  const row = db
+    .prepare(
+      'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE id = ?',
+    )
+    .get(id) as GraphNodeRow | undefined;
   return row ? toCamelCaseNode(row) : null;
 }
 
 export function getNodeNeighbors(id: string): { node: GraphNode; edges: GraphEdge[] } | null {
   const db = getDb();
-  const row = db.prepare(
-    'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE id = ?'
-  ).get(id) as GraphNodeRow | undefined;
+  const row = db
+    .prepare(
+      'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE id = ?',
+    )
+    .get(id) as GraphNodeRow | undefined;
   if (!row) return null;
 
-  const edges = db.prepare(
-    `SELECT id, source_id, relation, target_id, properties, source, created_at
-     FROM graph_edges WHERE source_id = ? OR target_id = ?`
-  ).all(id, id) as GraphEdgeRow[];
+  const edges = db
+    .prepare(
+      `SELECT id, source_id, relation, target_id, properties, source, created_at
+     FROM graph_edges WHERE source_id = ? OR target_id = ?`,
+    )
+    .all(id, id) as GraphEdgeRow[];
 
   return { node: toCamelCaseNode(row), edges: edges.map(toCamelCaseEdge) };
 }
 
 export function searchNodes(query: string): GraphNode[] {
   const db = getDb();
-  const rows = db.prepare(
-    "SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE label LIKE ? ORDER BY label"
-  ).all(`%${query}%`) as GraphNodeRow[];
+  const rows = db
+    .prepare(
+      'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE label LIKE ? ORDER BY label',
+    )
+    .all(`%${query}%`) as GraphNodeRow[];
   return rows.map(toCamelCaseNode);
+}
+
+/**
+ * 查询所有带 source_file 的节点（即有对应 wiki 页面的节点）。
+ * 用于跨批次 TF-IDF 对比时读取已有页面内容。
+ */
+export function getAllNodesWithSource(): GraphNode[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      'SELECT id, label, type, source_file, properties, created_at, updated_at FROM graph_nodes WHERE source_file IS NOT NULL ORDER BY label',
+    )
+    .all() as GraphNodeRow[];
+  return rows.map(toCamelCaseNode);
+}
+
+/**
+ * 获取所有边。
+ * 用于跨批次对比时的去重检查。
+ */
+export function getAllEdges(): GraphEdge[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      'SELECT id, source_id, relation, target_id, properties, source, created_at FROM graph_edges ORDER BY created_at',
+    )
+    .all() as GraphEdgeRow[];
+  return rows.map(toCamelCaseEdge);
 }
 
 export function createNode(params: CreateNodeParams): GraphNode {
@@ -150,7 +195,7 @@ export function createNode(params: CreateNodeParams): GraphNode {
   const properties = JSON.stringify(params.properties || {});
 
   db.prepare(
-    'INSERT INTO graph_nodes (id, label, type, source_file, properties, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO graph_nodes (id, label, type, source_file, properties, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
   ).run(id, params.label.trim(), params.type, params.sourceFile || null, properties, now, now);
 
   return {
@@ -164,9 +209,23 @@ export function createNode(params: CreateNodeParams): GraphNode {
   };
 }
 
+/** 更新已有页面节点的 Schema 分类。 */
+export function updateNodeType(id: string, type: string): void {
+  const db = getDb();
+  db.prepare('UPDATE graph_nodes SET type = ?, updated_at = ? WHERE id = ?').run(
+    type,
+    new Date().toISOString(),
+    id,
+  );
+}
+
 export function createEdge(params: CreateEdgeParams): GraphEdge {
   if (!params.relation || !params.relation.trim()) {
     throw Object.assign(new Error('关系类型不能为空'), { status: 400 });
+  }
+  const relation = normalizeGraphRelation(params.relation);
+  if (!relation) {
+    throw Object.assign(new Error(`不支持的关系类型: ${params.relation}`), { status: 400 });
   }
   const db = getDb();
   const now = new Date().toISOString();
@@ -177,16 +236,17 @@ export function createEdge(params: CreateEdgeParams): GraphEdge {
   const source = db.prepare('SELECT id FROM graph_nodes WHERE id = ?').get(params.sourceId);
   const target = db.prepare('SELECT id FROM graph_nodes WHERE id = ?').get(params.targetId);
   if (!source) throw Object.assign(new Error(`源节点不存在: ${params.sourceId}`), { status: 400 });
-  if (!target) throw Object.assign(new Error(`目标节点不存在: ${params.targetId}`), { status: 400 });
+  if (!target)
+    throw Object.assign(new Error(`目标节点不存在: ${params.targetId}`), { status: 400 });
 
   db.prepare(
-    'INSERT INTO graph_edges (id, source_id, relation, target_id, properties, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, params.sourceId, params.relation.trim(), params.targetId, properties, params.source || 'manual', now);
+    'INSERT INTO graph_edges (id, source_id, relation, target_id, properties, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run(id, params.sourceId, relation, params.targetId, properties, params.source || 'manual', now);
 
   return {
     id,
     sourceId: params.sourceId,
-    relation: params.relation.trim(),
+    relation,
     targetId: params.targetId,
     properties: params.properties || {},
     source: params.source || 'manual',
@@ -208,11 +268,17 @@ export function deleteEdge(id: string): void {
  * 检查是否存在相同 sourceId + relation + targetId 的边。
  * 用于批量创建时的去重判断。
  */
-export function findEdgeByTriple(sourceId: string, relation: string, targetId: string): GraphEdge | null {
+export function findEdgeByTriple(
+  sourceId: string,
+  relation: string,
+  targetId: string,
+): GraphEdge | null {
   const db = getDb();
-  const row = db.prepare(
-    'SELECT id, source_id, relation, target_id, properties, source, created_at FROM graph_edges WHERE source_id = ? AND relation = ? AND target_id = ?'
-  ).get(sourceId, relation, targetId) as GraphEdgeRow | undefined;
+  const row = db
+    .prepare(
+      'SELECT id, source_id, relation, target_id, properties, source, created_at FROM graph_edges WHERE source_id = ? AND relation = ? AND target_id = ?',
+    )
+    .get(sourceId, relation, targetId) as GraphEdgeRow | undefined;
   return row ? toCamelCaseEdge(row) : null;
 }
 

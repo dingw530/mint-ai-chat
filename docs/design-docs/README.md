@@ -24,3 +24,6 @@
 | [Client 路由架构重构](<../changes/2026-06-24-路由架构重构/design-doc.md>) | 2026-06-24 | 已完成 |
 | [Electron Server Bundle 打包修复](<../changes/2026-06-30-electron-server-bundle/design-doc.md>) | 2026-06-30 | 已完成 |
 | [三元关系图谱展示功能](<../changes/2026-07-03-knowledge-graph-mvp/design-doc.md>) | 2026-07-03 | 已完成 |
+| [自动建边优化——增量](<../changes/2026-07-08-knowledge-graph-auto-edge/design-doc.md>) | 2026-07-08 | 已完成 |
+| [Wiki 摄入质量修正](<../changes/2026-07-10-wiki-ingest-quality/design-doc.md>) | 2026-07-10 | 已完成 |
+| [Wiki Schema 分类标准维护](<../changes/2026-07-10-wiki-schema-management/design-doc.md>) | 2026-07-10 | 已完成 |

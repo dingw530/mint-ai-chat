@@ -1,5 +1,9 @@
 import * as graphRepo from '../repositories/graphRepository.js';
-import type { CompiledPage } from './utils/wikiShared.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { normalizeWikiCategories } from './utils/wikiShared.js';
+import type { CompiledPage, Relationship } from './utils/wikiShared.js';
+import { getGraphRelationPriority, normalizeGraphRelation } from '../utils/graphOntology.js';
 
 // ── Types ──
 
@@ -9,99 +13,167 @@ export interface BuildGraphResult {
   errors: string[];
 }
 
-// ── Category → Node Type Mapping ──
-
-const CATEGORY_TO_TYPE: Record<string, 'concept' | 'practice' | 'methodology'> = {
-  concept: 'concept',
-  practice: 'practice',
-  methodology: 'methodology',
-};
-
-const DEFAULT_TYPE = 'concept' as const;
-
-/**
- * 从 CompiledPage.filename 中提取分类目录并映射为 node.type。
- *
- * filename 格式: "pages/<category>/<page-name>.md"
- * 例: "pages/concept/极限编程.md" → type: "concept"
- */
-function inferNodeType(filename: string): 'concept' | 'practice' | 'methodology' {
+/** 从当前知识库 Schema 读取页面分类，图谱节点类型与分类名称保持一致。 */
+function inferNodeType(filename: string, wikiPath?: string): string {
   const parts = filename.split('/');
   const category = parts.length >= 2 ? parts[1] : '';
-  return CATEGORY_TO_TYPE[category] || DEFAULT_TYPE;
+  if (!wikiPath) return category || '未分类';
+  try {
+    const schemaPath = path.join(wikiPath, '_schema.json');
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8')) as { categories?: unknown };
+    const categories = normalizeWikiCategories(schema.categories);
+    if (categories.some((item) => item.name === category)) return category;
+  } catch {
+    // Schema 不可读时仍保留页面目录作为节点分类，避免丢失分类信息。
+  }
+  return category || '未分类';
 }
+
+// ── Relation Normalization ──
+
+export function normalizeRelation(relation: string): string {
+  return normalizeGraphRelation(relation) || relation.trim();
+}
+
+interface PrimaryRelationship extends Relationship {
+  relation: Exclude<ReturnType<typeof normalizeGraphRelation>, null | 'references'>;
+  confidence: number;
+}
+
+function normalizeConfidence(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(1, Math.max(0, value));
+}
+
+/** 为同一无序页面对选择唯一的主语义边。 */
+function selectPrimaryRelationships(relationships: Relationship[]): PrimaryRelationship[] {
+  const selected = new Map<string, PrimaryRelationship>();
+
+  for (const relationship of relationships) {
+    const relation = normalizeGraphRelation(relationship.relation);
+    if (!relation || relation === 'references' || !relationship.source || !relationship.target)
+      continue;
+    if (relationship.source === relationship.target) continue;
+
+    const candidate: PrimaryRelationship = {
+      ...relationship,
+      relation,
+      confidence: normalizeConfidence(relationship.confidence, relationship.evidence ? 0.75 : 0.55),
+    };
+    const key =
+      candidate.source < candidate.target
+        ? `${candidate.source}|${candidate.target}`
+        : `${candidate.target}|${candidate.source}`;
+    const existing = selected.get(key);
+    if (!existing) {
+      selected.set(key, candidate);
+      continue;
+    }
+
+    const candidateScore =
+      getGraphRelationPriority(candidate.relation) * 100 +
+      candidate.confidence * 10 +
+      (candidate.evidence ? 1 : 0) +
+      (candidate.reason ? 0.1 : 0);
+    const existingScore =
+      getGraphRelationPriority(existing.relation) * 100 +
+      existing.confidence * 10 +
+      (existing.evidence ? 1 : 0) +
+      (existing.reason ? 0.1 : 0);
+    if (candidateScore > existingScore) selected.set(key, candidate);
+  }
+
+  return [...selected.values()];
+}
+
+// ── Markdown Link Extraction ──
+
+export function extractWikiLinks(content: string): string[] {
+  const linkRe = /\[([^\]]*)\]\(([^)]+\.md)\)/g;
+  const links: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = linkRe.exec(content)) !== null) {
+    let target = match[2].trim();
+    try {
+      target = decodeURIComponent(target);
+    } catch {
+      // 保留原始链接，后续按普通未解析链接处理。
+    }
+    const pathParts = target.split('/');
+    if (pathParts.length > 1) {
+      const filename = pathParts.pop()!;
+      pathParts.push(filename.replace(/[\s]+/g, '-'));
+      target = pathParts.join('/');
+    }
+    if (
+      target.startsWith('pages/') ||
+      target.startsWith('../pages/') ||
+      target.startsWith('/pages/')
+    ) {
+      links.push(target.replace(/^(?:\.\.\/|\/)+/, ''));
+    }
+  }
+  return links;
+}
+
+// ── Entity Name Normalization ──
 
 // ── Main ──
 
 /**
- * 从 Wiki 编译结果自动构建知识图谱。
+ * 从 Wiki 编译结果构建知识图谱。
  *
- * 在摄入流程的 compileSource() 返回后调用，功能：
- * 1. 每个 CompiledPage 创建一个 graph_node（按 label 去重）
- * 2. 同批次共享标签的页面间建立 shared_tag 边（同一对页面无论共享多少个标签只建一条）
- * 3. 所有操作在事务中执行，保证数据一致性
+ * 3 阶段 Pipeline：
+ * 1. 创建页面节点（按 label 去重）
+ * 2. LLM relationships → 语义边（关系名规范化后入库）
+ * 3. 交叉链接提取 → references 边
  *
- * @param pages - compileSource() 返回的完整编译页面列表
- * @returns 包含创建的节点数、边数及错误信息的构建结果
+ * 所有操作在事务中执行。
  */
-export function buildGraphFromPages(pages: CompiledPage[]): BuildGraphResult {
+export function buildGraphFromPages(
+  pages: CompiledPage[],
+  relationships: Relationship[] = [],
+  wikiPath?: string,
+): BuildGraphResult {
   const errors: string[] = [];
 
   if (pages.length === 0) {
     return { nodesCreated: 0, edgesCreated: 0, errors: [] };
   }
 
-  // ── Phase 1: Build Node Specs ──
-
   interface NodeSpec {
     label: string;
-    type: 'concept' | 'practice' | 'methodology';
+    type: string;
     sourceFile: string;
   }
 
   const nodeSpecs: NodeSpec[] = pages.map((page) => ({
     label: page.title,
-    type: inferNodeType(page.filename),
+    type: inferNodeType(page.filename, wikiPath),
     sourceFile: page.filename,
   }));
-
-  // ── Phase 2: Build Edge Specs (shared tags) ──
-
-  const tagToPageIndices = new Map<string, number[]>();
-  for (let i = 0; i < pages.length; i++) {
-    for (const tag of pages[i].tags) {
-      if (!tagToPageIndices.has(tag)) {
-        tagToPageIndices.set(tag, []);
-      }
-      tagToPageIndices.get(tag)!.push(i);
-    }
-  }
-
-  /** 按字母序排列的 "labelA|labelB" 用于去重 */
-  const edgePairSet = new Set<string>();
-  const edgeSpecs: Array<{ sourceLabel: string; targetLabel: string }> = [];
-
-  for (const [, indices] of tagToPageIndices) {
-    if (indices.length < 2) continue;
-    for (let i = 0; i < indices.length; i++) {
-      for (let j = i + 1; j < indices.length; j++) {
-        const a = nodeSpecs[indices[i]].label;
-        const b = nodeSpecs[indices[j]].label;
-        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
-        if (edgePairSet.has(key)) continue;
-        edgePairSet.add(key);
-        edgeSpecs.push({ sourceLabel: a, targetLabel: b });
-      }
-    }
-  }
-
-  // ── Phase 3: Execute Writes in Transaction ──
+  const sourceFileByTitle = new Map(nodeSpecs.map((spec) => [spec.label, spec.sourceFile]));
+  const primaryRelationships = selectPrimaryRelationships(relationships);
 
   const result = graphRepo.transaction(() => {
     let nodesCreated = 0;
     let edgesCreated = 0;
+    const referencePairKey = (sourceId: string, targetId: string): string =>
+      sourceId < targetId ? `${sourceId}|${targetId}` : `${targetId}|${sourceId}`;
+    const referencePairs = new Set(
+      graphRepo
+        .getAllEdges()
+        .filter((edge) => edge.relation === 'references')
+        .map((edge) => referencePairKey(edge.sourceId, edge.targetId)),
+    );
+    const semanticPairs = new Set(
+      graphRepo
+        .getAllEdges()
+        .filter((edge) => edge.relation !== 'references')
+        .map((edge) => referencePairKey(edge.sourceId, edge.targetId)),
+    );
 
-    // 3a. Create nodes with dedup by label
+    // Phase 1: Create page nodes with dedup by label
     const labelToId = new Map<string, string>();
 
     for (const spec of nodeSpecs) {
@@ -109,6 +181,9 @@ export function buildGraphFromPages(pages: CompiledPage[]): BuildGraphResult {
       const match = existing.find((n) => n.label === spec.label);
       if (match) {
         labelToId.set(spec.label, match.id);
+        if (match.type !== spec.type) {
+          graphRepo.updateNodeType(match.id, spec.type);
+        }
         continue;
       }
 
@@ -121,32 +196,140 @@ export function buildGraphFromPages(pages: CompiledPage[]): BuildGraphResult {
         labelToId.set(spec.label, node.id);
         nodesCreated++;
       } catch (err) {
-        errors.push(`创建节点失败 [${spec.label}]: ${(err as Error).message}`);
+        errors.push('创建节点失败 [' + spec.label + ']: ' + (err as Error).message);
       }
     }
 
-    // 3b. Create edges with dedup by triple
-    for (const spec of edgeSpecs) {
-      const sourceId = labelToId.get(spec.sourceLabel);
-      const targetId = labelToId.get(spec.targetLabel);
+    // Phase 2: LLM relationships → semantic edges
+    for (const rel of primaryRelationships) {
+      const sourceId = labelToId.get(rel.source);
+      const targetId = labelToId.get(rel.target);
       if (!sourceId || !targetId) {
-        errors.push(`找不到节点 ID: ${spec.sourceLabel} -> ${spec.targetLabel}`);
+        errors.push('关系 ' + rel.source + ' → ' + rel.target + ': 节点未找到');
         continue;
       }
 
-      const existingEdge = graphRepo.findEdgeByTriple(sourceId, 'shared_tag', targetId);
-      if (existingEdge) continue;
-
       try {
+        const pairKey = referencePairKey(sourceId, targetId);
+        if (semanticPairs.has(pairKey)) continue;
+
         graphRepo.createEdge({
           sourceId,
-          relation: 'shared_tag',
+          relation: rel.relation,
           targetId,
-          source: 'auto-extracted',
+          source: 'ai-generated',
+          properties: {
+            strength: 'semantic',
+            confidence: rel.confidence,
+            reason: rel.reason || undefined,
+            evidence: rel.evidence || rel.reason || undefined,
+            evidenceType: rel.evidence ? 'source_excerpt' : 'generated_rationale',
+            sourceFile: sourceFileByTitle.get(rel.source),
+          },
         });
+        semanticPairs.add(pairKey);
         edgesCreated++;
       } catch (err) {
-        errors.push(`创建边失败 [${spec.sourceLabel} -> ${spec.targetLabel}]: ${(err as Error).message}`);
+        errors.push(
+          '创建边失败 [' + rel.source + ' → ' + rel.target + ']: ' + (err as Error).message,
+        );
+      }
+    }
+
+    // Phase 3: Cross-reference link extraction
+    const pageFilenameToTitle = new Map<string, string>();
+    for (const page of pages) {
+      pageFilenameToTitle.set(page.filename, page.title);
+    }
+
+    for (const page of pages) {
+      const links = extractWikiLinks(page.content);
+      for (const linkTarget of links) {
+        const targetTitle = pageFilenameToTitle.get(linkTarget);
+        if (!targetTitle) continue;
+
+        const sourceId = labelToId.get(page.title);
+        const targetId = labelToId.get(targetTitle);
+        if (!sourceId || !targetId) continue;
+
+        try {
+          const existingPairEdges = graphRepo
+            .getAllEdges()
+            .filter((edge) => edge.sourceId === sourceId && edge.targetId === targetId);
+          const pairKey = referencePairKey(sourceId, targetId);
+          if (
+            existingPairEdges.length === 0 &&
+            !referencePairs.has(pairKey) &&
+            !semanticPairs.has(pairKey)
+          ) {
+            graphRepo.createEdge({
+              sourceId,
+              relation: 'references',
+              targetId,
+              source: 'auto-extracted',
+              properties: {
+                strength: 'weak',
+                confidence: 0.25,
+                evidence: '页面关联链接',
+                sourceFile: page.filename,
+              },
+            });
+            referencePairs.add(pairKey);
+            edgesCreated++;
+          }
+        } catch (err) {
+          errors.push(
+            '创建 references 边失败 [' +
+              page.title +
+              ' → ' +
+              targetTitle +
+              ']: ' +
+              (err as Error).message,
+          );
+        }
+      }
+
+      // Also check for cross-batch references (links to pages outside current batch)
+      // Extract links and try to find them in existing nodes
+      if (wikiPath) {
+        const crossLinks = extractWikiLinks(page.content);
+        for (const linkTarget of crossLinks) {
+          // If not in current batch, look up by source_file
+          if (pageFilenameToTitle.has(linkTarget)) continue;
+
+          // Try to find existing node that matches this filename
+          const existingNode = graphRepo.searchNodes('');
+          const matched = existingNode.find((n) => n.sourceFile === linkTarget);
+          if (matched) {
+            const sourceId = labelToId.get(page.title);
+            const targetId = matched.id;
+            if (sourceId && targetId) {
+              try {
+                const pairKey = referencePairKey(sourceId, targetId);
+                if (!referencePairs.has(pairKey) && !semanticPairs.has(pairKey)) {
+                  graphRepo.createEdge({
+                    sourceId,
+                    relation: 'references',
+                    targetId,
+                    source: 'auto-extracted',
+                    properties: {
+                      strength: 'weak',
+                      confidence: 0.25,
+                      evidence: '页面关联链接',
+                      sourceFile: page.filename,
+                    },
+                  });
+                  referencePairs.add(pairKey);
+                  edgesCreated++;
+                }
+              } catch (err) {
+                errors.push(
+                  '创建跨批次 references 边失败 [' + page.title + ']: ' + (err as Error).message,
+                );
+              }
+            }
+          }
+        }
       }
     }
 

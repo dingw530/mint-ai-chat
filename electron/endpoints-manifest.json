@@ -556,5 +556,132 @@
     ],
     "result": "direct",
     "async": false
+  },
+  {
+    "id": "graph:data",
+    "ipcChannel": "graph:data",
+    "preloadMethod": "getGraphData",
+    "method": "GET",
+    "httpPath": "/graph/data",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:node",
+    "ipcChannel": "graph:node",
+    "preloadMethod": "getGraphNode",
+    "method": "GET",
+    "httpPath": "/graph/node/:id",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:neighbors",
+    "ipcChannel": "graph:neighbors",
+    "preloadMethod": "getGraphNodeNeighbors",
+    "method": "GET",
+    "httpPath": "/graph/node/:id/neighbors",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:search",
+    "ipcChannel": "graph:search",
+    "preloadMethod": "searchGraphNodes",
+    "method": "GET",
+    "httpPath": "/graph/search",
+    "args": [
+      {
+        "from": "query",
+        "name": "query"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:createNode",
+    "ipcChannel": "graph:createNode",
+    "preloadMethod": "createGraphNode",
+    "method": "POST",
+    "httpPath": "/graph/node",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:createEdge",
+    "ipcChannel": "graph:createEdge",
+    "preloadMethod": "createGraphEdge",
+    "method": "POST",
+    "httpPath": "/graph/edge",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:deleteNode",
+    "ipcChannel": "graph:deleteNode",
+    "preloadMethod": "deleteGraphNode",
+    "method": "DELETE",
+    "httpPath": "/graph/node/:id",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:deleteEdge",
+    "ipcChannel": "graph:deleteEdge",
+    "preloadMethod": "deleteGraphEdge",
+    "method": "DELETE",
+    "httpPath": "/graph/edge/:id",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:updateSchema",
+    "ipcChannel": "wiki:updateSchema",
+    "preloadMethod": "updateWikiSchema",
+    "method": "PUT",
+    "httpPath": "/wiki/schema",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": false
   }
 ]

@@ -1,9 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import type { CompiledPage } from '../services/utils/wikiShared.js';
-import { tryParseLooseJson, writeWikiPages, updateIndexMd } from '../services/utils/wikiShared.js';
+import {
+  normalizeWikiSchema,
+  tryParseLooseJson,
+  writeWikiPages,
+  updateIndexMd,
+} from '../services/utils/wikiShared.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import os from 'os';
+
+describe('normalizeWikiSchema', () => {
+  it('兼容旧版字符串分类并转换为结构化定义', () => {
+    const schema = normalizeWikiSchema({ categories: ['实践', { name: '概念', description: '术语', include: ['定义'] }] });
+
+    expect(schema.categories).toEqual([
+      { name: '实践', description: '', include: [], exclude: [] },
+      { name: '概念', description: '术语', include: ['定义'], exclude: [] },
+    ]);
+  });
+});
 
 describe('tryParseLooseJson', () => {
   it('解析标准 JSON', () => {

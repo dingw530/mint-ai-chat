@@ -7,10 +7,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── 流式对话 ──
   sendMessage: (convId, content, agent, regenerate) =>
     ipcRenderer.invoke('chat:send', convId, content, agent, regenerate),
-  onChunk: (callback) => { ipcRenderer.on('chat:chunk', (_event, data) => callback(data)); },
-  onDone: (callback) => { ipcRenderer.on('chat:done', () => callback()); },
-  onError: (callback) => { ipcRenderer.on('chat:error', (_event, err) => callback(err)); },
-  removeListener: (channel) => { ipcRenderer.removeAllListeners(channel); },
+  onChunk: (callback) => {
+    ipcRenderer.on('chat:chunk', (_event, data) => callback(data));
+  },
+  onDone: (callback) => {
+    ipcRenderer.on('chat:done', () => callback());
+  },
+  onError: (callback) => {
+    ipcRenderer.on('chat:error', (_event, err) => callback(err));
+  },
+  removeListener: (channel) => {
+    ipcRenderer.removeAllListeners(channel);
+  },
 
   // ── 会话 ──
   getConversations: (type) => ipcRenderer.invoke('conversations:list', type),
@@ -73,4 +81,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWikiSchema: () => ipcRenderer.invoke('wiki:schema'),
   addWikiCategory: (category) => ipcRenderer.invoke('wiki:addCategory', category),
   removeWikiCategory: (category) => ipcRenderer.invoke('wiki:removeCategory', category),
+  updateWikiSchema: (schema) => ipcRenderer.invoke('wiki:updateSchema', schema),
+
+  // ── 知识图谱 ──
+  getGraphData: () => ipcRenderer.invoke('graph:data'),
+  getGraphNode: (id) => ipcRenderer.invoke('graph:node', id),
+  getGraphNodeNeighbors: (id) => ipcRenderer.invoke('graph:neighbors', id),
+  searchGraphNodes: (query) => ipcRenderer.invoke('graph:search', query),
+  createGraphNode: (data) => ipcRenderer.invoke('graph:createNode', data),
+  createGraphEdge: (data) => ipcRenderer.invoke('graph:createEdge', data),
+  deleteGraphNode: (id) => ipcRenderer.invoke('graph:deleteNode', id),
+  deleteGraphEdge: (id) => ipcRenderer.invoke('graph:deleteEdge', id),
+  listGraphCandidates: (status) => ipcRenderer.invoke('graph:listCandidates', status),
+  acceptGraphCandidate: (id) => ipcRenderer.invoke('graph:acceptCandidate', id),
+  rejectGraphCandidate: (id, data) => ipcRenderer.invoke('graph:rejectCandidate', id, data),
 });

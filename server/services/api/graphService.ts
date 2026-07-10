@@ -1,4 +1,5 @@
 import * as graphRepo from '../../repositories/graphRepository.js';
+import * as candidateService from './graphCandidateService.js';
 import type { GraphNode, GraphEdge, GraphData, CreateNodeParams, CreateEdgeParams } from '../../repositories/graphRepository.js';
 
 // ── CRUD ──
@@ -34,3 +35,7 @@ export function deleteNode(id: string): void {
 export function deleteEdge(id: string): void {
   graphRepo.deleteEdge(id);
 }
+
+export const listCandidates = candidateService.listCandidates;
+export const acceptCandidate = candidateService.acceptCandidate;
+export const rejectCandidate = candidateService.rejectCandidate;

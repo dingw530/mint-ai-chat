@@ -41,7 +41,8 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
   readonly description = `将原始资料编译到 Wiki 知识库，遵循三层架构：
 1. 保存原始资料到 sources/ 目录（不可变）
 2. 调用 AI 分析并生成结构化 Markdown 页面
-3. 写入 pages/ 目录并更新 _index.md`;
+3. 写入 pages/ 目录并更新 _index.md
+返回字段：{ sourceFile: string, pages: Array<{filename, title, size}>, summary: string }。注意：没有 relatedPages 字段，编译出的页面在 pages 中。`;
   readonly inputSchema = WikiIngestInputSchema;
 
   isReadOnly(): boolean {

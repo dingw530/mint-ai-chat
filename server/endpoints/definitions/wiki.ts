@@ -52,4 +52,14 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     args: [{ from: 'path', name: 'category' }],
     result: 'direct',
   },
+  {
+    id: 'wiki:updateSchema',
+    method: 'PUT',
+    path: '/schema',
+    preloadMethod: 'updateWikiSchema',
+    service: (schema: unknown) => wikiService.updateSchema(schema as Parameters<typeof wikiService.updateSchema>[0]),
+    ipcServiceRef: { module: 'wikiSvc', method: 'updateSchema' },
+    args: [{ from: 'body' }],
+    result: 'direct',
+  },
 ];

@@ -119,7 +119,7 @@ function createSchema(): void {
     CREATE TABLE IF NOT EXISTS graph_nodes (
       id TEXT PRIMARY KEY,
       label TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('concept', 'practice', 'methodology')),
+      type TEXT NOT NULL,
       source_file TEXT,
       properties TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),

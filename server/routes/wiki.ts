@@ -85,6 +85,7 @@ async function processJob(
   let compiledPages: { filename: string; title: string; size: number }[] = [];
   let compiledSourceFile = '';
   let compileError: string | undefined;
+  let compiledGraphErrors: string[] | undefined;
 
   try {
     const compiled = await ingestWikiSource(settings, wikiPath, {
@@ -95,15 +96,19 @@ async function processJob(
     });
     compiledPages = compiled.pages;
     compiledSourceFile = compiled.sourceFile;
+    compiledGraphErrors = compiled.graphErrors;
   } catch (err) {
     compileError = (err as Error).message;
   }
 
   // 3. 完成
+  const graphWarn = (compiledGraphErrors && compiledGraphErrors.length > 0)
+    ? "图谱警告: " + compiledGraphErrors.join("; ")
+    : undefined;
   updateJob(jobId, {
     status: compileError ? 'error' : 'done',
     progress: 100,
-    step: compileError ? '编译失败' : '完成',
+    step: compileError ? '编译失败' : (graphWarn ? '完成（图谱警告）' : '完成'),
     error: compileError,
     result: {
       sourceFile: compiledSourceFile || archivedRelativePath,
@@ -112,7 +117,8 @@ async function processJob(
       pageCount: result.pageCount,
       preview,
       pages: compiledPages.length > 0 ? compiledPages : undefined,
-    },
+      graphErrors: compiledGraphErrors && compiledGraphErrors.length > 0 ? compiledGraphErrors : undefined,
+    } as any,
   });
 }
 

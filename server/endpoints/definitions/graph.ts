@@ -50,7 +50,7 @@ export const graphEndpoints: EndpointDescriptor[] = [
     service: (data: Record<string, unknown>) => {
       const node = graphService.createNode({
         label: data.label as string,
-        type: data.type as 'concept' | 'practice' | 'methodology',
+        type: data.type as string,
         sourceFile: data.sourceFile as string | undefined,
         properties: data.properties as Record<string, unknown> | undefined,
       });
@@ -105,4 +105,7 @@ export const graphEndpoints: EndpointDescriptor[] = [
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
+  { id:'graph:listCandidates', method:'GET', path:'/candidates', preloadMethod:'listGraphCandidates', service:(status?: string)=>graphService.listCandidates(status as any), ipcServiceRef:{module:'graphSvc',method:'listCandidates'}, args:[{from:'query',name:'status',optional:true}], result:'direct' },
+  { id:'graph:acceptCandidate', method:'POST', path:'/candidates/:id/accept', preloadMethod:'acceptGraphCandidate', service:(id:string)=>graphService.acceptCandidate(id), ipcServiceRef:{module:'graphSvc',method:'acceptCandidate'}, args:[{from:'path',name:'id'}], result:'direct' },
+  { id:'graph:rejectCandidate', method:'POST', path:'/candidates/:id/reject', preloadMethod:'rejectGraphCandidate', service:(id:string,body:{note?:string})=>graphService.rejectCandidate(id,body?.note), ipcServiceRef:{module:'graphSvc',method:'rejectCandidate'}, args:[{from:'path',name:'id'},{from:'body'}], result:'direct' },
 ];

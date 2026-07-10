@@ -53,7 +53,7 @@ describe('ingestWikiSource', () => {
 
     const sourcePath = path.join(tmpDir, result.sourceFile);
     expect(fs.existsSync(sourcePath)).toBe(true);
-    expect(fs.readFileSync(sourcePath, 'utf-8')).toContain('这是原始资料正文');
+    expect(fs.readFileSync(sourcePath, 'utf-8')).toBe('pdf-bytes');
 
     const manifestPath = path.join(tmpDir, '_manifest.json');
     expect(fs.existsSync(manifestPath)).toBe(true);
@@ -89,6 +89,31 @@ describe('ingestWikiSource', () => {
 
     const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, '_manifest.json'), 'utf-8'));
     expect(manifest.entries[0].archivedFiles).toEqual(['sources/existing.pdf']);
+  });
+
+  it('should reuse the single archived source instead of creating a duplicate normalized copy', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'sources/2026-07-10-report.md'), '# report');
+
+    const result = await ingestWikiSource(settings, tmpDir, {
+      sourceText: '解析后的报告内容',
+      sourceTitle: 'report',
+      sourceFilenameHint: '2026-07-10-report.md',
+      archivedFiles: [{ name: 'report.md', existingRelativePath: 'sources/2026-07-10-report.md' }],
+    });
+
+    expect(result.sourceFile).toBe('sources/2026-07-10-report.md');
+    expect(fs.readdirSync(path.join(tmpDir, 'sources'))).toEqual(['2026-07-10-report.md']);
+  });
+
+  it('should strip repeated date prefixes before archiving a raw file', async () => {
+    const archivedPath = archiveWikiRawFile(
+      tmpDir,
+      '2026-07-10-2026-07-10-report.md',
+      Buffer.from('report'),
+    );
+
+    expect(archivedPath).toMatch(/^sources\/\d{4}-\d{2}-\d{2}-report\.md$/);
   });
 
   it('should pass normalized source text into compileSource', async () => {

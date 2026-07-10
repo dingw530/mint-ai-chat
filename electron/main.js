@@ -45,7 +45,9 @@ function setupGlobalErrorHandlers() {
   });
 
   app.on('child-process-gone', (event, details) => {
-    logger.error(`CHILD PROCESS GONE: type=${details.type}, reason=${details.reason}, exitCode=${details.exitCode}`);
+    logger.error(
+      `CHILD PROCESS GONE: type=${details.type}, reason=${details.reason}, exitCode=${details.exitCode}`,
+    );
   });
 }
 
@@ -177,6 +179,7 @@ async function loadServiceModules() {
     skillSvc: bundle.skillService,
     bashSecurity: bundle.bashSecurityService,
     wikiSvc: bundle.wikiService,
+    graphSvc: bundle.graphService,
     // For generateTitle / parseFile / compileSource
     aiProxy: bundle,
     fileParseService: bundle,
@@ -197,7 +200,9 @@ async function loadServiceModules() {
 
   // 启动时扫描技能
   if (services.skillSvc) {
-    services.skillSvc.listSkills().catch(err => logger.error('Skill scan failed: ' + err.message));
+    services.skillSvc
+      .listSkills()
+      .catch((err) => logger.error('Skill scan failed: ' + err.message));
   }
 
   return true;
@@ -206,7 +211,10 @@ async function loadServiceModules() {
 function setupIpcHandlers() {
   // ── 流式对话 ──
   ipcMain.handle('chat:send', async (event, convId, content, agent, regenerate) => {
-    if (!services.msgSvc) { event.sender.send('chat:error', 'Services not loaded'); return; }
+    if (!services.msgSvc) {
+      event.sender.send('chat:error', 'Services not loaded');
+      return;
+    }
     const IpcSink = services.sinkMod.IpcSink;
     const sink = new IpcSink(event);
     try {
@@ -249,7 +257,11 @@ function setupIpcHandlers() {
     const firstAssistant = messages.find((m) => m.role === 'assistant');
     if (!firstUser || !firstAssistant) return { title: '' };
     const settings = services.settSvc.getAiSettings();
-    const title = await services.aiProxy.generateTitle(settings, firstUser.content, firstAssistant.content);
+    const title = await services.aiProxy.generateTitle(
+      settings,
+      firstUser.content,
+      firstAssistant.content,
+    );
     if (title) services.convSvc.rename(id, title);
     return { title };
   });
@@ -359,10 +371,15 @@ function setupIpcHandlers() {
     const { v4: uuidv4 } = await import('uuid');
     const id = uuidv4();
     const server = services.mcpRepo.create({
-      id, name: data.name, command: data.command,
-      args: data.args || [], env: data.env || {},
+      id,
+      name: data.name,
+      command: data.command,
+      args: data.args || [],
+      env: data.env || {},
     });
-    try { await mcp().connectServer(server); } catch {}
+    try {
+      await mcp().connectServer(server);
+    } catch {}
     return { server };
   });
 
@@ -373,7 +390,9 @@ function setupIpcHandlers() {
     await mcp().disconnectServer(existing.name);
     const updated = services.mcpRepo.update(id, data);
     if (!updated) throw new Error('MCP Server not found');
-    try { await mcp().connectServer(updated); } catch {}
+    try {
+      await mcp().connectServer(updated);
+    } catch {}
     return { server: updated };
   });
 
@@ -417,12 +436,17 @@ function setupIpcHandlers() {
         const urlObj = new URL(url);
         const httpMod = urlObj.protocol === 'https:' ? require('https') : require('http');
         fileData = await new Promise((resolve, reject) => {
-          httpMod.get(url, (response) => {
-            if (response.statusCode !== 200) { reject(new Error(`HTTP ${response.statusCode}`)); return; }
-            const chunks = [];
-            response.on('data', (chunk) => chunks.push(chunk));
-            response.on('end', () => resolve(Buffer.concat(chunks)));
-          }).on('error', reject);
+          httpMod
+            .get(url, (response) => {
+              if (response.statusCode !== 200) {
+                reject(new Error(`HTTP ${response.statusCode}`));
+                return;
+              }
+              const chunks = [];
+              response.on('data', (chunk) => chunks.push(chunk));
+              response.on('end', () => resolve(Buffer.concat(chunks)));
+            })
+            .on('error', reject);
         });
       }
       fs.writeFileSync(result.filePath, fileData);
@@ -438,7 +462,7 @@ function setupIpcHandlers() {
     try {
       if (!services.skillSvc) throw new Error('Skill service not loaded');
       const skills = await services.skillSvc.listSkills();
-      return { skills: skills.map(s => ({ name: s.name, description: s.description })) };
+      return { skills: skills.map((s) => ({ name: s.name, description: s.description })) };
     } catch (err) {
       logger.error(`skills:list failed: ${err.message}`);
       return { skills: [] };
@@ -467,6 +491,53 @@ function setupIpcHandlers() {
     }
   });
 
+  // ── 知识图谱 ──
+  ipcMain.handle('graph:data', () => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.getGraphData();
+  });
+  ipcMain.handle('graph:node', (_, id) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.getNode(id);
+  });
+  ipcMain.handle('graph:neighbors', (_, id) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.getNodeNeighbors(id);
+  });
+  ipcMain.handle('graph:search', (_, query) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.searchNodes(query);
+  });
+  ipcMain.handle('graph:createNode', (_, data) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.createNode(data);
+  });
+  ipcMain.handle('graph:createEdge', (_, data) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.createEdge(data);
+  });
+  ipcMain.handle('graph:deleteNode', (_, id) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    services.graphSvc.deleteNode(id);
+    return { success: true };
+  });
+  ipcMain.handle('graph:deleteEdge', (_, id) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    services.graphSvc.deleteEdge(id);
+    return { success: true };
+  });
+  ipcMain.handle('graph:listCandidates', (_, status) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.listCandidates(status);
+  });
+  ipcMain.handle('graph:acceptCandidate', (_, id) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.acceptCandidate(id);
+  });
+  ipcMain.handle('graph:rejectCandidate', (_, id, data) => {
+    if (!services.graphSvc) throw new Error('Graph service not loaded');
+    return services.graphSvc.rejectCandidate(id, data?.note);
+  });
   // ── Wiki ──
   ipcMain.handle('wiki:list', () => {
     if (!services.wikiSvc) throw new Error('Services not loaded');
@@ -488,7 +559,11 @@ function setupIpcHandlers() {
     if (!fs.existsSync(sourcesDir)) fs.mkdirSync(sourcesDir, { recursive: true });
 
     const date = new Date().toISOString().slice(0, 10);
-    const slug = name.replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9一-鿿]+/g, '-').replace(/^-|-$/g, '');
+    const slug = name
+      .replace(/\.[^.]+$/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9一-鿿]+/g, '-')
+      .replace(/^-|-$/g, '');
     const ext = path.extname(name).toLowerCase();
     const archiveName = `${date}-${slug}${ext}`;
     const archivePath = path.join(sourcesDir, archiveName);
@@ -502,17 +577,27 @@ function setupIpcHandlers() {
     if (!global.__wikiJobs) global.__wikiJobs = new Map();
 
     const job = {
-      id: jobId, status: 'pending', fileName: name, fileSize: size || fileBuffer.length,
-      progress: 0, step: '等待中',
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      id: jobId,
+      status: 'pending',
+      fileName: name,
+      fileSize: size || fileBuffer.length,
+      progress: 0,
+      step: '等待中',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     global.__wikiJobs.set(jobId, job);
 
     // 后台处理：解析 → AI 编译
-    processElectronWikiJob(jobId, archivePath, name, archiveName).catch(err => {
+    processElectronWikiJob(jobId, archivePath, name, archiveName).catch((err) => {
       logger.error(`wiki job ${jobId} failed: ${err.message}`);
       const j = global.__wikiJobs.get(jobId);
-      if (j) Object.assign(j, { status: 'error', error: err.message, updatedAt: new Date().toISOString() });
+      if (j)
+        Object.assign(j, {
+          status: 'error',
+          error: err.message,
+          updatedAt: new Date().toISOString(),
+        });
     });
 
     return { jobId, sourceFile, fileName: name, fileSize: size || fileBuffer.length };
@@ -537,7 +622,12 @@ function setupIpcHandlers() {
   ipcMain.handle('wiki:removeCategory', (_, category) => {
     if (!services.wikiSvc) throw new Error('Services not loaded');
     return services.wikiSvc.removeCategory(category);
-  });  logger.info('IPC handlers registered');
+  });
+  ipcMain.handle('wiki:updateSchema', (_, schema) => {
+    if (!services.wikiSvc) throw new Error('Services not loaded');
+    return services.wikiSvc.updateSchema(schema);
+  });
+  logger.info('IPC handlers registered');
 }
 
 // ── Wiki 后台作业处理 ──
@@ -552,7 +642,10 @@ async function processElectronWikiJob(jobId, archivePath, name, archiveName) {
 
   const settings = services.settSvc.get();
   const wikiPath = settings.wikiPath;
-  if (!wikiPath) { update({ status: 'error', error: 'Wiki 路径未配置' }); return; }
+  if (!wikiPath) {
+    update({ status: 'error', error: 'Wiki 路径未配置' });
+    return;
+  }
   log(`start, archivePath=${archivePath}`);
 
   // 1. 解析文件
@@ -560,27 +653,37 @@ async function processElectronWikiJob(jobId, archivePath, name, archiveName) {
   const parseMod = services.fileParseService;
   const savedContent = fs.readFileSync(archivePath);
   log(`file size=${savedContent.length}`);
-  const result = await parseMod.parseFile({ name, content: savedContent, size: savedContent.length });
+  const result = await parseMod.parseFile({
+    name,
+    content: savedContent,
+    size: savedContent.length,
+  });
   log(`parse done, format=${result.format} textLength=${result.text.length}`);
   const preview = result.text.length > 500 ? result.text.substring(0, 500) + '\n...' : result.text;
 
-  // 2. AI 编译
+  // 2. AI 编译 + 图谱构建 + manifest
   update({ status: 'compiling', progress: 60, step: 'AI 编译中' });
   let compiledPages = [];
   let compileError;
   try {
-    const compileMod = services.wikiCompiler;
+    const ingestMod = services.wikiCompiler;
     const aiSettings = services.settSvc.getAiSettings();
-    log(`compileSource start, apiUrl=${aiSettings.apiUrl}, model=${aiSettings.modelId}, apiKey=${aiSettings.apiKey ? 'set(' + aiSettings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`);
-    const compiled = await compileMod.compileSource(aiSettings, wikiPath, result.text, archiveName, {
-      title: name.replace(/\.[^.]+$/, ''),
+    log(`ingestWikiSource start, apiUrl=${aiSettings.apiUrl}, model=${aiSettings.modelId}`);
+    const compiled = await ingestMod.ingestWikiSource(aiSettings, wikiPath, {
+      sourceText: ingestMod.buildWikiSourceText('', [{ kind: 'file', name, content: result.text }]),
+      sourceTitle: name.replace(/.[^.]+$/, ''),
+      sourceFilenameHint: archiveName,
+      archivedFiles: [{ name, existingRelativePath: 'sources/' + archiveName }],
     });
     compiledPages = compiled.pages;
-    log(`compileSource done, pages=${compiled.pages.length}`);
+    log(`ingestWikiSource done, pages=${compiled.pages.length}`);
+    if (compiled.graphErrors && compiled.graphErrors.length > 0) {
+      log(`ingestWikiSource graph warnings: ${compiled.graphErrors.join('; ')}`);
+    }
   } catch (err) {
     compileError = err.message;
-    log(`compileSource ERROR: ${err.message}`);
-    log(`compileSource stack: ${err.stack ? err.stack.substring(0, 500) : 'no stack'}`);
+    log(`ingestWikiSource ERROR: ${err.message}`);
+    log(`ingestWikiSource stack: ${err.stack ? err.stack.substring(0, 500) : 'no stack'}`);
   }
 
   // 3. 完成
@@ -647,7 +750,9 @@ function createWindow(port) {
     if (level >= 2) logger.debug(`[renderer] ${message}`);
   });
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
 function loadClientApp() {
@@ -668,20 +773,32 @@ function migrateFromOldUserData() {
     const oldDir = app.getPath('userData');
     console.log(`[migrate] oldDir=${oldDir}, MINT_DIR=${MINT_DIR}`);
 
-    if (oldDir === MINT_DIR) { console.log('[migrate] same path, skip'); return; }
-    if (!fs.existsSync(oldDir)) { console.log('[migrate] oldDir not found, skip'); return; }
-    if (fs.existsSync(path.join(MINT_DIR, 'data.db')) || fs.existsSync(path.join(MINT_DIR, '.env'))) {
+    if (oldDir === MINT_DIR) {
+      console.log('[migrate] same path, skip');
+      return;
+    }
+    if (!fs.existsSync(oldDir)) {
+      console.log('[migrate] oldDir not found, skip');
+      return;
+    }
+    if (
+      fs.existsSync(path.join(MINT_DIR, 'data.db')) ||
+      fs.existsSync(path.join(MINT_DIR, '.env'))
+    ) {
       console.log('[migrate] .mint already has data, skip');
       return;
     }
 
-    const items = fs.readdirSync(oldDir).filter(f => f !== 'logs');
+    const items = fs.readdirSync(oldDir).filter((f) => f !== 'logs');
     console.log(`[migrate] items to migrate: ${items.length} — ${items.join(', ') || '(none)'}`);
     if (items.length === 0) return;
 
     // 只搬核心数据文件，跳过 Cache / Session Storage 等 Electron 运行时目录
-    const coreFiles = items.filter(f => f === 'data.db' || f === '.env');
-    if (coreFiles.length === 0) { console.log('[migrate] no core files to migrate'); return; }
+    const coreFiles = items.filter((f) => f === 'data.db' || f === '.env');
+    if (coreFiles.length === 0) {
+      console.log('[migrate] no core files to migrate');
+      return;
+    }
 
     fs.mkdirSync(MINT_DIR, { recursive: true });
 
@@ -716,12 +833,8 @@ app.whenReady().then(async () => {
   try {
     createWindow();
 
-
     // 加载服务模块并启动 server
-    const [servicesLoaded] = await Promise.all([
-      loadServiceModules(),
-      startServer(),
-    ]);
+    const [servicesLoaded] = await Promise.all([loadServiceModules(), startServer()]);
 
     if (servicesLoaded) {
       setupIpcHandlers();
@@ -738,7 +851,10 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') { logger.close(); app.quit(); }
+  if (process.platform !== 'darwin') {
+    logger.close();
+    app.quit();
+  }
 });
 
 app.on('activate', () => {

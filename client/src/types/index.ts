@@ -22,6 +22,13 @@ export interface Message {
   segments?: ContentSegment[];
 }
 
+export interface WikiCategory {
+  name: string;
+  description: string;
+  include: string[];
+  exclude: string[];
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -274,7 +281,10 @@ export interface ElectronAPI {
   // 端点
   getEndpoints: () => Promise<{ endpoints: EndpointOutput[] }>;
   createEndpoint: (data: EndpointInput) => Promise<{ endpoint: EndpointOutput }>;
-  updateEndpoint: (id: string, data: Partial<EndpointInput>) => Promise<{ endpoint: EndpointOutput }>;
+  updateEndpoint: (
+    id: string,
+    data: Partial<EndpointInput>,
+  ) => Promise<{ endpoint: EndpointOutput }>;
   deleteEndpoint: (id: string) => Promise<{ success: boolean }>;
   activateEndpoint: (id: string) => Promise<{ success: boolean }>;
 
@@ -297,19 +307,37 @@ export interface ElectronAPI {
 
   // Bash 安全
   getBashSecurity: () => Promise<{ blockedCommands: string[]; blockedDirs: string[] }>;
-  updateBashSecurity: (data: { blockedCommands: string[]; blockedDirs: string[] }) => Promise<{ success: boolean }>;
+  updateBashSecurity: (data: {
+    blockedCommands: string[];
+    blockedDirs: string[];
+  }) => Promise<{ success: boolean }>;
 
   // 文件
   downloadFile?: (url: string, filename: string) => Promise<void>;
 
   // Wiki
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
-  readWiki: (path: string) => Promise<{ content: string; path: string; name: string; size: number }>;
-  uploadWiki: (data: { name: string; size: number; buffer: number[] }) => Promise<{ jobId: string; sourceFile: string; fileName: string; fileSize: number }>;
+  readWiki: (
+    path: string,
+  ) => Promise<{ content: string; path: string; name: string; size: number }>;
+  uploadWiki: (data: {
+    name: string;
+    size: number;
+    buffer: number[];
+  }) => Promise<{ jobId: string; sourceFile: string; fileName: string; fileSize: number }>;
   getJobStatus: (jobId: string) => Promise<UploadJob>;
-  getWikiSchema: () => Promise<{ categories: string[] }>;
-  addWikiCategory: (category: string) => Promise<{ categories: string[] }>;
-  removeWikiCategory: (category: string) => Promise<{ categories: string[] }>;}
+  getWikiSchema: () => Promise<{ categories: WikiCategory[] }>;
+  addWikiCategory: (category: string) => Promise<{ categories: WikiCategory[] }>;
+  removeWikiCategory: (category: string) => Promise<{ categories: WikiCategory[] }>;
+  updateWikiSchema: (schema: {
+    categories: WikiCategory[];
+  }) => Promise<{ categories: WikiCategory[] }>;
+
+  // 知识图谱
+  listGraphCandidates: (status?: string) => Promise<unknown[]>;
+  acceptGraphCandidate: (id: string) => Promise<unknown>;
+  rejectGraphCandidate: (id: string, data?: { note?: string }) => Promise<{ success: boolean }>;
+}
 
 export interface UploadJob {
   id: string;
