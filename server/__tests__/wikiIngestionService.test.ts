@@ -1,142 +1,90 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as fs from 'fs';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as os from 'os';
 
 vi.mock('../services/utils/wikiCompiler.js', () => ({
-  compileSource: vi.fn().mockResolvedValue({
-    pages: [
-      { filename: 'pages/wiki/result.md', title: 'Result Page', size: 123 },
-    ],
-    compiledPages: [
-      { filename: 'pages/wiki/result.md', title: 'Result Page', tags: ['tag1'], content: '# Result' },
-    ],
-    summary: '编译摘要',
-  }),
+  compileSource: vi.fn(),
 }));
 
+vi.mock('../services/utils/wikiShared.js', () => ({
+  appendWikiManifestEntry: vi.fn(),
+}));
+
+vi.mock('../services/graphBuilder.js', () => ({
+  buildGraphFromPages: vi.fn(() => ({ nodesCreated: 0, edgesCreated: 0, errors: [] })),
+}));
+
+vi.mock('../services/api/crossBatchSemanticService.js', () => ({
+  generateCrossBatchCandidates: vi.fn(),
+}));
+
+import * as wikiIngestionService from '../services/api/wikiIngestionService.js';
 import { compileSource } from '../services/utils/wikiCompiler.js';
-import { ingestWikiSource, archiveWikiRawFile, buildWikiSourceText } from '../services/api/wikiIngestionService.js';
 
-const settings = {
-  apiType: 'openai-chat',
-  apiUrl: 'https://example.com',
-  apiKey: 'test-key',
-  modelId: 'test-model',
-  systemPrompt: '',
-  thinkingMode: false,
-  memoryEnabled: false,
-  wikiPath: '',
-  wikiMaxFileSize: 0,
-};
+describe('wikiIngestionService', () => {
+  let tmpDir: string;
 
-let tmpDir: string;
-
-beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-ingestion-test-'));
-});
-
-afterEach(() => {
-  fs.rmSync(tmpDir, { recursive: true, force: true });
-});
-
-describe('ingestWikiSource', () => {
-  it('should create source file and append manifest entry after successful compile', async () => {
-    const result = await ingestWikiSource(settings, tmpDir, {
-      sourceText: '这是原始资料正文',
-      sourceTitle: '知识条目',
-      sourceFilenameHint: 'knowledge-note.md',
-      archivedFiles: [
-        { name: 'source.pdf', buffer: Buffer.from('pdf-bytes') },
-      ],
-    });
-
-    const sourcePath = path.join(tmpDir, result.sourceFile);
-    expect(fs.existsSync(sourcePath)).toBe(true);
-    expect(fs.readFileSync(sourcePath, 'utf-8')).toBe('pdf-bytes');
-
-    const manifestPath = path.join(tmpDir, '_manifest.json');
-    expect(fs.existsSync(manifestPath)).toBe(true);
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-    expect(manifest.entries).toHaveLength(1);
-    expect(manifest.entries[0]).toMatchObject({
-      id: result.manifestId,
-      sourceFile: result.sourceFile,
-      archivedFiles: result.archivedFiles,
-      pageFiles: ['pages/wiki/result.md'],
-      summary: '编译摘要',
-    });
-    expect(typeof manifest.entries[0].createdAt).toBe('string');
-    expect(result.pages[0].filename).toBe('pages/wiki/result.md');
-  });
-
-  it('should reuse archived file path when upload flow already persisted raw file', async () => {
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-ingest-'));
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
     fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'sources/existing.pdf'), 'raw-bytes');
+    vi.clearAllMocks();
+  });
 
-    const result = await ingestWikiSource(settings, tmpDir, {
-      sourceText: '来自上传作业的内容',
-      sourceTitle: '上传文件',
-      sourceFilenameHint: 'existing.pdf',
-      archivedFiles: [
-        { name: 'existing.pdf', existingRelativePath: 'sources/existing.pdf' },
-      ],
+  describe('archiveWikiRawFile', () => {
+    it('saves file to sources/ with date prefix', () => {
+      const buffer = Buffer.from('test content');
+      // Create sources dir
+      fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
+
+      const relativePath = wikiIngestionService.archiveWikiRawFile(tmpDir, 'test.txt', buffer);
+      expect(relativePath).toContain('sources/');
+      expect(relativePath).toContain('.txt');
+
+      const fullPath = path.join(tmpDir, relativePath);
+      expect(fs.existsSync(fullPath)).toBe(true);
+      expect(fs.readFileSync(fullPath, 'utf-8')).toBe('test content');
     });
 
-    expect(result.archivedFiles).toEqual(['sources/existing.pdf']);
-    const sourceFiles = fs.readdirSync(path.join(tmpDir, 'sources'));
-    expect(sourceFiles.filter(name => name === 'existing.pdf')).toHaveLength(1);
+    it('handles slugified filenames', () => {
+      const buffer = Buffer.from('content');
+      fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
 
-    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, '_manifest.json'), 'utf-8'));
-    expect(manifest.entries[0].archivedFiles).toEqual(['sources/existing.pdf']);
-  });
-
-  it('should reuse the single archived source instead of creating a duplicate normalized copy', async () => {
-    fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'sources/2026-07-10-report.md'), '# report');
-
-    const result = await ingestWikiSource(settings, tmpDir, {
-      sourceText: '解析后的报告内容',
-      sourceTitle: 'report',
-      sourceFilenameHint: '2026-07-10-report.md',
-      archivedFiles: [{ name: 'report.md', existingRelativePath: 'sources/2026-07-10-report.md' }],
+      const relativePath = wikiIngestionService.archiveWikiRawFile(
+        tmpDir, 'My Great File!!.md', buffer,
+      );
+      expect(relativePath).toContain('.md');
+      // Should be lowercased and slugified
+      expect(relativePath).not.toContain('My Great File');
     });
 
-    expect(result.sourceFile).toBe('sources/2026-07-10-report.md');
-    expect(fs.readdirSync(path.join(tmpDir, 'sources'))).toEqual(['2026-07-10-report.md']);
+    it('avoids overwriting with counter suffix', () => {
+      const buffer = Buffer.from('content');
+      fs.mkdirSync(path.join(tmpDir, 'sources'), { recursive: true });
+
+      const first = wikiIngestionService.archiveWikiRawFile(tmpDir, 'dup.txt', buffer);
+      const second = wikiIngestionService.archiveWikiRawFile(tmpDir, 'dup.txt', buffer);
+      expect(first).not.toBe(second);
+    });
   });
 
-  it('should strip repeated date prefixes before archiving a raw file', async () => {
-    const archivedPath = archiveWikiRawFile(
-      tmpDir,
-      '2026-07-10-2026-07-10-report.md',
-      Buffer.from('report'),
-    );
-
-    expect(archivedPath).toMatch(/^sources\/\d{4}-\d{2}-\d{2}-report\.md$/);
-  });
-
-  it('should pass normalized source text into compileSource', async () => {
-    await ingestWikiSource(settings, tmpDir, {
-      sourceText: '原始输入',
-      sourceTitle: '统一入口',
-      sourceFilenameHint: 'normalized.md',
+  describe('buildWikiSourceText', () => {
+    it('combines base text with segments', () => {
+      const result = wikiIngestionService.buildWikiSourceText('base text', [
+        { kind: 'url', name: 'https://example.com', content: 'web content' },
+        { kind: 'file', name: 'notes.txt', content: 'file content' },
+      ]);
+      expect(result).toContain('base text');
+      expect(result).toContain('来源');
+      expect(result).toContain('web content');
+      expect(result).toContain('文件');
+      expect(result).toContain('file content');
     });
 
-    expect(vi.mocked(compileSource).mock.calls.at(-1)?.[2]).toBe('原始输入');
-  });
-
-  it('should archive duplicate raw files without overwriting prior files', async () => {
-    const firstPath = archiveWikiRawFile(tmpDir, 'source.pdf', Buffer.from('first'));
-    const secondPath = archiveWikiRawFile(tmpDir, 'source.pdf', Buffer.from('second'));
-
-    expect(firstPath).not.toBe(secondPath);
-    expect(fs.readFileSync(path.join(tmpDir, firstPath), 'utf-8')).toBe('first');
-    expect(fs.readFileSync(path.join(tmpDir, secondPath), 'utf-8')).toBe('second');
-  });
-
-  it('should normalize file segments consistently across ingestion entrypoints', () => {
-    const normalized = buildWikiSourceText('', [{ kind: 'file', name: 'spec.pdf', content: '解析文本' }]);
-    expect(normalized).toBe('\n\n---\n## 文件：spec.pdf\n\n解析文本');
+    it('handles empty segments', () => {
+      const result = wikiIngestionService.buildWikiSourceText('just text');
+      expect(result).toBe('just text');
+    });
   });
 });

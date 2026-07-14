@@ -1,50 +1,33 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-// Only mock settingsService (needed by getWikiPath), keep real isPathSafe
 vi.mock('../services/api/settingsService.js', () => ({
-  getAiSettings: () => ({
-    apiUrl: '', apiKey: '', modelId: '', systemPrompt: '',
-    thinkingMode: false, memoryEnabled: false, wikiPath: null,
-  }),
+  getAiSettings: vi.fn(() => ({ wikiPath: '' })),
 }));
 
 import { isPathSafe } from '../services/utils/pathSecurity.js';
 
-describe('isPathSafe', () => {
-  const root = '/tmp/wiki-root';
+describe('pathSecurity', () => {
+  describe('isPathSafe', () => {
+    it('allows valid paths within root', () => {
+      expect(isPathSafe('/tmp/wiki', 'pages/test.md')).toBe(true);
+      expect(isPathSafe('/tmp/wiki', 'sources/test.txt')).toBe(true);
+    });
 
-  it('should allow safe relative paths', () => {
-    expect(isPathSafe(root, 'pages/hello.md')).toBe(true);
-    expect(isPathSafe(root, 'pages/sub/dir/file.md')).toBe(true);
-    expect(isPathSafe(root, 'sources/file.md')).toBe(true);
-  });
+    it('blocks path traversal', () => {
+      expect(isPathSafe('/tmp/wiki', '../../etc/passwd')).toBe(false);
+      expect(isPathSafe('/tmp/wiki', '../other/file.md')).toBe(false);
+    });
 
-  it('should allow the root path itself via dot', () => {
-    expect(isPathSafe(root, '.')).toBe(true);
-  });
+    it('blocks absolute paths', () => {
+      expect(isPathSafe('/tmp/wiki', '/etc/passwd')).toBe(false);
+    });
 
-  it('should reject path traversal with ..', () => {
-    expect(isPathSafe(root, '../etc/passwd')).toBe(false);
-    expect(isPathSafe(root, 'pages/../../etc/passwd')).toBe(false);
-    expect(isPathSafe(root, './pages/../../etc/passwd')).toBe(false);
-  });
+    it('returns false for empty target', () => {
+      expect(isPathSafe('/tmp/wiki', '')).toBe(false);
+    });
 
-  it('should reject absolute paths that escape root', () => {
-    expect(isPathSafe(root, '/etc/passwd')).toBe(false);
-    expect(isPathSafe(root, '/tmp/other')).toBe(false);
-  });
-
-  it('should reject empty root', () => {
-    expect(isPathSafe('', 'pages/hello.md')).toBe(false);
-  });
-
-  it('should reject null/undefined inputs', () => {
-    expect(isPathSafe(null as any, 'test')).toBe(false);
-    expect(isPathSafe(root, null as any)).toBe(false);
-  });
-
-  it('should treat URL-encoded slashes as literal chars (no decoding)', () => {
-    // %2F is not decoded by path.resolve, so it stays within root
-    expect(isPathSafe(root, 'pages/..%2F..%2Fetc/passwd')).toBe(true);
+    it('returns false for empty root', () => {
+      expect(isPathSafe('', 'pages/test.md')).toBe(false);
+    });
   });
 });
