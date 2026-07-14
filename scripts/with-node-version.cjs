@@ -43,13 +43,17 @@ let nodeBinDir;
 try {
   nodeBinDir = resolveNodeBin();
 } catch (error) {
-  console.error(`[node-version] ${error.message}`);
-  process.exit(1);
+  const sysVer = spawnSync('node', ['-p', 'process.versions.node'], { encoding: 'utf8' });
+  if (sysVer.status !== 0) { console.error(`[node-version] ${error.message}`); process.exit(1); }
+  const sysMajorMinor = sysVer.stdout.trim().split('.').slice(0, 2).join('.');
+  const reqMajorMinor = requiredVersion.split('.').slice(0, 2).join('.');
+  if (sysMajorMinor !== reqMajorMinor) { console.error(`[node-version] ${error.message}`); process.exit(1); }
+  nodeBinDir = ''; // 使用系统 PATH
 }
 
 const env = {
   ...process.env,
-  PATH: `${nodeBinDir}${path.delimiter}${process.env.PATH || ''}`,
+  ...(nodeBinDir ? { PATH: `${nodeBinDir}${path.delimiter}${process.env.PATH || ''}` } : {}),
 };
 
 const result = spawnSync(command, args, {
