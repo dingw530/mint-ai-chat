@@ -798,6 +798,37 @@
   color: var(--text-tertiary);
 }
 
+.wiki-graph-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wiki-graph-stats span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.wiki-graph-stats strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.wiki-graph-view-switch { display:flex; gap:2px; border:1px solid var(--border-subtle); border-radius:6px; padding:2px; }
+.wiki-graph-view-switch button,.graph-candidates-toolbar button,.graph-candidate-actions button { border:0; background:transparent; color:var(--text-secondary); padding:4px 8px; font-size:12px; cursor:pointer; border-radius:4px; }
+.wiki-graph-view-switch button.is-active,.graph-candidates-toolbar button.is-active { background:var(--bg-secondary); color:var(--text-primary); }
+.graph-candidates { flex:1; overflow:auto; padding:20px 28px; }
+.graph-candidates-toolbar { display:flex; gap:6px; margin-bottom:14px; }
+.graph-candidate { border-bottom:1px solid var(--border-subtle); padding:14px 0; max-width:760px; }
+.graph-candidate-relation { display:flex; justify-content:space-between; color:var(--text-primary); }
+.graph-candidate-nodes,.graph-candidate p,.graph-candidates-empty,.graph-candidates-error { color:var(--text-secondary); font-size:13px; line-height:1.5; }
+.graph-candidate-actions { display:flex; gap:6px; }.graph-candidate-actions button:first-child { color:var(--accent); }
+
 .wiki-graph-error {
   font-size: 12px;
   color: var(--error-text);

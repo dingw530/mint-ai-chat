@@ -8,7 +8,7 @@ import * as graphRepo from '../../repositories/graphRepository.js';
 
 const BatchNodeSchema = z.object({
   label: z.string().min(1).describe('节点名称'),
-  type: z.enum(['concept', 'practice', 'methodology']).describe('节点类型：concept=概念，practice=实践，methodology=方法论'),
+  type: z.string().min(1).describe('节点分类，必须与知识库 _schema.json 中的分类名称一致'),
   sourceFile: z.string().min(1).describe('来源 wiki 文件路径，如 pages/极限编程.md'),
 });
 
@@ -24,7 +24,7 @@ const KnowledgeGraphInputSchema = z.object({
   query: z.string().optional().describe('搜索关键词（action=query_nodes 时使用）'),
   // batch_add
   nodes: z.array(BatchNodeSchema).optional().describe('批量添加的节点列表（action=batch_add 时使用）'),
-  edges: z.array(BatchEdgeSchema).optional().describe('批量添加的关系列表（action=batch_add 时使用）'),
+  edges: z.array(BatchEdgeSchema).optional().describe('批量添加的关系列表（action=batch_add 时使用）。关系必须使用已定义的图谱关系本体。'),
 });
 
 type KnowledgeGraphInput = z.infer<typeof KnowledgeGraphInputSchema>;

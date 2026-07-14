@@ -25,7 +25,6 @@ export const settingsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'getSettings',
     service: settingsService.get,
-    ipcServiceRef: { module: 'settSvc', method: 'get' },
     result: 'direct',
   },
   {

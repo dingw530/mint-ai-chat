@@ -4,6 +4,15 @@ import { isPathSafe } from './pathSecurity.js';
 
 // ── Types ──
 
+export interface Relationship {
+  source: string;
+  target: string;
+  relation: string;
+  reason?: string;
+  evidence?: string;
+  confidence?: number;
+}
+
 export interface CompiledPage {
   filename: string;
   title: string;
@@ -25,6 +34,60 @@ export interface WikiManifestEntry {
 export interface WikiManifest {
   version: number;
   entries: WikiManifestEntry[];
+}
+
+export interface WikiCategory {
+  name: string;
+  description: string;
+  include: string[];
+  exclude: string[];
+}
+
+export interface WikiSchema {
+  version?: number;
+  description?: string;
+  categories: WikiCategory[];
+  tags?: string[];
+  [key: string]: unknown;
+}
+
+/** 将旧版字符串分类和新版对象分类统一为结构化定义。 */
+export function normalizeWikiCategories(value: unknown): WikiCategory[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item): WikiCategory | null => {
+      if (typeof item === 'string') {
+        const name = item.trim();
+        return name ? { name, description: '', include: [], exclude: [] } : null;
+      }
+      if (!item || typeof item !== 'object') return null;
+
+      const raw = item as Record<string, unknown>;
+      const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+      if (!name) return null;
+      const toStringArray = (candidate: unknown): string[] => (
+        Array.isArray(candidate)
+          ? candidate.map(String).map(item => item.trim()).filter(Boolean)
+          : []
+      );
+      return {
+        name,
+        description: typeof raw.description === 'string' ? raw.description.trim() : '',
+        include: toStringArray(raw.include),
+        exclude: toStringArray(raw.exclude),
+      };
+    })
+    .filter((item): item is WikiCategory => item !== null);
+}
+
+/** 读取并规范化 Schema，兼容旧版 categories: string[]。 */
+export function normalizeWikiSchema(value: unknown): WikiSchema {
+  const raw = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    ...raw,
+    categories: normalizeWikiCategories(raw.categories),
+  } as WikiSchema;
 }
 
 export interface ParsedWikiPage {
@@ -50,15 +113,64 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
 
 ## 要求
 1. 分析资料内容，提取关键知识点
-2. 根据资料长度和主题复杂度，决定建一个或多个页面
-3. 每个页面必须包含以下字段：
+2. 按独立知识主题拆分页面：短文且只有一个核心主题时可生成一篇；长文、包含多个章节或同时包含案例/方法/概念时，必须生成 2-6 篇页面。不要把整篇文章压缩成一篇总览页。
+3. 每篇页面只承载一个核心主题，标题要能独立表达该主题；页面之间通过 relationships 和「关联页面」建立连接
+4. 每个页面必须包含以下字段：
    - title: 页面标题
    - tags: [标签列表]
    - created: YYYY-MM-DD（当前日期）
    - source: {sourceFilename}（原始资料文件名）
-4. 内容用 Markdown 编写，结构清晰
-5. 页面之间使用相对路径交叉链接
+5. 内容用 Markdown 编写，结构清晰
 6. 文件名为 pages/分类/页面名.md，分类必须填写且不能为空。禁止将页面直接放在 pages/ 根目录下。
+7. 页面分类必须从当前 Schema 提供的分类定义中选择，必须按页面自身主题判断，不得默认全部使用同一个分类
+8. 页面之间使用相对路径交叉链接
+9. 每个页面正文末尾必须添加「关联页面」段落，引用已有知识库中相关的页面。格式：
+
+## 关联页面
+- [已有页面标题](pages/分类/已有页面标题.md)
+- 引用已有页面时必须使用 pages/ 下的相对路径
+
+输出前自检：长文是否已按独立主题拆成多页；每页分类是否符合当前 Schema 中的定义；如果所有页面都落入同一分类，必须重新检查是否遗漏了其他主题。
+
+## 概念去重（重要）
+在创建新页面之前，必须参考下方「已有知识库索引」，检查要创建的概念是否已存在。
+
+{existingKnowledgeIndex}
+
+判定规则：
+- 如果新资料中的某个概念与已有页面「相同」（标题接近、主题重叠）→ 禁止为该概念创建新页面。改为在 relationships 中添加一条关系，将该概念关联到已有页面：
+  - source: 新资料中涉及该概念的描述
+  - target: 已有页面的 title
+  - relation: "属于"或"基于"
+  - reason: 说明为何判定为同一概念
+- 如果新资料是对已有概念的补充或扩展 → 同样禁止创建新页面。将补充内容作为一条关系记录到 relationships 中。
+- 如果新资料完全不涉及任何已有概念 → 正常创建新页面。
+- 当新资料同时包含已有概念和新概念时 → 已有概念的仅建关系，新概念的正常创建页面。
+
+
+## 关系提取
+
+在 pages 数组外，额外输出 relationships 数组，描述本次生成的页面之间的语义关系。
+
+预定义关系类型（必须从中选择，禁止自创）：
+
+- 包含：父概念包含子概念，整体包含部分
+- 属于：子类/实例属于父类/类别
+- 基于：依赖/引用/前提关系
+- 区别于：对比/区分，强调不同
+- 演进到：旧方法/工具/范式 → 新方法/工具/范式的发展演进
+- 演化自：当前方法/工具/范式 → 其前身或来源
+- 提供：提供能力、输出、上下文
+- 实现：实现/达成某个目标
+- 支持：辅助、支撑某个能力
+- 定义：定义/规范/约束
+- 导致：原因、条件或问题 → 结果
+- 应对：方案、机制或实践 → 它要解决的挑战
+- 应用于：方法、技术或能力 → 使用场景
+- 约束：规则、边界或条件 → 被限制的行为/方案
+- 案例：实践或实例 → 所体现的方法/概念
+
+关系必须符合源节点→目标节点的方向定义；如果无法判断方向或没有明确关系，不要输出该关系。
 
 ## 输出格式
 纯 JSON（不要包含其他文字）：
@@ -71,6 +183,16 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
       "created": "YYYY-MM-DD",
       "source": "原始文件名",
       "content": "正文内容（纯 Markdown，不含 YAML frontmatter）"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "源页面标题",
+      "target": "目标页面标题",
+      "relation": "关系类型",
+      "reason": "判断依据简明说明",
+      "evidence": "来自原始资料的关键句或短语，最多 160 字",
+      "confidence": 0.0
     }
   ],
   "summary": "一句话总结本次摄入"
@@ -143,7 +265,12 @@ export function tryParseLooseJson(text: string): any {
   }
 
   if (pages.length > 0) {
-    return { pages, summary: `成功提取 ${pages.length} 个页面` };
+    let relationships: any[] = [];
+    const relMatch = text.match(/"relationships"s*:s*([[sS]*?])s*,s*"summary"/);
+    if (relMatch) {
+      try { relationships = JSON.parse(relMatch[1]); } catch { /* skip */ }
+    }
+    return { pages, relationships, summary: `成功提取 ${pages.length} 个页面` };
   }
 
   return null;
@@ -283,21 +410,52 @@ function sanitizeWikiFilename(pagePath: string): string {
 }
 
 /**
+ * 将页面正文中指向未 sanitized 路径的 Markdown 链接替换为 sanitized 后的路径。
+ * 解决 AI 生成带空格的链接（如 [xxx](pages/分类/页面 名.md)）无法映射到实际文件的问题。
+ */
+function sanitizeContentLinks(content: string, pathMap: Map<string, string>): string {
+  return content.replace(/\]\(([^)]+)\)/g, (full, href: string) => {
+    let decoded = href;
+    try {
+      decoded = decodeURIComponent(href);
+    } catch {
+      // 保留无法解码的原始链接，避免破坏正文。
+    }
+    const mapped = pathMap.get(href) || pathMap.get(decoded);
+    return mapped ? `](${mapped})` : full;
+  });
+}
+
+/**
  * Write compiled pages to disk, assembling YAML frontmatter from separate fields + markdown body.
  */
 export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filename: string; title: string; size: number }[] {
   const results: { filename: string; title: string; size: number }[] = [];
 
+  // 第一遍：计算所有页面的 sanitized 路径，建立映射表
+  const pathMap = new Map<string, string>();
   for (const page of pages) {
     const pagePath = page.filename.startsWith('pages/') ? page.filename : `pages/${page.filename}`;
     if (!isPathSafe(wikiPath, pagePath)) {
       throw new Error(`路径穿越被拒绝: ${pagePath}`);
     }
-    // sanitize: replace whitespace in filename (not category dirs) with hyphens
-    const sanitizedPath = sanitizeWikiFilename(pagePath);
-    page.filename = sanitizedPath; // update for caller (e.g. updateIndexMd)
+    const sanitized = sanitizeWikiFilename(pagePath);
+    pathMap.set(pagePath, sanitized);
+    // 也注册去掉 .md 后的形式（AI 可能只引用目录+文件名，不带扩展名）
+    if (pagePath.endsWith('.md')) {
+      pathMap.set(pagePath.replace(/\.md$/, ''), sanitized.replace(/\.md$/, ''));
+    }
+  }
 
-    // require a category directory in the path (pages/category/file.md)
+  // 第二遍：修正交叉链接后写入
+  for (const page of pages) {
+    const pagePath = page.filename.startsWith('pages/') ? page.filename : `pages/${page.filename}`;
+    const sanitizedPath = pathMap.get(pagePath) || sanitizeWikiFilename(pagePath);
+    page.filename = sanitizedPath;
+
+    // 修正正文中因 sanitize 导致的交叉链接失效（空格被替换为 -）
+    page.content = sanitizeContentLinks(page.content, pathMap);
+
     const pathSegments = sanitizedPath.split('/');
     if (pathSegments.length < 3) {
       throw new Error(`页面缺少分类目录: ${sanitizedPath}，格式必须为 pages/分类/文件名.md`);
@@ -444,7 +602,13 @@ export function discoverCategoriesFromDir(wikiPath: string, schema: Record<strin
     }
   }
   if (discovered.length > 0) {
-    const existing = (schema.categories as string[]) || [];
-    schema.categories = [...new Set([...existing, ...discovered])];
+    const existing = normalizeWikiCategories(schema.categories);
+    const existingNames = new Set(existing.map(category => category.name));
+    schema.categories = [
+      ...existing,
+      ...discovered
+        .filter(category => !existingNames.has(category))
+        .map(name => ({ name, description: '', include: [], exclude: [] })),
+    ];
   }
 }

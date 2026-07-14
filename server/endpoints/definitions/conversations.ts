@@ -9,7 +9,6 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'getConversations',
     service: (type?: string) => ({ conversations: conversationService.list(type) }),
-    ipcServiceRef: { module: 'convSvc', method: 'list' },
     args: [{ from: 'query', name: 'type', optional: true }],
     result: 'direct',
   },
@@ -39,7 +38,6 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     path: '/:id',
     preloadMethod: 'deleteConversation',
     service: (id: string) => conversationService.remove(id),
-    ipcServiceRef: { module: 'convSvc', method: 'remove' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
@@ -49,7 +47,6 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: '',
     service: () => conversationService.removeAll(),
-    ipcServiceRef: { module: 'convSvc', method: 'removeAll' },
     args: [],
     result: 'direct',
   },
@@ -85,7 +82,6 @@ export const conversationsIpcOnlyEndpoints: EndpointDescriptor[] = [
     service: (id: string, title: string) => ({
       conversation: conversationService.rename(id, title),
     }),
-    ipcServiceRef: { module: 'convSvc', method: 'rename' },
     args: [
       { from: 'path', name: 'id' },
       { from: 'body', name: 'title' },
@@ -101,7 +97,6 @@ export const conversationsIpcOnlyEndpoints: EndpointDescriptor[] = [
     service: (id: string, agentId: string) => ({
       conversation: conversationService.setLockedAgent(id, agentId),
     }),
-    ipcServiceRef: { module: 'convSvc', method: 'setLockedAgent' },
     args: [
       { from: 'path', name: 'id' },
       { from: 'body', name: 'lockedAgent' },

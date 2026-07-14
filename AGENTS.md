@@ -61,6 +61,11 @@ npm run dev                 # 全栈开发（server + client concurrently）
 npm run dev:server          # 仅 server（tsx watch）
 npm run dev:client          # 仅 client（vite）
 
+# 测试
+cd server && npm test                       # 全量测试
+cd server && npm run test:coverage          # 全量测试 + 覆盖率报告（html/lcov/text）
+cd server && npx vitest run __tests__/xxx   # 单文件测试
+
 # 构建
 npm run build               # server tsc + client vite 构建
 

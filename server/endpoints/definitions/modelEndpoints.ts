@@ -20,7 +20,6 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       } catch { /* 迁移失败不影响列表返回 */ }
       return endpointService.list();
     },
-    ipcServiceRef: { module: 'epSvc', method: 'list' },
     result: 'direct',
   },
   {
@@ -32,7 +31,6 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       const endpoint = endpointService.create(data as any);
       return { endpoint };
     },
-    ipcServiceRef: { module: 'epSvc', method: 'create' },
     args: [{ from: 'body' }],
     result: 'direct',
   },
@@ -45,7 +43,6 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       const endpoint = endpointService.updateEndpoint(id, data as any);
       return { endpoint };
     },
-    ipcServiceRef: { module: 'epSvc', method: 'updateEndpoint' },
     args: [
       { from: 'path', name: 'id' },
       { from: 'body' },
@@ -61,7 +58,6 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       endpointService.remove(id);
       return { success: true };
     },
-    ipcServiceRef: { module: 'epSvc', method: 'remove' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
@@ -74,7 +70,6 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       endpointService.activate(id);
       return { success: true };
     },
-    ipcServiceRef: { module: 'epSvc', method: 'activate' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },

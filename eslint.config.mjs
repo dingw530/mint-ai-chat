@@ -48,6 +48,8 @@ export default tseslint.config(
   {
     files: ['server/__tests__/**/*.ts'],
     rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
     },

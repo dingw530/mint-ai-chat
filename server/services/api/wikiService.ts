@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as settingsService from './settingsService.js';
+import { normalizeWikiSchema, type WikiCategory, type WikiSchema } from '../utils/wikiShared.js';
 
 interface FileTreeNode {
   name: string;
@@ -76,7 +77,13 @@ function buildFileTree(rootDir: string, currentDir: string): FileTreeNode[] {
     if (stat.isDirectory()) {
       const children = buildFileTree(rootDir, fullPath);
       entries.push({ name: item, type: 'directory', path: relativePath, children });
-    } else if ((item.endsWith('.md') || item === '_schema.json' || item === '_manifest.json' || /\.(html?|txt|pdf)$/i.test(item)) && item !== '.gitkeep') {
+    } else if (
+      (item.endsWith('.md') ||
+        item === '_schema.json' ||
+        item === '_manifest.json' ||
+        /\.(html?|txt|pdf)$/i.test(item)) &&
+      item !== '.gitkeep'
+    ) {
       entries.push({ name: item, type: 'file', path: relativePath });
     }
   }
@@ -94,14 +101,6 @@ function countFiles(tree: FileTreeNode[]): number {
 
 // ── Schema / Category Management ──
 
-interface WikiSchema {
-  version?: number;
-  description?: string;
-  categories: string[];
-  tags?: string[];
-  [key: string]: unknown;
-}
-
 export function getSchema(): WikiSchema {
   const rootPath = getRootPath();
   const schemaPath = path.join(rootPath, '_schema.json');
@@ -109,7 +108,9 @@ export function getSchema(): WikiSchema {
     return { categories: [] };
   }
   try {
-    return JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+    const schema = normalizeWikiSchema(JSON.parse(fs.readFileSync(schemaPath, 'utf-8')));
+    fs.writeFileSync(schemaPath, JSON.stringify(schema, null, 2), 'utf-8');
+    return schema;
   } catch {
     return { categories: [] };
   }
@@ -118,26 +119,30 @@ export function getSchema(): WikiSchema {
 export function updateSchema(schema: WikiSchema): WikiSchema {
   const rootPath = getRootPath();
   const schemaPath = path.join(rootPath, '_schema.json');
-  fs.writeFileSync(schemaPath, JSON.stringify(schema, null, 2), 'utf-8');
-  return schema;
+  const normalized = normalizeWikiSchema(schema);
+  const names = new Set<string>();
+  for (const category of normalized.categories) {
+    if (names.has(category.name)) throw new Error(`分类 "${category.name}" 已存在`);
+    names.add(category.name);
+  }
+  fs.writeFileSync(schemaPath, JSON.stringify(normalized, null, 2), 'utf-8');
+  return normalized;
 }
 
-export function addCategory(category: string): { categories: string[] } {
+export function addCategory(category: string): WikiSchema {
   const schema = getSchema();
   if (!schema.categories) schema.categories = [];
   const cat = category.trim();
   if (!cat) throw new Error('分类名不能为空');
-  if (schema.categories.includes(cat)) throw new Error(`分类 "${cat}" 已存在`);
-  schema.categories.push(cat);
-  schema.categories.sort();
-  updateSchema(schema);
-  return { categories: schema.categories };
+  if (schema.categories.some((item) => item.name === cat)) throw new Error(`分类 "${cat}" 已存在`);
+  schema.categories.push({ name: cat, description: '', include: [], exclude: [] });
+  schema.categories.sort((a, b) => a.name.localeCompare(b.name));
+  return updateSchema(schema);
 }
 
-export function removeCategory(category: string): { categories: string[] } {
+export function removeCategory(category: string): WikiSchema {
   const schema = getSchema();
   if (!schema.categories) schema.categories = [];
-  schema.categories = schema.categories.filter((c: string) => c !== category);
-  updateSchema(schema);
-  return { categories: schema.categories };
+  schema.categories = schema.categories.filter((c: WikiCategory) => c.name !== category);
+  return updateSchema(schema);
 }

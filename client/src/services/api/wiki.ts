@@ -1,5 +1,5 @@
-import { callEndpoint, isElectron, getElectronAPI, request } from '../api/_base';
-import type { WikiFileTreeNode } from '@/types';
+import { callEndpoint, isElectron, getElectronAPI, ipcOrHttp, request } from '../api/_base';
+import type { WikiCategory, WikiFileTreeNode } from '@/types';
 
 export interface WikiListResponse {
   tree: WikiFileTreeNode[];
@@ -14,7 +14,7 @@ export interface WikiReadResponse {
 }
 
 export interface WikiSchema {
-  categories: string[];
+  categories: WikiCategory[];
   [key: string]: unknown;
 }
 export interface UploadJob {
@@ -62,7 +62,14 @@ export function readWiki(path: string): Promise<WikiReadResponse> {
 export async function uploadWiki(file: File): Promise<string> {
   const electron = isElectron();
   const api = getElectronAPI();
-  console.log('[wiki:uploadWiki] isElectron=', electron, 'api=', !!api, 'electronAPI=', !!(window as any).electronAPI);
+  console.log(
+    '[wiki:uploadWiki] isElectron=',
+    electron,
+    'api=',
+    !!api,
+    'electronAPI=',
+    !!(window as any).electronAPI,
+  );
 
   if (electron) {
     const buffer = await file.arrayBuffer();
@@ -89,7 +96,12 @@ export async function uploadWiki(file: File): Promise<string> {
   }
 
   const text = await res.text();
-  console.log('[wiki:uploadWiki] HTTP response length=', text.length, 'preview=', text.substring(0, 80));
+  console.log(
+    '[wiki:uploadWiki] HTTP response length=',
+    text.length,
+    'preview=',
+    text.substring(0, 80),
+  );
   try {
     const data: UploadStartResponse = JSON.parse(text);
     return data.jobId;
@@ -120,12 +132,19 @@ export async function getJobStatus(jobId: string): Promise<UploadJob> {
   console.log('[wiki:getJobStatus] using HTTP path');
   const res = await fetch(`/api/wiki/jobs/${encodeURIComponent(jobId)}`);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}` }));
+    const err = await res
+      .json()
+      .catch(() => ({ error: `HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}` }));
     throw new Error(err.error || `HTTP ${res.status}`);
   }
 
   const text = await res.text();
-  console.log('[wiki:getJobStatus] HTTP response length=', text.length, 'preview=', text.substring(0, 80));
+  console.log(
+    '[wiki:getJobStatus] HTTP response length=',
+    text.length,
+    'preview=',
+    text.substring(0, 80),
+  );
   try {
     const data: UploadJobResponse = JSON.parse(text);
     return data.job;
@@ -138,12 +157,16 @@ export function getWikiSchema(): Promise<WikiSchema> {
   return callEndpoint<WikiSchema>('wiki:schema');
 }
 
-export function addWikiCategory(category: string): Promise<{ categories: string[] }> {
-  return callEndpoint<{ categories: string[] }>('wiki:addCategory', category);
+export function addWikiCategory(category: string): Promise<WikiSchema> {
+  return callEndpoint<WikiSchema>('wiki:addCategory', category);
 }
 
-export function removeWikiCategory(category: string): Promise<{ categories: string[] }> {
-  return callEndpoint<{ categories: string[] }>('wiki:removeCategory', category);
+export function removeWikiCategory(category: string): Promise<WikiSchema> {
+  return callEndpoint<WikiSchema>('wiki:removeCategory', category);
+}
+
+export function updateWikiSchema(schema: WikiSchema): Promise<WikiSchema> {
+  return callEndpoint<WikiSchema>('wiki:updateSchema', schema);
 }
 
 // ── 知识图谱 API ──
@@ -172,33 +195,77 @@ export interface GraphData {
   nodes: GraphNode[];
   edges: GraphEdge[];
 }
+export interface GraphEdgeCandidate {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  relation: string;
+  evidence: string;
+  confidence: number;
+  candidateScore: number;
+  sourcePage: string;
+  targetPage: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  reviewNote: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+}
 
 export function getGraphData(): Promise<GraphData> {
-  return request<GraphData>('/graph/data');
+  return callEndpoint<GraphData>('graph:data');
 }
 
 export function getGraphNode(id: string): Promise<{ node: GraphNode; edges: GraphEdge[] } | null> {
-  return request<{ node: GraphNode; edges: GraphEdge[] } | null>(`/graph/node/${encodeURIComponent(id)}`);
+  return callEndpoint<{ node: GraphNode; edges: GraphEdge[] } | null>('graph:node', id);
 }
 
-export function getGraphNodeNeighbors(id: string): Promise<{ node: GraphNode; edges: GraphEdge[] } | null> {
-  return request<{ node: GraphNode; edges: GraphEdge[] } | null>(`/graph/node/${encodeURIComponent(id)}/neighbors`);
+export function getGraphNodeNeighbors(
+  id: string,
+): Promise<{ node: GraphNode; edges: GraphEdge[] } | null> {
+  return callEndpoint<{ node: GraphNode; edges: GraphEdge[] } | null>('graph:neighbors', id);
 }
 
 export function searchGraphNodes(query: string): Promise<GraphNode[]> {
-  return request<GraphNode[]>(`/graph/search?query=${encodeURIComponent(query)}`);
+  return callEndpoint<GraphNode[]>('graph:search', query);
 }
 
-export function createGraphNode(data: { label: string; type: string; sourceFile?: string; properties?: Record<string, unknown> }): Promise<GraphNode> {
-  return request<GraphNode>('/graph/node', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export function createGraphNode(data: {
+  label: string;
+  type: string;
+  sourceFile?: string;
+  properties?: Record<string, unknown>;
+}): Promise<GraphNode> {
+  return callEndpoint<GraphNode>('graph:createNode', data);
 }
 
-export function createGraphEdge(data: { sourceId: string; relation: string; targetId: string; properties?: Record<string, unknown>; source?: string }): Promise<GraphEdge> {
-  return request<GraphEdge>('/graph/edge', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export function createGraphEdge(data: {
+  sourceId: string;
+  relation: string;
+  targetId: string;
+  properties?: Record<string, unknown>;
+  source?: string;
+}): Promise<GraphEdge> {
+  return callEndpoint<GraphEdge>('graph:createEdge', data);
+}
+export function listGraphCandidates(status = 'pending'): Promise<GraphEdgeCandidate[]> {
+  return ipcOrHttp(
+    () => getElectronAPI()!.listGraphCandidates(status) as Promise<GraphEdgeCandidate[]>,
+    () => request<GraphEdgeCandidate[]>(`/graph/candidates?status=${encodeURIComponent(status)}`),
+  );
+}
+export function acceptGraphCandidate(id: string): Promise<GraphEdge> {
+  return ipcOrHttp(
+    () => getElectronAPI()!.acceptGraphCandidate(id) as Promise<GraphEdge>,
+    () => request<GraphEdge>(`/graph/candidates/${id}/accept`, { method: 'POST' }),
+  );
+}
+export function rejectGraphCandidate(id: string, note?: string): Promise<{ success: true }> {
+  return ipcOrHttp(
+    () => getElectronAPI()!.rejectGraphCandidate(id, { note }) as Promise<{ success: true }>,
+    () =>
+      request<{ success: true }>(`/graph/candidates/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ note }),
+      }),
+  );
 }

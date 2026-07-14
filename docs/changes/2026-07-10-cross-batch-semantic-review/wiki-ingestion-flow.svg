@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">知识库摄入与知识图谱构建流程</title>
+  <desc id="desc">从资料输入、原始归档、AI 编译到正式图谱建边、跨批次关系候选与人工审核的流程图。</desc>
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#2563eb"/></marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#d97706"/></marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#15803d"/></marker>
+    <style>
+      .title { font: 700 30px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#172033; }
+      .subtitle { font: 400 15px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#526075; }
+      .lane { font: 700 16px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#334155; }
+      .nodeTitle { font: 700 17px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#172033; }
+      .nodeText { font: 400 13px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#526075; }
+      .small { font: 400 12px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#526075; }
+      .edgeLabel { font: 600 12px 'PingFang SC','Microsoft YaHei',sans-serif; fill:#3b4a61; }
+      .box { stroke-width:1.4; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#f8fafc"/>
+  <rect x="34" y="26" width="1532" height="90" rx="8" fill="#ffffff" stroke="#d7e0ec"/>
+  <text x="66" y="66" class="title">知识库摄入与知识图谱构建</text>
+  <text x="66" y="94" class="subtitle">一批资料先编译为可检索页面，再建立批内正式关系；跨批次关系经候选审查后才进入正式图谱。</text>
+
+  <!-- Lane backgrounds -->
+  <rect x="34" y="142" width="1532" height="212" rx="8" fill="#f5f9ff" stroke="#c9dafc"/>
+  <rect x="34" y="374" width="1532" height="248" rx="8" fill="#ffffff" stroke="#d7e0ec"/>
+  <rect x="34" y="642" width="1532" height="248" rx="8" fill="#fffaf0" stroke="#f3d39a"/>
+  <text x="58" y="174" class="lane">1. 资料归档与页面编译</text>
+  <text x="58" y="406" class="lane">2. 批内正式图谱构建</text>
+  <text x="58" y="674" class="lane">3. 跨批次语义连接与人工审核</text>
+
+  <!-- lane 1 -->
+  <g>
+    <rect x="76" y="205" width="195" height="106" rx="7" fill="#ffffff" stroke="#93b4f5" class="box"/>
+    <path d="M102 232 h42 l12 12 v39 h-54 z M144 232 v12 h12" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="170" y="246" text-anchor="middle" class="nodeTitle">资料输入</text>
+    <text x="170" y="272" text-anchor="middle" class="nodeText">文件 / 文本 / URL</text>
+    <text x="170" y="292" text-anchor="middle" class="nodeText">支持多文件批量摄入</text>
+  </g>
+  <g>
+    <rect x="357" y="205" width="220" height="106" rx="7" fill="#ffffff" stroke="#93b4f5" class="box"/>
+    <path d="M389 230 h30 a7 7 0 0 1 7 7 v37 a7 7 0 0 1-7 7 h-30 a7 7 0 0 1-7-7 v-37 a7 7 0 0 1 7-7z M382 246 h44" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="467" y="246" text-anchor="middle" class="nodeTitle">原始资料归档</text>
+    <text x="467" y="272" text-anchor="middle" class="nodeText">标准化命名，避免覆盖</text>
+    <text x="467" y="292" text-anchor="middle" class="nodeText">sources/ 保留可追溯原件</text>
+  </g>
+  <g>
+    <rect x="663" y="190" width="310" height="136" rx="7" fill="#edf4ff" stroke="#5f8fe8" stroke-width="1.8"/>
+    <path d="M698 228 l12-13 12 13 -6 4 v18 h-12 v-18z" fill="#2563eb" opacity=".9"/>
+    <text x="818" y="232" text-anchor="middle" class="nodeTitle">AI 页面编译</text>
+    <text x="818" y="258" text-anchor="middle" class="nodeText">识别分类、摘要、页面内容与关系</text>
+    <text x="818" y="281" text-anchor="middle" class="nodeText">写入 frontmatter、索引与清单</text>
+    <text x="818" y="303" text-anchor="middle" class="nodeText">wikiCompiler.compileSource()</text>
+  </g>
+  <g>
+    <rect x="1060" y="205" width="217" height="106" rx="7" fill="#ffffff" stroke="#93b4f5" class="box"/>
+    <path d="M1090 233 h31 l8 8 v39 h-39 z M1090 248 h39 M1098 259 h23 M1098 271 h18" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="1168" y="246" text-anchor="middle" class="nodeTitle">知识库页面</text>
+    <text x="1168" y="272" text-anchor="middle" class="nodeText">pages/*.md</text>
+    <text x="1168" y="292" text-anchor="middle" class="nodeText">_index.md / _manifest.json</text>
+  </g>
+  <path d="M271 258 H357" stroke="#2563eb" stroke-width="2.8" fill="none" marker-end="url(#arrowBlue)"/>
+  <path d="M577 258 H663" stroke="#2563eb" stroke-width="2.8" fill="none" marker-end="url(#arrowBlue)"/>
+  <path d="M973 258 H1060" stroke="#2563eb" stroke-width="2.8" fill="none" marker-end="url(#arrowBlue)"/>
+  <text x="310" y="244" text-anchor="middle" class="edgeLabel">原始内容</text>
+  <text x="620" y="244" text-anchor="middle" class="edgeLabel">文本快照</text>
+  <text x="1017" y="244" text-anchor="middle" class="edgeLabel">结构化页面</text>
+
+  <!-- Lane 2 -->
+  <g>
+    <rect x="125" y="449" width="290" height="126" rx="7" fill="#edf4ff" stroke="#5f8fe8" stroke-width="1.8"/>
+    <circle cx="163" cy="484" r="11" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <circle cx="194" cy="506" r="11" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <path d="M172 491 l13 8 M163 495 v16 M194 495 v16" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="275" y="476" text-anchor="middle" class="nodeTitle">批内图谱构建</text>
+    <text x="275" y="502" text-anchor="middle" class="nodeText">页面节点创建或更新</text>
+    <text x="275" y="525" text-anchor="middle" class="nodeText">关系按无序节点对去重</text>
+    <text x="275" y="548" text-anchor="middle" class="nodeText">graphBuilder.buildGraphFromPages()</text>
+  </g>
+  <g>
+    <rect x="520" y="449" width="302" height="126" rx="7" fill="#ffffff" stroke="#b9c6d8" class="box"/>
+    <text x="671" y="476" text-anchor="middle" class="nodeTitle">关系质量裁决</text>
+    <text x="671" y="502" text-anchor="middle" class="nodeText">每一节点对只保留一条主语义边</text>
+    <text x="671" y="525" text-anchor="middle" class="nodeText">已有语义边时，不再建立 references</text>
+    <text x="671" y="548" text-anchor="middle" class="nodeText">references 无向去重，作为弱补充关系</text>
+  </g>
+  <g>
+    <path d="M1035 462 h255 l18 18 v68 l-18 18 h-255 z" fill="#f0fdf4" stroke="#4ca66a" stroke-width="1.7"/>
+    <ellipse cx="1072" cy="488" rx="17" ry="7" fill="none" stroke="#15803d" stroke-width="2"/>
+    <path d="M1055 488 v30 c0 9 34 9 34 0 v-30 M1055 503 c0 9 34 9 34 0" fill="none" stroke="#15803d" stroke-width="2"/>
+    <text x="1171" y="482" text-anchor="middle" class="nodeTitle">正式图谱库</text>
+    <text x="1171" y="508" text-anchor="middle" class="nodeText">graph_nodes</text>
+    <text x="1171" y="531" text-anchor="middle" class="nodeText">graph_edges</text>
+    <text x="1171" y="553" text-anchor="middle" class="nodeText">仅展示正式关系</text>
+  </g>
+  <path d="M415 512 H520" stroke="#2563eb" stroke-width="2.8" fill="none" marker-end="url(#arrowBlue)"/>
+  <path d="M822 512 H1035" stroke="#15803d" stroke-width="2.5" stroke-dasharray="7 5" fill="none" marker-end="url(#arrowGreen)"/>
+  <text x="465" y="497" text-anchor="middle" class="edgeLabel">候选关系</text>
+  <text x="926" y="497" text-anchor="middle" class="edgeLabel">节点与正式边</text>
+  <path d="M1168 311 V449" stroke="#64748b" stroke-width="2" stroke-dasharray="6 5" fill="none" marker-end="url(#arrowGray)"/>
+  <text x="1183" y="385" class="small">页面入图</text>
+
+  <!-- lane 3 -->
+  <g>
+    <rect x="76" y="717" width="310" height="124" rx="7" fill="#ffffff" stroke="#aebccb" class="box"/>
+    <path d="M106 754 h36 M106 770 h36 M106 786 h25" stroke="#64748b" stroke-width="2"/>
+    <text x="243" y="745" text-anchor="middle" class="nodeTitle">跨批次候选生成</text>
+    <text x="243" y="771" text-anchor="middle" class="nodeText">新页面匹配历史页面</text>
+    <text x="243" y="794" text-anchor="middle" class="nodeText">本地评分取 Top 3，每批最多 12 对</text>
+    <text x="243" y="817" text-anchor="middle" class="nodeText">LLM 判断关系及证据</text>
+  </g>
+  <g>
+    <path d="M508 729 h260 l18 18 v73 l-18 18 h-260 z" fill="#fff7e7" stroke="#d99524" stroke-width="1.8"/>
+    <ellipse cx="545" cy="757" rx="17" ry="7" fill="none" stroke="#d97706" stroke-width="2"/>
+    <path d="M528 757 v31 c0 9 34 9 34 0 v-31 M528 772 c0 9 34 9 34 0" fill="none" stroke="#d97706" stroke-width="2"/>
+    <text x="650" y="754" text-anchor="middle" class="nodeTitle">待审查候选库</text>
+    <text x="650" y="780" text-anchor="middle" class="nodeText">graph_edge_candidates</text>
+    <text x="650" y="803" text-anchor="middle" class="nodeText">状态：pending / accepted / rejected / expired</text>
+  </g>
+  <g>
+    <rect x="912" y="717" width="271" height="124" rx="7" fill="#fff7e7" stroke="#d99524" stroke-width="1.8"/>
+    <path d="M947 748 h29 v29 h-29z M953 762 l7 7 12-15" fill="none" stroke="#d97706" stroke-width="2"/>
+    <text x="1048" y="745" text-anchor="middle" class="nodeTitle">候选审查界面</text>
+    <text x="1048" y="771" text-anchor="middle" class="nodeText">查看关系、置信度与证据</text>
+    <text x="1048" y="794" text-anchor="middle" class="nodeText">接受 / 拒绝，支持审查备注</text>
+    <text x="1048" y="817" text-anchor="middle" class="nodeText">仅人工确认后提升</text>
+  </g>
+  <path d="M386 779 H508" stroke="#64748b" stroke-width="2.5" stroke-dasharray="7 5" fill="none" marker-end="url(#arrowGray)"/>
+  <path d="M786 779 H912" stroke="#d97706" stroke-width="2.8" fill="none" marker-end="url(#arrowOrange)"/>
+  <text x="447" y="765" text-anchor="middle" class="edgeLabel">候选关系</text>
+  <text x="849" y="765" text-anchor="middle" class="edgeLabel">待审核</text>
+  <path d="M1048 717 V640 H1171 V575" stroke="#d97706" stroke-width="2.8" fill="none" marker-end="url(#arrowOrange)"/>
+  <text x="1064" y="650" class="edgeLabel">接受：事务性提升为正式边</text>
+  <path d="M1183 779 H1364" stroke="#d97706" stroke-width="2.2" stroke-dasharray="7 5" fill="none" marker-end="url(#arrowOrange)"/>
+  <text x="1274" y="764" text-anchor="middle" class="edgeLabel">拒绝：记录结果</text>
+  <rect x="1364" y="738" width="148" height="82" rx="7" fill="#fff7e7" stroke="#d99524" class="box"/>
+  <text x="1438" y="770" text-anchor="middle" class="nodeTitle">候选关闭</text>
+  <text x="1438" y="794" text-anchor="middle" class="nodeText">rejected / expired</text>
+  <path d="M125 717 V640 H243 V575" stroke="#64748b" stroke-width="2" stroke-dasharray="6 5" fill="none" marker-end="url(#arrowGray)"/>
+  <text x="255" y="654" class="small">读取既有节点</text>
+
+  <!-- Legend -->
+  <rect x="34" y="912" width="1532" height="58" rx="8" fill="#ffffff" stroke="#d7e0ec"/>
+  <text x="58" y="946" class="lane">图例</text>
+  <path d="M145 941 h55" stroke="#2563eb" stroke-width="2.8" marker-end="url(#arrowBlue)"/><text x="214" y="946" class="small">主数据流</text>
+  <path d="M316 941 h55" stroke="#64748b" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrowGray)"/><text x="385" y="946" class="small">异步处理 / 候选流</text>
+  <path d="M534 941 h55" stroke="#15803d" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrowGreen)"/><text x="604" y="946" class="small">SQLite 持久化</text>
+  <path d="M730 941 h55" stroke="#d97706" stroke-width="2.8" marker-end="url(#arrowOrange)"/><text x="800" y="946" class="small">人工审核动作</text>
+  <text x="1030" y="946" class="small">注：references 是弱、无向去重关系，图谱画布不显示其文字标签。</text>
+</svg>

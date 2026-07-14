@@ -25,6 +25,14 @@ function buildServerBundle() {
   });
 }
 
+function rebuildElectronNativeModule() {
+  const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npmCmd, ['run', 'electron:rebuild'], {
+    cwd: rootDir,
+    stdio: 'inherit',
+  });
+}
+
 async function copyNativeModules() {
   const rootNm = path.join(rootDir, 'node_modules');
   const electronNm = path.join(electronDir, 'node_modules');
@@ -53,6 +61,7 @@ async function prepare() {
 
   // 拷贝原生模块（先清理旧 node_modules）
   await copyNativeModules();
+  rebuildElectronNativeModule();
 
   // 清理旧产物
   await rm(path.join(electronDir, 'server-dist'), { recursive: true, force: true });

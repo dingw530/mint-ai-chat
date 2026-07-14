@@ -25,14 +25,6 @@ export function getAll(): Endpoint[] {
   return rows.map(toCamelCase);
 }
 
-export function getByCategory(category: 'text' | 'image'): Endpoint[] {
-  const db = getDb();
-  const rows = db.prepare(
-    'SELECT id, name, api_url, api_key, model_id, api_type, category, is_active, sort_order, created_at, updated_at FROM model_endpoints WHERE category = ? ORDER BY sort_order, created_at'
-  ).all(category) as EndpointRow[];
-  return rows.map(toCamelCase);
-}
-
 export function getActive(): Endpoint | null {
   const db = getDb();
   const row = db.prepare(

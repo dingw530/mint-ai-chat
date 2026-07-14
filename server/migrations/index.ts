@@ -39,7 +39,9 @@ const migrations: Migration[] = [
     id: 5,
     name: 'add-api-type-to-model-endpoints',
     up: (db) => {
-      db.exec("ALTER TABLE model_endpoints ADD COLUMN api_type TEXT NOT NULL DEFAULT 'openai-chat'");
+      db.exec(
+        "ALTER TABLE model_endpoints ADD COLUMN api_type TEXT NOT NULL DEFAULT 'openai-chat'",
+      );
     },
   },
   {
@@ -93,6 +95,177 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 10,
+    name: 'allow-schema-category-graph-types',
+    up: (db) => {
+      db.pragma('foreign_keys = OFF');
+      db.exec(`
+        ALTER TABLE graph_edges RENAME TO graph_edges_legacy;
+        ALTER TABLE graph_nodes RENAME TO graph_nodes_legacy;
+
+        CREATE TABLE graph_nodes (
+          id TEXT PRIMARY KEY,
+          label TEXT NOT NULL,
+          type TEXT NOT NULL,
+          source_file TEXT,
+          properties TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        INSERT INTO graph_nodes (id, label, type, source_file, properties, created_at, updated_at)
+        SELECT id, label, type, source_file, properties, created_at, updated_at
+        FROM graph_nodes_legacy;
+
+        CREATE TABLE graph_edges (
+          id TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          relation TEXT NOT NULL,
+          target_id TEXT NOT NULL,
+          properties TEXT NOT NULL DEFAULT '{}',
+          source TEXT NOT NULL DEFAULT 'manual' CHECK(source IN ('manual', 'auto-extracted', 'ai-generated')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (source_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_id) REFERENCES graph_nodes(id) ON DELETE CASCADE
+        );
+
+        INSERT INTO graph_edges (id, source_id, relation, target_id, properties, source, created_at)
+        SELECT id, source_id, relation, target_id, properties, source, created_at
+        FROM graph_edges_legacy;
+
+        DROP TABLE graph_edges_legacy;
+        DROP TABLE graph_nodes_legacy;
+      `);
+      db.pragma('foreign_keys = ON');
+    },
+  },
+  {
+    id: 11,
+    name: 'deduplicate-graph-edges',
+    up: (db) => {
+      db.exec(`
+        DELETE FROM graph_edges
+        WHERE source = 'auto-extracted'
+          AND relation = 'references'
+          AND EXISTS (
+            SELECT 1 FROM graph_edges semantic
+            WHERE semantic.source_id = graph_edges.source_id
+              AND semantic.target_id = graph_edges.target_id
+              AND semantic.relation <> 'references'
+          );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_edges_triple
+          ON graph_edges(source_id, relation, target_id);
+      `);
+    },
+  },
+  {
+    id: 12,
+    name: 'sync-graph-types-with-page-categories',
+    up: (db) => {
+      db.exec(`
+        UPDATE graph_nodes
+        SET type = substr(source_file, 7, instr(substr(source_file, 7), '/') - 1)
+        WHERE source_file LIKE 'pages/%/%'
+          AND instr(substr(source_file, 7), '/') > 1;
+      `);
+    },
+  },
+  {
+    id: 13,
+    name: 'apply-graph-edge-quality-rules',
+    up: (db) => {
+      db.exec(`
+        DELETE FROM graph_edges AS reference_edge
+        WHERE reference_edge.relation = 'references'
+          AND EXISTS (
+            SELECT 1 FROM graph_edges AS semantic_edge
+            WHERE semantic_edge.relation <> 'references'
+              AND (
+                (semantic_edge.source_id = reference_edge.source_id AND semantic_edge.target_id = reference_edge.target_id)
+                OR (semantic_edge.source_id = reference_edge.target_id AND semantic_edge.target_id = reference_edge.source_id)
+              )
+          );
+
+        DELETE FROM graph_edges AS duplicate
+        WHERE duplicate.relation = 'references'
+          AND EXISTS (
+            SELECT 1 FROM graph_edges AS retained
+            WHERE retained.relation = 'references'
+              AND retained.source_id = duplicate.target_id
+              AND retained.target_id = duplicate.source_id
+              AND (
+                retained.created_at < duplicate.created_at
+                OR (retained.created_at = duplicate.created_at AND retained.id < duplicate.id)
+              )
+          );
+
+        DELETE FROM graph_edges
+        WHERE id IN (
+          SELECT id FROM (
+            SELECT
+              id,
+              ROW_NUMBER() OVER (
+                PARTITION BY
+                  CASE WHEN source_id < target_id THEN source_id ELSE target_id END,
+                  CASE WHEN source_id < target_id THEN target_id ELSE source_id END
+                ORDER BY
+                  CASE relation
+                    WHEN '包含' THEN 100 WHEN '属于' THEN 100 WHEN '定义' THEN 95
+                    WHEN '导致' THEN 90 WHEN '应对' THEN 90 WHEN '约束' THEN 90
+                    WHEN '基于' THEN 85 WHEN '应用于' THEN 85 WHEN '案例' THEN 85
+                    WHEN '提供' THEN 80 WHEN '实现' THEN 80 WHEN '支持' THEN 80
+                    WHEN '区别于' THEN 75 WHEN '演进到' THEN 75 WHEN '演化自' THEN 75
+                    ELSE 0
+                  END DESC,
+                  COALESCE(json_extract(properties, '$.confidence'), 0.55) DESC,
+                  created_at ASC,
+                  id ASC
+              ) AS relation_rank
+            FROM graph_edges
+            WHERE relation <> 'references'
+          )
+          WHERE relation_rank > 1
+        );
+
+        UPDATE graph_edges
+        SET properties = json_set(
+          COALESCE(properties, '{}'),
+          '$.strength', 'weak',
+          '$.confidence', 0.25,
+          '$.evidence', '页面关联链接'
+        )
+        WHERE relation = 'references';
+
+        UPDATE graph_edges
+        SET properties = json_set(
+          COALESCE(properties, '{}'),
+          '$.strength', 'semantic',
+          '$.confidence', COALESCE(json_extract(properties, '$.confidence'), 0.55),
+          '$.evidence', COALESCE(json_extract(properties, '$.evidence'), json_extract(properties, '$.reason'), '历史边缺少原文摘录'),
+          '$.evidenceType', COALESCE(json_extract(properties, '$.evidenceType'), 'generated_rationale'),
+          '$.sourceFile', (SELECT source_file FROM graph_nodes WHERE id = graph_edges.source_id)
+        )
+        WHERE relation <> 'references';
+      `);
+    },
+  },
+  {
+    id: 14,
+    name: 'add-graph-edge-candidates',
+    up: (db) => {
+      db.exec(`CREATE TABLE graph_edge_candidates (
+        id TEXT PRIMARY KEY, source_id TEXT NOT NULL, target_id TEXT NOT NULL,
+        relation TEXT NOT NULL, evidence TEXT NOT NULL, confidence REAL NOT NULL,
+        candidate_score REAL NOT NULL, source_page TEXT NOT NULL, target_page TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected','expired')),
+        review_note TEXT, created_at TEXT NOT NULL, reviewed_at TEXT,
+        FOREIGN KEY(source_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+        FOREIGN KEY(target_id) REFERENCES graph_nodes(id) ON DELETE CASCADE
+      ); CREATE INDEX idx_graph_edge_candidates_status ON graph_edge_candidates(status, created_at);`);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──
@@ -108,8 +281,10 @@ export function runMigrations(db: Database.Database): void {
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
 
-  const appliedRows = db.prepare('SELECT id FROM _migrations ORDER BY id').all() as { id: number }[];
-  const appliedIds = new Set(appliedRows.map(r => r.id));
+  const appliedRows = db.prepare('SELECT id FROM _migrations ORDER BY id').all() as {
+    id: number;
+  }[];
+  const appliedIds = new Set(appliedRows.map((r) => r.id));
 
   for (const m of migrations) {
     if (appliedIds.has(m.id)) continue;

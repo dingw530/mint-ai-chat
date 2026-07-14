@@ -8,6 +8,8 @@
  */
 export { startServer } from './index.js';
 export { IpcSink } from './services/sink.js';
+export { endpointRegistry, registerIpcHandlers } from './endpoints/index.js';
+export { conversationsIpcOnlyEndpoints } from './endpoints/definitions/conversations.js';
 export * as messageService from './services/messageService.js';
 export * as conversationService from './services/api/conversationService.js';
 export * as settingsService from './services/api/settingsService.js';
@@ -19,8 +21,10 @@ export { mcpService } from './services/api/mcpService.js';
 export * as skillService from './services/api/skillService.js';
 export * as bashSecurityService from './services/api/bashSecurityService.js';
 export * as wikiService from './services/api/wikiService.js';
+export * as graphService from './services/api/graphService.js';
 export * as messageRepository from './repositories/messageRepository.js';
 export { generateTitle } from './services/aiProxy.js';
 export { parseFile } from './services/utils/fileParseService.js';
 export { compileSource } from './services/utils/wikiCompiler.js';
+export { ingestWikiSource, buildWikiSourceText } from './services/api/wikiIngestionService.js';
 export * as pageCaptureService from './services/utils/wikiPageCapture.js';

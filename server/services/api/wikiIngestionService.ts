@@ -4,8 +4,8 @@ import type { AiSettings } from '../../types.js';
 import { compileSource } from '../utils/wikiCompiler.js';
 import { appendWikiManifestEntry } from '../utils/wikiShared.js';
 import { buildGraphFromPages } from '../graphBuilder.js';
+import { generateCrossBatchCandidates } from './crossBatchSemanticService.js';
 import { createLogger } from '../../utils/logger.js';
-
 
 const log = createLogger('wiki-ingestion');
 
@@ -39,6 +39,7 @@ export interface WikiIngestionResult {
   pages: { filename: string; title: string; size: number }[];
   summary: string;
   manifestId: string;
+  graphErrors?: string[];
 }
 
 /**
@@ -54,10 +55,21 @@ export interface WikiSourceSegment {
  * 将原始名称转换为适合写入文件系统的 slug。
  */
 function slugifyFileName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9一-龥]+/g, '-')
-    .replace(/^-|-$/g, '') || 'untitled';
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9一-龥]+/g, '-')
+      .replace(/^-|-$/g, '') || 'untitled'
+  );
+}
+
+/** 去除文件名开头重复出现的 YYYY-MM-DD 日期前缀。 */
+function stripDatePrefixes(name: string): string {
+  let normalized = name;
+  while (/^\d{4}-\d{2}-\d{2}-/.test(normalized)) {
+    normalized = normalized.slice(11);
+  }
+  return normalized;
 }
 
 /**
@@ -95,7 +107,7 @@ export function archiveWikiRawFile(wikiPath: string, fileName: string, buffer: B
   ensureDir(sourcesDir);
   const date = new Date().toISOString().slice(0, 10);
   const ext = path.extname(fileName).toLowerCase();
-  const baseName = slugifyFileName(path.basename(fileName, ext));
+  const baseName = slugifyFileName(stripDatePrefixes(path.basename(fileName, ext)));
   const resolvedPath = ensureUniqueFilePath(path.join(sourcesDir, `${date}-${baseName}${ext}`));
   fs.writeFileSync(resolvedPath, buffer);
   return path.relative(wikiPath, resolvedPath).replace(/\\/g, '/');
@@ -134,9 +146,11 @@ function saveSourceText(
 
   const date = new Date().toISOString().slice(0, 10);
   const hintBase = filenameHint
-    ? path.basename(filenameHint, path.extname(filenameHint))
+    ? stripDatePrefixes(path.basename(filenameHint, path.extname(filenameHint)))
     : title;
-  const resolvedPath = ensureUniqueFilePath(path.join(sourcesDir, `${date}-${slugifyFileName(hintBase)}.md`));
+  const resolvedPath = ensureUniqueFilePath(
+    path.join(sourcesDir, `${date}-${slugifyFileName(hintBase)}.md`),
+  );
   const sourceContent = `# ${title || '未命名资料'}
 
 > 原始资料，不可变。摄入日期：${date}
@@ -168,12 +182,17 @@ export async function ingestWikiSource(
   request: WikiIngestionRequest,
 ): Promise<WikiIngestionResult> {
   const archivedFiles = archiveRawFiles(wikiPath, request.archivedFiles);
-  const sourceFile = saveSourceText(
-    wikiPath,
-    request.sourceText,
-    request.sourceTitle,
-    request.sourceFilenameHint,
-  );
+  // 单文件上传已经有不可变原始归档，直接复用它，避免为同一文件再生成规范化副本。
+  // 多文件或文本/URL摄入仍生成组合快照。
+  const sourceFile =
+    archivedFiles.length === 1
+      ? archivedFiles[0]
+      : saveSourceText(
+          wikiPath,
+          request.sourceText,
+          request.sourceTitle,
+          request.sourceFilenameHint,
+        );
 
   const compileResult = await compileSource(
     settings,
@@ -183,15 +202,27 @@ export async function ingestWikiSource(
     { title: request.sourceTitle, category: request.category },
   );
 
-  // 摄入后自动构建知识图谱（方案 C Phase 1 + 2）
+  let graphErrors: string[] = [];
+
+  // 摄入后自动构建知识图谱：页面级边
   try {
-    const graphResult = buildGraphFromPages(compileResult.compiledPages);
+    const graphResult = buildGraphFromPages(
+      compileResult.compiledPages,
+      compileResult.relationships,
+      wikiPath,
+    );
     if (graphResult.errors.length > 0) {
       log.warn('[graphBuilder] 部分构建失败:', { errors: graphResult.errors });
+      graphErrors = graphResult.errors;
     }
   } catch (err) {
-    // 图谱构建失败不应阻塞摄入主流程
     log.error('[graphBuilder] 构建异常:', { error: (err as Error).message });
+    graphErrors = [(err as Error).message];
+  }
+  try {
+    await generateCrossBatchCandidates(settings, wikiPath, compileResult.compiledPages);
+  } catch (err) {
+    log.warn('[crossBatchCandidates] 生成失败', { error: (err as Error).message });
   }
 
   const manifestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -199,7 +230,7 @@ export async function ingestWikiSource(
     id: manifestId,
     sourceFile,
     archivedFiles,
-    pageFiles: compileResult.pages.map(page => page.filename),
+    pageFiles: compileResult.pages.map((page) => page.filename),
     summary: request.summaryHint || compileResult.summary,
     createdAt: new Date().toISOString(),
   });
@@ -210,5 +241,6 @@ export async function ingestWikiSource(
     pages: compileResult.pages,
     summary: compileResult.summary,
     manifestId,
+    graphErrors: graphErrors.length > 0 ? graphErrors : undefined,
   };
 }

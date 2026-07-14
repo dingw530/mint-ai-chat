@@ -8,7 +8,6 @@ export const graphEndpoints: EndpointDescriptor[] = [
     path: '/data',
     preloadMethod: 'getGraphData',
     service: graphService.getGraphData,
-    ipcServiceRef: { module: 'graphSvc', method: 'getGraphData' },
     args: [],
     result: 'direct',
   },
@@ -18,7 +17,6 @@ export const graphEndpoints: EndpointDescriptor[] = [
     path: '/node/:id',
     preloadMethod: 'getGraphNode',
     service: (id: string) => graphService.getNode(id),
-    ipcServiceRef: { module: 'graphSvc', method: 'getNode' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
@@ -28,7 +26,6 @@ export const graphEndpoints: EndpointDescriptor[] = [
     path: '/node/:id/neighbors',
     preloadMethod: 'getGraphNodeNeighbors',
     service: (id: string) => graphService.getNodeNeighbors(id),
-    ipcServiceRef: { module: 'graphSvc', method: 'getNodeNeighbors' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
@@ -38,7 +35,6 @@ export const graphEndpoints: EndpointDescriptor[] = [
     path: '/search',
     preloadMethod: 'searchGraphNodes',
     service: (query: string) => graphService.searchNodes(query),
-    ipcServiceRef: { module: 'graphSvc', method: 'searchNodes' },
     args: [{ from: 'query', name: 'query' }],
     result: 'direct',
   },
@@ -50,13 +46,12 @@ export const graphEndpoints: EndpointDescriptor[] = [
     service: (data: Record<string, unknown>) => {
       const node = graphService.createNode({
         label: data.label as string,
-        type: data.type as 'concept' | 'practice' | 'methodology',
+        type: data.type as string,
         sourceFile: data.sourceFile as string | undefined,
         properties: data.properties as Record<string, unknown> | undefined,
       });
       return node;
     },
-    ipcServiceRef: { module: 'graphSvc', method: 'createNode' },
     args: [{ from: 'body' }],
     result: 'direct',
   },
@@ -75,7 +70,6 @@ export const graphEndpoints: EndpointDescriptor[] = [
       });
       return edge;
     },
-    ipcServiceRef: { module: 'graphSvc', method: 'createEdge' },
     args: [{ from: 'body' }],
     result: 'direct',
   },
@@ -88,7 +82,6 @@ export const graphEndpoints: EndpointDescriptor[] = [
       graphService.deleteNode(id);
       return { success: true };
     },
-    ipcServiceRef: { module: 'graphSvc', method: 'deleteNode' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
@@ -101,8 +94,10 @@ export const graphEndpoints: EndpointDescriptor[] = [
       graphService.deleteEdge(id);
       return { success: true };
     },
-    ipcServiceRef: { module: 'graphSvc', method: 'deleteEdge' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },
+  { id:'graph:listCandidates', method:'GET', path:'/candidates', preloadMethod:'listGraphCandidates', service:(status?: string)=>graphService.listCandidates(status as any), args:[{from:'query',name:'status',optional:true}], result:'direct' },
+  { id:'graph:acceptCandidate', method:'POST', path:'/candidates/:id/accept', preloadMethod:'acceptGraphCandidate', service:(id:string)=>graphService.acceptCandidate(id), args:[{from:'path',name:'id'}], result:'direct' },
+  { id:'graph:rejectCandidate', method:'POST', path:'/candidates/:id/reject', preloadMethod:'rejectGraphCandidate', service:(id:string,body:{note?:string})=>graphService.rejectCandidate(id,body?.note), args:[{from:'path',name:'id'},{from:'body'}], result:'direct' },
 ];

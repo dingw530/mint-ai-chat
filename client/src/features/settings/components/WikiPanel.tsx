@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getWikiSchema, addWikiCategory, removeWikiCategory } from '@/services/api';
+import { getWikiSchema, updateWikiSchema } from '@/services/api';
+import type { WikiCategory } from '@/types';
 import type { WikiSchema } from '@/services/api/wiki';
 
 interface WikiPanelProps {
@@ -10,7 +11,7 @@ interface WikiPanelProps {
 
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
       <path d="M12 4a1 1 0 011 1v6h6a1 1 0 110 2h-6v6a1 1 0 11-2 0v-6H5a1 1 0 110-2h6V5a1 1 0 011-1z" />
     </svg>
   );
@@ -18,15 +19,31 @@ function PlusIcon() {
 
 function TrashIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
       <path d="M10 2a1 1 0 00-1 1v1H5a1 1 0 000 2h14a1 1 0 100-2h-4V3a1 1 0 00-1-1h-4zm-3 6a1 1 0 00-1 1v10a2 2 0 002 2h8a2 2 0 002-2V9a1 1 0 10-2 0v10h-.5V9a1 1 0 10-2 0v10H14V9a1 1 0 10-2 0v10h-.5V9a1 1 0 10-2 0v10H8V9a1 1 0 00-1-1z" />
     </svg>
   );
 }
 
+const emptyCategory = (): WikiCategory => ({
+  name: '',
+  description: '',
+  include: [],
+  exclude: [],
+});
+
+function parseList(value: string): string[] {
+  return value.split(',').map(item => item.trim()).filter(Boolean);
+}
+
+function formatList(value: string[]): string {
+  return value.join(', ');
+}
+
 export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelProps) {
   const [schema, setSchema] = useState<WikiSchema | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [newCategory, setNewCategory] = useState('');
 
   const fetchSchema = useCallback(async () => {
@@ -37,8 +54,7 @@ export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelP
     }
     setLoading(true);
     try {
-      const data = await getWikiSchema();
-      setSchema(data);
+      setSchema(await getWikiSchema());
     } catch {
       setSchema(null);
     } finally {
@@ -50,27 +66,66 @@ export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelP
     fetchSchema();
   }, [fetchSchema]);
 
-  const handleAddCategory = async () => {
-    const cat = newCategory.trim();
-    if (!cat) return;
-    try {
-      const result = await addWikiCategory(cat);
-      setSchema((prev) => prev ? { ...prev, categories: result.categories } : { categories: result.categories });
-      setNewCategory('');
-      onToast?.('success', `分类 "${cat}" 已添加`);
-    } catch (err) {
-      onToast?.('error', (err as Error).message);
-    }
+  const updateCategory = (index: number, patch: Partial<WikiCategory>) => {
+    setSchema((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        categories: prev.categories.map((category, categoryIndex) => (
+          categoryIndex === index ? { ...category, ...patch } : category
+        )),
+      };
+    });
   };
 
-  const handleRemoveCategory = async (cat: string) => {
-    if (!window.confirm(`确定删除分类 "${cat}"？`)) return;
+  const handleAddCategory = () => {
+    const name = newCategory.trim();
+    if (!name || !schema) return;
+    if (schema.categories.some(category => category.name === name)) {
+      onToast?.('error', `分类 "${name}" 已存在`);
+      return;
+    }
+    setSchema({ ...schema, categories: [...schema.categories, { ...emptyCategory(), name }] });
+    setNewCategory('');
+  };
+
+  const handleRemoveCategory = (index: number) => {
+    const category = schema?.categories[index];
+    if (!schema || !category) return;
+    if (!window.confirm(`确定删除分类 "${category.name || '未命名分类'}"？`)) return;
+    setSchema({
+      ...schema,
+      categories: schema.categories.filter((_, categoryIndex) => categoryIndex !== index),
+    });
+  };
+
+  const handleSave = async () => {
+    if (!schema) return;
+    const categories = schema.categories.map(category => ({
+      ...category,
+      name: category.name.trim(),
+      description: category.description.trim(),
+      include: category.include.map(item => item.trim()).filter(Boolean),
+      exclude: category.exclude.map(item => item.trim()).filter(Boolean),
+    }));
+    if (categories.some(category => !category.name)) {
+      onToast?.('error', '分类名称不能为空');
+      return;
+    }
+    if (new Set(categories.map(category => category.name)).size !== categories.length) {
+      onToast?.('error', '分类名称不能重复');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const result = await removeWikiCategory(cat);
-      setSchema((prev) => prev ? { ...prev, categories: result.categories } : { categories: result.categories });
-      onToast?.('success', `分类 "${cat}" 已删除`);
+      const saved = await updateWikiSchema({ ...schema, categories });
+      setSchema(saved);
+      onToast?.('success', '知识库 Schema 已保存');
     } catch (err) {
       onToast?.('error', (err as Error).message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -91,8 +146,15 @@ export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelP
       </div>
 
       <hr className="settings-divider" />
-      <h4 className="settings-subheading">分类管理</h4>
-      <p className="form-help">管理 Wiki 页面分类。AI 在编译知识时会参考这些分类，你也可以手动添加预期分类。</p>
+      <div className="wiki-schema-heading">
+        <div>
+          <h4 className="settings-subheading">知识库 Schema</h4>
+          <p className="form-help">维护分类的定义、包含范围和排除范围，AI 编译知识时会以这里的规则为准。</p>
+        </div>
+        <button className="wiki-schema-save" onClick={handleSave} disabled={!schema || saving}>
+          {saving ? '保存中...' : '保存 Schema'}
+        </button>
+      </div>
 
       {!wikiPath ? (
         <div className="wiki-categories-empty">请先配置知识库路径</div>
@@ -104,16 +166,44 @@ export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelP
             {categories.length === 0 ? (
               <div className="wiki-categories-empty">暂无分类，添加一个分类开始</div>
             ) : (
-              categories.map((cat) => (
-                <div key={cat} className="wiki-category-item">
-                  <span className="wiki-category-name">{cat}</span>
-                  <button
-                    className="wiki-category-remove"
-                    onClick={() => handleRemoveCategory(cat)}
-                    title="删除分类"
-                  >
-                    <TrashIcon />
-                  </button>
+              categories.map((category, index) => (
+                <div key={`${category.name}-${index}`} className="wiki-category-editor">
+                  <div className="wiki-category-editor-header">
+                    <input
+                      className="wiki-category-name-input"
+                      value={category.name}
+                      onChange={(e) => updateCategory(index, { name: e.target.value })}
+                      placeholder="分类名称"
+                      aria-label="分类名称"
+                    />
+                    <button
+                      className="wiki-category-remove"
+                      onClick={() => handleRemoveCategory(index)}
+                      title="删除分类"
+                      aria-label="删除分类"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                  <textarea
+                    value={category.description}
+                    onChange={(e) => updateCategory(index, { description: e.target.value })}
+                    placeholder="分类标准，例如：可复用的方法、流程和工程框架"
+                    aria-label={`${category.name || '分类'}定义`}
+                    rows={2}
+                  />
+                  <input
+                    value={formatList(category.include)}
+                    onChange={(e) => updateCategory(index, { include: parseList(e.target.value) })}
+                    placeholder="包含：方法, 流程, 框架"
+                    aria-label={`${category.name || '分类'}包含范围`}
+                  />
+                  <input
+                    value={formatList(category.exclude)}
+                    onChange={(e) => updateCategory(index, { exclude: parseList(e.target.value) })}
+                    placeholder="排除：单个项目案例"
+                    aria-label={`${category.name || '分类'}排除范围`}
+                  />
                 </div>
               ))
             )}
@@ -124,12 +214,14 @@ export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelP
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-              placeholder="输入新分类名（如 ai-product）"
+              placeholder="输入新分类名"
             />
             <button
               className="wiki-category-add-btn"
               onClick={handleAddCategory}
               disabled={!newCategory.trim()}
+              title="添加分类"
+              aria-label="添加分类"
             >
               <PlusIcon />
             </button>

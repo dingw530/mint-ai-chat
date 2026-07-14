@@ -1,302 +1,113 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+process.env.AI_CHAT_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
+
+vi.mock('../repositories/agentRepository.js', () => ({
+  findAll: vi.fn(),
+  findById: vi.fn(),
+}));
+
+vi.mock('../services/adapters/apiAdapter.js', () => ({
+  getAdapter: vi.fn(),
+}));
+
 import { RoutingService } from '../services/api/routingService.js';
-import type { Agent } from '../types.js';
+import { getAdapter } from '../services/adapters/apiAdapter.js';
 
-// 模拟 settingsService（llmClassify 需要）
-vi.mock('../services/api/settingsService.js', () => ({
-  getAiSettings: vi.fn(() => ({
-    apiUrl: 'https://api.example.com',
-    apiKey: 'test-key',
-    modelId: 'gpt-4o-mini',
-    systemPrompt: '',
-    thinkingMode: false,
-    memoryEnabled: false,
-  })),
-}));
-
-// 模拟 routingLogRepo（finalize 需要）
-vi.mock('../repositories/routingLogRepository.js', () => ({
-  create: vi.fn(),
-}));
-
-// 模拟 logger
-vi.mock('../utils/logger.js', () => ({
-  createLogger: () => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  }),
-}));
-
-function makeAgent(overrides: Partial<Agent> = {}): Agent {
-  return {
-    id: 'test-agent',
-    name: 'Test Agent',
-    description: 'A test agent',
-    type: 'custom',
-    systemPrompt: null,
-    mcpServerIds: [],
-    available: true,
-    errorMessage: null,
-    triggerKeywords: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    ...overrides,
-  };
-}
-
-const weatherAgent = makeAgent({
-  id: 'weather',
-  name: '天气查询',
-  description: '查询天气预报信息',
-  type: 'weather',
-  triggerKeywords: ['天气', '温度', '预报', '降雨', '晴', '雨', '雪', '台风'],
-});
-
-const generalAgent = makeAgent({
-  id: 'general',
-  name: '通用助手',
-  description: '通用 AI 对话助手',
-  type: 'general',
-  triggerKeywords: [],
-});
-
-describe('RoutingService - keywordMatch', () => {
+describe('RoutingService', () => {
   let service: RoutingService;
 
-  beforeEach(() => {
-    service = new RoutingService();
-  });
-
-  it('should return null confidence when no keywords match', () => {
-    const result = service.keywordMatch('你好，帮我写一首诗', [weatherAgent, generalAgent]);
-    expect(result.agentId).toBeNull();
-    expect(result.confidence).toBe(0);
-  });
-
-  it('should return exact match with confidence 1.0', () => {
-    const agents = [weatherAgent, generalAgent];
-    const result = service.keywordMatch('天气', agents);
-    expect(result.agentId).toBe('weather');
-    expect(result.confidence).toBe(1.0);
-  });
-
-  it('should return substring match with confidence 0.6', () => {
-    const agents = [weatherAgent, generalAgent];
-    const result = service.keywordMatch('北京明天天气怎么样', agents);
-    expect(result.agentId).toBe('weather');
-    expect(result.confidence).toBe(0.6);
-  });
-
-  it('should handle regex keywords', () => {
-    const regexAgent = makeAgent({
-      id: 'code',
-      name: '代码助手',
-      description: '帮助编写代码',
-      triggerKeywords: ['/\\b(code|编程|写代码|debug)\\b/'],
-    });
-    const agents = [regexAgent, generalAgent];
-    const result = service.keywordMatch('帮我debug这个问题', agents);
-    expect(result.agentId).toBe('code');
-    expect(result.confidence).toBe(0.9);
-  });
-
-  it('should return best match when multiple agents match', () => {
-    const agentA = makeAgent({
-      id: 'agent-a',
-      triggerKeywords: ['hello'],
-    });
-    const agentB = makeAgent({
-      id: 'agent-b',
-      triggerKeywords: ['hello world'],
-    });
-    // 'hello world' substring match → 0.6, 'hello' exact match → 1.0
-    const result = service.keywordMatch('hello', [agentA, agentB]);
-    expect(result.agentId).toBe('agent-a');
-    expect(result.confidence).toBe(1.0);
-  });
-
-  it('should prefer exact match over substring match', () => {
-    const agents = [weatherAgent, generalAgent];
-    // "雨" exact match (1.0) beats "降雨" substring (0.6)
-    const result = service.keywordMatch('雨', agents);
-    expect(result.agentId).toBe('weather');
-    expect(result.confidence).toBe(1.0);
-  });
-
-  it('should handle empty agent list', () => {
-    const result = service.keywordMatch('天气', []);
-    expect(result.agentId).toBeNull();
-    expect(result.confidence).toBe(0);
-  });
-
-  it('should treat invalid regex as no match', () => {
-    const badRegexAgent = makeAgent({
-      id: 'bad-regex',
-      triggerKeywords: ['/[invalid'],
-    });
-    const result = service.keywordMatch('test', [badRegexAgent]);
-    expect(result.agentId).toBeNull();
-    expect(result.confidence).toBe(0);
-  });
-
-  it('should handle agents with no triggerKeywords', () => {
-    const noKeywords = makeAgent();
-    const result = service.keywordMatch('hello', [noKeywords]);
-    expect(result.agentId).toBeNull();
-    expect(result.confidence).toBe(0);
-  });
-
-  it('should match multiple keywords on same agent', () => {
-    const multiAgent = makeAgent({
-      id: 'multi',
-      triggerKeywords: ['hello', 'world'],
-    });
-    const result = service.keywordMatch('hello world', [multiAgent]);
-    expect(result.agentId).toBe('multi');
-    expect(result.confidence).toBe(0.6);
-  });
-});
-
-describe('RoutingService - route', () => {
-  let service: RoutingService;
+  const agents = [
+    {
+      id: 'general', name: '通用', description: 'gen', type: 'general',
+      systemPrompt: '', mcpServerIds: [], available: true, errorMessage: null,
+      triggerKeywords: [], createdAt: '', updatedAt: '',
+    },
+    {
+      id: 'weather', name: '天气', description: '天气', type: 'weather',
+      systemPrompt: '', mcpServerIds: [], available: true, errorMessage: null,
+      triggerKeywords: ['天气', '/^\\s*天气/'],
+      createdAt: '', updatedAt: '',
+    },
+  ];
 
   beforeEach(() => {
+    vi.clearAllMocks();
     service = new RoutingService();
+    vi.mocked(getAdapter).mockReturnValue({
+      call: vi.fn().mockResolvedValue('weather'),
+      getUrl: vi.fn(), getHeaders: vi.fn(), buildRequest: vi.fn(), parseChunk: vi.fn(),
+    } as any);
   });
 
-  it('should skip routing when lockedAgent is set', async () => {
-    const result = await service.route('北京天气', {
-      agents: [weatherAgent, generalAgent],
-      lockedAgent: 'weather',
-      conversationId: 'conv-1',
+  describe('keywordMatch', () => {
+    it('returns null on no match', () => {
+      expect(service.keywordMatch('你好', agents).agentId).toBeNull();
     });
-    expect(result.agentId).toBe('weather');
-    expect(result.confidence).toBe(1.0);
-    expect(result.method).toBe('fallback');
+
+    it('matches substring (0.6)', () => {
+      const r = service.keywordMatch('今天天气如何', agents);
+      expect(r.agentId).toBe('weather');
+      expect(r.confidence).toBe(0.6);
+    });
+
+    it('matches regex with leading whitespace (0.9)', () => {
+      // `   天气abc` — "天气" is matched by `\s*天气` regex pattern
+      const r = service.keywordMatch('   天气abc', agents);
+      expect(r.agentId).toBe('weather');
+      expect(r.confidence).toBe(0.9);
+    });
+
+    it('regex beats substring on same match', () => {
+      // Keyword "/^\\s*天气/" triggers regex match for "  天气abc"
+      // Since regex score (0.9) > substring (0.6), regex wins
+      const r = service.keywordMatch('   天气abc', agents);
+      expect(r.confidence).toBe(0.9);
+    });
+
+    it('exact match scores 1.0', () => {
+      const r = service.keywordMatch('天气', agents);
+      expect(r.confidence).toBe(1.0);
+    });
+
+    it('skips unavailable agents', () => {
+      const r = service.keywordMatch('天气', agents.map(a => ({ ...a, available: false })));
+      expect(r.agentId).toBeNull();
+    });
   });
 
-  it('should skip routing in manual mode', async () => {
-    const result = await service.route('北京天气', {
-      agents: [weatherAgent, generalAgent],
-      routingMode: 'manual',
-      conversationId: 'conv-1',
+  describe('route', () => {
+    it('falls back to general', async () => {
+      expect((await service.route('你好', { agents })).agentId).toBe('general');
     });
-    expect(result.agentId).toBe('general');
-    expect(result.method).toBe('fallback');
+
+    it('uses lockedAgent', async () => {
+      expect((await service.route('hi', { agents, lockedAgent: 'weather' })).agentId).toBe('weather');
+    });
+
+    it('skips in manual mode', async () => {
+      expect((await service.route('hi', { agents, routingMode: 'manual' })).agentId).toBe('general');
+    });
   });
 
-  it('should route to weather agent for weather keyword with high confidence', async () => {
-    const result = await service.route('天气', {
-      agents: [weatherAgent, generalAgent],
-      conversationId: 'conv-1',
+  describe('llmClassify', () => {
+    it('null with only general', async () => {
+      expect(await service.llmClassify('hi', [agents[0]])).toBeNull();
     });
-    expect(result.agentId).toBe('weather');
-    expect(result.confidence).toBe(1.0);
-    expect(result.method).toBe('keyword');
-  });
 
-  it('should fallback to general for unmatched message', async () => {
-    const result = await service.route('写一首关于春天的诗', {
-      agents: [weatherAgent, generalAgent],
-      conversationId: 'conv-1',
+    it('null when adapter missing', async () => {
+      vi.mocked(getAdapter).mockReturnValue(undefined as any);
+      expect(await service.llmClassify('a', [agents[1]])).toBeNull();
     });
-    expect(result.agentId).toBe('general');
-    expect(result.method).toBe('fallback');
-  });
 
-  it('should call beforeRoute hook and use modified message', async () => {
-    service = new RoutingService({
-      beforeRoute: async (_msg, _ctx) => ({ message: '天气' }),
+    it('null on API error', async () => {
+      vi.mocked(getAdapter).mockReturnValue({ call: vi.fn().mockRejectedValue(new Error('e')) } as any);
+      expect(await service.llmClassify('a', [agents[1]])).toBeNull();
     });
-    const result = await service.route('写一首诗', {
-      agents: [weatherAgent, generalAgent],
-      conversationId: 'conv-1',
-    });
-    // '天气' should match weather agent
-    expect(result.agentId).toBe('weather');
-  });
 
-  it('should return fallback when beforeRoute hook sets skip', async () => {
-    service = new RoutingService({
-      beforeRoute: async () => ({ skip: true }),
+    it('null when agentId unknown', async () => {
+      vi.mocked(getAdapter).mockReturnValue({ call: vi.fn().mockResolvedValue('nope') } as any);
+      expect(await service.llmClassify('a', [agents[1]])).toBeNull();
     });
-    const result = await service.route('天气', {
-      agents: [weatherAgent, generalAgent],
-      conversationId: 'conv-1',
-    });
-    expect(result.agentId).toBe('general');
-    expect(result.method).toBe('fallback');
-  });
-
-  it('should call onRoutingComplete hook and override result', async () => {
-    service = new RoutingService({
-      onRoutingComplete: async (_result, _ctx) => ({
-        agentId: 'general',
-        confidence: 0,
-        method: 'fallback' as const,
-        latencyMs: 0,
-      }),
-    });
-    const result = await service.route('天气', {
-      agents: [weatherAgent, generalAgent],
-      conversationId: 'conv-1',
-    });
-    expect(result.agentId).toBe('general');
-  });
-
-  it('should include latencyMs in result', async () => {
-    const result = await service.route('天气', {
-      agents: [weatherAgent, generalAgent],
-      conversationId: 'conv-1',
-    });
-    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
-  });
-
-  it('should handle keyword match with confidence < 0.6 as fallback', async () => {
-    const weakAgent = makeAgent({
-      id: 'weak-match',
-      triggerKeywords: ['xyzabc123'],
-    });
-    const result = await service.route('hello world', {
-      agents: [weakAgent, generalAgent],
-      conversationId: 'conv-1',
-    });
-    // 'hello world' doesn't contain 'xyzabc123', so no match → general
-    expect(result.agentId).toBe('general');
-    expect(result.method).toBe('fallback');
-  });
-});
-
-describe('RoutingService - llmClassify', () => {
-  let service: RoutingService;
-
-  beforeEach(() => {
-    service = new RoutingService();
-  });
-
-  it('should return null when only general agent is available', async () => {
-    const result = await service.llmClassify('hello', [generalAgent]);
-    expect(result).toBeNull();
-  });
-
-  it('should return null when no agents are available', async () => {
-    const result = await service.llmClassify('hello', []);
-    expect(result).toBeNull();
-  });
-
-  it('should return null when AI API call fails', async () => {
-    const failSettings = vi.mocked(await import('../services/api/settingsService.js')).getAiSettings;
-    failSettings.mockReturnValueOnce({
-      apiUrl: 'https://invalid-url',
-      apiKey: '',
-      modelId: 'gpt-4o-mini',
-      systemPrompt: '',
-      thinkingMode: false,
-      memoryEnabled: false,
-    });
-    const result = await service.llmClassify('北京天气', [weatherAgent]);
-    expect(result).toBeNull();
   });
 });

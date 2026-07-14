@@ -1,17 +1,27 @@
-import Database from 'better-sqlite3';
+import { createRequire } from 'node:module';
+import type DatabaseConstructor from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { runMigrations } from './migrations/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+
+// Electron and Node.js use different native-module ABIs, so IPC must load
+// the Electron-local copy while server and Vitest keep using the Node copy.
+const Database = require(
+  process.versions.electron
+    ? process.env.MINT_ELECTRON_BETTER_SQLITE3_PATH || 'better-sqlite3'
+    : 'better-sqlite3',
+) as typeof DatabaseConstructor;
 
 // 数据库路径：可通过环境变量覆盖（测试隔离），默认项目根目录
 const DB_PATH: string = process.env.AI_CHAT_DB_PATH || path.join(__dirname, 'data.db');
 
-let db: Database.Database | undefined;
+let db: DatabaseConstructor.Database | undefined;
 
 // 获取数据库单例：延迟初始化，首次调用时自动建表、迁移、种子数据
-export function getDb(): Database.Database {
+export function getDb(): DatabaseConstructor.Database {
   if (!db) {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');   // WAL 模式提升并发读写性能
@@ -119,7 +129,7 @@ function createSchema(): void {
     CREATE TABLE IF NOT EXISTS graph_nodes (
       id TEXT PRIMARY KEY,
       label TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('concept', 'practice', 'methodology')),
+      type TEXT NOT NULL,
       source_file TEXT,
       properties TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),

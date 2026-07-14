@@ -6,10 +6,29 @@ export default defineConfig({
     include: ['__tests__/**/*.test.ts'],
     env: {
       AI_CHAT_LOG_LEVEL: 'debug',
+      AI_CHAT_DB_PATH: '/tmp/ai-chat-vitest.db',
+      AI_CHAT_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef',
     },
     server: {
       deps: {
         fallbackCJS: true,
+      },
+    },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      include: ['services/**/*.ts', 'utils/**/*.ts', 'repositories/**/*.ts'],
+      exclude: [
+        // AI 适配器需要真实 API 密钥，集成测试覆盖
+        'services/adapters/**/*.ts',
+        // 需要真实 QWeather 密钥
+        'services/api/qweatherService.ts',
+      ],
+      thresholds: {
+        lines: 50,
+        functions: 50,
+        branches: 50,
+        statements: 50,
       },
     },
   },
