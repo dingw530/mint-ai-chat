@@ -10,7 +10,6 @@ export const agentsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'getAgents',
     service: () => ({ agents: agentService.list() }),
-    ipcServiceRef: { module: 'agentSvc', method: 'list' },
     result: 'direct',
   },
   {

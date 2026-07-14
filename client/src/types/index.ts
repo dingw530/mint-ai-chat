@@ -261,6 +261,10 @@ export interface ElectronAPI {
   createConversation: (title?: string, type?: string) => Promise<{ conversation: Conversation }>;
   deleteConversation: (id: string) => Promise<{ success: boolean }>;
   clearAllConversations: () => Promise<{ changes: number }>;
+  patchConversation: (
+    id: string,
+    data: { title?: string; lockedAgent?: string | null },
+  ) => Promise<{ conversation: Conversation }>;
   renameConversation: (id: string, title: string) => Promise<{ conversation: Conversation }>;
   lockAgent: (id: string, agentId: string | null) => Promise<{ conversation: Conversation }>;
   generateTitle: (id: string) => Promise<{ title: string }>;
@@ -274,6 +278,7 @@ export interface ElectronAPI {
 
   // Agent
   getAgents: () => Promise<{ agents: Agent[] }>;
+  getAgent: (id: string) => Promise<{ agent: Agent }>;
   createAgent: (data: Partial<Agent>) => Promise<{ agent: Agent }>;
   updateAgent: (id: string, data: Partial<Agent>) => Promise<{ agent: Agent }>;
   deleteAgent: (id: string) => Promise<{ success: boolean }>;

@@ -73,7 +73,6 @@ export const mcpServersEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'getMcpServers',
     service: listMcpServers,
-    ipcServiceRef: { module: 'mcpRepo', method: 'findAll' },
     result: 'direct',
   },
   {

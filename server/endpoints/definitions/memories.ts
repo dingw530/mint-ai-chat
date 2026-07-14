@@ -9,7 +9,6 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'getMemories',
     service: memoryService.listMemories,
-    ipcServiceRef: { module: 'memSvc', method: 'listMemories' },
     args: [{ from: 'query', name: 'category', optional: true }],
     result: 'direct',
   },
@@ -30,7 +29,6 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
         sourceConversationId: (data.sourceConversationId as string) || null,
       });
     },
-    ipcServiceRef: { module: 'memSvc', method: 'createMemory' },
     args: [{ from: 'body' }],
     result: 'direct',
   },
@@ -46,7 +44,6 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
       }
       return result;
     },
-    ipcServiceRef: { module: 'memSvc', method: 'updateMemory' },
     args: [
       { from: 'path', name: 'id' },
       { from: 'body' },
@@ -62,7 +59,6 @@ export const memoriesEndpoints: EndpointDescriptor[] = [
       memoryService.deleteMemory(id);
       return { success: true };
     },
-    ipcServiceRef: { module: 'memSvc', method: 'deleteMemory' },
     args: [{ from: 'path', name: 'id' }],
     result: 'direct',
   },

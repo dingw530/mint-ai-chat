@@ -558,6 +558,20 @@
     "async": false
   },
   {
+    "id": "wiki:updateSchema",
+    "ipcChannel": "wiki:updateSchema",
+    "preloadMethod": "updateWikiSchema",
+    "method": "PUT",
+    "httpPath": "/wiki/schema",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
     "id": "graph:data",
     "ipcChannel": "graph:data",
     "preloadMethod": "getGraphData",
@@ -671,12 +685,47 @@
     "async": false
   },
   {
-    "id": "wiki:updateSchema",
-    "ipcChannel": "wiki:updateSchema",
-    "preloadMethod": "updateWikiSchema",
-    "method": "PUT",
-    "httpPath": "/wiki/schema",
+    "id": "graph:listCandidates",
+    "ipcChannel": "graph:listCandidates",
+    "preloadMethod": "listGraphCandidates",
+    "method": "GET",
+    "httpPath": "/graph/candidates",
     "args": [
+      {
+        "from": "query",
+        "name": "status",
+        "optional": true
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:acceptCandidate",
+    "ipcChannel": "graph:acceptCandidate",
+    "preloadMethod": "acceptGraphCandidate",
+    "method": "POST",
+    "httpPath": "/graph/candidates/:id/accept",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "graph:rejectCandidate",
+    "ipcChannel": "graph:rejectCandidate",
+    "preloadMethod": "rejectGraphCandidate",
+    "method": "POST",
+    "httpPath": "/graph/candidates/:id/reject",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      },
       {
         "from": "body"
       }

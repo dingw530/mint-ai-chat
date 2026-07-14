@@ -8,6 +8,8 @@
  */
 export { startServer } from './index.js';
 export { IpcSink } from './services/sink.js';
+export { endpointRegistry, registerIpcHandlers } from './endpoints/index.js';
+export { conversationsIpcOnlyEndpoints } from './endpoints/definitions/conversations.js';
 export * as messageService from './services/messageService.js';
 export * as conversationService from './services/api/conversationService.js';
 export * as settingsService from './services/api/settingsService.js';

@@ -7,11 +7,13 @@
     "dev": "concurrently -n server,client -c yellow,cyan \"npm run dev -w mint-server\" \"npm run dev -w mint-client\"",
     "dev:server": "npm run dev -w mint-server",
     "dev:client": "npm run dev -w mint-client",
+    "test": "npm test -w mint-server",
+"test:coverage": "npm run test:coverage -w mint-server",
     "build": "npm run build -w mint-server && npm run build -w mint-client",
     "start": "npm run start -w mint-server",
-    "electron:rebuild": "cd electron && npx @electron/rebuild -w better-sqlite3 --module-dir ../server",
+    "electron:rebuild": "node scripts/with-node-version.cjs node scripts/rebuild-native.cjs electron",
     "electron:dev": "npm run build -w mint-server && npm run electron:rebuild && concurrently -k \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
-    "electron:dev:server": "npm run build -w mint-server && concurrently -k \"npm run dev -w mint-server\" \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
+    "electron:dev:server": "npm run build -w mint-server && npm run electron:rebuild && concurrently -k \"npm run dev -w mint-server\" \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
     "electron:build:mac": "npm run build -w mint-server && ELECTRON=true npm run build -w mint-client && cd electron && npm run build:mac",
     "prepare": "husky",
     "gc": "npx tsx scripts/gc/run.ts",
@@ -46,6 +48,9 @@
     "client",
     "electron"
   ],
+  "engines": {
+    "node": "20.18.3"
+  },
   "dependencies": {
     "electron": "^33.4.11",
     "sharp": "^0.35.1",

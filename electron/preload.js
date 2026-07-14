@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createConversation: (title, type) => ipcRenderer.invoke('conversations:create', title, type),
   deleteConversation: (id) => ipcRenderer.invoke('conversations:delete', id),
   clearAllConversations: () => ipcRenderer.invoke('conversations:clearAll'),
+  patchConversation: (id, data) => ipcRenderer.invoke('conversations:patch', id, data),
   renameConversation: (id, title) => ipcRenderer.invoke('conversations:rename', id, title),
   lockAgent: (id, agentId) => ipcRenderer.invoke('conversations:lockAgent', id, agentId),
   generateTitle: (id) => ipcRenderer.invoke('conversations:generateTitle', id),
@@ -38,6 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Agent ──
   getAgents: () => ipcRenderer.invoke('agents:list'),
+  getAgent: (id) => ipcRenderer.invoke('agents:get', id),
   createAgent: (data) => ipcRenderer.invoke('agents:create', data),
   updateAgent: (id, data) => ipcRenderer.invoke('agents:update', id, data),
   deleteAgent: (id) => ipcRenderer.invoke('agents:delete', id),

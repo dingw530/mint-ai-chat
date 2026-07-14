@@ -11,7 +11,6 @@ export const skillsEndpoints: EndpointDescriptor[] = [
       const skills = await listSkills();
       return { skills: skills.map((s: any) => ({ name: s.name, description: s.description })) };
     },
-    ipcServiceRef: { module: 'skillSvc', method: 'listSkills' },
     result: 'direct',
     async: true,
   },
