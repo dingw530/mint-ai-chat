@@ -33,6 +33,7 @@
       "main.js",
       "logger.js",
       "preload.js",
+      "ipc/**/*",
       "server-dist/**/*",
       "client-dist/**/*",
       "node_modules/**/*"
