@@ -1,7 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const mockFiles: Record<string, string> = {};
 const mockExists: Record<string, boolean> = {};
+const skillsDir = '/tmp/mint-test-skills';
 
 vi.mock('fs/promises', () => ({
   readdir: vi.fn(async (dir: string) => {
@@ -25,27 +26,32 @@ import * as skillService from '../services/api/skillService.js';
 
 describe('skillService', () => {
   beforeEach(() => {
+    process.env.AI_CHAT_SKILLS_DIR = skillsDir;
     vi.clearAllMocks();
     Object.keys(mockFiles).forEach(k => delete mockFiles[k]);
     Object.keys(mockExists).forEach(k => delete mockExists[k]);
     skillService.clearSkillCache();
   });
 
+  afterEach(() => {
+    delete process.env.AI_CHAT_SKILLS_DIR;
+  });
+
   describe('listSkills', () => {
     it('returns empty when skills dir not exists', async () => {
-      mockExists['/Users/wangding/.mint/skills'] = false;
+      mockExists[skillsDir] = false;
       const skills = await skillService.listSkills();
       expect(skills).toEqual([]);
     });
 
     it('returns skills with frontmatter', async () => {
-      mockFiles['/Users/wangding/.mint/skills/translate.md'] = `---
+      mockFiles[`${skillsDir}/translate.md`] = `---
 name: 翻译
 description: 翻译技能
 ---
 # 翻译助手
 你是一个专业翻译。`;
-      mockExists['/Users/wangding/.mint/skills'] = true;
+      mockExists[skillsDir] = true;
 
       const skills = await skillService.listSkills();
       expect(skills).toHaveLength(1);
@@ -55,8 +61,8 @@ description: 翻译技能
     });
 
     it('handles skills without frontmatter', async () => {
-      mockFiles['/Users/wangding/.mint/skills/hello.md'] = '# Hello World';
-      mockExists['/Users/wangding/.mint/skills'] = true;
+      mockFiles[`${skillsDir}/hello.md`] = '# Hello World';
+      mockExists[skillsDir] = true;
 
       const skills = await skillService.listSkills();
       expect(skills).toHaveLength(1);
@@ -65,8 +71,8 @@ description: 翻译技能
     });
 
     it('handles skill with incomplete frontmatter', async () => {
-      mockFiles['/Users/wangding/.mint/skills/test.md'] = '---\nname: Test\n---\nContent body';
-      mockExists['/Users/wangding/.mint/skills'] = true;
+      mockFiles[`${skillsDir}/test.md`] = '---\nname: Test\n---\nContent body';
+      mockExists[skillsDir] = true;
 
       const skills = await skillService.listSkills();
       expect(skills).toHaveLength(1);
@@ -78,12 +84,12 @@ description: 翻译技能
 
   describe('getSkill', () => {
     it('returns a skill by name', async () => {
-      mockFiles['/Users/wangding/.mint/skills/code-review.md'] = `---
+      mockFiles[`${skillsDir}/code-review.md`] = `---
 name: code-review
 description: Code review skill
 ---
 Review the code`;
-      mockExists['/Users/wangding/.mint/skills'] = true;
+      mockExists[skillsDir] = true;
 
       const skill = await skillService.getSkill('code-review');
       expect(skill).toBeDefined();
@@ -91,7 +97,7 @@ Review the code`;
     });
 
     it('returns undefined for non-existent skill', async () => {
-      mockExists['/Users/wangding/.mint/skills'] = false;
+      mockExists[skillsDir] = false;
       const skill = await skillService.getSkill('nonexistent');
       expect(skill).toBeUndefined();
     });
@@ -99,7 +105,7 @@ Review the code`;
 
   describe('clearSkillCache', () => {
     it('forces reload on next list call', async () => {
-      mockExists['/Users/wangding/.mint/skills'] = false;
+      mockExists[skillsDir] = false;
       skillService.clearSkillCache();
       const skills = await skillService.listSkills();
       expect(skills).toEqual([]);
