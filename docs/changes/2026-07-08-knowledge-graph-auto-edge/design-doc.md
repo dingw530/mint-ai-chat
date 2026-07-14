@@ -439,3 +439,34 @@ function normalizeRelation(relation: string): string {
 **原因**：实测 0.25 在全量回溯时产生 306 条 related_to 边，图谱密度过高（"Spec"节点连接 60 个其他节点）。0.30 阈值下仅产生 4 条高品质 related_to 边，且 0 孤立节点。
 **影响范围**：graphBuilder.ts Phase 5 阈值常量、backfill-graph-edges.ts 阈值常量
 **与原设计的关系**：修正（参数校准）
+
+## 后续设计：DS-013 图谱初始视口稳定化
+
+### 问题
+
+图谱使用 vis-network 的力导向布局时关闭了 stabilization，并在启动模拟后的下一帧执行 `fit()`。节点仍在持续移动，导致初始视口适配立即失效，部分节点和连线超出画布边界。
+
+### 设计
+
+- 开启有限次 physics stabilization，等待 `stabilized` 事件后再执行一次 `network.fit()`。
+- 完成初始适配后关闭 physics，冻结布局位置，避免用户未操作时节点继续漂移。
+- 保留 `dragNodes`、`dragView` 和 `zoomView`，physics 关闭不影响节点拖拽、画布平移和缩放。
+- `ResizeObserver` 仅同步画布尺寸；首次布局完成前允许重新适配，布局完成且用户已操作后不主动重置视口。
+- 不新增布局算法、节点数据结构或图谱筛选功能。
+
+### 状态边界
+
+```
+创建 Network
+  -> stabilization 完成
+  -> fit 全部节点
+  -> 关闭 physics，保持当前视口
+  -> 用户拖拽 / 平移 / 缩放
+```
+
+### 验收
+
+- 首次打开时所有节点都位于可视区域内，并保留统一边距。
+- stabilization 完成后，在用户未操作时节点位置和视口不再漂移或再次越界。
+- 用户仍可拖拽节点、平移画布和缩放视图。
+- 窗口尺寸变化不会覆盖用户已经进行的拖拽或缩放。

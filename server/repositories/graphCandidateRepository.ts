@@ -58,7 +58,7 @@ export function create(
   const id = uuidv4(),
     now = new Date().toISOString();
   getDb()
-    .prepare('INSERT INTO graph_edge_candidates VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    .prepare('INSERT INTO graph_edge_candidates VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .run(
       id,
       input.sourceId,

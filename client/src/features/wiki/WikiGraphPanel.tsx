@@ -8,14 +8,14 @@ import GraphCandidatePanel from './GraphCandidatePanel';
 // ── 节点类型样式 ──
 
 const NODE_PALETTE: Record<string, { bg: string; border: string; highlightBg: string }> = {
-  实践: { bg: '#FEF3C7', border: '#F59E0B', highlightBg: '#FCD34D' },
-  思维模式: { bg: '#FCE7F3', border: '#DB2777', highlightBg: '#F9A8D4' },
-  方法论: { bg: '#D1FAE5', border: '#10B981', highlightBg: '#6EE7B7' },
-  概念: { bg: '#DBEAFE', border: '#3B82F6', highlightBg: '#93C5FD' },
+  实践: { bg: '#FDE68A', border: '#F59E0B', highlightBg: '#FCD34D' },
+  思维模式: { bg: '#FBCFE8', border: '#DB2777', highlightBg: '#F9A8D4' },
+  方法论: { bg: '#BBF7D0', border: '#10B981', highlightBg: '#6EE7B7' },
+  概念: { bg: '#BFDBFE', border: '#3B82F6', highlightBg: '#93C5FD' },
   // 兼容迁移前的旧节点，重建图谱后会统一为 Schema 分类名称。
-  concept: { bg: '#DBEAFE', border: '#3B82F6', highlightBg: '#93C5FD' },
-  practice: { bg: '#FEF3C7', border: '#F59E0B', highlightBg: '#FCD34D' },
-  methodology: { bg: '#D1FAE5', border: '#10B981', highlightBg: '#6EE7B7' },
+  concept: { bg: '#BFDBFE', border: '#3B82F6', highlightBg: '#93C5FD' },
+  practice: { bg: '#FDE68A', border: '#F59E0B', highlightBg: '#FCD34D' },
+  methodology: { bg: '#BBF7D0', border: '#10B981', highlightBg: '#6EE7B7' },
 };
 
 // ── 子组件：节点详情面板 ──
@@ -116,6 +116,23 @@ function getFadedColor(bg: string): string {
   return `rgba(${r},${g},${b},0.12)`;
 }
 
+/** 画布优先保证图形可读性，完整标题由悬停提示和详情面板承载。 */
+function getGraphNodeLabel(label: string): string {
+  const maxLength = 16;
+  return label.length > maxLength ? `${label.slice(0, maxLength)}...` : label;
+}
+
+function isWeakGraphEdge(edge: GraphEdge): boolean {
+  return edge.properties.strength === 'weak' || edge.relation === 'references';
+}
+
+function getGraphEdgeWidth(edge: GraphEdge): number {
+  if (isWeakGraphEdge(edge)) return 0.6;
+  const confidence =
+    typeof edge.properties.confidence === 'number' ? edge.properties.confidence : 0.55;
+  return 0.7 + confidence * 0.4;
+}
+
 // ── 主组件 ──
 
 interface WikiGraphPanelProps {
@@ -129,8 +146,9 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
   const edgesRef = useRef<DataSet<any> | null>(null);
   const allNodesRef = useRef<GraphNode[]>([]);
   const allEdgesRef = useRef<GraphEdge[]>([]);
-  const prevSelectedRef = useRef<string | null>(null);
   const originalColorsRef = useRef<Map<string, { bg: string; border: string }>>(new Map());
+  const initialLayoutCompleteRef = useRef(false);
+  const userInteractedRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +159,20 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
   const [panel, setPanel] = useState<'graph' | 'candidates'>('graph');
 
   useEffect(() => {
+    const edges = edgesRef.current;
+    if (!edges) return;
+
+    edges.forEach((edge: any) => {
+      const graphEdge = allEdgesRef.current.find((item) => item.id === edge.id);
+      if (!graphEdge || !isWeakGraphEdge(graphEdge)) return;
+      const isConnected =
+        !!selectedNode &&
+        (graphEdge.sourceId === selectedNode.id || graphEdge.targetId === selectedNode.id);
+      edges.update({ id: graphEdge.id, hidden: !isConnected });
+    });
+  }, [selectedNode]);
+
+  useEffect(() => {
     if (panel !== 'graph') return;
 
     let network: Network | null = null;
@@ -148,6 +180,8 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
     async function init() {
       setLoading(true);
       setError(null);
+      initialLayoutCompleteRef.current = false;
+      userInteractedRef.current = false;
       try {
         const raw = await getGraphData();
         allNodesRef.current = raw.nodes;
@@ -176,10 +210,6 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
           setLoading(false);
           return;
         }
-        const rect = parent.getBoundingClientRect();
-        const width = rect.width;
-        const height = Math.max(rect.height - 40, 200);
-
         // ── vis-network DataSet ──
 
         const origColors = new Map<string, { bg: string; border: string }>();
@@ -190,22 +220,23 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
               border: '#999',
               highlightBg: '#ddd',
             };
-            origColors.set(n.id, { bg: p.bg, border: p.border });
+            origColors.set(n.id, { bg: p.bg, border: p.bg });
             return {
               id: n.id,
-              label: n.label,
+              label: getGraphNodeLabel(n.label),
+              title: n.label,
               shape: 'dot',
-              size: 26,
+              size: 13,
               color: {
                 background: p.bg,
-                border: p.border,
-                highlight: { background: p.highlightBg, border: p.border },
-                hover: { background: p.highlightBg, border: p.border },
+                border: p.bg,
+                highlight: { background: p.highlightBg, border: p.highlightBg },
+                hover: { background: p.highlightBg, border: p.highlightBg },
               },
-              borderWidth: 2,
-              borderWidthSelected: 3,
-              shadow: { enabled: true, size: 8, x: 0, y: 2, color: 'rgba(0,0,0,0.08)' },
-              font: { size: 17, color: '#333' },
+              borderWidth: 0,
+              borderWidthSelected: 0,
+              shadow: false,
+              font: { size: 11, color: '#475569' },
             };
           }),
         );
@@ -213,7 +244,7 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
 
         const edges = new DataSet(
           raw.edges.map((e) => {
-            const weak = e.properties.strength === 'weak' || e.relation === 'references';
+            const weak = isWeakGraphEdge(e);
             const confidence =
               typeof e.properties.confidence === 'number'
                 ? e.properties.confidence
@@ -224,15 +255,16 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
               id: e.id,
               from: e.sourceId,
               to: e.targetId,
-              label: weak ? '' : e.relation,
+              hidden: weak,
+              label: '',
               color: weak
                 ? { color: '#C3CBD3', opacity: 0.35, inherit: false }
                 : { color: '#7A8795', opacity: 0.45 + confidence * 0.35, inherit: false },
-              width: weak ? 0.8 : 1.2 + confidence,
+              width: getGraphEdgeWidth(e),
               dashes: weak ? [5, 5] : false,
               smooth: { type: 'curvedCW', roundness: 0.15 },
               arrows: { to: { enabled: !weak, scaleFactor: 0.8 } },
-              font: { size: 14, color: weak ? '#9AA5B1' : '#555', align: 'middle' },
+              font: { size: 11, color: weak ? '#9AA5B1' : '#555', align: 'middle' },
             };
           }),
         );
@@ -248,29 +280,37 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
           {
             nodes: {
               shape: 'dot',
-              size: 26,
-              borderWidth: 2,
-              borderWidthSelected: 3,
-              shadow: { enabled: true, size: 8, x: 0, y: 2, color: 'rgba(0,0,0,0.08)' },
-              font: { size: 17, color: '#333' },
+              size: 13,
+              borderWidth: 0,
+              borderWidthSelected: 0,
+              shadow: false,
+              font: { size: 11, color: '#475569' },
             },
             edges: {
               smooth: { type: 'curvedCW', roundness: 0.15 },
               color: { color: '#b0b0b0', opacity: 0.55, inherit: false },
-              width: 1.5,
+              width: 1,
               arrows: { to: { enabled: true, scaleFactor: 0.8 } },
-              font: { size: 14, color: '#555', align: 'middle' },
+              font: { size: 11, color: '#555', align: 'middle' },
+            },
+            layout: {
+              improvedLayout: false,
             },
             physics: {
               solver: 'forceAtlas2Based',
               forceAtlas2Based: {
-                gravitationalConstant: -80,
-                centralGravity: 0.005,
-                springLength: 120,
-                springConstant: 0.3,
-                damping: 0.9,
+                gravitationalConstant: -35,
+                centralGravity: 0.002,
+                springLength: 160,
+                springConstant: 0.04,
+                damping: 0.95,
               },
-              stabilization: { iterations: 150, updateInterval: 25 },
+              stabilization: {
+                enabled: true,
+                iterations: 600,
+                updateInterval: 50,
+                fit: false,
+              },
             },
             interaction: {
               hover: true,
@@ -283,6 +323,23 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
         );
 
         networkRef.current = network;
+        const fitNetwork = () => {
+          network?.fit({ animation: false, padding: 160 });
+        };
+
+        const handleStabilized = () => {
+          initialLayoutCompleteRef.current = true;
+          fitNetwork();
+          network?.setOptions({ physics: { enabled: false } });
+          network?.off('stabilized', handleStabilized);
+        };
+        network.on('stabilized', handleStabilized);
+
+        const markUserInteraction = () => {
+          userInteractedRef.current = true;
+        };
+        network.on('dragStart', markUserInteraction);
+        network.on('zoom', markUserInteraction);
 
         // ── 点击节点 ──
         network.on('click', (params: any) => {
@@ -290,8 +347,6 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
           const nodeId = clickedNodes?.[0];
 
           if (nodeId) {
-            prevSelectedRef.current = nodeId;
-
             const gn = allNodesRef.current.find((n) => n.id === nodeId);
             if (gn) {
               const nodeEdges = allEdgesRef.current.filter(
@@ -301,7 +356,6 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
               setSelectedNodeEdges(nodeEdges);
             }
           } else {
-            prevSelectedRef.current = null;
             setSelectedNode(null);
             setSelectedNodeEdges([]);
           }
@@ -345,7 +399,7 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
                 opacity: connected ? 0.9 : 0.08,
                 inherit: false,
               },
-              width: connected ? 2.5 : 1.5,
+              width: connected ? 1.2 : 0.5,
             });
           });
         });
@@ -372,10 +426,11 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
             }
           });
           edges.forEach((e: any) => {
+            const graphEdge = allEdgesRef.current.find((item) => item.id === e.id);
             edges.update({
               id: e.id,
               color: { color: '#b0b0b0', opacity: 0.55, inherit: false },
-              width: 1.5,
+              width: graphEdge ? getGraphEdgeWidth(graphEdge) : 1,
             });
           });
         });
@@ -388,6 +443,13 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
           if (!entry) return;
           const { width: w, height: h } = entry.contentRect;
           network.setSize(`${w}px`, `${Math.max(h - 40, 200)}px`);
+          if (!initialLayoutCompleteRef.current && !userInteractedRef.current) {
+            requestAnimationFrame(() => {
+              if (!initialLayoutCompleteRef.current && !userInteractedRef.current) {
+                fitNetwork();
+              }
+            });
+          }
         });
         if (parentEl) ro.observe(parentEl);
 

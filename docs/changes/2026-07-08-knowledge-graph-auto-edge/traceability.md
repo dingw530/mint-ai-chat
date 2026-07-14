@@ -7,8 +7,8 @@
 | 属性 | 值 |
 |---|---|
 | 变更标识 | 2026-07-08-knowledge-graph-auto-edge |
-| 状态 | **已完成** |
-| 完成日期 | 2026-07-08 |
+| 状态 | **执行中** |
+| 完成日期 | — |
 | 创建日期 | 2026-07-08 |
 | 前置变更 | 2026-07-03-knowledge-graph-mvp（已完成） |
 
@@ -22,6 +22,7 @@
 | FP-010 | 跨批次内容相似度连接 | DS-010 | TF-IDF 余弦相似度 | TP-101 / TP-104 / TP-105 | 已完成 |
 | FP-011 | 关系名规范化 | DS-011 | 同义词映射 | TP-104 | 已完成 |
 | FP-012 | 回溯脚本 | DS-012 | 对已有 95 节点重跑 | TP-106 | 已完成 |
+| FP-013 | 图谱初始视口完整可见并保持稳定 | DS-013 | stabilization 完成后 fit 并冻结 physics | TP-109 | 进行中 |
 
 > 追溯方向：来源 → 设计决策 → 执行任务。每行表示一条完整的需求落地链路。
 
@@ -35,6 +36,7 @@
 | 2026-07-10 | fix | TP-104 | graphBuilder.ts / graphBuilderReferences.test.ts | 同一页面对已有语义边时仍会生成 references，语义边改为优先于引用边且忽略方向 | 行为修正 | 新摄入不再产生语义重复的引用边 |
 | 2026-07-10 | scope-change | TP-102 / TP-104 | graphOntology.ts / graphBuilder.ts / WikiGraphPanel.tsx / migrations | 扩充关系本体、主语义边仲裁、弱引用元数据和边证据追溯 | 行为修正 | 自动建边质量可解释且语义边优先展示 |
 | 2026-07-10 | feature | TP-108 | WikiGraphPanel.tsx / wiki.css | 图谱工具栏展示节点、语义边和弱关联数量；弱关联边隐藏内部 references 标签 | 展示增强 | 统计和边语义更易扫描 |
+| 2026-07-12 | fix | TP-109 | WikiGraphPanel.tsx | 力导向模拟在初始 fit 后继续移动节点，导致节点超出画布范围 | 行为修正 | 等待 stabilization 后适配并冻结 physics |
 
 > 类型取值：fix / refactor / feature / scope-change
 > 影响评估取值：无影响 / 行为修正 / 范围扩展

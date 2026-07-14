@@ -99,6 +99,29 @@
 - **验收**：AC-013 ~ AC-018 全部通过
 - **产出文件**：验证结果记录
 
+### TP-109：图谱初始视口稳定化
+- **描述**：修正 vis-network 初始布局和视口适配时序：等待 stabilization 完成后执行一次 fit，随后关闭 physics；尺寸变化只同步画布尺寸，不覆盖用户已操作的视口。
+- **验收**：首次打开完整显示节点，布局稳定后不漂移、不越界，拖拽/平移/缩放继续可用。
+- **产出文件**：`client/src/features/wiki/WikiGraphPanel.tsx`、`docs/changes/2026-07-08-knowledge-graph-auto-edge/*`
+
+#### 实施步骤
+
+- [x] **步骤 1：完成根因和方案确认**
+  - 证据：`stabilization.enabled` 当前为 `false`，`startSimulation()` 后下一帧执行 `fit()`，模拟继续运行导致节点越界。
+  - 方案：开启有限次 stabilization，监听 `stabilized` 后 `fit()`，再关闭 physics。
+- [ ] **步骤 2：调整 Network 初始化与稳定化回调**
+  - 修改 `client/src/features/wiki/WikiGraphPanel.tsx` 的 physics 配置，启用 stabilization 并设置有限迭代次数。
+  - 删除启动模拟后立即 `fit()` 的双 `requestAnimationFrame` 逻辑。
+  - 注册 `stabilized` 回调：执行 `fit({ animation: false, padding: 160 })`，然后调用 `setOptions({ physics: { enabled: false } })`。
+- [ ] **步骤 3：保护用户视口与窗口尺寸变化**
+  - 增加初始布局状态和用户交互状态引用。
+  - `ResizeObserver` 只调用 `setSize()`；仅在初始布局未完成且用户未操作时允许重新 `fit()`。
+  - `dragStart`、`dragging`、`zoom`、`pan` 等用户事件只更新状态，不触发重新布局。
+- [ ] **步骤 4：验证行为**
+  - 运行 `npm run build`，确认 TypeScript 和 Vite 构建通过。
+  - 启动前端/桌面开发环境，确认全部节点初始可见、稳定后不漂移，并手动验证拖拽、平移、缩放。
+  - 运行 `git diff --check`，回填 TP-109、AC-019 和 traceability 完成记录。
+
 ## 追溯总览
 
 | 产品规格 | 设计文档 | 执行计划 | 状态 |
@@ -111,12 +134,14 @@
 | FP-012 / AC-018 | DS-012 | TP-106 | 已完成 |
 | — | — | TP-107 | 已完成 |
 | — | — | TP-108 | 已完成 |
+| FP-013 / AC-019 | DS-013 | TP-109 | 执行中 |
 
 ## 验证与验收
 
 - **验证方式**：本地全栈 dev 环境，新摄入源 + 回溯脚本
 - **验收标准**：
   - [ ] 所有 AC-013 ~ AC-018 通过
+  - [ ] AC-019 通过
   - [ ] 后端测试通过
   - [ ] 前端图谱渲染正常，孤立节点已连接
 
@@ -207,6 +232,11 @@
 - 完成时间：2026-07-10
 - 执行备注：工具栏增加节点、语义边和弱关联统计；画布隐藏 references 标签，节点详情使用“关联（弱）”展示。
 - 产出文件：`client/src/features/wiki/WikiGraphPanel.tsx`、`client/src/styles/wiki.css`
+
+### TP-109 执行记录
+- 状态：进行中
+- 开始时间：2026-07-12
+- 执行备注：已完成根因定位和方案确认，待实现并验证。
 
 ## 相关文档
 - 增量产品规格：`./product-spec.md`
