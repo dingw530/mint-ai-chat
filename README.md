@@ -40,7 +40,26 @@ A native desktop AI chat application built with Electron. Connect to any OpenAI-
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js 20.18.3
+
+Server、Vitest 和 server 构建脚本会自动校验并使用 Node.js 20.18.3。首次运行前执行：
+
+```bash
+nvm install 20.18.3
+nvm use
+```
+
+Electron 与 Node.js 使用不同的原生模块 ABI，`better-sqlite3` 会保留两份构建产物：
+
+```bash
+# server / Vitest：Node ABI 115
+npm run rebuild:sqlite -w mint-server
+
+# IPC / Electron：Electron ABI 130
+npm run electron:rebuild
+```
+
+不要直接在项目根目录执行通用的 `npm rebuild better-sqlite3`，它可能覆盖另一套 ABI。
 
 ### Install
 

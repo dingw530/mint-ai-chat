@@ -21,6 +21,7 @@ server/build/
 
 # Test results
 client/test-results/
+server/coverage/
 
 # Large generated images (keep SVG, skip PNG)
 architecture.png
