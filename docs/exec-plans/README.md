@@ -29,3 +29,5 @@
 | [自动建边优化——增量](<../changes/2026-07-08-knowledge-graph-auto-edge/exec-plan.md>) | 2026-07-08 | 已完成 |
 | [Wiki 摄入质量修正](<../changes/2026-07-10-wiki-ingest-quality/exec-plan.md>) | 2026-07-10 | 已完成 |
 | [Wiki Schema 分类标准维护](<../changes/2026-07-10-wiki-schema-management/exec-plan.md>) | 2026-07-10 | 已完成 |
+| [Wiki 摄入作业统一](<../changes/2026-07-15-wiki-ingestion-job-unification/exec-plan.md>) | 2026-07-15 | 已完成 |
+| [ReAct 事件与状态模型](<../changes/2026-07-15-react-event-state-model/exec-plan.md>) | 2026-07-15 | 已完成 |
