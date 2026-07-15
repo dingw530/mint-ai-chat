@@ -31,6 +31,7 @@ export interface UploadJob {
     pageCount?: number;
     preview: string;
     pages?: { filename: string; title: string; size: number }[];
+    graphErrors?: string[];
   };
   error?: string;
   createdAt: string;

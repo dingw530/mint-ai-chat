@@ -4,7 +4,14 @@ import type { WikiFileTreeNode, UploadJob } from '@/types';
 
 function FileIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
       <polyline points="14 2 14 8 20 8" />
     </svg>
@@ -13,7 +20,14 @@ function FileIcon() {
 
 function FolderIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
     </svg>
   );
@@ -40,7 +54,12 @@ interface WikiSidebarProps {
   onViewModeChange: (mode: 'file' | 'graph') => void;
 }
 
-export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onViewModeChange }: WikiSidebarProps) {
+export default function WikiSidebar({
+  selectedFile,
+  onFileSelect,
+  viewMode,
+  onViewModeChange,
+}: WikiSidebarProps) {
   const [wikiTree, setWikiTree] = useState<WikiFileTreeNode[]>([]);
   const [wikiLoading, setWikiLoading] = useState(false);
   const [wikiError, setWikiError] = useState<string | null>(null);
@@ -88,62 +107,81 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
     onFileSelect(filePath);
   };
 
-  const startPolling = useCallback((job: UploadJob) => {
-    const { id } = job;
-    const existing = pollingRefs.current.get(id);
-    if (existing) clearInterval(existing);
+  const startPolling = useCallback(
+    (job: UploadJob) => {
+      const { id } = job;
+      const existing = pollingRefs.current.get(id);
+      if (existing) clearInterval(existing);
 
-    const interval = setInterval(async () => {
-      try {
-        const updated = await getJobStatus(id);
-        setUploadJobs((prev) => prev.map((j) => (j.id === id ? updated : j)));
-        if (updated.status === 'done' || updated.status === 'error') {
+      const interval = setInterval(async () => {
+        try {
+          const updated = await getJobStatus(id);
+          setUploadJobs((prev) => prev.map((j) => (j.id === id ? updated : j)));
+          if (updated.status === 'done' || updated.status === 'error') {
+            clearInterval(interval);
+            pollingRefs.current.delete(id);
+            if (updated.status === 'done') loadWikiTree();
+          }
+        } catch {
           clearInterval(interval);
           pollingRefs.current.delete(id);
-          if (updated.status === 'done') loadWikiTree();
         }
-      } catch {
-        clearInterval(interval);
-        pollingRefs.current.delete(id);
-      }
-    }, 1500);
-    pollingRefs.current.set(id, interval);
-  }, [loadWikiTree]);
+      }, 1500);
+      pollingRefs.current.set(id, interval);
+    },
+    [loadWikiTree],
+  );
 
   const uploadSingleFile = async (file: File) => {
     const validTypes = ['.html', '.htm', '.txt', '.md', '.pdf'];
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!validTypes.includes(ext)) {
-      setUploadJobs((prev) => [...prev, {
-        id: '', status: 'error' as const, fileName: file.name, fileSize: file.size,
-        progress: 0, step: '不支持的类型', createdAt: '', updatedAt: '',
-        error: '支持: HTML/TXT/MD/PDF',
-      }]);
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadJobs((prev) => [...prev, {
-        id: '', status: 'error' as const, fileName: file.name, fileSize: file.size,
-        progress: 0, step: '文件过大', createdAt: '', updatedAt: '',
-        error: '超过 10MB 限制',
-      }]);
+      setUploadJobs((prev) => [
+        ...prev,
+        {
+          id: '',
+          status: 'error' as const,
+          fileName: file.name,
+          fileSize: file.size,
+          progress: 0,
+          step: '不支持的类型',
+          createdAt: '',
+          updatedAt: '',
+          error: '支持: HTML/TXT/MD/PDF',
+        },
+      ]);
       return;
     }
     try {
       const jobId = await uploadWiki(file);
       const now = new Date().toISOString();
       const job: UploadJob = {
-        id: jobId, status: 'pending', fileName: file.name, fileSize: file.size,
-        progress: 0, step: '等待处理', createdAt: now, updatedAt: now,
+        id: jobId,
+        status: 'pending',
+        fileName: file.name,
+        fileSize: file.size,
+        progress: 0,
+        step: '等待处理',
+        createdAt: now,
+        updatedAt: now,
       };
       setUploadJobs((prev) => [...prev, job]);
       startPolling(job);
     } catch (err) {
-      setUploadJobs((prev) => [...prev, {
-        id: '', status: 'error' as const, fileName: file.name, fileSize: file.size,
-        progress: 0, step: '上传失败', createdAt: '', updatedAt: '',
-        error: (err as Error).message || '上传失败',
-      }]);
+      setUploadJobs((prev) => [
+        ...prev,
+        {
+          id: '',
+          status: 'error' as const,
+          fileName: file.name,
+          fileSize: file.size,
+          progress: 0,
+          step: '上传失败',
+          createdAt: '',
+          updatedAt: '',
+          error: (err as Error).message || '上传失败',
+        },
+      ]);
     }
   };
 
@@ -153,7 +191,10 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
     }
   };
 
-  const handleWikiDragOver = (e: React.DragEvent) => { e.preventDefault(); setWikiDragOver(true); };
+  const handleWikiDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setWikiDragOver(true);
+  };
   const handleWikiDragLeave = () => setWikiDragOver(false);
   const handleWikiDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -168,30 +209,42 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
   };
 
   const clearCompletedJobs = () => {
-    setUploadJobs((prev) => prev.filter((j) => j.status === 'pending' || j.status === 'parsing' || j.status === 'compiling'));
+    setUploadJobs((prev) =>
+      prev.filter(
+        (j) => j.status === 'pending' || j.status === 'parsing' || j.status === 'compiling',
+      ),
+    );
   };
 
-  const isWikiUploading = uploadJobs.some((j) => j.status === 'parsing' || j.status === 'compiling');
+  const isWikiUploading = uploadJobs.some(
+    (j) => j.status === 'parsing' || j.status === 'compiling',
+  );
 
   const renderUploadJobItem = (job: UploadJob) => {
     const isError = job.status === 'error';
     const isDone = job.status === 'done';
     const isActive = job.status === 'parsing' || job.status === 'compiling';
     return (
-      <div key={job.id || job.fileName + Math.random()} className={`wiki-job-item ${isError ? 'error' : ''} ${isDone ? 'done' : ''}`}>
+      <div
+        key={job.id || job.fileName + Math.random()}
+        className={`wiki-job-item ${isError ? 'error' : ''} ${isDone ? 'done' : ''}`}
+      >
         <div className="wiki-job-header">
           <span className="wiki-job-name">{job.fileName}</span>
           <span className="wiki-job-size">{formatFileSize(job.fileSize)}</span>
         </div>
         <div className="wiki-job-progress-bar">
-          <div className={`wiki-job-progress-fill ${isError ? 'error' : ''}`} style={{ width: `${job.progress}%` }} />
+          <div
+            className={`wiki-job-progress-fill ${isError ? 'error' : ''}`}
+            style={{ width: `${job.progress}%` }}
+          />
         </div>
         <div className="wiki-job-status-row">
           {isDone && <CheckIcon />}
           {isActive && <Spinner />}
           {isError && <span className="wiki-job-error-icon">!</span>}
           <span className={`wiki-job-status-text ${isError ? 'error' : ''}`}>
-            {isDone ? '已完成' : isError ? (job.error || '失败') : job.step}
+            {isDone ? '已完成' : isError ? job.error || '失败' : job.step}
           </span>
         </div>
       </div>
@@ -238,7 +291,16 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
             className={`wiki-mode-btn ${viewMode === 'file' ? 'active' : ''}`}
             onClick={() => onViewModeChange('file')}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              width="14"
+              height="14"
+            >
               <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
@@ -249,7 +311,16 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
             className={`wiki-mode-btn ${viewMode === 'graph' ? 'active' : ''}`}
             onClick={() => onViewModeChange('graph')}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              width="14"
+              height="14"
+            >
               <circle cx="12" cy="12" r="3" />
               <circle cx="5" cy="5" r="2" />
               <circle cx="19" cy="5" r="2" />
@@ -275,11 +346,22 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
             multiple
             style={{ display: 'none' }}
           />
-          <button className="wiki-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={isWikiUploading}>
+          <button
+            className="wiki-upload-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isWikiUploading}
+          >
             +
           </button>
           <button className="wiki-tree-refresh" onClick={loadWikiTree}>
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" />
             </svg>
           </button>
@@ -293,8 +375,12 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
       >
         {wikiLoading && (
           <div className="wiki-tree-skeleton">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="skeleton-wiki-item" style={{ paddingLeft: `${12 + (i % 3) * 16}px` }}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="skeleton-wiki-item"
+                style={{ paddingLeft: `${12 + (i % 3) * 16}px` }}
+              >
                 <div className="skeleton skeleton-icon" />
                 <div className="skeleton skeleton-text" />
               </div>
@@ -313,12 +399,12 @@ export default function WikiSidebar({ selectedFile, onFileSelect, viewMode, onVi
           <div className="wiki-upload-section-header">
             <span>上传（{uploadJobs.length}）</span>
             {uploadJobs.some((j) => j.status === 'done' || j.status === 'error') && (
-              <button className="wiki-upload-clear-btn" onClick={clearCompletedJobs}>清除</button>
+              <button className="wiki-upload-clear-btn" onClick={clearCompletedJobs}>
+                清除
+              </button>
             )}
           </div>
-          <div className="wiki-upload-list">
-            {uploadJobs.map(renderUploadJobItem)}
-          </div>
+          <div className="wiki-upload-list">{uploadJobs.map(renderUploadJobItem)}</div>
         </div>
       )}
     </div>

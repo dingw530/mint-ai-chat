@@ -29,6 +29,17 @@ describe('AccumulatingSink', () => {
     const sink = new AccumulatingSink();
     expect(sink.data).toBe('');
   });
+
+  it('serializes typed React events', () => {
+    const sink = new AccumulatingSink();
+    sink.writeEvent?.({ type: 'run_started', state: 'running', runId: 'run-1', sequence: 1 });
+    expect(JSON.parse(sink.data)).toEqual({
+      type: 'run_started',
+      state: 'running',
+      runId: 'run-1',
+      sequence: 1,
+    });
+  });
 });
 
 describe('IpcSink', () => {
@@ -84,28 +95,47 @@ describe('TerminalSink', () => {
 
   it('should handle thought events', () => {
     const sink = new TerminalSink();
-    expect(() => sink.write(JSON.stringify({ type: 'thought', reasoning: 'thinking...' }))).not.toThrow();
+    expect(() =>
+      sink.write(JSON.stringify({ type: 'thought', reasoning: 'thinking...' })),
+    ).not.toThrow();
   });
 
   it('should handle tool_call_start events', () => {
     const sink = new TerminalSink();
-    expect(() => sink.write(JSON.stringify({
-      type: 'tool_call_start', toolName: 'bash', arguments: { command: 'ls' },
-    }))).not.toThrow();
+    expect(() =>
+      sink.write(
+        JSON.stringify({
+          type: 'tool_call_start',
+          toolName: 'bash',
+          arguments: { command: 'ls' },
+        }),
+      ),
+    ).not.toThrow();
   });
 
   it('should handle tool_call_end events', () => {
     const sink = new TerminalSink();
-    expect(() => sink.write(JSON.stringify({
-      type: 'tool_call_end', result: 'file1.txt',
-    }))).not.toThrow();
+    expect(() =>
+      sink.write(
+        JSON.stringify({
+          type: 'tool_call_end',
+          result: 'file1.txt',
+        }),
+      ),
+    ).not.toThrow();
   });
 
   it('should handle tool_call_error events', () => {
     const sink = new TerminalSink();
-    expect(() => sink.write(JSON.stringify({
-      type: 'tool_call_error', error: 'failed', retryCount: 1,
-    }))).not.toThrow();
+    expect(() =>
+      sink.write(
+        JSON.stringify({
+          type: 'tool_call_error',
+          error: 'failed',
+          retryCount: 1,
+        }),
+      ),
+    ).not.toThrow();
   });
 
   it('should handle answer_ready events', () => {

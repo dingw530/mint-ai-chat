@@ -184,6 +184,7 @@ async function loadServiceModules() {
     aiProxy: bundle,
     fileParseService: bundle,
     wikiCompiler: bundle,
+    wikiIngestionJobService: bundle.wikiIngestionJobService,
     messageRepository: bundle.messageRepository,
     endpointRegistry: bundle.endpointRegistry,
     registerIpcHandlers: bundle.registerIpcHandlers,

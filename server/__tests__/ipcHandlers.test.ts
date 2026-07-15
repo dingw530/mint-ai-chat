@@ -50,11 +50,7 @@ describe('standard IPC handlers', () => {
       },
     };
 
-    registerIpcHandlers(
-      settingsEndpoints,
-      { settSvc: { get: vi.fn() } },
-      ipcMain,
-    );
+    registerIpcHandlers(settingsEndpoints, { settSvc: { get: vi.fn() } }, ipcMain);
 
     expect([...handlers.keys()]).toEqual(['settings:get', 'settings:save']);
   });
@@ -67,19 +63,15 @@ describe('standard IPC handlers', () => {
       },
     };
 
-    registerIpcHandlers(
-      settingsEndpoints,
-      {},
-      ipcMain,
-    );
+    registerIpcHandlers(settingsEndpoints, {}, ipcMain);
 
     await expect(handlers.get('settings:get')!({})).resolves.toEqual({
       apiUrl: '',
       modelId: '',
     });
-    await expect(
-      handlers.get('settings:save')!({}, { apiUrl: '', modelId: '' }),
-    ).rejects.toThrow('apiUrl and modelId are required');
+    await expect(handlers.get('settings:save')!({}, { apiUrl: '', modelId: '' })).rejects.toThrow(
+      'apiUrl and modelId are required',
+    );
   });
 
   it('registers the complete agents endpoint group with shared response shapes', async () => {
@@ -159,6 +151,7 @@ describe('standard IPC handlers', () => {
       'conversations:generateTitle',
       'messages:list',
       'download-file',
+      'wiki:openInObsidian',
       'wiki:upload',
       'wiki:getJobStatus',
     ]);

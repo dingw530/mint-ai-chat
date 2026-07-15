@@ -153,6 +153,7 @@ export interface ThinkingSegment {
 
 export interface ToolCallSegment {
   type: 'tool_call';
+  callId?: string;
   toolName: string;
   status: 'running' | 'done' | 'error';
   arguments?: unknown;
@@ -178,12 +179,14 @@ export interface ThoughtStep {
 
 export interface ToolCallStartStep {
   type: 'tool_call_start';
+  callId?: string;
   toolName: string;
-  arguments: string;
+  arguments: unknown;
 }
 
 export interface ToolCallEndStep {
   type: 'tool_call_end';
+  callId?: string;
   toolName: string;
   result: string;
   duration: number;
@@ -191,6 +194,7 @@ export interface ToolCallEndStep {
 
 export interface ToolCallErrorStep {
   type: 'tool_call_error';
+  callId?: string;
   toolName: string;
   error: string;
   retryCount: number;
@@ -212,6 +216,9 @@ export interface SendCallbacks {
   onToolCallEnd?: (data: Record<string, unknown>) => void;
   onToolCallError?: (data: Record<string, unknown>) => void;
   onAnswerReady?: (content: string) => void;
+  onRunStarted?: (data: Record<string, unknown>) => void;
+  onRunCompleted?: (data: Record<string, unknown>) => void;
+  onRunCancelled?: (data: Record<string, unknown>) => void;
 }
 
 export interface SendOptions {
