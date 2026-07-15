@@ -231,6 +231,7 @@ function setupIpcHandlers() {
     dialog,
     fs,
     path,
+    shell,
     logger,
     getMainWindow: () => mainWindow,
   });

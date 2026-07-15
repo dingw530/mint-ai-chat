@@ -36,6 +36,7 @@ export { getSkills } from './api/skills';
 export {
   listWiki,
   readWiki,
+  openWikiInObsidian,
   uploadWiki,
   getJobStatus,
   getWikiSchema,

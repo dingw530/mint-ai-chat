@@ -63,6 +63,48 @@
   font-weight: 500;
 }
 
+.wiki-open-obsidian-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 7px 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.wiki-open-obsidian-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.wiki-open-obsidian-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.wiki-open-obsidian-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.wiki-obsidian-error {
+  flex-shrink: 0;
+  padding: 8px 28px;
+  background: var(--error-bg, var(--bg-secondary));
+  color: var(--error-text);
+  font-size: 12px;
+  text-align: right;
+}
+
 /* ── Content Scroll ── */
 
 .wiki-content-scroll {

@@ -321,6 +321,7 @@ export interface ElectronAPI {
   downloadFile?: (url: string, filename: string) => Promise<void>;
 
   // Wiki
+  openWikiInObsidian: () => Promise<{ success: boolean }>;
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
   readWiki: (
     path: string,
@@ -358,6 +359,7 @@ export interface UploadJob {
     pageCount?: number;
     preview: string;
     pages?: { filename: string; title: string; size: number }[];
+    graphErrors?: string[];
   };
   error?: string;
   createdAt: string;

@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadFile: (url, filename) => ipcRenderer.invoke('download-file', { url, filename }),
 
   // ── Wiki ──
+  openWikiInObsidian: () => ipcRenderer.invoke('wiki:openInObsidian'),
   listWiki: () => ipcRenderer.invoke('wiki:list'),
   readWiki: (path) => ipcRenderer.invoke('wiki:read', path),
   uploadWiki: (data) => ipcRenderer.invoke('wiki:upload', data),

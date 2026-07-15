@@ -43,6 +43,21 @@ describe('jobStore', () => {
     expect(updated!.fileSize).toBe(1000);
   });
 
+  it('stores graph warnings in the shared job result', () => {
+    const id = jobStore.createJob('graph.md', 1000);
+    const updated = jobStore.updateJob(id, {
+      status: 'done',
+      result: {
+        sourceFile: 'sources/graph.md',
+        format: 'md',
+        textLength: 10,
+        preview: 'content',
+        graphErrors: ['edge failed'],
+      },
+    });
+    expect(updated!.result!.graphErrors).toEqual(['edge failed']);
+  });
+
   it('sets updatedAt on update', () => {
     const id = jobStore.createJob('time.md', 1);
     const before = jobStore.getJob(id)!.updatedAt;

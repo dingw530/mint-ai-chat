@@ -57,6 +57,14 @@ export function readWiki(path: string): Promise<WikiReadResponse> {
 }
 
 /**
+ * 在 Obsidian 中打开当前配置的 Wiki 根目录。
+ */
+export function openWikiInObsidian(): Promise<{ success: boolean }> {
+  if (!isElectron()) throw new Error('仅桌面端支持在 Obsidian 中打开');
+  return getElectronAPI()!.openWikiInObsidian();
+}
+
+/**
  * 上传文件到 Wiki（异步），返回 jobId
  */
 export async function uploadWiki(file: File): Promise<string> {
