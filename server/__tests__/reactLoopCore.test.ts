@@ -169,6 +169,41 @@ describe('reactChat', () => {
     ).toHaveLength(1);
   });
 
+  it('ignores sparse tool call slots from streamed tool indexes', async () => {
+    const firstCall = {
+      id: 'call-1',
+      type: 'function' as const,
+      function: { name: 'bash', arguments: '{"command":"first"}' },
+    };
+    const thirdCall = {
+      id: 'call-3',
+      type: 'function' as const,
+      function: { name: 'bash', arguments: '{"command":"third"}' },
+    };
+    const sparseCalls = [] as any[];
+    sparseCalls[0] = firstCall;
+    sparseCalls[2] = thirdCall;
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockResolvedValueOnce({ content: '', reasoning: '', toolCalls: sparseCalls })
+      .mockResolvedValueOnce({ content: 'done', reasoning: '', toolCalls: null });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
+      assistantMsg: { role: 'assistant', content: null as unknown as string, tool_calls: [] },
+      toolMsg: { role: 'tool', tool_call_id: 'tool', content: '{}' },
+      succeeded: true,
+    });
+
+    const result = await reactChat(
+      [{ role: 'user', content: 'hi' }],
+      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+      sink,
+    );
+
+    expect(result.content).toBe('done');
+    expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(2);
+  });
+
   it('emits a single cancelled terminal event and skips the model call', async () => {
     const controller = new AbortController();
     controller.abort();

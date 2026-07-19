@@ -1,4 +1,4 @@
-import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
+import type { HistoryMessage, AiSettings, StreamResult, ToolCall } from '../types.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine } from './toolRoundEngine.js';
 import { getAllToolDefinitions, getToolCallSummary } from './toolRegistry.js';
@@ -129,7 +129,11 @@ export async function reactChat(
       break;
     }
 
-    if (!result.toolCalls || result.toolCalls.length === 0) {
+    const toolCalls = result.toolCalls?.filter(
+      (toolCall): toolCall is ToolCall => Boolean(toolCall),
+    ) || null;
+
+    if (!toolCalls || toolCalls.length === 0) {
       finalContent = result.content;
       finalReasoning = result.reasoning;
       streamedAsAnswer = true;
@@ -143,7 +147,7 @@ export async function reactChat(
     }
 
     const toolResults = await Promise.all(
-      result.toolCalls.map(async (originalCall, index) => {
+      toolCalls.map(async (originalCall, index) => {
         const callId = originalCall.id || `${runId}:r${round}:c${index}`;
         const toolCall = { ...originalCall, id: callId };
         const startedAt = Date.now();
@@ -223,7 +227,7 @@ export async function reactChat(
       break;
     }
 
-    const signature = result.toolCalls
+    const signature = toolCalls
       .map((tc) => `${tc.function.name}:${tc.function.arguments}`)
       .sort()
       .join('|');
