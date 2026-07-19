@@ -16,6 +16,7 @@ export interface ReactReducerEvent {
   toolName?: string;
   arguments?: unknown;
   result?: string;
+  summary?: string;
   error?: string;
   retryCount?: number;
   duration?: number;
@@ -72,6 +73,7 @@ export function reduceReactEvent(
             callId: event.callId,
             toolName: event.toolName || '',
             arguments: event.arguments as string,
+            summary: event.summary,
           },
         ],
       };
@@ -87,6 +89,7 @@ export function reduceReactEvent(
             toolName: event.toolName || '',
             result: event.result || '',
             duration: event.duration || 0,
+            summary: event.summary,
           },
         ],
       };

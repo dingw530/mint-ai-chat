@@ -30,7 +30,8 @@ interface ReActStepProps {
 export default function ReActStep({ step, isLast }: ReActStepProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const { type, content, toolName, arguments: args, result, error, retryCount, duration } = step as ReActStepData & Record<string, unknown>;
+  const { type, content, toolName, arguments: args, result, error, retryCount, duration, summary } = step as ReActStepData & Record<string, unknown>;
+  const shortSummary = truncate(summary as string | undefined, 80);
   const isExpandable = type === 'tool_call_end' && result;
 
   let icon, label, body: React.ReactNode;
@@ -44,7 +45,7 @@ export default function ReActStep({ step, isLast }: ReActStepProps) {
 
     case 'tool_call_start':
       icon = <ToolIcon />;
-      label = `调用工具: ${toolName || ''}`;
+      label = `调用工具: ${toolName || ''}${shortSummary ? ` · ${shortSummary}` : ''}`;
       body = args ? (
         <div className="react-tool-args">
           <pre>{JSON.stringify(args, null, 2)}</pre>
@@ -54,7 +55,7 @@ export default function ReActStep({ step, isLast }: ReActStepProps) {
 
     case 'tool_call_end':
       icon = <ToolIcon />;
-      label = `工具返回: ${toolName || ''}${duration ? ` (${(Number(duration) / 1000).toFixed(1)}s)` : ''}`;
+      label = `工具返回: ${toolName || ''}${shortSummary ? ` · ${shortSummary}` : ''}${duration ? ` (${(Number(duration) / 1000).toFixed(1)}s)` : ''}`;
       body = (
         <div className="react-tool-result">
           <pre>{truncate(result, 500)}</pre>

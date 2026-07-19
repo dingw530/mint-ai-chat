@@ -18,6 +18,8 @@ vi.mock('../services/tools/index.js', () => {
   const weatherTool = {
     name: 'get_weather_forecast',
     isEnabled: () => true,
+    getCallSummary: (input: { city: string }) => `正在查询：${input.city}`,
+    getResultSummary: (result: { temperature: number }) => `当前温度 ${result.temperature}°C`,
     getDefinition: () => ({
       type: 'function',
       function: { name: 'get_weather_forecast', description: 'Get weather', parameters: {} },
@@ -38,6 +40,8 @@ vi.mock('../services/tools/index.js', () => {
     toolRegistry: {
       has: (name: string) => toolMap.has(name),
       get: (name: string) => toolMap.get(name),
+      getCallSummary: (name: string, input: unknown) => toolMap.get(name)?.getCallSummary?.(input),
+      getResultSummary: (name: string, result: unknown) => toolMap.get(name)?.getResultSummary?.(result),
       getAllEnabled: () => Array.from(toolMap.values()),
     },
     toolExecutor: {
@@ -50,7 +54,7 @@ vi.mock('../services/tools/index.js', () => {
 import * as agentRepo from '../repositories/agentRepository.js';
 import { mcpService } from '../services/api/mcpService.js';
 
-const { getAllToolDefinitions, executeTool } = await import('../services/toolRegistry.js');
+const { getAllToolDefinitions, executeTool, getToolCallSummary, getToolResultSummary } = await import('../services/toolRegistry.js');
 
 describe('toolRegistry', () => {
   beforeEach(() => {
@@ -164,6 +168,25 @@ describe('toolRegistry', () => {
         function: { name: 'get_weather_forecast', arguments: '{"city":"北京"}' },
       });
       expect(result).toBe('done');
+    });
+  });
+
+  describe('summary', () => {
+    const weatherCall = {
+      id: 'summary-call',
+      type: 'function' as const,
+      function: { name: 'get_weather_forecast', arguments: '{"city":"上海"}' },
+    };
+
+    it('returns call and result summaries for builtin tools', () => {
+      expect(getToolCallSummary(weatherCall)).toBe('正在查询：上海');
+      expect(getToolResultSummary(weatherCall, { temperature: 26 })).toBe('当前温度 26°C');
+    });
+
+    it('returns undefined for unknown tools and invalid arguments', () => {
+      expect(getToolCallSummary({ ...weatherCall, function: { ...weatherCall.function, name: 'missing' } })).toBeUndefined();
+      expect(getToolCallSummary({ ...weatherCall, function: { ...weatherCall.function, arguments: '{' } })).toBeUndefined();
+      expect(getToolResultSummary({ ...weatherCall, function: { ...weatherCall.function, name: 'missing' } }, {})).toBeUndefined();
     });
   });
 });

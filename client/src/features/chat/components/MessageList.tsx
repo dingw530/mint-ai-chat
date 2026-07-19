@@ -195,6 +195,9 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                   </svg>
                   <span className="tool-call-label">
                     {seg.toolName}
+                    {seg.summary && (
+                      <span className="tool-call-label-summary"> · {seg.summary.length > 80 ? `${seg.summary.substring(0, 80)}...` : seg.summary}</span>
+                    )}
                     {seg.status === 'done' && seg.duration != null && (
                       <span className="tool-call-label-id"> {(Number(seg.duration) / 1000).toFixed(1)}s</span>
                     )}

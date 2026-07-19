@@ -155,6 +155,7 @@ export interface ToolCallSegment {
   type: 'tool_call';
   callId?: string;
   toolName: string;
+  summary?: string;
   status: 'running' | 'done' | 'error';
   arguments?: unknown;
   result?: string;
@@ -182,6 +183,7 @@ export interface ToolCallStartStep {
   callId?: string;
   toolName: string;
   arguments: unknown;
+  summary?: string;
 }
 
 export interface ToolCallEndStep {
@@ -190,6 +192,7 @@ export interface ToolCallEndStep {
   toolName: string;
   result: string;
   duration: number;
+  summary?: string;
 }
 
 export interface ToolCallErrorStep {

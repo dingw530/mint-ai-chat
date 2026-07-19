@@ -330,6 +330,7 @@ export default function ChatArea({
                       type: 'tool_call' as const,
                       callId: data.callId as string | undefined,
                       toolName: data.toolName as string,
+                      summary: data.summary as string | undefined,
                       status: 'running' as const,
                       arguments: data.arguments,
                     },
@@ -361,6 +362,7 @@ export default function ChatArea({
                       status: 'done' as const,
                       result: data.result as string,
                       duration: data.duration as number,
+                      summary: (data.summary as string | undefined) ?? seg.summary,
                     };
                     break;
                   }

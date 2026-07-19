@@ -5,7 +5,7 @@
 import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
 import type { ApiAdapter } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
-import { executeTool } from './toolRegistry.js';
+import { executeTool, getToolResultSummary } from './toolRegistry.js';
 import { createLogger } from '../utils/logger.js';
 import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
@@ -41,6 +41,7 @@ export interface ToolExecutionResult {
   assistantMsg: HistoryMessage;
   toolMsg: HistoryMessage;
   succeeded: boolean;
+  resultSummary?: string;
 }
 
 // ── SSE 流解析（无 Express 依赖） ──
@@ -252,7 +253,12 @@ export class ToolLoopEngine {
       content: resultStr.substring(0, 50000),
     };
 
-    return { assistantMsg, toolMsg, succeeded };
+    return {
+      assistantMsg,
+      toolMsg,
+      succeeded,
+      resultSummary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
+    };
   }
 }
 

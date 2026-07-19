@@ -26,6 +26,7 @@ export type ReactEventPayload =
       callId: string;
       toolName: string;
       arguments: unknown;
+      summary?: string;
     }
   | {
       type: 'tool_call_error';
@@ -46,6 +47,7 @@ export type ReactEventPayload =
       result: string;
       duration?: number;
       status: 'success';
+      summary?: string;
     }
   | { type: 'loop_detected'; state: 'finalizing'; round: number; message: string }
   | { type: 'answer_ready' }

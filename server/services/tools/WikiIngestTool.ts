@@ -53,6 +53,25 @@ export class WikiIngestTool extends BaseTool<WikiIngestInput, WikiIngestOutput> 
     return false;
   }
 
+  /**
+   * 返回 Wiki 资料摄入开始时展示给用户的摘要。
+   */
+  getCallSummary(input: WikiIngestInput): string {
+    const sources = [
+      input.source?.trim() ? '资料' : '',
+      input.urls?.length ? `${input.urls.length} 个网页` : '',
+      input.files?.length ? `${input.files.length} 个文件` : '',
+    ].filter(Boolean);
+    return sources.length > 0 ? `正在整理 Wiki ${sources.join('、')}` : '正在整理 Wiki 资料';
+  }
+
+  /**
+   * 返回 Wiki 资料摄入完成后的页面数量摘要。
+   */
+  getResultSummary(result: WikiIngestOutput): string {
+    return `已生成 ${result.pages.length} 个 Wiki 页面`;
+  }
+
   async execute(input: WikiIngestInput, _context: ToolContext): Promise<WikiIngestOutput> {
     const wikiPath = getWikiPath();
     if (!wikiPath) {

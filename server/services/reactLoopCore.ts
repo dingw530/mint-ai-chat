@@ -1,7 +1,7 @@
 import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine } from './toolRoundEngine.js';
-import { getAllToolDefinitions } from './toolRegistry.js';
+import { getAllToolDefinitions, getToolCallSummary } from './toolRegistry.js';
 import type { Sink } from './sink.js';
 import { trimContext } from './utils/contextWindow.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -160,6 +160,7 @@ export async function reactChat(
               return toolCall.function.arguments;
             }
           })(),
+          summary: getToolCallSummary(toolCall),
         });
 
         let attempts = 0;
@@ -194,6 +195,7 @@ export async function reactChat(
             result: resultStr,
             duration,
             status: 'success',
+            summary: execution.resultSummary,
           });
         } else {
           events.emit({

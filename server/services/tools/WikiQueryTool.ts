@@ -40,6 +40,23 @@ export class WikiQueryTool extends BaseTool<WikiQueryInput, WikiQueryOutput> {
     return true;
   }
 
+  /**
+   * 返回 Wiki 查询开始时展示给用户的摘要。
+   */
+  getCallSummary(input: WikiQueryInput): string {
+    const question = input.question.trim();
+    return `正在查询：${question.length > 80 ? question.substring(0, 80) + '...' : question}`;
+  }
+
+  /**
+   * 返回 Wiki 查询完成后的命中数量摘要。
+   */
+  getResultSummary(result: WikiQueryOutput): string {
+    return result.total > 0
+      ? `找到 ${result.total} 个相关页面，返回前 ${result.results.length} 个`
+      : '未找到相关内容';
+  }
+
   async execute(input: WikiQueryInput, _context: ToolContext): Promise<WikiQueryOutput> {
     const wikiPath = getWikiPath();
     if (!wikiPath) {

@@ -22,6 +22,7 @@ vi.mock('../services/toolRoundEngine.js', () => ({
 
 vi.mock('../services/toolRegistry.js', () => ({
   getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+  getToolCallSummary: vi.fn().mockReturnValue(undefined),
 }));
 
 vi.mock('../services/utils/contextWindow.js', () => ({
@@ -104,6 +105,8 @@ describe('reactChat', () => {
     };
     const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
     const contextMessages: any[] = [];
+    const { getToolCallSummary } = await import('../services/toolRegistry.js');
+    vi.mocked(getToolCallSummary).mockReturnValue('正在执行工具');
 
     vi.mocked(toolLoopEngine.executeRound)
       .mockImplementationOnce(async ({ messages }) => {
@@ -124,6 +127,7 @@ describe('reactChat', () => {
         },
         toolMsg: { role: 'tool', tool_call_id: toolCall.id, content: toolCall.id },
         succeeded: true,
+        resultSummary: '工具执行完成',
       };
     });
 
@@ -145,8 +149,14 @@ describe('reactChat', () => {
       events.filter((event) => event.type === 'tool_call_start').map((event) => event.callId),
     ).toEqual(['call-1', 'call-2']);
     expect(
+      events.filter((event) => event.type === 'tool_call_start').map((event) => event.summary),
+    ).toEqual(['正在执行工具', '正在执行工具']);
+    expect(
       events.filter((event) => event.type === 'tool_call_end').map((event) => event.callId),
     ).toEqual(['call-2', 'call-1']);
+    expect(
+      events.filter((event) => event.type === 'tool_call_end').map((event) => event.summary),
+    ).toEqual(['工具执行完成', '工具执行完成']);
     const toolMessages = contextMessages
       .flat()
       .filter((message: any) => message.role === 'tool')

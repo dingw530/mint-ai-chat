@@ -50,6 +50,22 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
     return true;
   }
 
+  /**
+   * 返回 Wiki 健康检查开始时展示给用户的摘要。
+   */
+  getCallSummary(_input: WikiLintInput): string {
+    return '正在检查 Wiki 健康状况';
+  }
+
+  /**
+   * 返回 Wiki 健康检查完成后的状态和问题数量摘要。
+   */
+  getResultSummary(result: WikiLintOutput): string {
+    return result.healthy
+      ? `Wiki 检查完成：健康，${result.issues.length} 个问题`
+      : `Wiki 检查完成：发现问题，${result.issues.length} 个问题`;
+  }
+
   async execute(_input: WikiLintInput, _context: ToolContext): Promise<WikiLintOutput> {
     const wikiPath = getWikiPath();
     if (!wikiPath) {
