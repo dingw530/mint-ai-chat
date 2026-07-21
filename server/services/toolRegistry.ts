@@ -73,6 +73,31 @@ export async function executeTool(toolCall: ToolCall): Promise<unknown> {
 }
 
 /**
+ * 获取工具调用开始时展示给用户的摘要。
+ * 参数解析或摘要生成失败时返回 undefined，不阻断工具执行。
+ */
+export function getToolCallSummary(toolCall: ToolCall): string | undefined {
+  const toolName = toolCall.function.name;
+  if (!newToolRegistry.has(toolName)) return undefined;
+
+  try {
+    return newToolRegistry.getCallSummary(toolName, JSON.parse(toolCall.function.arguments));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 获取工具执行完成后展示给用户的结果摘要。
+ * 摘要生成失败时返回 undefined，不影响工具结果处理。
+ */
+export function getToolResultSummary(toolCall: ToolCall, result: unknown): string | undefined {
+  const toolName = toolCall.function.name;
+  if (!newToolRegistry.has(toolName)) return undefined;
+  return newToolRegistry.getResultSummary(toolName, result);
+}
+
+/**
  * 安全获取工具定义，工具未注册或未启用时返回 undefined
  */
 function getToolDefinitionSafe(name: string): ToolDefinition | undefined {

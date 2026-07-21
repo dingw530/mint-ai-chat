@@ -3,12 +3,13 @@
 // 不依赖 Express，可单元测试
 
 import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
-import type { ApiAdapter} from './adapters/apiAdapter.js';
+import type { ApiAdapter } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
-import { executeTool } from './toolRegistry.js';
+import { executeTool, getToolResultSummary } from './toolRegistry.js';
 import { createLogger } from '../utils/logger.js';
 import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
+import type { ReactEventPayload } from './reactEvents.js';
 
 // 导入 Adapter 实现
 import './adapters/openaiChatAdapter.js';
@@ -23,15 +24,16 @@ export interface ToolRoundInput {
   messages: HistoryMessage[];
   settings: AiSettings;
   tools?: ToolDefinition[];
-  adapter?: ApiAdapter;       // 可选注入，不传则从 settings 自动获取
+  adapter?: ApiAdapter; // 可选注入，不传则从 settings 自动获取
   signal?: AbortSignal;
-  label?: string;             // 日志标签
+  label?: string; // 日志标签
+  emitEvent?: (event: ReactEventPayload) => void;
 }
 
 export interface ToolRoundResult {
   content: string;
   reasoning: string;
-  toolCalls: ToolCall[] | null;   // null 或空数组表示无需继续
+  toolCalls: ToolCall[] | null; // null 或空数组表示无需继续
 }
 
 // 工具执行结果（包含拼接用的 message 和成功标志）
@@ -39,6 +41,7 @@ export interface ToolExecutionResult {
   assistantMsg: HistoryMessage;
   toolMsg: HistoryMessage;
   succeeded: boolean;
+  resultSummary?: string;
 }
 
 // ── SSE 流解析（无 Express 依赖） ──
@@ -48,7 +51,11 @@ export async function parseSSEStream(
   response: Response,
   adapter: ApiAdapter,
   sink?: Sink,
-  options?: { eventType?: string; signal?: AbortSignal },
+  options?: {
+    eventType?: string;
+    signal?: AbortSignal;
+    emitEvent?: (event: ReactEventPayload) => void;
+  },
 ): Promise<ToolRoundResult> {
   if (!response.ok) {
     const errorText = await response.text();
@@ -89,24 +96,47 @@ export async function parseSSEStream(
         if (chunk.toolCallDelta) {
           const tc = chunk.toolCallDelta;
           if (!toolCalls[tc.index]) {
-            toolCalls[tc.index] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+            toolCalls[tc.index] = {
+              id: '',
+              type: 'function',
+              function: { name: '', arguments: '' },
+            };
           }
           if (tc.id) toolCalls[tc.index]!.id = tc.id;
           if (tc.type) toolCalls[tc.index]!.type = tc.type;
           if (tc.function) {
             if (tc.function.name) toolCalls[tc.index]!.function.name += tc.function.name;
-            if (tc.function.arguments) toolCalls[tc.index]!.function.arguments += tc.function.arguments;
+            if (tc.function.arguments)
+              toolCalls[tc.index]!.function.arguments += tc.function.arguments;
           }
         }
 
         if (chunk.content) {
           fullContent += chunk.content;
-          sink?.write(JSON.stringify({ content: chunk.content, ...(options?.eventType ? { type: options.eventType } : {}) }));
+          const event = {
+            content: chunk.content,
+            ...(options?.eventType ? { type: options.eventType } : {}),
+          };
+          if (
+            options?.emitEvent &&
+            (options.eventType === 'thought' || options.eventType === 'answer')
+          )
+            options.emitEvent(event as ReactEventPayload);
+          else sink?.write(JSON.stringify(event));
         }
 
         if (chunk.reasoning) {
           fullReasoning += chunk.reasoning;
-          sink?.write(JSON.stringify({ reasoning: chunk.reasoning, ...(options?.eventType ? { type: options.eventType } : {}) }));
+          const event = {
+            reasoning: chunk.reasoning,
+            ...(options?.eventType ? { type: options.eventType } : {}),
+          };
+          if (
+            options?.emitEvent &&
+            (options.eventType === 'thought' || options.eventType === 'answer')
+          )
+            options.emitEvent(event as ReactEventPayload);
+          else sink?.write(JSON.stringify(event));
         }
       }
     }
@@ -115,7 +145,11 @@ export async function parseSSEStream(
   }
 
   const hasToolCalls = toolCalls.length > 0;
-  return { content: fullContent, reasoning: fullReasoning, toolCalls: hasToolCalls ? (toolCalls as ToolCall[]) : null };
+  return {
+    content: fullContent,
+    reasoning: fullReasoning,
+    toolCalls: hasToolCalls ? (toolCalls as ToolCall[]) : null,
+  };
 }
 
 // ── Tool 循环引擎 ──
@@ -147,8 +181,13 @@ export class ToolLoopEngine {
       body: JSON.stringify(body),
     });
 
-    const eventType = label === 'react-answer' ? 'answer' : label === 'react-thought' ? 'thought' : undefined;
-    return await parseSSEStream(response, adapter, sink, { eventType, signal });
+    const eventType =
+      label === 'react-answer' ? 'answer' : label === 'react-thought' ? 'thought' : undefined;
+    return await parseSSEStream(response, adapter, sink, {
+      eventType,
+      signal,
+      emitEvent: input.emitEvent,
+    });
   }
 
   // 执行工具并返回拼接用的 message 对
@@ -156,7 +195,10 @@ export class ToolLoopEngine {
     let toolResult: unknown;
     try {
       toolResult = await executeTool(tc);
-      log.debug('tool executed', { name: tc.function.name, resultPreview: JSON.stringify(toolResult).substring(0, 200) });
+      log.debug('tool executed', {
+        name: tc.function.name,
+        resultPreview: JSON.stringify(toolResult).substring(0, 200),
+      });
     } catch (err) {
       toolResult = { error: (err as Error).message };
     }
@@ -211,7 +253,12 @@ export class ToolLoopEngine {
       content: resultStr.substring(0, 50000),
     };
 
-    return { assistantMsg, toolMsg, succeeded };
+    return {
+      assistantMsg,
+      toolMsg,
+      succeeded,
+      resultSummary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
+    };
   }
 }
 

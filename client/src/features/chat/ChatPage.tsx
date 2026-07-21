@@ -8,11 +8,13 @@ import { useConversations } from '@/hooks/useConversations';
 import { useSidebarResize } from '@/hooks/useSidebarResize';
 import { getEndpoints } from '@/services/api';
 import type { EndpointOutput } from '@/types';
+import { parseMintWikiLink } from '@/shared/utils/wikiLinks';
+import type { MouseEvent } from 'react';
 
-type AppContext = { onOpenSettings: () => void };
+type AppContext = { onOpenSettings: () => void; openWikiPage: (filePath: string) => void };
 
 export default function ChatPage() {
-  const { onOpenSettings } = useOutletContext<AppContext>();
+  const { onOpenSettings, openWikiPage } = useOutletContext<AppContext>();
   const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useSidebarResize();
   const {
     conversations,
@@ -31,6 +33,13 @@ export default function ChatPage() {
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const location = useLocation();
+
+  const handleWikiLinkClick = useCallback((href: string, event: MouseEvent<HTMLAnchorElement>) => {
+    const filePath = parseMintWikiLink(href);
+    if (!filePath) return;
+    event.preventDefault();
+    openWikiPage(filePath);
+  }, [openWikiPage]);
 
   // Extract wiki jump params from URL and feed to ChatArea
   // Clears URL immediately so StrictMode re-mount won't double-fire
@@ -92,6 +101,7 @@ export default function ChatPage() {
         onEndpointChange={fetchEndpoints}
         initialMessage={initialMessage}
         onInitialMessageSent={handleInitialMessageSent}
+        onLinkClick={handleWikiLinkClick}
       />
     </>
   );

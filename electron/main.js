@@ -184,6 +184,7 @@ async function loadServiceModules() {
     aiProxy: bundle,
     fileParseService: bundle,
     wikiCompiler: bundle,
+    wikiIngestionJobService: bundle.wikiIngestionJobService,
     messageRepository: bundle.messageRepository,
     endpointRegistry: bundle.endpointRegistry,
     registerIpcHandlers: bundle.registerIpcHandlers,
@@ -231,6 +232,7 @@ function setupIpcHandlers() {
     dialog,
     fs,
     path,
+    shell,
     logger,
     getMainWindow: () => mainWindow,
   });
@@ -293,7 +295,7 @@ function createWindow(port) {
   });
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5800');
   } else {
     mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
   }
@@ -326,7 +328,7 @@ function loadClientApp() {
   if (!mainWindow) return;
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5800');
   } else {
     mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
   }

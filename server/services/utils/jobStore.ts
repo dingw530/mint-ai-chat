@@ -1,32 +1,15 @@
 import { v4 as uuidv4 } from 'uuid';
+import type { WikiJob, WikiJobUpdate } from '../api/wikiIngestionTypes.js';
 
-export interface UploadJob {
-  id: string;
-  status: 'pending' | 'parsing' | 'compiling' | 'done' | 'error';
-  fileName: string;
-  fileSize: number;
-  progress: number;
-  step: string;
-  result?: {
-    sourceFile: string;
-    format: string;
-    textLength: number;
-    pageCount?: number;
-    preview: string;
-    pages?: { filename: string; title: string; size: number }[];
-  };
-  error?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { WikiJob as UploadJob } from '../api/wikiIngestionTypes.js';
 
-const jobs = new Map<string, UploadJob>();
+const jobs = new Map<string, WikiJob>();
 const CLEANUP_AFTER_MS = 30 * 60 * 1000; // 30 分钟
 
 export function createJob(fileName: string, fileSize: number): string {
   const id = uuidv4();
   const now = new Date().toISOString();
-  const job: UploadJob = {
+  const job: WikiJob = {
     id,
     status: 'pending',
     fileName,
@@ -40,14 +23,14 @@ export function createJob(fileName: string, fileSize: number): string {
   return id;
 }
 
-export function updateJob(id: string, updates: Partial<UploadJob>): UploadJob | undefined {
+export function updateJob(id: string, updates: WikiJobUpdate): WikiJob | undefined {
   const job = jobs.get(id);
   if (!job) return undefined;
   Object.assign(job, updates, { updatedAt: new Date().toISOString() });
   return job;
 }
 
-export function getJob(id: string): UploadJob | undefined {
+export function getJob(id: string): WikiJob | undefined {
   return jobs.get(id);
 }
 

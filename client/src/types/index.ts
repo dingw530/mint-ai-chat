@@ -153,7 +153,9 @@ export interface ThinkingSegment {
 
 export interface ToolCallSegment {
   type: 'tool_call';
+  callId?: string;
   toolName: string;
+  summary?: string;
   status: 'running' | 'done' | 'error';
   arguments?: unknown;
   result?: string;
@@ -178,19 +180,24 @@ export interface ThoughtStep {
 
 export interface ToolCallStartStep {
   type: 'tool_call_start';
+  callId?: string;
   toolName: string;
-  arguments: string;
+  arguments: unknown;
+  summary?: string;
 }
 
 export interface ToolCallEndStep {
   type: 'tool_call_end';
+  callId?: string;
   toolName: string;
   result: string;
   duration: number;
+  summary?: string;
 }
 
 export interface ToolCallErrorStep {
   type: 'tool_call_error';
+  callId?: string;
   toolName: string;
   error: string;
   retryCount: number;
@@ -212,6 +219,9 @@ export interface SendCallbacks {
   onToolCallEnd?: (data: Record<string, unknown>) => void;
   onToolCallError?: (data: Record<string, unknown>) => void;
   onAnswerReady?: (content: string) => void;
+  onRunStarted?: (data: Record<string, unknown>) => void;
+  onRunCompleted?: (data: Record<string, unknown>) => void;
+  onRunCancelled?: (data: Record<string, unknown>) => void;
 }
 
 export interface SendOptions {
@@ -321,6 +331,7 @@ export interface ElectronAPI {
   downloadFile?: (url: string, filename: string) => Promise<void>;
 
   // Wiki
+  openWikiInObsidian: () => Promise<{ success: boolean }>;
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
   readWiki: (
     path: string,
@@ -358,6 +369,7 @@ export interface UploadJob {
     pageCount?: number;
     preview: string;
     pages?: { filename: string; title: string; size: number }[];
+    graphErrors?: string[];
   };
   error?: string;
   createdAt: string;

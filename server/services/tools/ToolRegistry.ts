@@ -153,6 +153,38 @@ export class ToolRegistry {
   }
 
   /**
+   * 获取工具调用开始时展示给用户的摘要。
+   * 摘要生成失败时返回 undefined，不影响工具执行。
+   */
+  getCallSummary(name: string, input: unknown): string | undefined {
+    const tool = this.tools.get(name);
+    if (!tool) return undefined;
+
+    try {
+      return tool.getCallSummary(input);
+    } catch (err) {
+      log.warn(`Tool call summary failed: ${name}`, { error: String(err) });
+      return undefined;
+    }
+  }
+
+  /**
+   * 获取工具执行完成后展示给用户的结果摘要。
+   * 摘要生成失败时返回 undefined，不影响工具结果处理。
+   */
+  getResultSummary(name: string, result: unknown): string | undefined {
+    const tool = this.tools.get(name);
+    if (!tool) return undefined;
+
+    try {
+      return tool.getResultSummary(result);
+    } catch (err) {
+      log.warn(`Tool result summary failed: ${name}`, { error: String(err) });
+      return undefined;
+    }
+  }
+
+  /**
    * 获取工具统计信息
    */
   getStats(): {

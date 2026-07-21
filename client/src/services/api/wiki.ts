@@ -31,6 +31,7 @@ export interface UploadJob {
     pageCount?: number;
     preview: string;
     pages?: { filename: string; title: string; size: number }[];
+    graphErrors?: string[];
   };
   error?: string;
   createdAt: string;
@@ -54,6 +55,14 @@ export function listWiki(): Promise<WikiListResponse> {
 
 export function readWiki(path: string): Promise<WikiReadResponse> {
   return callEndpoint<WikiReadResponse>('wiki:read', path);
+}
+
+/**
+ * 在 Obsidian 中打开当前配置的 Wiki 根目录。
+ */
+export function openWikiInObsidian(): Promise<{ success: boolean }> {
+  if (!isElectron()) throw new Error('仅桌面端支持在 Obsidian 中打开');
+  return getElectronAPI()!.openWikiInObsidian();
 }
 
 /**

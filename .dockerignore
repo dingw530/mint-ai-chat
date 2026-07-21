@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.git/
+.gitignore
+.env
+*.log
+.cache/
+coverage/
+__pycache__/
+.venv/
+.idea/
+.vscode/
+.DS_Store
+*.md
+docs/
+electron/release/
+electron/.playwright-cli/

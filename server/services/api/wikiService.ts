@@ -34,6 +34,35 @@ function isPathSafe(root: string, target: string): boolean {
   return resolvedTarget.startsWith(resolvedRoot + path.sep) || resolvedTarget === resolvedRoot;
 }
 
+/**
+ * 生成用于兼容 Wiki 文件名规范化差异的比较键。
+ *
+ * @param fileName 文件名
+ * @returns 忽略连字符、空白和大小写后的比较键
+ */
+function getWikiFileNameKey(fileName: string): string {
+  const name = fileName.normalize('NFC').replace(/[\s-]+/g, '').toLocaleLowerCase();
+  return name
+}
+
+/**
+ * 在同一目录中解析因 AI 省略文件名连字符而产生的唯一候选文件。
+ *
+ * @param requestedPath 请求的 Wiki 文件路径
+ * @returns 唯一匹配的实际路径，无法唯一匹配时返回 null
+ */
+function resolveNormalizedWikiFilePath(requestedPath: string): string | null {
+  const directory = path.dirname(requestedPath);
+  const requestedName = path.basename(requestedPath);
+  if (!fs.existsSync(directory)) return null;
+
+  const requestedKey = getWikiFileNameKey(requestedName);
+  const candidates = fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => getWikiFileNameKey(entry.name) === requestedKey)
+    .map((entry) => path.join(directory, entry.name));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 export function listWiki(): WikiListResponse {
   const rootPath = getRootPath();
   if (!fs.existsSync(rootPath)) {
@@ -50,8 +79,12 @@ export function readWiki(filePath: string): WikiReadResponse {
   const rootPath = getRootPath();
   if (!isPathSafe(rootPath, filePath)) throw new Error('路径穿越被拒绝');
 
-  const resolvedPath = path.resolve(rootPath, filePath);
-  if (!fs.existsSync(resolvedPath)) throw new Error('文件不存在');
+  let resolvedPath = path.resolve(rootPath, filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    const normalizedPath = resolveNormalizedWikiFilePath(resolvedPath);
+    if (!normalizedPath) throw new Error('文件不存在');
+    resolvedPath = normalizedPath;
+  }
 
   const stat = fs.statSync(resolvedPath);
   if (stat.isDirectory()) throw new Error('路径是目录，请指定文件');
@@ -59,7 +92,7 @@ export function readWiki(filePath: string): WikiReadResponse {
   const content = fs.readFileSync(resolvedPath, 'utf-8');
   return {
     content,
-    path: filePath,
+    path: path.relative(rootPath, resolvedPath),
     name: path.basename(filePath),
     size: stat.size,
   };

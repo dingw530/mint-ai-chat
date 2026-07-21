@@ -1,0 +1,37 @@
+services:
+  mint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      # SQLite 数据库持久化
+      - mint-data:/app/data
+    environment:
+      # ── 必填 ──
+      - AI_CHAT_ENCRYPTION_KEY=${AI_CHAT_ENCRYPTION_KEY}
+      - AI_CHAT_DB_PATH=/app/data/data.db
+
+      # ── Server 端口 ──
+      - PORT=3001
+
+      # ── 可选：和风天气（天气工具） ──
+      # - QWEATHER_PROJECT_ID=${QWEATHER_PROJECT_ID}
+      # - QWEATHER_KEY_ID=${QWEATHER_KEY_ID}
+      # - QWEATHER_PRIVATE_KEY=${QWEATHER_PRIVATE_KEY}
+
+      # ── 可选：AI API Key（也可在 UI 中配置） ──
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/api/conversations').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  mint-data:

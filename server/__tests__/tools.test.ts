@@ -471,6 +471,19 @@ describe('WikiSearchTool', () => {
     expect(tool.isConcurrencySafe()).toBe(true);
   });
 
+  it('should summarize question and path calls', () => {
+    expect(tool.getCallSummary({ question: '项目架构' })).toBe('正在查找：项目架构');
+    expect(tool.getCallSummary({ paths: ['pages/a.md', 'pages/b.md'] })).toBe('正在读取 2 个 Wiki 文件');
+  });
+
+  it('should summarize search and path results', () => {
+    expect(tool.getResultSummary({ results: [{ file: 'pages/a.md', content: '', score: 1 }], total: 4, message: '找到 4 个相关页面' }))
+      .toBe('找到 4 个相关页面，返回前 1 个');
+    expect(tool.getResultSummary({ results: [{ file: 'pages/a.md', content: '', score: 1 }], total: 1, message: '已读取 1 个文件' }))
+      .toBe('已读取 1 个文件');
+    expect(tool.getResultSummary({ results: [], total: 0, message: '未找到相关内容' })).toBe('未找到相关内容');
+  });
+
   it('should find matching content via search', async () => {
     fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'pages/react.md'), '# React\nReact 是一个前端框架。');

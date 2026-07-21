@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSanitize from 'rehype-sanitize';
@@ -12,6 +12,10 @@ type LinkClickHandler = (href: string, event: MouseEvent<HTMLAnchorElement>) => 
 
 const sanitizeSchema = {
   ...defaultSchema,
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href || []), 'mint-wiki'],
+  },
   attributes: {
     ...defaultSchema.attributes,
     span: [...(defaultSchema.attributes?.span || []), 'className'],
@@ -22,7 +26,7 @@ const sanitizeSchema = {
   },
 };
 
-interface MarkdownRendererProps {
+export interface MarkdownRendererProps {
   content: string;
   linkTarget?: '_blank' | '_self';
   onLinkClick?: LinkClickHandler;
@@ -46,6 +50,7 @@ export default function MarkdownRenderer({ content, linkTarget = '_blank', onLin
         }
         return (
           <a
+            className={href.startsWith('mint-wiki:') ? 'wiki-link' : undefined}
             href={href}
             target={linkTarget}
             rel={linkTarget === '_blank' ? 'noopener noreferrer' : undefined}
@@ -64,6 +69,7 @@ export default function MarkdownRenderer({ content, linkTarget = '_blank', onLin
         <ReactMarkdown
           rehypePlugins={[rehypeHighlight as unknown as (tree: unknown) => void, [rehypeSanitize, sanitizeSchema]]}
           remarkPlugins={[remarkGfm as unknown as (tree: unknown) => void]}
+          urlTransform={(url) => url.startsWith('mint-wiki:') ? url : defaultUrlTransform(url)}
           components={components}
         >
           {content}

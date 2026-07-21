@@ -1,5 +1,5 @@
 import { useState, useEffect, RefObject } from 'react';
-import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
+import MarkdownRenderer, { type MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
 import ReActStep from './ReActStep';
 import AppIcon from '@/shared/components/AppIcon';
 import AiAvatar from '@/shared/components/AiAvatar';
@@ -153,9 +153,10 @@ interface MessageListProps {
   onRegenerate?: () => void;
   reactSteps?: ReActStepData[];
   showReactSteps?: boolean;
+  onLinkClick?: MarkdownRendererProps['onLinkClick'];
 }
 
-export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true }: MessageListProps) {
+export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true, onLinkClick }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
@@ -195,6 +196,9 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                   </svg>
                   <span className="tool-call-label">
                     {seg.toolName}
+                    {seg.summary && (
+                      <span className="tool-call-label-summary"> · {seg.summary.length > 80 ? `${seg.summary.substring(0, 80)}...` : seg.summary}</span>
+                    )}
                     {seg.status === 'done' && seg.duration != null && (
                       <span className="tool-call-label-id"> {(Number(seg.duration) / 1000).toFixed(1)}s</span>
                     )}
@@ -219,7 +223,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
           if (seg.type === 'text') {
             return (
               <div key={i} className="text-segment">
-                <MarkdownRenderer content={seg.content} />
+                <MarkdownRenderer content={seg.content} onLinkClick={onLinkClick} />
               </div>
             );
           }
@@ -267,7 +271,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                     </div>
                   ) : null}
                   {msg.role === 'assistant'
-                    ? <MarkdownRenderer content={msg.content} />
+                    ? <MarkdownRenderer content={msg.content} onLinkClick={onLinkClick} />
                     : <span>{msg.content}</span>}
                 </>
               )}

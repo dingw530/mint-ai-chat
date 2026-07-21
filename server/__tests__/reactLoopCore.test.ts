@@ -22,6 +22,7 @@ vi.mock('../services/toolRoundEngine.js', () => ({
 
 vi.mock('../services/toolRegistry.js', () => ({
   getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+  getToolCallSummary: vi.fn().mockReturnValue(undefined),
 }));
 
 vi.mock('../services/utils/contextWindow.js', () => ({
@@ -54,7 +55,14 @@ describe('reactChat', () => {
     const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
     const result = await reactChat(
       [{ role: 'user', content: 'hi' }],
-      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat', reactMaxIterations: 5, toolMaxRetries: 3, maxContextRounds: 10 } as any,
+      {
+        apiUrl: 'https://api.test.com',
+        apiKey: 'sk-key',
+        apiType: 'openai-chat',
+        reactMaxIterations: 5,
+        toolMaxRetries: 3,
+        maxContextRounds: 10,
+      } as any,
       sink,
     );
     expect(result.content).toBe('');
@@ -69,11 +77,158 @@ describe('reactChat', () => {
     const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
     const result = await reactChat(
       [{ role: 'user', content: 'hi' }],
-      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat', reactMaxIterations: 3, toolMaxRetries: 3, maxContextRounds: 10 } as any,
+      {
+        apiUrl: 'https://api.test.com',
+        apiKey: 'sk-key',
+        apiType: 'openai-chat',
+        reactMaxIterations: 3,
+        toolMaxRetries: 3,
+        maxContextRounds: 10,
+      } as any,
       sink,
       'general',
     );
     expect(result.content).toBe('final answer');
     expect(result.reasoning).toBe('some reasoning');
+  });
+
+  it('preserves tool call order while correlating same-name calls by callId', async () => {
+    const firstCall = {
+      id: 'call-1',
+      type: 'function' as const,
+      function: { name: 'bash', arguments: '{"command":"first"}' },
+    };
+    const secondCall = {
+      id: 'call-2',
+      type: 'function' as const,
+      function: { name: 'bash', arguments: '{"command":"second"}' },
+    };
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+    const contextMessages: any[] = [];
+    const { getToolCallSummary } = await import('../services/toolRegistry.js');
+    vi.mocked(getToolCallSummary).mockReturnValue('正在执行工具');
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockImplementationOnce(async ({ messages }) => {
+        contextMessages.push(...messages);
+        return { content: '', reasoning: 'thinking', toolCalls: [firstCall, secondCall] };
+      })
+      .mockImplementationOnce(async ({ messages }) => {
+        contextMessages.push(...messages);
+        return { content: 'done', reasoning: '', toolCalls: null };
+      });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockImplementation(async (toolCall) => {
+      await new Promise((resolve) => setTimeout(resolve, toolCall.id === 'call-1' ? 10 : 1));
+      return {
+        assistantMsg: {
+          role: 'assistant',
+          content: null as unknown as string,
+          tool_calls: [toolCall],
+        },
+        toolMsg: { role: 'tool', tool_call_id: toolCall.id, content: toolCall.id },
+        succeeded: true,
+        resultSummary: '工具执行完成',
+      };
+    });
+
+    await reactChat(
+      [{ role: 'user', content: 'hi' }],
+      {
+        apiUrl: 'https://api.test.com',
+        apiKey: 'sk-key',
+        apiType: 'openai-chat',
+        reactMaxIterations: 3,
+        toolMaxRetries: 0,
+        maxContextRounds: 10,
+      } as any,
+      sink,
+    );
+
+    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+    expect(
+      events.filter((event) => event.type === 'tool_call_start').map((event) => event.callId),
+    ).toEqual(['call-1', 'call-2']);
+    expect(
+      events.filter((event) => event.type === 'tool_call_start').map((event) => event.summary),
+    ).toEqual(['正在执行工具', '正在执行工具']);
+    expect(
+      events.filter((event) => event.type === 'tool_call_end').map((event) => event.callId),
+    ).toEqual(['call-2', 'call-1']);
+    expect(
+      events.filter((event) => event.type === 'tool_call_end').map((event) => event.summary),
+    ).toEqual(['工具执行完成', '工具执行完成']);
+    const toolMessages = contextMessages
+      .flat()
+      .filter((message: any) => message.role === 'tool')
+      .map((message: any) => message.tool_call_id);
+    expect(toolMessages).toEqual(['call-1', 'call-2']);
+    expect(
+      events.filter((event) =>
+        ['run_completed', 'run_failed', 'run_cancelled'].includes(event.type),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('ignores sparse tool call slots from streamed tool indexes', async () => {
+    const firstCall = {
+      id: 'call-1',
+      type: 'function' as const,
+      function: { name: 'bash', arguments: '{"command":"first"}' },
+    };
+    const thirdCall = {
+      id: 'call-3',
+      type: 'function' as const,
+      function: { name: 'bash', arguments: '{"command":"third"}' },
+    };
+    const sparseCalls = [] as any[];
+    sparseCalls[0] = firstCall;
+    sparseCalls[2] = thirdCall;
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockResolvedValueOnce({ content: '', reasoning: '', toolCalls: sparseCalls })
+      .mockResolvedValueOnce({ content: 'done', reasoning: '', toolCalls: null });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
+      assistantMsg: { role: 'assistant', content: null as unknown as string, tool_calls: [] },
+      toolMsg: { role: 'tool', tool_call_id: 'tool', content: '{}' },
+      succeeded: true,
+    });
+
+    const result = await reactChat(
+      [{ role: 'user', content: 'hi' }],
+      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+      sink,
+    );
+
+    expect(result.content).toBe('done');
+    expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(2);
+  });
+
+  it('emits a single cancelled terminal event and skips the model call', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    await reactChat(
+      [{ role: 'user', content: 'hi' }],
+      {
+        apiUrl: 'https://api.test.com',
+        apiKey: 'sk-key',
+        apiType: 'openai-chat',
+        reactMaxIterations: 3,
+        toolMaxRetries: 0,
+        maxContextRounds: 10,
+      } as any,
+      sink,
+      undefined,
+      controller.signal,
+    );
+
+    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+    expect(vi.mocked(toolLoopEngine.executeRound)).not.toHaveBeenCalled();
+    expect(events.filter((event) => event.type === 'run_cancelled')).toHaveLength(1);
+    expect(
+      events.some((event) => event.type === 'run_completed' || event.type === 'run_failed'),
+    ).toBe(false);
   });
 });

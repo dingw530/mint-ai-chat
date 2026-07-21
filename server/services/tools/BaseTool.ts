@@ -113,6 +113,22 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
   abstract execute(input: Input, context: ToolContext): Promise<Output>;
 
   /**
+   * 返回工具开始执行时展示给用户的简短描述。
+   * 未定制时返回 undefined，由调用方使用通用文案。
+   */
+  getCallSummary(_input: Input): string | undefined {
+    return undefined;
+  }
+
+  /**
+   * 返回工具成功执行后展示给用户的简短结果摘要。
+   * 未定制时返回 undefined，由调用方使用通用文案。
+   */
+  getResultSummary(_result: Output): string | undefined {
+    return undefined;
+  }
+
+  /**
    * 获取工具定义（OpenAI function calling 格式）
    */
   getDefinition(): ToolDefinition {

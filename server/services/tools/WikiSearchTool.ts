@@ -43,6 +43,27 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
   isReadOnly(): boolean { return true; }
   isConcurrencySafe(): boolean { return true; }
 
+  /**
+   * 返回 Wiki 搜索或批量读取开始时展示给用户的摘要。
+   */
+  getCallSummary(input: WikiSearchInput): string {
+    if (input.paths && input.paths.length > 0) {
+      return `正在读取 ${input.paths.length} 个 Wiki 文件`;
+    }
+
+    const question = (input.question || '相关内容').trim();
+    return `正在查找：${question.length > 80 ? question.substring(0, 80) + '...' : question}`;
+  }
+
+  /**
+   * 返回 Wiki 搜索或批量读取完成后的数量摘要。
+   */
+  getResultSummary(result: WikiSearchOutput): string {
+    if (result.message.startsWith('已读取')) return `已读取 ${result.total} 个文件`;
+    if (result.total > 0) return `找到 ${result.total} 个相关页面，返回前 ${result.results.length} 个`;
+    return '未找到相关内容';
+  }
+
   async execute(input: WikiSearchInput, _context: ToolContext): Promise<WikiSearchOutput> {
     const normalizedInput = this.inputSchema.parse(input);
     const wikiPath = getWikiPath();

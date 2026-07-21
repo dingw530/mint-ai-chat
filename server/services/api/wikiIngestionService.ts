@@ -1,11 +1,13 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import type { AiSettings } from '../../types.js';
 import { compileSource } from '../utils/wikiCompiler.js';
 import { appendWikiManifestEntry } from '../utils/wikiShared.js';
 import { buildGraphFromPages } from '../graphBuilder.js';
 import { generateCrossBatchCandidates } from './crossBatchSemanticService.js';
 import { createLogger } from '../../utils/logger.js';
+import { archiveWikiRawFile, saveWikiSourceText } from './wikiFileService.js';
+
+export { archiveWikiRawFile, buildWikiSourceText } from './wikiFileService.js';
+export type { WikiSourceSegment } from './wikiIngestionTypes.js';
 
 const log = createLogger('wiki-ingestion');
 
@@ -45,79 +47,9 @@ export interface WikiIngestionResult {
 /**
  * 用于统一拼装 source 文本的结构化片段。
  */
-export interface WikiSourceSegment {
-  kind: 'url' | 'file';
-  name: string;
-  content: string;
-}
-
-/**
- * 将原始名称转换为适合写入文件系统的 slug。
- */
-function slugifyFileName(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9一-龥]+/g, '-')
-      .replace(/^-|-$/g, '') || 'untitled'
-  );
-}
-
-/** 去除文件名开头重复出现的 YYYY-MM-DD 日期前缀。 */
-function stripDatePrefixes(name: string): string {
-  let normalized = name;
-  while (/^\d{4}-\d{2}-\d{2}-/.test(normalized)) {
-    normalized = normalized.slice(11);
-  }
-  return normalized;
-}
-
-/**
- * 确保目标目录存在。
- */
-function ensureDir(dirPath: string): void {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-}
-
-/**
- * 为归档文件生成不冲突的目标路径。
- */
-function ensureUniqueFilePath(filePath: string): string {
-  if (!fs.existsSync(filePath)) return filePath;
-
-  const dir = path.dirname(filePath);
-  const ext = path.extname(filePath);
-  const base = path.basename(filePath, ext);
-  let counter = 2;
-  let nextPath = path.join(dir, `${base}-${counter}${ext}`);
-  while (fs.existsSync(nextPath)) {
-    counter += 1;
-    nextPath = path.join(dir, `${base}-${counter}${ext}`);
-  }
-  return nextPath;
-}
-
-/**
- * 统一原始文件归档逻辑，确保所有入口遵循相同的命名与防覆盖策略。
- */
-export function archiveWikiRawFile(wikiPath: string, fileName: string, buffer: Buffer): string {
-  const sourcesDir = path.join(wikiPath, 'sources');
-  ensureDir(sourcesDir);
-  const date = new Date().toISOString().slice(0, 10);
-  const ext = path.extname(fileName).toLowerCase();
-  const baseName = slugifyFileName(stripDatePrefixes(path.basename(fileName, ext)));
-  const resolvedPath = ensureUniqueFilePath(path.join(sourcesDir, `${date}-${baseName}${ext}`));
-  fs.writeFileSync(resolvedPath, buffer);
-  return path.relative(wikiPath, resolvedPath).replace(/\\/g, '/');
-}
-
 function archiveRawFiles(wikiPath: string, files: WikiArchivedFileInput[] | undefined): string[] {
   if (!files || files.length === 0) return [];
 
-  const sourcesDir = path.join(wikiPath, 'sources');
-  ensureDir(sourcesDir);
   const archivedPaths: string[] = [];
 
   for (const file of files) {
@@ -130,47 +62,6 @@ function archiveRawFiles(wikiPath: string, files: WikiArchivedFileInput[] | unde
   }
 
   return archivedPaths;
-}
-
-/**
- * 将规范化后的 source 文本落盘到 `sources/`，作为不可变编译输入。
- */
-function saveSourceText(
-  wikiPath: string,
-  sourceText: string,
-  title: string,
-  filenameHint?: string,
-): string {
-  const sourcesDir = path.join(wikiPath, 'sources');
-  ensureDir(sourcesDir);
-
-  const date = new Date().toISOString().slice(0, 10);
-  const hintBase = filenameHint
-    ? stripDatePrefixes(path.basename(filenameHint, path.extname(filenameHint)))
-    : title;
-  const resolvedPath = ensureUniqueFilePath(
-    path.join(sourcesDir, `${date}-${slugifyFileName(hintBase)}.md`),
-  );
-  const sourceContent = `# ${title || '未命名资料'}
-
-> 原始资料，不可变。摄入日期：${date}
-
-${sourceText}
-`;
-  fs.writeFileSync(resolvedPath, sourceContent, 'utf-8');
-  return path.relative(wikiPath, resolvedPath).replace(/\\/g, '/');
-}
-
-/**
- * 统一 sources 编译前的文本拼装口径，确保不同入口对相同原始内容生成一致的 source 文本。
- */
-export function buildWikiSourceText(baseText: string, segments: WikiSourceSegment[] = []): string {
-  let combinedSource = baseText || '';
-  for (const segment of segments) {
-    const heading = segment.kind === 'url' ? '来源' : '文件';
-    combinedSource += `\n\n---\n## ${heading}：${segment.name}\n\n${segment.content}`;
-  }
-  return combinedSource;
 }
 
 /**
@@ -187,7 +78,7 @@ export async function ingestWikiSource(
   const sourceFile =
     archivedFiles.length === 1
       ? archivedFiles[0]
-      : saveSourceText(
+      : saveWikiSourceText(
           wikiPath,
           request.sourceText,
           request.sourceTitle,
@@ -198,7 +89,7 @@ export async function ingestWikiSource(
     settings,
     wikiPath,
     request.sourceText,
-    path.basename(sourceFile),
+    sourceFile.split('/').pop() || request.sourceTitle,
     { title: request.sourceTitle, category: request.category },
   );
 

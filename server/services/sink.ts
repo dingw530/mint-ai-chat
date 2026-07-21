@@ -8,9 +8,11 @@
 
 import type { Response as ExpressResponse } from 'express';
 import chalk from 'chalk';
+import type { ReactEvent } from './reactEvents.js';
 
 export interface Sink {
   write(data: string): void;
+  writeEvent?(event: ReactEvent): void;
   end(): void;
   get headersSent(): boolean;
   get writableEnded(): boolean;
@@ -28,6 +30,10 @@ export class ResSink implements Sink {
     }
   }
 
+  writeEvent(event: ReactEvent): void {
+    this.write(JSON.stringify(event));
+  }
+
   end(): void {
     if (!this._ended && !this.res.writableEnded) {
       this.res.write('data: [DONE]\n\n');
@@ -36,8 +42,12 @@ export class ResSink implements Sink {
     }
   }
 
-  get headersSent(): boolean { return this.res.headersSent; }
-  get writableEnded(): boolean { return this._ended || this.res.writableEnded; }
+  get headersSent(): boolean {
+    return this.res.headersSent;
+  }
+  get writableEnded(): boolean {
+    return this._ended || this.res.writableEnded;
+  }
 }
 
 // 累加型 Sink：将流式数据聚合为完整字符串，不输出到任何地方
@@ -49,27 +59,39 @@ export class AccumulatingSink implements Sink {
     this._data += data;
   }
 
+  writeEvent(event: ReactEvent): void {
+    this.write(JSON.stringify(event));
+  }
+
   end(): void {
     this._ended = true;
   }
 
-  get headersSent(): boolean { return false; }
-  get writableEnded(): boolean { return this._ended; }
-  get data(): string { return this._data; }
+  get headersSent(): boolean {
+    return false;
+  }
+  get writableEnded(): boolean {
+    return this._ended;
+  }
+  get data(): string {
+    return this._data;
+  }
 }
 
 // ── Electron IPC 适配：通过 event.sender.send 将 JSON 推送到渲染进程 ──
 export class IpcSink implements Sink {
   private _ended = false;
 
-  constructor(
-    private event: { sender: { send: (channel: string, ...args: unknown[]) => void } },
-  ) {}
+  constructor(private event: { sender: { send: (channel: string, ...args: unknown[]) => void } }) {}
 
   write(data: string): void {
     if (!this._ended) {
       this.event.sender.send('chat:chunk', data);
     }
+  }
+
+  writeEvent(event: ReactEvent): void {
+    this.write(JSON.stringify(event));
   }
 
   end(): void {
@@ -79,8 +101,12 @@ export class IpcSink implements Sink {
     }
   }
 
-  get headersSent(): boolean { return true; }
-  get writableEnded(): boolean { return this._ended; }
+  get headersSent(): boolean {
+    return true;
+  }
+  get writableEnded(): boolean {
+    return this._ended;
+  }
 }
 
 // ── 终端适配：将流式数据渲染为 ANSI 彩色文本 ──
@@ -97,6 +123,10 @@ export class TerminalSink implements Sink {
     }
   }
 
+  writeEvent(event: ReactEvent): void {
+    this.write(JSON.stringify(event));
+  }
+
   private render(evt: Record<string, unknown>): void {
     if (evt.content) {
       process.stdout.write(chalk.cyan(String(evt.content)));
@@ -105,7 +135,8 @@ export class TerminalSink implements Sink {
     } else if (evt.type === 'thought') {
       process.stdout.write(chalk.dim.yellow('\n[思考] ' + (evt.reasoning || '') + '\n'));
     } else if (evt.type === 'tool_call_start') {
-      const args = typeof evt.arguments === 'string' ? evt.arguments : JSON.stringify(evt.arguments);
+      const args =
+        typeof evt.arguments === 'string' ? evt.arguments : JSON.stringify(evt.arguments);
       process.stdout.write(chalk.blue(`\n  → 调用 ${evt.toolName}(${args})\n`));
     } else if (evt.type === 'tool_call_end') {
       const result = typeof evt.result === 'string' ? evt.result.substring(0, 200) : '';
@@ -114,10 +145,20 @@ export class TerminalSink implements Sink {
       process.stdout.write(chalk.red(`  ← 错误(重试 ${evt.retryCount}): ${evt.error}\n`));
     } else if (evt.type === 'answer_ready') {
       process.stdout.write('\n');
+    } else if (evt.type === 'run_failed') {
+      process.stdout.write(chalk.red(`\n[失败] ${evt.error || 'ReAct run failed'}\n`));
+    } else if (evt.type === 'run_cancelled') {
+      process.stdout.write(chalk.yellow('\n[已取消]\n'));
     }
   }
 
-  end(): void { this._ended = true; }
-  get headersSent(): boolean { return true; }
-  get writableEnded(): boolean { return this._ended; }
+  end(): void {
+    this._ended = true;
+  }
+  get headersSent(): boolean {
+    return true;
+  }
+  get writableEnded(): boolean {
+    return this._ended;
+  }
 }
