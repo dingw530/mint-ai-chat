@@ -295,7 +295,7 @@ function createWindow(port) {
   });
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5800');
   } else {
     mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
   }
@@ -328,7 +328,7 @@ function loadClientApp() {
   if (!mainWindow) return;
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5800');
   } else {
     mainWindow.loadFile(path.join(__dirname, 'client-dist', 'index.html'));
   }
