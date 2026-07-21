@@ -151,6 +151,11 @@ export async function sendMessage(conversationId: string, content: string, sink:
       '- 一次 search 返回的结果通常已包含足够信息，避免反复换关键词搜索。',
       '- 如需查阅多个页面，优先使用 paths 批量读取或并行调用，减少工具调用轮次。',
       '- 对知识库不熟悉时，先读取 _index.md 了解整体结构，再决定要查阅哪些页面。',
+      '',
+      '【Chat 知识链接协议】',
+      '- 在最终回答中引用正式 Wiki 页面时，必须使用 Markdown 链接：`[页面标题](mint-wiki://open?path=<URL编码后的相对路径>)`。',
+      '- path 必须是 Wiki 根目录下的相对路径（优先使用 pages/ 下的正式页面），例如 `pages/AI实践/LLM-Wiki.md`。',
+      '- 不要输出 Wiki 磁盘绝对路径、file:// 链接或普通文件路径作为可点击引用。',
     ].join('\n'));
   }
 

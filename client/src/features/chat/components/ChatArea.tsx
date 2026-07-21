@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import MessageList from './MessageList';
+import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
 import InputBox from './InputBox';
 import AgentBar from './AgentBar';
 import ChatHeader from './ChatHeader';
@@ -41,6 +42,7 @@ interface ChatAreaProps {
   onEndpointChange: () => Promise<void>;
   initialMessage?: string | null;
   onInitialMessageSent?: () => void;
+  onLinkClick?: MarkdownRendererProps['onLinkClick'];
 }
 
 export default function ChatArea({
@@ -55,6 +57,7 @@ export default function ChatArea({
   onEndpointChange,
   initialMessage,
   onInitialMessageSent,
+  onLinkClick,
 }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -707,6 +710,7 @@ export default function ChatArea({
             onRegenerate={handleRegenerate}
             reactSteps={reactSteps}
             showReactSteps={showReactSteps}
+            onLinkClick={onLinkClick}
           />
         )}
         <AgentBar

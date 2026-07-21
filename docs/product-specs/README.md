@@ -28,3 +28,4 @@
 | [Wiki Schema 分类标准维护](<../changes/2026-07-10-wiki-schema-management/product-spec.md>) | 2026-07-10 | 已完成 |
 | [Wiki 摄入作业统一](<../changes/2026-07-15-wiki-ingestion-job-unification/product-spec.md>) | 2026-07-15 | 已完成 |
 | [ReAct 事件与状态模型](<../changes/2026-07-15-react-event-state-model/product-spec.md>) | 2026-07-15 | 已完成 |
+| [Chat Wiki 知识链接](<../changes/2026-07-21-chat-wiki-links/product-spec.md>) | 2026-07-21 | 已完成 |

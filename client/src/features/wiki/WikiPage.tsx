@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useOutletContext, useNavigate, useLocation } from 'react-router-dom';
 import SidebarHeader from '@/shared/components/SidebarHeader';
 import WikiSidebar from './WikiSidebar';
 import WikiPanel from './WikiPanel';
@@ -15,6 +15,13 @@ export default function WikiPage() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('file');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = new URLSearchParams(location.search).get('path');
+    setSelectedFile(path || null);
+    if (path) setViewMode('file');
+  }, [location.search]);
 
   const handleAskQuestion = useCallback(async (question: string) => {
     try {

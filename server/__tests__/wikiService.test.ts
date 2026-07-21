@@ -43,6 +43,17 @@ describe('wikiService', () => {
       expect(result.content).toContain('Hello Page');
     });
 
+    it('resolves a unique filename when generated links omit normalized hyphens', () => {
+      const categoryDir = path.join(tmpDir, 'pages', '概念');
+      fs.mkdirSync(categoryDir, { recursive: true });
+      fs.writeFileSync(path.join(categoryDir, 'LLM-Wiki-的认知架构.md'), '# Architecture');
+
+      const result = wikiService.readWiki('pages/概念/LLM-Wiki的认知架构.md');
+
+      expect(result.path).toBe('pages/概念/LLM-Wiki-的认知架构.md');
+      expect(result.content).toContain('Architecture');
+    });
+
     it('rejects path traversal', () => {
       expect(() => wikiService.readWiki('../../etc/passwd')).toThrow('路径穿越');
     });

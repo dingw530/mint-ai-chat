@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { createWikiNavigationTool } from '@/services/tools/wikiNavigationTool';
 
 const Settings = lazy(() => import('@/features/settings/components/Settings'));
 
@@ -12,6 +13,8 @@ function getInitialTheme(): string {
 }
 
 export default function AppProvider() {
+  const navigate = useNavigate();
+  const wikiNavigationTool = useMemo(() => createWikiNavigationTool(navigate), [navigate]);
   const [showSettings, setShowSettings] = useState(false);
   const [theme, setTheme] = useState(getInitialTheme);
 
@@ -36,7 +39,7 @@ export default function AppProvider() {
 
   return (
     <div className="app-container">
-      <Outlet context={{ onOpenSettings: () => setShowSettings(true) }} />
+      <Outlet context={{ onOpenSettings: () => setShowSettings(true), openWikiPage: wikiNavigationTool.openPage }} />
       {showSettings && (
         <Suspense fallback={null}>
           <Settings
