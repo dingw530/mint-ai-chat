@@ -1,3 +1,5 @@
+/* global process, console */
+
 // Docker 入口：设置静态文件路径并启动 HTTP 服务
 process.env.AI_CHAT_CLIENT_DIST = '/app/client/dist';
 

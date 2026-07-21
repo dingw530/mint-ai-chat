@@ -39,13 +39,14 @@ describe('wikiFileService', () => {
 
   it('archives uploads with a normalized, unique path', () => {
     const wikiPath = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-files-'));
+    const today = new Date().toISOString().slice(0, 10);
     const input = { name: '2026-07-15-my-notes!!.md', size: 3, buffer: Buffer.from('abc') };
 
     const first = archiveWikiUpload(wikiPath, { wikiMaxFileSize: 0 }, input);
     const second = archiveWikiUpload(wikiPath, { wikiMaxFileSize: 0 }, input);
 
-    expect(first).toMatch(/^sources\/2026-07-15-my-notes\.md$/);
-    expect(second).toMatch(/^sources\/2026-07-15-my-notes-2\.md$/);
+    expect(first).toBe(`sources/${today}-my-notes.md`);
+    expect(second).toBe(`sources/${today}-my-notes-2.md`);
     expect(readArchivedWikiFile(wikiPath, first).toString()).toBe('abc');
   });
 
