@@ -44,13 +44,13 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
 }
 
 // 根据 tool_call 分发执行对应的工具函数
-export async function executeTool(toolCall: ToolCall): Promise<unknown> {
+export async function executeTool(toolCall: ToolCall, conversationId = ''): Promise<unknown> {
   const { name, arguments: argsStr } = toolCall.function;
 
   // 1. 优先从新工具系统执行（get_weather_forecast, http_fetch 等内置工具）
   if (newToolRegistry.has(name)) {
     const result = await toolExecutor.executeFromToolCall(toolCall, {
-      conversationId: '',
+      conversationId,
     });
     if (result.success) return result.data;
     return { error: result.error };

@@ -26,6 +26,7 @@ export interface ToolRoundInput {
   tools?: ToolDefinition[];
   adapter?: ApiAdapter; // 可选注入，不传则从 settings 自动获取
   signal?: AbortSignal;
+  conversationId?: string;
   label?: string; // 日志标签
   emitEvent?: (event: ReactEventPayload) => void;
 }
@@ -191,10 +192,14 @@ export class ToolLoopEngine {
   }
 
   // 执行工具并返回拼接用的 message 对
-  async executeToolCall(tc: ToolCall, reasoning?: string): Promise<ToolExecutionResult> {
+  async executeToolCall(
+    tc: ToolCall,
+    reasoning?: string,
+    conversationId = '',
+  ): Promise<ToolExecutionResult> {
     let toolResult: unknown;
     try {
-      toolResult = await executeTool(tc);
+      toolResult = await executeTool(tc, conversationId);
       log.debug('tool executed', {
         name: tc.function.name,
         resultPreview: JSON.stringify(toolResult).substring(0, 200),
@@ -225,11 +230,12 @@ export class ToolLoopEngine {
     reasoning: string | undefined,
     maxRetries: number,
     onRetry?: (attempt: number, error: Error) => void,
+    conversationId = '',
   ): Promise<ToolExecutionResult> {
     let toolResult: unknown;
     let succeeded = true;
     try {
-      toolResult = await retry(() => executeTool(tc), {
+      toolResult = await retry(() => executeTool(tc, conversationId), {
         maxRetries,
         baseDelay: 1000,
         maxDelay: 16000,

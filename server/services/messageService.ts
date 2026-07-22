@@ -186,8 +186,8 @@ export async function sendMessage(conversationId: string, content: string, sink:
     }
 
     const { content: fullContent, reasoning: fullReasoning } = useReact
-      ? await reactChat(messages, settings, sink, resolvedAgent, orchestratorSignal)
-      : await streamChat(messages, settings, sink, resolvedAgent);
+      ? await reactChat(messages, settings, sink, resolvedAgent, orchestratorSignal, conversationId)
+      : await streamChat(messages, settings, sink, resolvedAgent, conversationId);
 
     clearTimeout(orchestratorTimer);
     // AI 回复完成后持久化（流式结束时才写入）

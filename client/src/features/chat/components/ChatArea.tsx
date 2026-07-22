@@ -4,6 +4,7 @@ import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer
 import InputBox from './InputBox';
 import AgentBar from './AgentBar';
 import ChatHeader from './ChatHeader';
+import IngestionTaskCards from './IngestionTaskCards';
 import {
   getMessages,
   fetchAgents,
@@ -713,25 +714,34 @@ export default function ChatArea({
             onLinkClick={onLinkClick}
           />
         )}
-        <AgentBar
-          agents={agents}
-          activeAgent={activeAgent}
-          autoRoutedAgent={autoRoutedAgent}
-          lockedAgent={lockedAgent}
-          routingMode={routingMode}
-          onSelectAgent={handleSelectAgent}
-          onUnlock={handleUnlock}
-        />
-        {sending ? (
-          <button className="stop-btn" onClick={handleStop}>
-            <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
-              <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
-            </svg>
-            停止生成
-          </button>
-        ) : (
-          <InputBox onSend={handleSend} disabled={sending} />
-        )}
+        <div className="chat-composer">
+          <div className="chat-input-zone">
+            <IngestionTaskCards conversationId={activeConversation} />
+            <div className="chat-input-row">
+              <AgentBar
+                agents={agents}
+                activeAgent={activeAgent}
+                autoRoutedAgent={autoRoutedAgent}
+                lockedAgent={lockedAgent}
+                routingMode={routingMode}
+                onSelectAgent={handleSelectAgent}
+                onUnlock={handleUnlock}
+              />
+              <div className="chat-input-main">
+                {sending ? (
+                  <button className="stop-btn" onClick={handleStop}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                    </svg>
+                    停止生成
+                  </button>
+                ) : (
+                  <InputBox onSend={handleSend} disabled={sending} />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

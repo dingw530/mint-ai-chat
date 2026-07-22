@@ -61,7 +61,13 @@ export async function streamFromAPI(url: string, headers: Record<string, string>
 }
 
 // 核心入口：发起 AI 流式对话，支持无工具/有工具两条路径
-export async function streamChat(messages: HistoryMessage[], settings: AiSettings, sink: Sink, agent?: string): Promise<StreamResult> {
+export async function streamChat(
+  messages: HistoryMessage[],
+  settings: AiSettings,
+  sink: Sink,
+  agent?: string,
+  conversationId?: string,
+): Promise<StreamResult> {
   const { apiUrl, apiKey } = settings;
 
   if (!apiUrl || !apiKey) {
@@ -124,7 +130,7 @@ export async function streamChat(messages: HistoryMessage[], settings: AiSetting
   // ---- 工具调用路径：执行工具后二次调用 AI ----
   const toolMessages: HistoryMessage[] = [];
   for (const tc of result.toolCalls) {
-    const { assistantMsg, toolMsg } = await toolLoopEngine.executeToolCall(tc, result.reasoning);
+    const { assistantMsg, toolMsg } = await toolLoopEngine.executeToolCall(tc, result.reasoning, conversationId);
     toolMessages.push(assistantMsg, toolMsg);
   }
 

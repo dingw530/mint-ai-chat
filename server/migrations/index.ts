@@ -266,6 +266,73 @@ const migrations: Migration[] = [
       ); CREATE INDEX idx_graph_edge_candidates_status ON graph_edge_candidates(status, created_at);`);
     },
   },
+  {
+    id: 15,
+    name: 'add-ingestion-jobs',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ingestion_jobs (
+          id TEXT PRIMARY KEY,
+          source_type TEXT NOT NULL DEFAULT 'upload' CHECK(source_type IN ('upload', 'chat')),
+          conversation_id TEXT,
+          file_name TEXT NOT NULL,
+          file_size INTEGER NOT NULL DEFAULT 0,
+          file_count INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'queued',
+          progress INTEGER NOT NULL DEFAULT 0,
+          step TEXT NOT NULL DEFAULT '等待处理',
+          payload TEXT NOT NULL DEFAULT '{}',
+          result TEXT,
+          error TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          idempotency_key TEXT,
+          available_at TEXT NOT NULL,
+          locked_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status_updated
+          ON ingestion_jobs(status, updated_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_ingestion_jobs_idempotency
+          ON ingestion_jobs(idempotency_key)
+          WHERE idempotency_key IS NOT NULL;
+      `);
+    },
+  },
+  {
+    id: 16,
+    name: 'repair-ingestion-jobs-table',
+    up: (db) => {
+      // 15 可能在旧版本中已登记但进程曾在 DDL 后异常退出；保持迁移可重入。
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ingestion_jobs (
+          id TEXT PRIMARY KEY,
+          source_type TEXT NOT NULL DEFAULT 'upload' CHECK(source_type IN ('upload', 'chat')),
+          conversation_id TEXT,
+          file_name TEXT NOT NULL,
+          file_size INTEGER NOT NULL DEFAULT 0,
+          file_count INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'queued',
+          progress INTEGER NOT NULL DEFAULT 0,
+          step TEXT NOT NULL DEFAULT '等待处理',
+          payload TEXT NOT NULL DEFAULT '{}',
+          result TEXT,
+          error TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          idempotency_key TEXT,
+          available_at TEXT NOT NULL,
+          locked_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status_updated
+          ON ingestion_jobs(status, updated_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_ingestion_jobs_idempotency
+          ON ingestion_jobs(idempotency_key)
+          WHERE idempotency_key IS NOT NULL;
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

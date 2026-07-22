@@ -43,6 +43,7 @@ export async function reactChat(
   sink: Sink,
   agent?: string,
   signal?: AbortSignal,
+  conversationId?: string,
 ): Promise<StreamResult> {
   const runId = uuidv4();
   const events = new ReactEventEmitter(sink, runId);
@@ -186,6 +187,7 @@ export async function reactChat(
               status: 'retrying',
             });
           },
+          conversationId,
         );
         const duration = Date.now() - startedAt;
         const resultStr = execution.toolMsg.content.substring(0, 2000);

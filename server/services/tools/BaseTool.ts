@@ -31,6 +31,8 @@ export interface ToolResult<T = unknown> {
   error?: string;
 }
 
+export type ToolExecutionMode = 'sync' | 'async';
+
 // ── 工具基类 ──
 
 export abstract class BaseTool<Input = unknown, Output = unknown> {
@@ -48,6 +50,9 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
    * 输入参数 Schema（Zod）
    */
   abstract readonly inputSchema: z.ZodType<Input>;
+
+  /** 工具执行语义；异步工具只等待任务受理，不等待后台作业完成。 */
+  readonly executionMode: ToolExecutionMode = 'sync';
 
   /**
    * 工具执行超时时间（毫秒）。

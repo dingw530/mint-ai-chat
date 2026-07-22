@@ -4,7 +4,7 @@
 
 // 基础设施
 export { BaseTool } from './BaseTool.js';
-export type { ToolContext, ValidationResult, PermissionResult, ToolResult } from './BaseTool.js';
+export type { ToolContext, ValidationResult, PermissionResult, ToolResult, ToolExecutionMode } from './BaseTool.js';
 export { ToolRegistry, toolRegistry } from './ToolRegistry.js';
 export { ToolExecutor, toolExecutor } from './ToolExecutor.js';
 export type { ExecutionOptions, ExecutionResult } from './ToolExecutor.js';

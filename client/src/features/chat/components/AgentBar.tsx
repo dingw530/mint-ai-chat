@@ -1,3 +1,4 @@
+import * as Select from '@radix-ui/react-select';
 import type { Agent } from '@/types';
 
 function AgentIcon({ id }: { id: string }) {
@@ -41,60 +42,55 @@ export default function AgentBar({
   onSelectAgent,
   onUnlock,
 }: AgentBarProps) {
+  const availableAgents = agents.filter((agent) => agent.available !== false);
+  const selectedAgent = lockedAgent || activeAgent || availableAgents[0]?.id || '';
+  const selectedAgentInfo = availableAgents.find((agent) => agent.id === selectedAgent);
+  const isAutoRouted = autoRoutedAgent === selectedAgent && !lockedAgent && routingMode === 'auto';
+
   return (
     <div className="agent-selector">
-      <div className="agent-bar">
-        {agents.filter(a => a.available !== false).map((agent) => {
-          const isDisabled = agent.available === false;
-          const label = agent.label || agent.name || agent.id;
-          const titleText = isDisabled
-            ? (agent.errorMessage || `Agent "${label}" is not available`)
-            : (agent.description || label);
-          const isLocked = !!lockedAgent;
-          const isLockedAgent = lockedAgent === agent.id;
-          const isAutoRouted = autoRoutedAgent === agent.id && !isLocked;
-
-          let btnClass = 'agent-btn';
-          if (isDisabled) {
-            btnClass += ' disabled';
-          } else if (isLocked && isLockedAgent) {
-            btnClass += ' locked';
-          } else if (isLocked) {
-            btnClass += ' disabled';
-          } else if (isAutoRouted) {
-            btnClass += ' auto-routed';
-          } else if (activeAgent === agent.id && routingMode === 'manual') {
-            btnClass += ' active';
-          }
-
-          return (
-            <button
-              key={agent.id}
-              className={btnClass}
-              disabled={isDisabled || (isLocked && !isLockedAgent)}
-              onClick={() => onSelectAgent(agent.id)}
-              title={titleText}
-            >
-              <AgentIcon id={agent.id} />
-              {label}
-              {isLockedAgent && (
-                <span className="lock-icon">
-                  <svg viewBox="0 0 24 24" width="12" height="12" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" />
-                    <path d="M8 11V7a4 4 0 018 0v4" fill="none" stroke="currentColor" strokeWidth="2" />
-                  </svg>
-                </span>
-              )}
-              {isAutoRouted && <span className="auto-badge">自动</span>}
-              {isLocked && isLockedAgent && (
-                <span className="unlock-btn" onClick={(e) => { e.stopPropagation(); onUnlock(); }}>
-                  解锁
-                </span>
-              )}
+      <Select.Root
+        value={selectedAgent}
+        onValueChange={onSelectAgent}
+        disabled={Boolean(lockedAgent) || availableAgents.length === 0}
+      >
+        <div className={`agent-dropdown${lockedAgent ? ' is-locked' : ''}`}>
+          <AgentIcon id={selectedAgent} />
+          <Select.Trigger
+            className="agent-select-trigger"
+            aria-label="选择 Agent"
+            title={selectedAgentInfo?.description || selectedAgentInfo?.name || selectedAgent}
+          >
+            <Select.Value>{selectedAgentInfo?.label || selectedAgentInfo?.name || selectedAgent}</Select.Value>
+            <Select.Icon className="agent-select-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="m7 10 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Select.Icon>
+          </Select.Trigger>
+          {isAutoRouted && <span className="agent-auto-badge">自动</span>}
+          {lockedAgent && (
+            <button className="agent-unlock" type="button" onClick={onUnlock} aria-label="解锁 Agent" title="解锁 Agent">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M8 11V7a4 4 0 017.2-2.4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
             </button>
-          );
-        })}
-      </div>
+          )}
+        </div>
+        <Select.Portal>
+          <Select.Content className="agent-select-content" position="popper" sideOffset={6}>
+            <Select.Viewport className="agent-select-viewport">
+              {availableAgents.map((agent) => (
+                <Select.Item key={agent.id} value={agent.id} className="agent-select-item">
+                  <Select.ItemText>{agent.label || agent.name || agent.id}</Select.ItemText>
+                  <Select.ItemIndicator className="agent-select-indicator">✓</Select.ItemIndicator>
+                </Select.Item>
+              ))}
+            </Select.Viewport>
+          </Select.Content>
+        </Select.Portal>
+      </Select.Root>
     </div>
   );
 }
