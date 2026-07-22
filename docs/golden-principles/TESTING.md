@@ -22,7 +22,7 @@ describe('ConversationRepository', () => {
 
 ## Test File Organization
 
-- **Location:** `server/__tests__/` for server tests, `client/src/**/*.test.ts` for client tests
+- **Location:** `__tests__/` directories alongside the corresponding server and client source files
 - **Naming:** `{feature}.test.ts` matching the feature being tested
 - **Setup:** Use `beforeEach` for test isolation, not `beforeAll`
 - **Mocking:** Mock external dependencies (APIs, databases) at the boundary, not internal functions

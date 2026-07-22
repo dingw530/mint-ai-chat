@@ -22,7 +22,7 @@ jobs:
           node-version: '20'
       - run: npm install
       - run: cd server && npx tsc --noEmit
-      - run: npx eslint server/
+      - run: npm run lint
 
   test:
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm install
-      - run: cd server && npm test
+      - run: npm test
 
   build:
     runs-on: ubuntu-latest

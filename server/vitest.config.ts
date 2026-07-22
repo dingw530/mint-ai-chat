@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    include: ['__tests__/**/*.test.ts'],
+    include: ['**/__tests__/**/*.test.ts'],
     env: {
       AI_CHAT_LOG_LEVEL: 'debug',
       AI_CHAT_DB_PATH: '/tmp/ai-chat-vitest.db',
