@@ -25,13 +25,14 @@ function registerWikiHandlers({ ipcMain, services, logger, shell }) {
     return { success: true };
   });
 
-  ipcMain.handle('wiki:upload', async (_, { name, size, buffer }) => {
+  ipcMain.handle('wiki:upload', async (_, { name, size, buffer, idempotencyKey }) => {
     if (!services.wikiIngestionJobService) throw new Error('Wiki ingestion service not loaded');
     const fileBuffer = Buffer.from(buffer);
     return services.wikiIngestionJobService.start({
       name,
       size: size || fileBuffer.length,
       buffer: fileBuffer,
+      idempotencyKey,
     });
   });
 

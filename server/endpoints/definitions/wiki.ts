@@ -1,4 +1,5 @@
 import * as wikiService from '../../services/api/wikiService.js';
+import { wikiIngestionJobService } from '../../services/api/wikiIngestionJobService.js';
 import type { EndpointDescriptor } from '../types.js';
 
 export const wikiEndpoints: EndpointDescriptor[] = [
@@ -55,5 +56,48 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     service: (schema: unknown) => wikiService.updateSchema(schema as Parameters<typeof wikiService.updateSchema>[0]),
     args: [{ from: 'body' }],
     result: 'direct',
+  },
+  {
+    id: 'wiki:listJobs',
+    method: 'GET',
+    path: '/jobs',
+    preloadMethod: 'listWikiJobs',
+    service: (status?: string, limit?: string) => wikiIngestionJobService.listForApi(status, limit ? Number(limit) : undefined),
+    ipcServiceRef: { module: 'wikiIngestionJobService', method: 'listForApi' },
+    args: [
+      { from: 'query', name: 'status', optional: true },
+      { from: 'query', name: 'limit', optional: true },
+    ],
+    result: 'direct',
+  },
+  {
+    id: 'wiki:getJob',
+    method: 'GET',
+    path: '/jobs/:jobId',
+    preloadMethod: 'getWikiJob',
+    service: (jobId: string) => wikiIngestionJobService.getRequiredStatus(jobId),
+    ipcServiceRef: { module: 'wikiIngestionJobService', method: 'getRequiredStatus' },
+    args: [{ from: 'path', name: 'jobId' }],
+    result: 'job',
+  },
+  {
+    id: 'wiki:retryJob',
+    method: 'POST',
+    path: '/jobs/:jobId/retry',
+    preloadMethod: 'retryWikiJob',
+    service: (jobId: string) => wikiIngestionJobService.retry(jobId),
+    ipcServiceRef: { module: 'wikiIngestionJobService', method: 'retry' },
+    args: [{ from: 'path', name: 'jobId' }],
+    result: 'job',
+  },
+  {
+    id: 'wiki:cancelJob',
+    method: 'POST',
+    path: '/jobs/:jobId/cancel',
+    preloadMethod: 'cancelWikiJob',
+    service: (jobId: string) => wikiIngestionJobService.cancel(jobId),
+    ipcServiceRef: { module: 'wikiIngestionJobService', method: 'cancel' },
+    args: [{ from: 'path', name: 'jobId' }],
+    result: 'job',
   },
 ];

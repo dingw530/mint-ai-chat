@@ -1,3 +1,4 @@
+/* eslint-disable no-undef, @typescript-eslint/no-require-imports */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -18,6 +19,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeListener: (channel) => {
     ipcRenderer.removeAllListeners(channel);
+  },
+  subscribeIngestionEvents: (conversationId) => ipcRenderer.invoke('chat:a2ui:subscribe', conversationId),
+  onA2ui: (callback) => {
+    ipcRenderer.on('chat:a2ui', (_event, data) => callback(data));
   },
 
   // ── 会话 ──
@@ -81,6 +86,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readWiki: (path) => ipcRenderer.invoke('wiki:read', path),
   uploadWiki: (data) => ipcRenderer.invoke('wiki:upload', data),
   getJobStatus: (jobId) => ipcRenderer.invoke('wiki:getJobStatus', jobId),
+  listWikiJobs: (status, limit) => ipcRenderer.invoke('wiki:listJobs', status, limit),
+  getWikiJob: (jobId) => ipcRenderer.invoke('wiki:getJob', jobId),
+  retryWikiJob: (jobId) => ipcRenderer.invoke('wiki:retryJob', jobId),
+  cancelWikiJob: (jobId) => ipcRenderer.invoke('wiki:cancelJob', jobId),
   getWikiSchema: () => ipcRenderer.invoke('wiki:schema'),
   addWikiCategory: (category) => ipcRenderer.invoke('wiki:addCategory', category),
   removeWikiCategory: (category) => ipcRenderer.invoke('wiki:removeCategory', category),

@@ -76,6 +76,9 @@ export interface EndpointDescriptor {
 
   /** 服务函数是否为 async */
   async?: boolean;
+
+  /** 标记使用原始 HTTP 流响应；此类端点不生成 JSON/IPC handler。 */
+  stream?: boolean;
 }
 
 // ── Manifest 条目（JSON 序列化格式，供 preload 和前端消费） ──

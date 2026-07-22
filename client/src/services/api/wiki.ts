@@ -19,7 +19,7 @@ export interface WikiSchema {
 }
 export interface UploadJob {
   id: string;
-  status: 'pending' | 'parsing' | 'compiling' | 'done' | 'error';
+  status?: string;
   fileName: string;
   fileSize: number;
   progress: number;
@@ -36,6 +36,47 @@ export interface UploadJob {
   error?: string;
   createdAt: string;
   updatedAt: string;
+  sourceType?: 'upload' | 'chat';
+  conversationId?: string | null;
+  fileCount?: number;
+  attempts?: number;
+  statusLabel?: string;
+  phase?: 'active' | 'success' | 'error' | 'cancelled';
+  isTerminal?: boolean;
+  isSuccessful?: boolean;
+  canCancel?: boolean;
+  canRetry?: boolean;
+}
+
+export interface WikiJobsResponse {
+  jobs: UploadJob[];
+  total: number;
+}
+
+export function listWikiJobs(status?: string, limit?: number): Promise<WikiJobsResponse> {
+  if (isElectron()) return getElectronAPI()!.listWikiJobs(status, limit);
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (limit) params.set('limit', String(limit));
+  return request(`/wiki/jobs${params.toString() ? `?${params}` : ''}`);
+}
+
+export async function getWikiJob(jobId: string): Promise<UploadJob> {
+  if (isElectron()) return (await getElectronAPI()!.getWikiJob(jobId)).job;
+  const result = await request<{ job: UploadJob }>(`/wiki/jobs/${encodeURIComponent(jobId)}`);
+  return result.job;
+}
+
+export async function retryWikiJob(jobId: string): Promise<UploadJob> {
+  if (isElectron()) return (await getElectronAPI()!.retryWikiJob(jobId)).job;
+  const result = await request<{ job: UploadJob }>(`/wiki/jobs/${encodeURIComponent(jobId)}/retry`, { method: 'POST' });
+  return result.job;
+}
+
+export async function cancelWikiJob(jobId: string): Promise<UploadJob> {
+  if (isElectron()) return (await getElectronAPI()!.cancelWikiJob(jobId)).job;
+  const result = await request<{ job: UploadJob }>(`/wiki/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+  return result.job;
 }
 
 export interface UploadJobResponse {

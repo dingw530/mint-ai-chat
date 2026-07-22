@@ -60,7 +60,7 @@ export interface McpServer {
   command: string;
   args: string[];
   env: Record<string, string>;
-  status: string;
+  status?: string;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
@@ -265,6 +265,8 @@ export interface ElectronAPI {
   onDone: (callback: () => void) => void;
   onError: (callback: (err: string) => void) => void;
   removeListener: (channel: string) => void;
+  subscribeIngestionEvents: (conversationId: string) => Promise<{ subscribed: boolean }>;
+  onA2ui: (callback: (data: string) => void) => void;
 
   // 会话
   getConversations: (type?: string) => Promise<{ conversations: Conversation[] }>;
@@ -342,6 +344,10 @@ export interface ElectronAPI {
     buffer: number[];
   }) => Promise<{ jobId: string; sourceFile: string; fileName: string; fileSize: number }>;
   getJobStatus: (jobId: string) => Promise<UploadJob>;
+  listWikiJobs: (status?: string, limit?: number) => Promise<{ jobs: UploadJob[]; total: number }>;
+  getWikiJob: (jobId: string) => Promise<{ job: UploadJob }>;
+  retryWikiJob: (jobId: string) => Promise<{ job: UploadJob }>;
+  cancelWikiJob: (jobId: string) => Promise<{ job: UploadJob }>;
   getWikiSchema: () => Promise<{ categories: WikiCategory[] }>;
   addWikiCategory: (category: string) => Promise<{ categories: WikiCategory[] }>;
   removeWikiCategory: (category: string) => Promise<{ categories: WikiCategory[] }>;
@@ -357,7 +363,7 @@ export interface ElectronAPI {
 
 export interface UploadJob {
   id: string;
-  status: 'pending' | 'parsing' | 'compiling' | 'done' | 'error';
+  status: string;
   fileName: string;
   fileSize: number;
   progress: number;
@@ -374,6 +380,16 @@ export interface UploadJob {
   error?: string;
   createdAt: string;
   updatedAt: string;
+  sourceType?: 'upload' | 'chat';
+  conversationId?: string | null;
+  fileCount?: number;
+  attempts?: number;
+  statusLabel?: string;
+  phase?: 'active' | 'success' | 'error' | 'cancelled';
+  isTerminal?: boolean;
+  isSuccessful?: boolean;
+  canCancel?: boolean;
+  canRetry?: boolean;
 }
 
 export interface WikiFileTreeNode {

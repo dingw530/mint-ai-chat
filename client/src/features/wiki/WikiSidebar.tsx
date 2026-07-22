@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { listWiki, uploadWiki, getJobStatus } from '@/services/api';
+import { listWiki, uploadWiki, getWikiJob, listWikiJobs } from '@/services/api';
 import type { WikiFileTreeNode, UploadJob } from '@/types';
 
 function FileIcon() {
@@ -41,7 +41,7 @@ function CheckIcon() {
   return <span className="wiki-check-icon">✓</span>;
 }
 
-function formatFileSize(bytes: number): string {
+export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
@@ -87,6 +87,19 @@ export default function WikiSidebar({
     loadWikiTree();
   }, [loadWikiTree]);
 
+  const loadJobs = useCallback(async () => {
+    try {
+      const data = await listWikiJobs(undefined, 100);
+      setUploadJobs(data.jobs);
+    } catch (err) {
+      console.error('无法加载 Wiki 摄入任务', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
   useEffect(() => {
     return () => {
       pollingRefs.current.forEach((interval) => clearInterval(interval));
@@ -115,12 +128,12 @@ export default function WikiSidebar({
 
       const interval = setInterval(async () => {
         try {
-          const updated = await getJobStatus(id);
+          const updated = await getWikiJob(id);
           setUploadJobs((prev) => prev.map((j) => (j.id === id ? updated : j)));
-          if (updated.status === 'done' || updated.status === 'error') {
+          if (updated.isTerminal) {
             clearInterval(interval);
             pollingRefs.current.delete(id);
-            if (updated.status === 'done') loadWikiTree();
+            if (updated.isSuccessful) loadWikiTree();
           }
         } catch {
           clearInterval(interval);
@@ -132,6 +145,12 @@ export default function WikiSidebar({
     [loadWikiTree],
   );
 
+  useEffect(() => {
+    uploadJobs
+      .filter((job) => !job.isTerminal)
+      .forEach(startPolling);
+  }, [uploadJobs, startPolling]);
+
   const uploadSingleFile = async (file: File) => {
     const validTypes = ['.html', '.htm', '.txt', '.md', '.pdf'];
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -140,7 +159,6 @@ export default function WikiSidebar({
         ...prev,
         {
           id: '',
-          status: 'error' as const,
           fileName: file.name,
           fileSize: file.size,
           progress: 0,
@@ -148,23 +166,17 @@ export default function WikiSidebar({
           createdAt: '',
           updatedAt: '',
           error: '支持: HTML/TXT/MD/PDF',
+          statusLabel: '上传失败',
+          phase: 'error',
+          isTerminal: true,
+          isSuccessful: false,
         },
       ]);
       return;
     }
     try {
       const jobId = await uploadWiki(file);
-      const now = new Date().toISOString();
-      const job: UploadJob = {
-        id: jobId,
-        status: 'pending',
-        fileName: file.name,
-        fileSize: file.size,
-        progress: 0,
-        step: '等待处理',
-        createdAt: now,
-        updatedAt: now,
-      };
+      const job = await getWikiJob(jobId);
       setUploadJobs((prev) => [...prev, job]);
       startPolling(job);
     } catch (err) {
@@ -172,7 +184,6 @@ export default function WikiSidebar({
         ...prev,
         {
           id: '',
-          status: 'error' as const,
           fileName: file.name,
           fileSize: file.size,
           progress: 0,
@@ -180,6 +191,10 @@ export default function WikiSidebar({
           createdAt: '',
           updatedAt: '',
           error: (err as Error).message || '上传失败',
+          statusLabel: '上传失败',
+          phase: 'error',
+          isTerminal: true,
+          isSuccessful: false,
         },
       ]);
     }
@@ -210,20 +225,20 @@ export default function WikiSidebar({
 
   const clearCompletedJobs = () => {
     setUploadJobs((prev) =>
-      prev.filter(
-        (j) => j.status === 'pending' || j.status === 'parsing' || j.status === 'compiling',
+        prev.filter(
+        (j) => !j.isTerminal,
       ),
     );
   };
 
   const isWikiUploading = uploadJobs.some(
-    (j) => j.status === 'parsing' || j.status === 'compiling',
+    (j) => !j.isTerminal,
   );
 
   const renderUploadJobItem = (job: UploadJob) => {
-    const isError = job.status === 'error';
-    const isDone = job.status === 'done';
-    const isActive = job.status === 'parsing' || job.status === 'compiling';
+    const isError = job.phase === 'error';
+    const isDone = job.phase === 'success';
+    const isActive = !job.isTerminal;
     return (
       <div
         key={job.id || job.fileName + Math.random()}
@@ -244,7 +259,7 @@ export default function WikiSidebar({
           {isActive && <Spinner />}
           {isError && <span className="wiki-job-error-icon">!</span>}
           <span className={`wiki-job-status-text ${isError ? 'error' : ''}`}>
-            {isDone ? '已完成' : isError ? job.error || '失败' : job.step}
+            {isDone ? job.statusLabel : isError ? job.error || job.statusLabel : job.statusLabel || job.step}
           </span>
         </div>
       </div>
@@ -398,7 +413,7 @@ export default function WikiSidebar({
         <div className="wiki-upload-section">
           <div className="wiki-upload-section-header">
             <span>上传（{uploadJobs.length}）</span>
-            {uploadJobs.some((j) => j.status === 'done' || j.status === 'error') && (
+            {uploadJobs.some((j) => j.isTerminal) && (
               <button className="wiki-upload-clear-btn" onClick={clearCompletedJobs}>
                 清除
               </button>

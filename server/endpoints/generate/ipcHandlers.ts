@@ -32,6 +32,7 @@ export function registerIpcHandlers(
   ipcMain: IpcMain,
 ): void {
   for (const desc of descriptors) {
+    if (desc.stream) continue;
     const channel = desc.ipcChannel || desc.id;
 
     // 优先使用 ipcServiceRef（从 services 对象解析），否则直接用 desc.service

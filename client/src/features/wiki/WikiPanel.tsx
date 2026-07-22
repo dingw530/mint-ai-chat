@@ -20,11 +20,11 @@ type WikiDocument = {
   body: string;
 };
 
-function isExternalWikiLink(href: string): boolean {
+export function isExternalWikiLink(href: string): boolean {
   return /^(https?:|mailto:|tel:|\/\/)/i.test(href);
 }
 
-function resolveWikiLinkPath(currentPath: string, href: string): string | null {
+export function resolveWikiLinkPath(currentPath: string, href: string): string | null {
   const trimmedHref = href.trim();
   if (!trimmedHref || trimmedHref.startsWith('#')) return null;
   if (isExternalWikiLink(trimmedHref)) return null;
@@ -76,7 +76,7 @@ function resolveWikiLinkPath(currentPath: string, href: string): string | null {
   return resolvedPath;
 }
 
-function parseWikiDocument(filePath: string, content: string): WikiDocument {
+export function parseWikiDocument(filePath: string, content: string): WikiDocument {
   const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
   const frontmatter: WikiFrontmatter = {};
   let body = content;
