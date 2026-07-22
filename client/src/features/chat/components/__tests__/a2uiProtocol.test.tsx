@@ -72,6 +72,29 @@ describe('official A2UI v0.9 ingestion protocol', () => {
     container.remove();
   });
 
+  it('does not crash while a surface is waiting for its data model', async () => {
+    const processor = createA2uiProcessor(mintCatalog);
+    processor.processMessages([
+      { version: 'v0.9', createSurface: { surfaceId: 'surface-1', catalogId: 'mint' } },
+      {
+        version: 'v0.9',
+        updateComponents: {
+          surfaceId: 'surface-1',
+          components: [{ id: 'root', component: 'IngestionTaskCard', data: { path: '/job' } }],
+        },
+      },
+    ]);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => root.render(<A2uiSurface surface={processor.model.getSurface('surface-1')!} />));
+    expect(container.querySelector('.ingestion-task-card')).toBeNull();
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it('does not create a surface for an unknown catalog', () => {
     const processor = createA2uiProcessor(mintCatalog);
     expect(() => processor.processMessages([{ version: 'v0.9', createSurface: { surfaceId: 'surface-1', catalogId: 'unknown' } }])).toThrow('Catalog not found');
