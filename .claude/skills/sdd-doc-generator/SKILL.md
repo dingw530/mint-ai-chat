@@ -1,12 +1,7 @@
 ---
 name: sdd-doc-generator
 description: 需求开发全流程：需求理解与澄清 → 产品规格/PRD → 设计方案 → 执行计划 → 编码实现 → 实现审计 → 归档
-argument-hint: "[discuss|spec|design|plan|apply|verify|check-doc|archive|pipeline|goal] [主题] [+补充约束]"
-when_to_use: |
-  需求开发全流程管理：需求理解与澄清、撰写产品规格、设计方案、执行计划；编码实现需求；审计代码与文档一致性。
-  触发关键词：PRD、产品规格、设计文档、技术方案、执行计划、实施计划、开始开发、编码实现、实现需求、写代码、审计、归档
 allowed-tools: "Read, Write, Bash"
-user-invocable: true
 ---
 
 # sdd-doc
@@ -66,7 +61,7 @@ user-invocable: true
 
 ### verify — 实现审计
 
-对代码实现进行全面审计。**必须启动隔离 agent**，避免上下文惯性遗漏。审计拆分为两个相互隔离的 agent，各自独立执行后汇总报告。
+对代码实现进行全面审计。优先启动两个相互隔离的审计 agent，避免上下文惯性遗漏；如果当前运行环境没有 agent 调度能力，必须明确标记为“审计能力降级”，不得把主 agent 自检冒充独立审计。
 
 | 检查项 | 严重级别 | 执行者 |
 |--------|---------|--------|
@@ -82,11 +77,46 @@ user-invocable: true
 
 **流程**：
 
-1. **启动 consistency-auditor（文档一致性审计）**：隔离 agent → 读取变更文档 → git diff 定位代码 → 正向追溯（文档→代码逐项检查） → 反向追溯（代码→文档查遗漏） → 输出审计报告
-2. **启动 convention-auditor（代码规范合规检查）**：隔离 agent → 扫描项目约定文件 → 分析代码规范约束 → git diff 定位代码 → 逐条检查合规性 → 输出审计报告
-3. **汇总报告**：合并两份审计报告，短板定级 → 偏差修复后重新审计直至一致
+1. **启动 consistency-auditor（文档一致性审计）**：隔离 agent → 读取变更文档 → 读取验收证据矩阵 → git diff 定位代码 → 正向追溯（文档→代码逐项检查）→ 反向追溯（代码→文档查遗漏）→ 输出审计报告。
+2. **启动 convention-auditor（代码规范合规检查）**：隔离 agent → 扫描项目约定文件 → 分析代码规范约束 → git diff 定位代码 → 逐条检查合规性 → 输出审计报告。
+3. **汇总报告**：合并两份审计报告和验收证据矩阵，按短板定级；任何未验证项都必须保留，不能用“代码存在”替代运行证据。
 
 consistency-auditor 与 convention-auditor 彼此隔离，互不可见，确保各自判断不受对方影响。
+
+### 验收证据矩阵
+
+设计阶段必须为每个 AC、DS、API 和关键 TP 建立验收证据矩阵；矩阵是 apply 和 verify 的共同输入，不属于某个具体技术领域。
+
+| 字段 | 说明 |
+|---|---|
+| 验收 ID | AC/DS/API/TP 标识 |
+| 预期行为 | 可观察、可判定的行为，不写“支持”“正常”等模糊描述 |
+| 实现位置 | 文件、模块、函数或组件 |
+| 验证方式 | `static` / `unit` / `integration` / `e2e` / `runtime` / `manual` |
+| 证据 | 测试名称、命令输出、运行日志、截图或可复现步骤 |
+| 状态 | 待验证 / PASS / FAIL / 未覆盖 |
+
+强制规则：
+
+- 每个验收标准至少有一行矩阵记录；设计中声明的关键行为没有矩阵记录属于设计缺口。
+- 代码搜索、类型检查和文件存在只能作为 `static` 证据，不能单独证明跨模块功能完成。
+- 跨模块、用户可见或依赖外部进程的行为，至少需要 `integration`、`e2e` 或 `runtime` 证据。
+- 每个 PASS 必须绑定具体证据；缺证据只能标记为“未验证”。
+- 存在 FAIL 或未验证项时，阶段不能标记完成；若无法执行所需验证，应记录阻塞或“审计能力降级”。
+- 代码中存在但文档没有的行为进入 scope 偏差记录；文档声明但代码没有的行为进入缺口记录。
+
+### 审计结论等级
+
+| 等级 | 含义 |
+|---|---|
+| L0 | 仅有设计声明 |
+| L1 | 已有代码实现痕迹 |
+| L2 | 局部单元测试通过 |
+| L3 | 集成/端到端链路通过 |
+| L4 | 独立一致性与规范审计通过 |
+| L5 | 真实目标环境运行验证通过 |
+
+verify 的结论必须同时报告功能等级和审计状态；不能因为达到 L2 就宣称完整交付。
 
 ### 审计后回写
 
@@ -177,10 +207,10 @@ Goal 模式根据运行环境自动选用驱动机制：Claude Code 使用 `/goa
 
 **Phase 2 — 启动 Goal**（平台相关）：需求澄清完成后：
 
-| 环境 | 启动命令 | 预算 |
-|------|---------|------|
-| Claude Code | agent 输出 `/goal {stage} for {主题} according to /sdd-doc-generator rules. Stop when criteria met or ~{N} turns.`，用户回车 | spec/design/plan/check-doc → 15 turns; apply/verify → 30; pipeline → 50 |
-| Codex | agent 执行 `create_goal(objective: "{stage}: {主题}，完成条件: {完成标准}", token_budget: N)` | spec/design/plan/check-doc → 30k tokens; apply/verify → 60k; pipeline → 100k |
+| 环境 | 启动命令 |
+|------|---------|
+| Claude Code | agent 输出 `/goal {stage} for {主题} according to /sdd-doc-generator rules. Stop when criteria met or ~{N} turns.`，用户回车 |
+| Codex | agent 执行 `create_goal(objective: "{stage}: {主题}，完成条件: {完成标准}")` |
 
 **Phase 3 — 自主循环**：启动后每轮自动决定下一步并按以下规则运行：
 
@@ -201,7 +231,7 @@ Blockers: {阻塞项（若无则填"无"）}
 {下一步操作 / 已完成}
 ```
 
-**完成条件判定**：Claude Code 由 Haiku 评估器读 `=== Progress ===` 判定完成；Codex 由 agent 自检 `=== Criteria Check ===` 全部 PASS 后执行 `update_goal(complete)`。
+**完成条件判定**：Claude Code 由 Haiku 评估器读 `=== Progress ===` 判定完成；Codex 由 agent 自检 `=== Criteria Check ===` 全部 PASS 后执行 `update_goal(complete)`。如果验收矩阵存在 FAIL、未验证项或审计能力降级，不得执行 `update_goal(complete)`。
 
 **失败处理**：同一操作失败 2 次则换策略并记录原因；连续 3 次失败或检测到死循环（连续 3 轮相同尝试）时输出 `=== BLOCKER ===`（Claude Code 评估器标记失败，Codex 执行 `update_goal(blocked)`）。进度在每完成一个 TP 或阶段后立即写回文件。
 
@@ -212,10 +242,10 @@ Blockers: {阻塞项（若无则填"无"）}
 | 阶段 | 完成条件 |
 |------|---------|
 | spec | product-spec.md 创建，必填章节齐全，quality gate 自检 5 维度 PASS，关键字段无"待确认"残留 |
-| design | design-doc.md 创建，≥2 方案对比 + 决策记录，所有 DS ID 关联到 spec ID |
-| plan | exec-plan.md 创建，追溯总览完整，所有 TP 初始化状态为"待启动" |
-| apply | 全部 TP 标记"已完成"，执行记录完整，self-check 通过 |
-| verify | consistency + convention 双报告生成，合并定级，grade < B 时已修复 |
+| design | design-doc.md 创建，≥2 方案对比 + 决策记录，所有 DS ID 关联到 spec ID，验收证据矩阵已建立 |
+| plan | exec-plan.md 创建，追溯总览完整，所有 TP 初始化状态为"待启动"，验收证据矩阵已继承并初始化 |
+| apply | 全部 TP 标记"已完成"，执行记录完整，验收证据矩阵已建立并逐项更新，self-check 通过 |
+| verify | consistency + convention 双报告生成（或明确记录审计能力降级），矩阵无 FAIL/未验证项，合并定级，grade < B 时已修复 |
 | pipeline | 以上依次通过，archive 完成，任一阶段连续失败 3 次则终止/标记 blocked |
 
 ## 追溯链约定（Traceability）
@@ -287,7 +317,7 @@ design-doc 需在需求追溯表中注明覆盖情况（完全/部分/下一版�
 
 **适用场景**：技术方案设计、架构调整、关键决策评审
 **核心问题**：有哪些可行方案？优劣？选哪个？为什么？
-**必含章节**：背景与目标、约束与前提、方案选项（≥2）、方案对比、最终决策、详细设计、影响与风险、发布与验证
+**必含章节**：背景与目标、约束与前提、方案选项（≥2）、方案对比、最终决策、详细设计、影响与风险、发布与验证、验收证据矩阵
 **要求**：强调方案取舍；对现有系统改动须写清兼容性、发布与回滚。
 **AI 工具设计补充要求**（当方案涉及 AI 工具/Agent 能力时强制启用）：
 - **检测策略定义**：检查/判断类功能点必须写清检测方法、判断标准、误报/漏报边界。不止"检查X"，还要写"怎么检查"
@@ -301,10 +331,11 @@ design-doc 需在需求追溯表中注明覆盖情况（完全/部分/下一版�
 ### exec-plan — 定义"如何落地"
 **适用场景**：开发排期、任务拆解、执行协同
 **核心问题**：分哪些阶段？每阶段做什么？谁能验收？怎么跟踪？
-**必含章节**：目标与完成定义、背景与范围、前置条件、分阶段步骤、风险与依赖、验证与验收
+**必含章节**：目标与完成定义、背景与范围、前置条件、分阶段步骤、风险与依赖、验证与验收、验收证据矩阵
 **要求**：步骤可执行可跟踪可验收；优先按阶段组织，避免松散 todo 列表。
 **执行补充要求**：
 - **文档一致性比对**：起草 exec-plan 时与 design-doc 逐项比对，确保对同一功能的描述不矛盾
+- **矩阵初始化**：从 design-doc 继承验收证据矩阵，所有条目初始化为“待验证”，不得等到 verify 阶段才补写
 - **细节反哺**：exec-plan 中新增的约束细节（如"文件名+内容匹配"）反哺到 design-doc 中更新
 - **共享模块优先**：共享基础设施模块（如文件存在性检查）先于依赖它的工具实现
 - **补丁计数器阈值**：为复杂模块标注补丁阈值（如 3 次）。达到阈值时触发架构重评估而非继续打补丁
@@ -554,4 +585,3 @@ docs/changes/YYYY-MM-DD-{主题}/
 9. **LLM 引导策略是设计不是补丁** — prompt 层规则 + 系统层拦截必须在设计阶段规划，不在实现阶段补
 
 ---
-
