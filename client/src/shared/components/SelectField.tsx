@@ -16,7 +16,7 @@ interface SelectFieldProps {
   id?: string;
 }
 
-function toOption(o: string | SelectOption): SelectOption {
+export function toOption(o: string | SelectOption): SelectOption {
   return typeof o === 'string' ? { value: o, label: o } : o;
 }
 
