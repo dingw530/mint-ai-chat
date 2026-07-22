@@ -69,6 +69,8 @@ function createSchema(): void {
       command TEXT NOT NULL,
       args TEXT NOT NULL DEFAULT '[]',
       env TEXT NOT NULL DEFAULT '{}',
+      url TEXT,
+      headers TEXT NOT NULL DEFAULT '{}',
       status TEXT NOT NULL DEFAULT 'inactive',
       error_message TEXT,
       created_at TEXT NOT NULL,

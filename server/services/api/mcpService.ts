@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { ChildProcess} from 'child_process';
 import { spawn, execSync } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
@@ -91,8 +92,8 @@ function getShellPath(): string {
 
 interface ConnectedServer {
   client: Client;
-  transport: StdioClientTransport;
-  process: ChildProcess;
+  transport: StdioClientTransport | StreamableHTTPClientTransport;
+  process?: ChildProcess;
   name: string;
 }
 
@@ -110,7 +111,7 @@ class McpService {
     log.info(`Found ${servers.length} MCP server config(s)`);
 
     for (const server of servers) {
-      log.info(`Connecting to "${server.name}": command="${server.command}", args=[${server.args.join(', ')}]`);
+      log.info(`Connecting to "${server.name}": ${server.url ? `url="${server.url}"` : `command="${server.command}"`}`);
       try {
         await this.connectServer(server);
         log.info(`"${server.name}" connected successfully`);
@@ -132,9 +133,44 @@ class McpService {
     command: string;
     args: string[];
     env: Record<string, string>;
+    url?: string | null;
+    headers?: Record<string, string>;
   }): Promise<void> {
     log.info(`[${config.name}] Connecting...`);
-    log.debug(`[${config.name}] Raw config: command="${config.command}", args=[${config.args.join(', ')}], env keys=[${Object.keys(config.env || {}).join(', ')}]`);
+    log.debug(`[${config.name}] Raw config: ${config.url ? `url="${config.url}"` : `command="${config.command}", args=[${config.args.join(', ')}]`}, env keys=[${Object.keys(config.env || {}).join(', ')}], header keys=[${Object.keys(config.headers || {}).join(', ')}]`);
+
+    if (config.url) {
+      let url: URL;
+      try { url = new URL(config.url); } catch { throw new Error(`Invalid MCP URL: ${config.url}`); }
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new Error(`MCP URL must use http or https: ${config.url}`);
+      }
+
+      const transport = new StreamableHTTPClientTransport(url, {
+        requestInit: { headers: config.headers || {} },
+      });
+      const client = new Client(
+        { name: 'ai-chat-client', version: '1.0.0' },
+        { capabilities: {} },
+      );
+      mcpServerRepo.update(config.id, { status: 'connecting', errorMessage: null });
+      try {
+        await client.connect(transport);
+      } catch (err) {
+        await transport.close().catch(() => undefined);
+        throw err;
+      }
+      const connectedServer: ConnectedServer = { client, transport, name: config.name };
+      this.connections.set(config.name, connectedServer);
+      await this.cacheTools(config, connectedServer);
+      mcpServerRepo.update(config.id, { status: 'connected', errorMessage: null });
+      transport.onerror = (err) => log.error(`[${config.name}] transport error: ${err.message}`);
+      transport.onclose = () => {
+        this.connections.delete(config.name);
+        this.toolsCache.delete(config.name);
+      };
+      return;
+    }
 
     // 解密环境变量
     const decryptedEnv: Record<string, string> = {};
@@ -229,6 +265,7 @@ class McpService {
       log.error(`[${config.name}] No child process after connect!`);
       throw new Error('MCP server process not available after connection');
     }
+    const stdioProcess = childProc;
 
     log.info(`[${config.name}] Process spawned: pid=${childProc.pid}, channel=${childProc.channel}, connected=${childProc.connected}`);
 
@@ -237,19 +274,7 @@ class McpService {
     };
     this.connections.set(config.name, connectedServer);
 
-    // 收集工具
-    try {
-      const result = await connectedServer.client.listTools();
-      log.info(`[${config.name}] listTools returned ${result.tools.length} tool(s)`);
-      this.toolsCache.set(config.name, result.tools.map((t: any) => ({
-        name: t.name,
-        description: t.description || '',
-        inputSchema: t.inputSchema,
-      })));
-    } catch (err) {
-      log.error(`[${config.name}] listTools failed: ${(err as Error).message}`);
-      this.toolsCache.set(config.name, []);
-    }
+    await this.cacheTools(config, connectedServer);
 
     mcpServerRepo.update(config.id, { status: 'connected', errorMessage: null });
 
@@ -263,7 +288,7 @@ class McpService {
     }, 1000);
 
     // 进程退出监听
-    connectedServer.process.on('exit', (code, signal) => {
+    stdioProcess.on('exit', (code, signal) => {
       log.info(`[${config.name}] Process exited: code=${code}, signal=${signal}`);
       this.connections.delete(config.name);
       const dbServer = mcpServerRepo.findByName(config.name);
@@ -276,10 +301,31 @@ class McpService {
     });
 
     // 收集 stderr
-    connectedServer.process.stderr?.on('data', (data: Buffer) => {
+    stdioProcess.stderr?.on('data', (data: Buffer) => {
       const text = data.toString().trim();
       if (text) log.warn(`[${config.name}] stderr: ${text}`);
     });
+  }
+
+  /**
+   * Discovers and caches tools exposed by a connected MCP server.
+   * @param config MCP server configuration.
+   * @param connectedServer Connected client and transport.
+   * @returns A promise resolved after tool discovery completes.
+   */
+  private async cacheTools(config: { name: string }, connectedServer: ConnectedServer): Promise<void> {
+    try {
+      const result = await connectedServer.client.listTools();
+      log.info(`[${config.name}] listTools returned ${result.tools.length} tool(s)`);
+      this.toolsCache.set(config.name, result.tools.map((t: any) => ({
+        name: t.name,
+        description: t.description || '',
+        inputSchema: t.inputSchema,
+      })));
+    } catch (err) {
+      log.error(`[${config.name}] listTools failed: ${(err as Error).message}`);
+      this.toolsCache.set(config.name, []);
+    }
   }
 
   async disconnectServer(serverName: string): Promise<void> {
@@ -294,11 +340,12 @@ class McpService {
       log.error(`Error closing "${serverName}": ${(err as Error).message}`);
     }
 
-    if (conn.process && !conn.process.killed) {
-      conn.process.kill('SIGTERM');
+    const process = conn.process;
+    if (process && !process.killed) {
+      process.kill('SIGTERM');
       setTimeout(() => {
-        if (!conn.process.killed) {
-          conn.process.kill('SIGKILL');
+        if (!process.killed) {
+          process.kill('SIGKILL');
         }
       }, 3000);
     }

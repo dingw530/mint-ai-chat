@@ -22,15 +22,17 @@ function getMcpServer(id: string) {
 }
 
 async function createMcpServer(data: Record<string, unknown>) {
-  const { name, command, args, env } = data;
-  if (!name || !command) throw httpError(400, 'name and command are required');
+  const { name, command, args, env, url, headers } = data;
+  validateConfig(name, command, url);
   const id = uuidv4();
   const server = mcpServerRepo.create({
     id,
     name: name as string,
-    command: command as string,
+    command: (command as string) || '',
     args: (args as string[]) || [],
     env: (env as Record<string, string>) || {},
+    url: (url as string) || null,
+    headers: (headers as Record<string, string>) || {},
   });
   try { await mcpService.connectServer(server); } catch {}
   return { server };
@@ -40,14 +42,38 @@ async function updateMcpServer(id: string, data: Record<string, unknown>) {
   const existing = mcpServerRepo.findById(id);
   if (!existing) throw httpError(404, 'MCP Server not found');
   const fields: Record<string, any> = {};
-  for (const key of ['name', 'command', 'args', 'env']) {
+  for (const key of ['name', 'command', 'args', 'env', 'url', 'headers']) {
     if (data[key] !== undefined) fields[key] = data[key];
   }
+  const nextCommand = fields.command !== undefined ? fields.command : existing.command;
+  const nextUrl = fields.url !== undefined ? fields.url : existing.url;
+  validateConfig(fields.name || existing.name, nextCommand, nextUrl);
   await mcpService.disconnectServer(existing.name);
   const updated = mcpServerRepo.update(id, fields);
   if (!updated) throw httpError(404, 'MCP Server not found');
   try { await mcpService.connectServer(updated); } catch {}
   return { server: updated };
+}
+
+/**
+ * Validates the mutually exclusive stdio and URL MCP configuration shapes.
+ * @param name Configured server name.
+ * @param command Local stdio command, when provided.
+ * @param url Remote MCP URL, when provided.
+ * @returns Nothing when the configuration is valid.
+ */
+function validateConfig(name: unknown, command: unknown, url: unknown): void {
+  if (!name) throw httpError(400, 'name is required');
+  if (!command && !url) throw httpError(400, 'command or url is required');
+  if (command && url) throw httpError(400, 'command and url are mutually exclusive');
+  if (url) {
+    try {
+      const parsed = new URL(url as string);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+    } catch {
+      throw httpError(400, 'url must be a valid http(s) URL');
+    }
+  }
 }
 
 async function deleteMcpServer(id: string) {

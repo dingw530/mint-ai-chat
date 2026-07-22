@@ -64,10 +64,21 @@ describe('toolRegistry', () => {
 
   describe('getAllToolDefinitions', () => {
     it('returns global tools for general agent', async () => {
+      vi.mocked(mcpService.getTools).mockResolvedValue([
+        {
+          type: 'function',
+          function: {
+            name: 'remote__search',
+            description: 'Search remotely',
+            parameters: {},
+          },
+        },
+      ]);
       const tools = await getAllToolDefinitions('general');
       expect(tools.length).toBeGreaterThan(0);
       const names = tools.map(t => t.function.name);
       expect(names).toContain('http_fetch');
+      expect(names).toContain('remote__search');
       expect(names).not.toContain('get_weather_forecast');
     });
 

@@ -14,8 +14,10 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
     if (def) tools.push(def);
   }
 
-  // general 助手仅使用全局工具
-  if (!agentId || agentId === 'general') return tools;
+  // 默认 Agent 自动使用所有已连接的 MCP 工具，避免用户必须先创建自定义 Agent 才能使用 MCP。
+  if (!agentId || agentId === 'general') {
+    return appendMcpTools(tools);
+  }
 
   // weather Agent：追加天气工具
   if (agentId === 'weather') {
@@ -29,17 +31,26 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
   if (!agent || !agent.available) return tools;
 
   // 加载 Agent 绑定的 MCP Server 的全部工具
-  const boundServerIds: string[] = agent.mcpServerIds || [];
-  if (boundServerIds.length > 0) {
-    const allMcpTools = await mcpService.getTools();
-    for (const mcpTool of allMcpTools) {
-      const serverName = mcpTool.function.name.split('__')[0];
-      if (boundServerIds.includes(serverName)) {
-        tools.push(mcpTool);
-      }
+  return appendMcpTools(tools, agent.mcpServerIds || []);
+}
+
+/**
+ * Appends connected MCP tools, optionally restricting them to server names.
+ * @param tools Existing tool definitions to extend.
+ * @param serverIds Optional MCP server name allowlist.
+ * @returns The extended tool definitions.
+ */
+async function appendMcpTools(
+  tools: ToolDefinition[],
+  serverIds?: string[],
+): Promise<ToolDefinition[]> {
+  const allMcpTools = await mcpService.getTools();
+  for (const mcpTool of allMcpTools) {
+    const serverName = mcpTool.function.name.split('__')[0];
+    if (!serverIds || serverIds.includes(serverName)) {
+      tools.push(mcpTool);
     }
   }
-
   return tools;
 }
 

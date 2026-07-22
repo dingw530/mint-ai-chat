@@ -333,6 +333,14 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 17,
+    name: 'add-url-transport-to-mcp-servers',
+    up: (db) => {
+      db.exec('ALTER TABLE mcp_servers ADD COLUMN url TEXT');
+      db.exec("ALTER TABLE mcp_servers ADD COLUMN headers TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

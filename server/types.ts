@@ -157,6 +157,8 @@ export interface McpServerRow {
   command: string;
   args: string;       // JSON array
   env: string;         // JSON object
+  url: string | null;
+  headers: string;     // JSON object
   status: string;
   error_message: string | null;
   created_at: string;
@@ -169,6 +171,8 @@ export interface McpServer {
   command: string;
   args: string[];
   env: Record<string, string>;
+  url: string | null;
+  headers: Record<string, string>;
   status: string;
   errorMessage: string | null;
   createdAt: string;

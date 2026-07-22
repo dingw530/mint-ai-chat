@@ -61,6 +61,8 @@ export interface McpServer {
   command: string;
   args: string[];
   env: Record<string, string>;
+  url?: string | null;
+  headers?: Record<string, string>;
   status?: string;
   errorMessage: string | null;
   createdAt: string;

@@ -16,6 +16,12 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
   })),
 }));
 
+vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
+  StreamableHTTPClientTransport: vi.fn().mockImplementation(() => ({
+    close: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 vi.mock('child_process', () => ({
   spawn: vi.fn(() => ({
     on: vi.fn(),
@@ -46,6 +52,7 @@ vi.mock('../../utils/encryption.js', () => ({
 }));
 
 import { mcpService } from '../mcpService.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 describe('mcpService', () => {
   beforeEach(() => {
@@ -75,5 +82,24 @@ describe('mcpService', () => {
 
   it('restartServer throws for non-existent server', async () => {
     await expect(mcpService.restartServer('nonexistent')).rejects.toThrow('not found');
+  });
+
+  it('connects URL servers with headers through streamable HTTP', async () => {
+    await mcpService.connectServer({
+      id: 'remote-id',
+      name: 'remote',
+      command: '',
+      args: [],
+      env: {},
+      url: 'https://example.com/mcp',
+      headers: { 'x-user-token': 'token' },
+    });
+
+    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
+      new URL('https://example.com/mcp'),
+      { requestInit: { headers: { 'x-user-token': 'token' } } },
+    );
+    expect(mcpService.getStatus('remote').connected).toBe(true);
+    await mcpService.shutdown();
   });
 });
