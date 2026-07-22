@@ -276,6 +276,9 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                 </>
               )}
               {msg.role === 'assistant' && msg.imageData && renderImageContent(msg.imageData)}
+              {msg.role === 'assistant' && msg.estimatedTokens != null && !isStreaming && (
+                <div className="message-token-usage">本轮约 {msg.estimatedTokens.toLocaleString()} tokens</div>
+              )}
               {isStreaming && <span className="cursor" />}
               {msg.role === 'assistant' && !isStreaming && onRegenerate && messages.indexOf(msg) === messages.length - 1 && (
                 <button

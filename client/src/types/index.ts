@@ -20,6 +20,7 @@ export interface Message {
   createdAt: string;
   _tempId?: string;
   segments?: ContentSegment[];
+  estimatedTokens?: number;
 }
 
 export interface WikiCategory {
@@ -222,6 +223,7 @@ export interface SendCallbacks {
   onRunStarted?: (data: Record<string, unknown>) => void;
   onRunCompleted?: (data: Record<string, unknown>) => void;
   onRunCancelled?: (data: Record<string, unknown>) => void;
+  onTokenUsage?: (data: Record<string, unknown>) => void;
 }
 
 export interface SendOptions {

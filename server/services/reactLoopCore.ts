@@ -7,6 +7,7 @@ import { trimContext } from './utils/contextWindow.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ReactEventEmitter } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
+import { estimateMessagesTokens } from './utils/tokenEstimator.js';
 
 // ── 编辑距离相似度（用于循环检测） ──
 function levenshteinSimilarity(a: string, b: string): number {
@@ -143,6 +144,10 @@ export async function reactChat(
         state: 'completed',
         content: finalContent,
         reasoning: finalReasoning,
+        estimatedTokens: estimateMessagesTokens([
+          ...currentMessages,
+          { role: 'assistant', content: finalContent, reasoning: finalReasoning },
+        ]),
       });
       break;
     }

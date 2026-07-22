@@ -141,9 +141,13 @@ export function parseSSEChunk(
         return;
       case 'run_completed':
         callbacks.onRunCompleted?.(data);
+        if (data.estimatedTokens != null) callbacks.onTokenUsage?.(data);
         return;
       case 'run_cancelled':
         callbacks.onRunCancelled?.(data);
+        return;
+      case 'token_usage':
+        callbacks.onTokenUsage?.(data);
         return;
       case 'run_failed':
         callbacks.onError?.(new Error(String(data.error || 'ReAct run failed')));

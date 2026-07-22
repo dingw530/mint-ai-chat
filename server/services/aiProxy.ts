@@ -5,6 +5,7 @@ import { getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
+import { estimateMessagesTokens } from './utils/tokenEstimator.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -12,6 +13,22 @@ import './adapters/anthropicAdapter.js';
 import './adapters/openaiResponsesAdapter.js';
 
 const log = createLogger('ai-proxy');
+
+/**
+ * 将本轮对话的 token 估算结果发送给客户端。
+ * @param sink 流输出目标
+ * @param messages 本轮发送给模型的上下文
+ * @param result 本轮模型回复
+ */
+function writeTokenUsage(sink: Sink, messages: HistoryMessage[], result: StreamResult): void {
+  sink.write(JSON.stringify({
+    type: 'token_usage',
+    estimatedTokens: estimateMessagesTokens([
+      ...messages,
+      { role: 'assistant', content: result.content, reasoning: result.reasoning },
+    ]),
+  }));
+}
 
 function getApiAdapter(settings: AiSettings): ApiAdapter {
   const adapter = getAdapter(settings.apiType || 'openai-chat');
@@ -90,6 +107,7 @@ export async function streamChat(
     const response = await streamFromAPI(url, headers, body, 'streamChat-fast');
     try {
       const result = await readStream(response, adapter, sink);
+      writeTokenUsage(sink, messages, result);
       if (!sink.writableEnded) {
         sink.end();
       }
@@ -123,6 +141,7 @@ export async function streamChat(
     if (result.reasoning) {
       sink.write(JSON.stringify({ reasoning: result.reasoning }));
     }
+    writeTokenUsage(sink, messages, result);
     sink.end();
     return { content: result.content, reasoning: result.reasoning, toolCalls: null };
   }
@@ -152,6 +171,7 @@ export async function streamChat(
     return { content: '', reasoning: '', toolCalls: null };
   }
 
+  writeTokenUsage(sink, secondMessages, secondResult);
   sink.end();
   return { content: secondResult.content, reasoning: secondResult.reasoning, toolCalls: null };
 }

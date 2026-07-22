@@ -256,6 +256,15 @@ export default function ChatArea({
           onRunCancelled: (data) => {
             dispatchReactEvent({ type: 'run_cancelled', ...data });
           },
+          onTokenUsage: (data) => {
+            const estimatedTokens = Number(data.estimatedTokens);
+            if (!Number.isFinite(estimatedTokens)) return;
+            setMessages((prev) => prev.map((message) =>
+              (message as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId
+                ? { ...message, estimatedTokens }
+                : message,
+            ));
+          },
           onChunk: (chunk: string) => {
             streamBufferRef.current.content += chunk;
             scheduleFlush();
@@ -566,6 +575,15 @@ export default function ChatArea({
         },
         onRunCancelled: (data) => {
           dispatchReactEvent({ type: 'run_cancelled', ...data });
+        },
+        onTokenUsage: (data) => {
+          const estimatedTokens = Number(data.estimatedTokens);
+          if (!Number.isFinite(estimatedTokens)) return;
+          setMessages((prev) => prev.map((message) =>
+            (message as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId
+              ? { ...message, estimatedTokens }
+              : message,
+          ));
         },
         onChunk: (chunk: string) => {
           streamBufferRef.current.content += chunk;

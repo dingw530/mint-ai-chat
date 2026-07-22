@@ -793,6 +793,12 @@ body::after {
   box-shadow: 0 0 0 1px var(--accent-border), 0 0 16px var(--accent-glow);
 }
 
+.message-token-usage {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 .message-label {
   font-size: 12px;
   font-weight: 600;

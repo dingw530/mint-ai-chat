@@ -24,17 +24,19 @@ describe('API base helpers', () => {
   });
 
   it('dispatches SSE event types and tracks thought text', () => {
-    const callbacks = { onThought: vi.fn(), onAnswerReady: vi.fn(), onToolCallStart: vi.fn(), onChunk: vi.fn(), onRouting: vi.fn() };
+    const callbacks = { onThought: vi.fn(), onAnswerReady: vi.fn(), onToolCallStart: vi.fn(), onChunk: vi.fn(), onRouting: vi.fn(), onTokenUsage: vi.fn() };
     const lastThought = { value: '' };
     parseSSEChunk({ type: 'thought', content: 'thinking' }, callbacks, lastThought);
     parseSSEChunk({ type: 'tool_call_start', callId: 'call-1' }, callbacks, lastThought);
     parseSSEChunk({ type: 'answer', content: 'answer' }, callbacks, lastThought);
     parseSSEChunk({ type: 'agent', agent: 'weather' }, callbacks, lastThought);
     parseSSEChunk({ type: 'answer_ready' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'token_usage', estimatedTokens: 42 }, callbacks, lastThought);
     expect(callbacks.onThought).toHaveBeenCalledWith('thinking');
     expect(callbacks.onToolCallStart).toHaveBeenCalled();
     expect(callbacks.onChunk).toHaveBeenCalledWith('answer');
     expect(callbacks.onRouting).toHaveBeenCalledWith('weather');
     expect(callbacks.onAnswerReady).not.toHaveBeenCalled();
+    expect(callbacks.onTokenUsage).toHaveBeenCalledWith({ type: 'token_usage', estimatedTokens: 42 });
   });
 });
