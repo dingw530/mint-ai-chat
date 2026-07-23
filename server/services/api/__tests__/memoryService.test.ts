@@ -5,6 +5,10 @@ vi.mock('../../../repositories/memoryRepository.js', () => ({
   create: vi.fn(),
   findByContent: vi.fn(),
   findByCategory: vi.fn(),
+  findActiveProfile: vi.fn(),
+  search: vi.fn(),
+  findActiveByKey: vi.fn(),
+  supersede: vi.fn(),
   update: vi.fn(),
   deleteById: vi.fn(),
 }));
@@ -135,6 +139,24 @@ describe('memoryService', () => {
     it('returns empty for no matches', () => {
       expect(memoryService.extractMemoriesFromResponse('abc')).toEqual([]);
       expect(memoryService.extractMemoriesFromResponse('')).toEqual([]);
+    });
+  });
+
+  describe('structured memory operations', () => {
+    it('parses JSON operations', () => {
+      expect(memoryService.extractMemoryOperations('{"operations":[{"action":"ADD","memoryKey":"personal.name","content":"用户叫张三"}]}')).toHaveLength(1);
+      expect(memoryService.extractMemoryOperations('not json')).toEqual([]);
+    });
+
+    it('creates an updated fact and supersedes the active version', () => {
+      vi.mocked(memoryRepo.findActiveByKey).mockReturnValue([SAMPLE_MEMORIES[0]]);
+      vi.mocked(memoryRepo.create).mockReturnValue({ ...SAMPLE_MEMORIES[0], content: '用户住在上海' });
+      const result = memoryService.applyMemoryOperations([
+        { action: 'UPDATE', memoryKey: 'personal.location', subject: 'user', content: '用户住在上海' },
+      ], 'c2');
+      expect(memoryRepo.create).toHaveBeenCalledWith(expect.objectContaining({ memoryKey: 'personal.location' }));
+      expect(memoryRepo.supersede).toHaveBeenCalledWith('1', expect.any(String));
+      expect(result).toHaveLength(1);
     });
   });
 

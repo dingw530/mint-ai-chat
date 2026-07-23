@@ -341,6 +341,54 @@ const migrations: Migration[] = [
       db.exec("ALTER TABLE mcp_servers ADD COLUMN headers TEXT NOT NULL DEFAULT '{}'");
     },
   },
+  {
+    id: 18,
+    name: 'add-structured-memory-fields',
+    up: (db) => {
+      const columns = [
+        ["memory_key", "TEXT NOT NULL DEFAULT 'general'"],
+        ['value_json', 'TEXT'],
+        ["memory_type", "TEXT NOT NULL DEFAULT 'semantic'"],
+        ["subject", "TEXT NOT NULL DEFAULT 'user'"],
+        ['relationship', 'TEXT'],
+        ['confidence', 'REAL NOT NULL DEFAULT 0.5'],
+        ['importance', 'REAL NOT NULL DEFAULT 0.5'],
+        ['valid_from', 'TEXT'],
+        ['valid_to', 'TEXT'],
+        ["status", "TEXT NOT NULL DEFAULT 'active'"],
+        ['supersedes_id', 'TEXT'],
+        ['source_message_id', 'TEXT'],
+        ['last_accessed_at', 'TEXT'],
+        ['access_count', 'INTEGER NOT NULL DEFAULT 0'],
+      ];
+      for (const [name, definition] of columns) {
+        try {
+          db.exec(`ALTER TABLE memories ADD COLUMN ${name} ${definition}`);
+        } catch (error: any) {
+          if (!String(error?.message || error).includes('duplicate column')) throw error;
+        }
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_memories_active_key_subject
+          ON memories(status, memory_key, subject, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_memories_category_status
+          ON memories(category, status, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS memory_processing_jobs (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          available_at TEXT NOT NULL,
+          locked_at TEXT,
+          error_message TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_jobs_status_available
+          ON memory_processing_jobs(status, available_at);
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

@@ -3,6 +3,7 @@ import * as conversationRepo from '../repositories/conversationRepository.js';
 import * as messageRepo from '../repositories/messageRepository.js';
 import * as settingsService from './api/settingsService.js';
 import * as memoryService from './api/memoryService.js';
+import { enqueueMemoryProcessing } from './api/memoryJobService.js';
 import * as agentService from './api/agentService.js';
 import { routingService } from './api/routingService.js';
 import { streamChat } from './aiProxy.js';
@@ -147,7 +148,7 @@ export async function sendMessage(conversationId: string, content: string, sink:
 
   let memoryContext = '';
   if (settings.memoryEnabled) {
-    memoryContext = memoryService.buildMemoryContext();
+    memoryContext = memoryService.buildMemoryContext(content);
   }
 
   if (settings.wikiPath) {
@@ -235,8 +236,7 @@ export async function sendMessage(conversationId: string, content: string, sink:
       // 异步提取记忆（v1.5.1 增加价值判断预检查）
       if (settings.memoryEnabled) {
         if (memoryService.isConversationValuable(content)) {
-          memoryService.performExtraction(settings, content, fullContent, conversationId)
-            .catch(err => console.error('[memory] Extraction failed:', err));
+          enqueueMemoryProcessing(conversationId);
         }
       }
     }

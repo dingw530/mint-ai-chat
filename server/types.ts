@@ -223,15 +223,47 @@ export interface MemoryRow {
   id: string;
   content: string;
   category: string;
+  memory_key: string;
+  value_json: string | null;
+  memory_type: string;
+  subject: string;
+  relationship: string | null;
+  confidence: number;
+  importance: number;
+  valid_from: string | null;
+  valid_to: string | null;
+  status: string;
+  supersedes_id: string | null;
+  source_message_id: string | null;
+  last_accessed_at: string | null;
+  access_count: number;
   source_conversation_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
+export type MemoryStatus = 'active' | 'superseded' | 'deleted';
+export type MemoryType = 'semantic' | 'episodic' | 'procedural';
+export type MemoryOperationAction = 'ADD' | 'UPDATE' | 'NOOP' | 'DELETE';
+
 export interface Memory {
   id: string;
   content: string;
   category: string;
+  memoryKey: string;
+  value: unknown;
+  memoryType: MemoryType | string;
+  subject: string;
+  relationship: string | null;
+  confidence: number;
+  importance: number;
+  validFrom: string | null;
+  validTo: string | null;
+  status: MemoryStatus | string;
+  supersedesId: string | null;
+  sourceMessageId: string | null;
+  lastAccessedAt: string | null;
+  accessCount: number;
   sourceConversationId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -241,12 +273,36 @@ export interface CreateMemoryParams {
   id: string;
   content: string;
   category?: string;
+  memoryKey?: string;
+  value?: unknown;
+  memoryType?: MemoryType | string;
+  subject?: string;
+  relationship?: string | null;
+  confidence?: number;
+  importance?: number;
+  validFrom?: string | null;
+  validTo?: string | null;
+  status?: MemoryStatus | string;
+  supersedesId?: string | null;
+  sourceMessageId?: string | null;
   sourceConversationId?: string | null;
 }
 
 export interface UpdateMemoryParams {
   content?: string;
   category?: string;
+  memoryKey?: string;
+  value?: unknown;
+  memoryType?: MemoryType | string;
+  subject?: string;
+  relationship?: string | null;
+  confidence?: number;
+  importance?: number;
+  validFrom?: string | null;
+  validTo?: string | null;
+  status?: MemoryStatus | string;
+  supersedesId?: string | null;
+  sourceMessageId?: string | null;
 }
 
 // ── 带 HTTP 状态码的错误 ──
