@@ -11,6 +11,22 @@ import { decrypt } from '../utils/encryption.js';
 import type { ToolDefinition } from '../../types.js';
 import { log } from '../utils/logger.js';
 
+/**
+ * Formats an error's underlying cause without exposing sensitive configuration values.
+ * @param error The unknown value caught during an MCP operation.
+ * @returns A readable cause string, or undefined when no cause is available.
+ */
+function formatErrorCause(error: unknown): string | undefined {
+  const cause = (error as { cause?: unknown } | null)?.cause;
+  if (cause === undefined || cause === null) return undefined;
+  if (cause instanceof Error) return `${cause.name}: ${cause.message}`;
+  try {
+    return JSON.stringify(cause);
+  } catch {
+    return String(cause);
+  }
+}
+
 // macOS GUI 应用不继承 shell PATH，需要手动解析命令路径
 function resolveCommand(command: string): string {
   log.debug(`resolveCommand: input="${command}"`);
@@ -157,6 +173,8 @@ class McpService {
       try {
         await client.connect(transport);
       } catch (err) {
+        const cause = formatErrorCause(err);
+        if (cause) log.error(`[${config.name}] client.connect() cause: ${cause}`);
         await transport.close().catch(() => undefined);
         throw err;
       }
@@ -235,6 +253,8 @@ class McpService {
     } catch (err) {
       const msg = (err as Error).message;
       log.error(`[${config.name}] client.connect() FAILED: ${msg}`);
+      const cause = formatErrorCause(err);
+      if (cause) log.error(`[${config.name}] Cause: ${cause}`);
       log.error(`[${config.name}] Stack: ${(err as Error).stack}`);
 
       // 检查是否是 ENOENT
