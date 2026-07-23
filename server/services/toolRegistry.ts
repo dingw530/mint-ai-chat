@@ -8,7 +8,7 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
   const tools: ToolDefinition[] = [];
 
   // 全局工具，所有 Agent 可用
-  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash', 'invoke_agent', 'write_file', 'wiki_ingest', 'wiki_lint', 'wiki_search', 'knowledge_graph'];
+  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash', 'invoke_agent', 'read_artifact', 'write_file', 'wiki_ingest', 'wiki_lint', 'wiki_search', 'knowledge_graph'];
   for (const name of globalToolNames) {
     const def = getToolDefinitionSafe(name);
     if (def) tools.push(def);

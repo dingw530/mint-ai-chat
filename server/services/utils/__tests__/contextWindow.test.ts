@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { trimContext } from '../contextWindow.js';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  buildFallbackContextSummary,
+  prepareContext,
+  splitContextUnits,
+  trimContext,
+} from '../contextWindow.js';
 import type { HistoryMessage } from '../../../types.js';
 
 function user(content: string): HistoryMessage {
@@ -98,5 +103,52 @@ describe('trimContext', () => {
     const msgs = [user('a'), assistant('b')];
     const result = trimContext(msgs, { maxRounds: 0 });
     expect(result).toBe(msgs);
+  });
+});
+
+describe('prepareContext', () => {
+  it('keeps complete latest task unit and compresses older units', async () => {
+    const msgs = [
+      system('s'), user('old task ' + 'x'.repeat(180)), assistant('old result ' + 'y'.repeat(180)),
+      user('current task'), assistant('planning'),
+      toolMsg('tc', 'current tool result'),
+    ];
+    const summarize = vi.fn(async () => 'old decision: pass; file: src/a.ts');
+
+    const result = await prepareContext(msgs, { maxTokens: 60, summarize });
+
+    expect(summarize).toHaveBeenCalledOnce();
+    expect(result[0]).toEqual(system('s'));
+    expect(result.some(message => message.content?.includes('old decision'))).toBe(true);
+    expect(result.at(-1)?.role).toBe('tool');
+  });
+
+  it('falls back when summarization fails', async () => {
+    const msgs = [system('s'), user('old ' + 'x'.repeat(180)), assistant('old result'), user('new'), assistant('new')];
+    const result = await prepareContext(msgs, {
+      maxTokens: 85,
+      summarize: async () => { throw new Error('summary unavailable'); },
+    });
+
+    expect(result.some(message => message.content?.includes('[CONTEXT_SUMMARY]'))).toBe(true);
+    expect(result.at(-1)?.content).toBe('new');
+  });
+
+  it('splits tool results into the same unit as their assistant call', () => {
+    const units = splitContextUnits([
+      user('task'),
+      assistant('call', [{ id: 'tc', type: 'function', function: { name: 'bash', arguments: '{}' } }]),
+      toolMsg('tc', 'result'),
+    ]);
+    expect(units).toHaveLength(1);
+    expect(units[0].map(message => message.role)).toEqual(['user', 'assistant', 'tool']);
+  });
+
+  it('provides deterministic fallback summary with tool names', () => {
+    const summary = buildFallbackContextSummary([
+      assistant('done', [{ id: 'tc', type: 'function', function: { name: 'wiki_search', arguments: '{}' } }]),
+    ]);
+    expect(summary).toContain('[CONTEXT_SUMMARY]');
+    expect(summary).toContain('wiki_search');
   });
 });

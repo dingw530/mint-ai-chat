@@ -10,6 +10,7 @@ import { createLogger } from '../utils/logger.js';
 import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
 import type { ReactEventPayload } from './reactEvents.js';
+import { serializeToolResultForContext } from './utils/toolResultArtifact.js';
 
 // 导入 Adapter 实现
 import './adapters/openaiChatAdapter.js';
@@ -208,7 +209,10 @@ export class ToolLoopEngine {
       toolResult = { error: (err as Error).message };
     }
 
-    const resultStr = JSON.stringify(toolResult);
+    const resultStr = await serializeToolResultForContext(toolResult, {
+      summary: getToolResultSummary(tc, toolResult),
+      conversationId,
+    });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
       content: null as unknown as string,
@@ -218,7 +222,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 50000),
+      content: resultStr,
     };
 
     return { assistantMsg, toolMsg, succeeded: true };
@@ -246,7 +250,10 @@ export class ToolLoopEngine {
       succeeded = false;
     }
 
-    const resultStr = JSON.stringify(toolResult);
+    const resultStr = await serializeToolResultForContext(toolResult, {
+      summary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
+      conversationId,
+    });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
       content: null as unknown as string,
@@ -256,7 +263,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 50000),
+      content: resultStr,
     };
 
     return {

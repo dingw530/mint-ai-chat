@@ -58,6 +58,7 @@ import { sendMessage, getMessages } from '../messageService.js';
 describe('messageService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(agentService.findById).mockReturnValue(undefined);
 
     vi.mocked(conversationRepo.findById).mockReturnValue({
       id: 'conv-1', title: 'Test', type: 'text',
@@ -147,9 +148,17 @@ describe('messageService', () => {
         showReactSteps: true, maxContextRounds: 10, wikiPath: '', wikiMaxFileSize: 10485760,
       });
       vi.mocked(memoryService.buildMemoryContext).mockReturnValue('记忆：用户在北京');
+      vi.mocked(messageRepo.getHistory).mockReturnValue([
+        { role: 'user', content: 'hi' },
+      ]);
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
       await sendMessage('conv-1', 'hi', sink);
       expect(memoryService.buildMemoryContext).toHaveBeenCalled();
+      const sentMessages = vi.mocked(streamChat).mock.calls[0][0];
+      expect(sentMessages.find(message => message.role === 'system')?.content).toBe('base prompt');
+      expect(sentMessages.map(message => message.role)).toEqual(['system', 'user', 'user']);
+      expect(sentMessages[1].content).toContain('<user_memory>');
+      expect(sentMessages[2].content).toBe('hi');
     });
 
     it('handles streaming errors gracefully', async () => {

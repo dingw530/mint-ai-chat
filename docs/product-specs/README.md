@@ -29,3 +29,5 @@
 | [Wiki 摄入作业统一](<../changes/2026-07-15-wiki-ingestion-job-unification/product-spec.md>) | 2026-07-15 | 已完成 |
 | [ReAct 事件与状态模型](<../changes/2026-07-15-react-event-state-model/product-spec.md>) | 2026-07-15 | 已完成 |
 | [Chat Wiki 知识链接](<../changes/2026-07-21-chat-wiki-links/product-spec.md>) | 2026-07-21 | 已完成 |
+| [决策轨迹第一阶段：行动轨迹](<../changes/2026-07-22-decision-trace/product-spec.md>) | 2026-07-22 | 已完成 |
+| [上下文工程能力改造](<../changes/2026-07-23-context-engineering/product-spec.md>) | 2026-07-23 | 已完成 |

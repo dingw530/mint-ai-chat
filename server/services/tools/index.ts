@@ -16,6 +16,7 @@ export { SkillTool } from './SkillTool.js';
 export { BashTool } from './BashTool.js';
 export { InvokeAgentTool } from './InvokeAgentTool.js';
 export { ReadFileTool } from './ReadFileTool.js';
+export { ReadArtifactTool } from './ReadArtifactTool.js';
 export { WriteFileTool } from './WriteFileTool.js';
 export { ListFilesTool } from './ListFilesTool.js';
 export { WikiIngestTool } from './WikiIngestTool.js';
@@ -23,6 +24,7 @@ export { WikiQueryTool } from './WikiQueryTool.js';
 export { WikiLintTool } from './WikiLintTool.js';
 export { WikiSearchTool } from './WikiSearchTool.js';
 export { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
+export { CurrentTimeTool } from './CurrentTimeTool.js';
 
 // 工具实例（用于注册）
 import { WeatherTool } from './WeatherTool.js';
@@ -31,21 +33,25 @@ import { SkillTool } from './SkillTool.js';
 import { BashTool } from './BashTool.js';
 import { InvokeAgentTool } from './InvokeAgentTool.js';
 import { ReadFileTool } from './ReadFileTool.js';
+import { ReadArtifactTool } from './ReadArtifactTool.js';
 import { WriteFileTool } from './WriteFileTool.js';
 import { WikiIngestTool } from './WikiIngestTool.js';
 import { WikiLintTool } from './WikiLintTool.js';
 import { WikiSearchTool } from './WikiSearchTool.js';
 import { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
+import { CurrentTimeTool } from './CurrentTimeTool.js';
 import { toolRegistry } from './ToolRegistry.js';
 
 // 内置工具列表
 export const builtinTools = [
+  new CurrentTimeTool(),
   new WeatherTool(),
   new HttpFetchTool(),
   new SkillTool(),
   new BashTool(),
   new InvokeAgentTool(),
   new ReadFileTool(),
+  new ReadArtifactTool(),
   new WriteFileTool(),
   new WikiIngestTool(),
   new WikiLintTool(),

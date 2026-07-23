@@ -26,7 +26,9 @@ vi.mock('../toolRegistry.js', () => ({
 }));
 
 vi.mock('../utils/contextWindow.js', () => ({
-  trimContext: vi.fn((msgs) => msgs),
+  DEFAULT_CONTEXT_TOKEN_BUDGET: 100000,
+  DEFAULT_OUTPUT_TOKEN_RESERVE: 4096,
+  prepareContext: vi.fn(async (msgs) => msgs),
 }));
 
 import { reactChat } from '../reactLoopCore.js';

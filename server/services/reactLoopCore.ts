@@ -3,7 +3,11 @@ import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine } from './toolRoundEngine.js';
 import { getAllToolDefinitions, getToolCallSummary } from './toolRegistry.js';
 import type { Sink } from './sink.js';
-import { trimContext } from './utils/contextWindow.js';
+import {
+  DEFAULT_CONTEXT_TOKEN_BUDGET,
+  DEFAULT_OUTPUT_TOKEN_RESERVE,
+  prepareContext,
+} from './utils/contextWindow.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ReactEventEmitter } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
@@ -98,8 +102,29 @@ export async function reactChat(
       break;
     }
 
-    currentMessages = trimContext(currentMessages, {
-      maxRounds: settings.maxContextRounds || 10,
+    currentMessages = await prepareContext(currentMessages, {
+      maxTokens: DEFAULT_CONTEXT_TOKEN_BUDGET - DEFAULT_OUTPUT_TOKEN_RESERVE,
+      summarize: async (olderMessages) => {
+        const source = olderMessages
+          .map(message => {
+            const tools = message.tool_calls?.map(call => call.function.name).join(', ');
+            return `${message.role}${tools ? ` [${tools}]` : ''}: ${message.content || ''}`;
+          })
+          .join('\n');
+        return adapter.call(
+          [
+            {
+              role: 'system',
+              content: '将 Agent 的较早轨迹压缩成结构化摘要。必须保留架构决策、约束、已修改文件、验证 pass/fail、失败路径、TODO、文件名、URL、UUID 和 hash。不要添加原文没有的事实。',
+            },
+            { role: 'user', content: source },
+          ],
+          { modelId: settings.modelId },
+          apiUrl,
+          apiKey,
+          { maxTokens: 2_000, temperature: 0.1, signal },
+        );
+      },
     });
 
     const isLast = forceFinalAnswer || iteration === maxIterations - 1;
