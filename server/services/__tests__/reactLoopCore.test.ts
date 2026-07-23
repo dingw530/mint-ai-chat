@@ -4,6 +4,7 @@ const mockAdapter = {
   getUrl: vi.fn(() => 'https://api.test.com/v1/chat/completions'),
   getHeaders: vi.fn(() => ({})),
   buildRequest: vi.fn(() => ({})),
+  stream: vi.fn(),
   parseChunk: vi.fn(),
   call: vi.fn(),
 };

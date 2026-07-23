@@ -32,7 +32,7 @@
 
 ## 轻量记录
 
-L1 的 `change-note.md` 只保留：
+当流程要求创建 `change-note.md` 时，只保留：
 
 ```markdown
 # 变更：{主题}
@@ -53,3 +53,5 @@ L1 的 `change-note.md` 只保留：
 ## 风险与未验证项
 - {无则写“无”}
 ```
+
+L1 是例外：按 `sdd-doc-generator` 主流程不创建 `change-note.md`，将上述信息保留在最终交付说明中即可。

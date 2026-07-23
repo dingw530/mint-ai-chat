@@ -27,6 +27,28 @@ describe('ToolLoopEngine', () => {
       }),
     ).rejects.toThrow('API Key');
   });
+
+  it('delegates the streaming LLM request to the adapter', async () => {
+    const adapter = {
+      getUrl: vi.fn(() => 'https://api.test.com/v1/chat/completions'),
+      stream: vi.fn().mockResolvedValue({ ok: false, status: 503, text: vi.fn().mockResolvedValue('down') }),
+    };
+
+    await expect(engine.executeRound({
+      messages: [],
+      settings: { apiUrl: 'https://api.test.com', apiKey: 'key', apiType: 'test' } as any,
+      adapter: adapter as any,
+    })).rejects.toThrow('AI API error');
+
+    expect(adapter.stream).toHaveBeenCalledWith(
+      [],
+      expect.anything(),
+      'https://api.test.com',
+      'key',
+      undefined,
+      expect.objectContaining({ signal: undefined }),
+    );
+  });
 });
 
 describe('parseSSEStream', () => {

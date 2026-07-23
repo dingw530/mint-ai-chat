@@ -13,6 +13,22 @@ export interface ToolResultMessageOptions {
 }
 
 /**
+ * 解包工具可能返回的双重 JSON 字符串，避免 artifact 保存时重复转义。
+ * @param result 工具原始结果
+ * @returns 适合持久化的结果值
+ */
+function normalizeArtifactResult(result: unknown): unknown {
+  if (typeof result !== 'string') return result;
+
+  try {
+    const parsed = JSON.parse(result) as unknown;
+    return parsed === result ? result : parsed;
+  } catch {
+    return result;
+  }
+}
+
+/**
  * 获取 Mint 持久化数据根目录下的 artifact 目录。
  * @returns artifact 根目录
  */
@@ -37,7 +53,8 @@ export async function serializeToolResultForContext(
   result: unknown,
   options: ToolResultMessageOptions = {},
 ): Promise<string> {
-  const serialized = JSON.stringify(result) ?? String(result);
+  const normalizedResult = normalizeArtifactResult(result);
+  const serialized = JSON.stringify(normalizedResult) ?? String(normalizedResult);
   const byteLength = Buffer.byteLength(serialized, 'utf8');
 
   if (byteLength <= TOOL_RESULT_ARTIFACT_THRESHOLD) {

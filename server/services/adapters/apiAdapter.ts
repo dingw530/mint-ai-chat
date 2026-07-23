@@ -13,6 +13,10 @@ export interface CallOptions {
   signal?: AbortSignal;
 }
 
+export interface StreamOptions {
+  signal?: AbortSignal;
+}
+
 export interface ApiAdapter {
   /** 构建请求 URL */
   getUrl(baseUrl: string): string;
@@ -26,6 +30,16 @@ export interface ApiAdapter {
     settings: { modelId: string; thinkingMode: boolean; systemPrompt: string },
     tools?: ToolDefinition[],
   ): Record<string, unknown>;
+
+  /** 发起一次流式 AI 调用，返回原始 SSE 响应 */
+  stream(
+    messages: HistoryMessage[],
+    settings: { modelId: string; thinkingMode: boolean; systemPrompt: string },
+    apiUrl: string,
+    apiKey: string,
+    tools?: ToolDefinition[],
+    options?: StreamOptions,
+  ): Promise<Response>;
 
   /** 解析单条 SSE `data:` 行，返回解析结果或 null（忽略该行） */
   parseChunk(data: string): ParsedChunk | null;

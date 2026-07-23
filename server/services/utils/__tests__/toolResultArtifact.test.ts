@@ -37,4 +37,17 @@ describe('serializeToolResultForContext', () => {
     expect(artifact).toEqual(source);
     expect(content.length).toBeLessThan(5_000);
   });
+
+  it('unwraps double-encoded JSON strings before saving an artifact', async () => {
+    const source = { records: 'line 1\nline 2\n'.repeat(TOOL_RESULT_ARTIFACT_THRESHOLD) };
+    const doubleEncoded = JSON.stringify(source);
+    const content = await serializeToolResultForContext(doubleEncoded, {
+      summary: '读取转义结果',
+      conversationId: 'conversation/double-encoded',
+    });
+    const envelope = JSON.parse(content);
+    const artifact = JSON.parse(await readFile(envelope.artifact.path, 'utf8'));
+
+    expect(artifact).toEqual(source);
+  });
 });

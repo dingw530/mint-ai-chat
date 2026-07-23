@@ -104,6 +104,16 @@ export const anthropicAdapter: ApiAdapter = {
     return body;
   },
 
+  async stream(messages, settings, apiUrl, apiKey, tools, options) {
+    const response = await fetch(this.getUrl(apiUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...this.getHeaders(apiKey) },
+      body: JSON.stringify(this.buildRequest(messages, settings, tools)),
+      signal: options?.signal,
+    });
+    return response;
+  },
+
   parseChunk(data: string): ParsedChunk | null {
     if (data === '[DONE]') return { isFinished: true };
 

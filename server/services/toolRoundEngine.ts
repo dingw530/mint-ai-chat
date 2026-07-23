@@ -172,16 +172,10 @@ export class ToolLoopEngine {
     }
 
     const url = adapter.getUrl(apiUrl);
-    const headers = adapter.getHeaders(apiKey);
-    const body = adapter.buildRequest(messages, settings, tools);
 
     log.debug('executeRound', { label: label || 'unnamed', url, toolCount: tools?.length || 0 });
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(body),
-    });
+    const response = await adapter.stream(messages, settings, apiUrl, apiKey, tools, { signal });
 
     const eventType =
       label === 'react-answer' ? 'answer' : label === 'react-thought' ? 'thought' : undefined;
