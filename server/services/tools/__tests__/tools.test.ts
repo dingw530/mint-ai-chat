@@ -62,6 +62,7 @@ import { HttpFetchTool } from '../HttpFetchTool.js';
 import { WikiSearchTool } from '../WikiSearchTool.js';
 import { BaseTool } from '../BaseTool.js';
 import { toolExecutor } from '../ToolExecutor.js';
+import { CurrentTimeTool } from '../CurrentTimeTool.js';
 
 const ctx = { conversationId: 'test-conv' };
 let tmpDir: string;
@@ -74,6 +75,32 @@ beforeEach(() => {
 afterEach(() => {
   mockWikiPath = null;
   fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+describe('CurrentTimeTool', () => {
+  it('returns the execution time with unambiguous date fields', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-23T04:05:06.000Z'));
+
+    const tool = new CurrentTimeTool();
+    const result = await tool.execute({}, ctx);
+
+    expect(result.iso).toBe('2026-07-23T04:05:06.000Z');
+    expect(result.unixTimestamp).toBe(1784779506000);
+    expect(result.localDate).toMatch(/^2026-07-23$/);
+    expect(result.localTime).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    expect(result.timezone).toBeTruthy();
+    expect(result.formatted).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+
+  it('is read-only but not idempotent', () => {
+    const tool = new CurrentTimeTool();
+    expect(tool.name).toBe('get_current_time');
+    expect(tool.isReadOnly()).toBe(true);
+    expect(tool.isIdempotent()).toBe(false);
+  });
 });
 
 // ══════════════════════════════════════════
