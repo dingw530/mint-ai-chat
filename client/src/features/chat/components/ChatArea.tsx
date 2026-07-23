@@ -4,6 +4,7 @@ import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer
 import InputBox from './InputBox';
 import AgentBar from './AgentBar';
 import ChatHeader from './ChatHeader';
+import DecisionTrace from './DecisionTrace';
 import IngestionTaskCards from './IngestionTaskCards';
 import {
   getMessages,
@@ -14,7 +15,7 @@ import {
   getSettings,
 } from '@/services/api';
 import useSSE from '@/hooks/useSSE';
-import type { Conversation, EndpointOutput, Agent, Message, ReActStep } from '@/types';
+import type { Conversation, EndpointOutput, Agent, Message, ReActStep, DecisionTraceItem } from '@/types';
 import {
   createInitialReactEventState,
   reduceReactEvent,
@@ -68,6 +69,7 @@ export default function ChatArea({
   const [activeAgent, setActiveAgent] = useState('general');
   const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
   const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
+  const [decisionTrace, setDecisionTrace] = useState<DecisionTraceItem[]>([]);
   const reactEventStateRef = useRef(createInitialReactEventState());
   const [showReactSteps, setShowReactSteps] = useState(true);
   const { send, abort } = useSSE();
@@ -81,11 +83,13 @@ export default function ChatArea({
     const next = reduceReactEvent(reactEventStateRef.current, event);
     reactEventStateRef.current = next;
     setReactSteps(next.steps);
+    setDecisionTrace(next.decisionTrace);
   }, []);
 
   const resetReactEvents = useCallback(() => {
     reactEventStateRef.current = createInitialReactEventState();
     setReactSteps([]);
+    setDecisionTrace([]);
   }, []);
 
   useEffect(() => {
@@ -249,6 +253,12 @@ export default function ChatArea({
         {
           onRunStarted: (data) => {
             dispatchReactEvent({ type: 'run_started', ...data });
+          },
+          onRoundStarted: (data) => {
+            dispatchReactEvent({ type: 'round_started', ...data });
+          },
+          onLoopDetected: (data) => {
+            dispatchReactEvent({ type: 'loop_detected', ...data });
           },
           onRunCompleted: (data) => {
             dispatchReactEvent({ type: 'run_completed', ...data });
@@ -570,6 +580,12 @@ export default function ChatArea({
         onRunStarted: (data) => {
           dispatchReactEvent({ type: 'run_started', ...data });
         },
+        onRoundStarted: (data) => {
+          dispatchReactEvent({ type: 'round_started', ...data });
+        },
+        onLoopDetected: (data) => {
+          dispatchReactEvent({ type: 'loop_detected', ...data });
+        },
         onRunCompleted: (data) => {
           dispatchReactEvent({ type: 'run_completed', ...data });
         },
@@ -717,6 +733,11 @@ export default function ChatArea({
         onEndpointChange={onEndpointChange}
       />
       <div className="chat-area">
+        {showReactSteps && decisionTrace.length > 0 && (
+          <div className="decision-trace-sticky">
+            <DecisionTrace items={decisionTrace} />
+          </div>
+        )}
         {loading ? (
           <div className="messages-loading">
             <LoadingSpinner />

@@ -2932,6 +2932,101 @@ body::after {
 /* Theme overrides moved to themes/ocean.css, themes/snow.css, themes/anthropic.css */
 
 /* ── ReAct 推理步骤 ── */
+.decision-trace {
+  margin: 0;
+  padding: 0 0 2px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.decision-trace-sticky {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  z-index: 5;
+  width: min(320px, calc(100% - 32px));
+  margin: 0;
+  pointer-events: none;
+}
+
+.decision-trace-sticky .decision-trace {
+  pointer-events: auto;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+.decision-trace summary {
+  padding: 9px 13px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.82em;
+  font-weight: 600;
+}
+
+.decision-trace-list {
+  position: relative;
+  margin: 0 12px 10px;
+  padding: 2px 0 2px 16px;
+  list-style: none;
+}
+
+.decision-trace-list::before {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: 1px;
+  background: var(--border-color);
+  content: '';
+}
+
+.decision-trace-item {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  min-height: 24px;
+  color: var(--text-secondary);
+  font-size: 0.82em;
+  line-height: 1.4;
+}
+
+.decision-trace-marker {
+  position: absolute;
+  top: 5px;
+  left: -16px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--bg-primary);
+  border-radius: 50%;
+  background: var(--text-tertiary, var(--text-secondary));
+  box-shadow: 0 0 0 1px var(--border-color);
+}
+
+.decision-trace-item--active.decision-trace-item--current .decision-trace-marker {
+  background: var(--accent);
+  animation: blink 1s step-end infinite;
+}
+
+.decision-trace-item--error .decision-trace-marker {
+  background: var(--danger, #e74c3c);
+}
+
+.decision-trace-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+
+.decision-trace-label {
+  color: var(--text-primary);
+}
+
+.decision-trace-detail {
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
 .react-steps-container {
   margin-bottom: 8px;
   border-left: 2px solid var(--accent);

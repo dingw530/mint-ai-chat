@@ -208,6 +208,26 @@ export interface ToolCallErrorStep {
 
 export type ReActStep = ThoughtStep | ToolCallStartStep | ToolCallEndStep | ToolCallErrorStep;
 
+export type DecisionTraceKind =
+  | 'start'
+  | 'round'
+  | 'action'
+  | 'result'
+  | 'retry'
+  | 'error'
+  | 'fallback'
+  | 'complete'
+  | 'cancelled'
+  | 'failed';
+
+export interface DecisionTraceItem {
+  id: string;
+  kind: DecisionTraceKind;
+  label: string;
+  detail?: string;
+  status?: 'active' | 'done' | 'error';
+}
+
 // ── SSE 回调类型 ──
 
 export interface SendCallbacks {
@@ -223,6 +243,8 @@ export interface SendCallbacks {
   onToolCallError?: (data: Record<string, unknown>) => void;
   onAnswerReady?: (content: string) => void;
   onRunStarted?: (data: Record<string, unknown>) => void;
+  onRoundStarted?: (data: Record<string, unknown>) => void;
+  onLoopDetected?: (data: Record<string, unknown>) => void;
   onRunCompleted?: (data: Record<string, unknown>) => void;
   onRunCancelled?: (data: Record<string, unknown>) => void;
   onTokenUsage?: (data: Record<string, unknown>) => void;

@@ -138,6 +138,10 @@ export function parseSSEChunk(
         callbacks.onRunStarted?.(data);
         return;
       case 'round_started':
+        callbacks.onRoundStarted?.(data);
+        return;
+      case 'loop_detected':
+        callbacks.onLoopDetected?.(data);
         return;
       case 'run_completed':
         callbacks.onRunCompleted?.(data);

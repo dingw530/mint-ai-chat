@@ -1,4 +1,4 @@
-import type { ReActStep } from '@/types';
+import type { DecisionTraceItem, ReActStep } from '@/types';
 
 export type ReactEventStatus = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -6,6 +6,7 @@ export interface ReactEventState {
   runId: string | null;
   status: ReactEventStatus;
   steps: ReActStep[];
+  decisionTrace: DecisionTraceItem[];
   error?: string;
 }
 
@@ -21,10 +22,20 @@ export interface ReactReducerEvent {
   retryCount?: number;
   duration?: number;
   content?: string;
+  round?: number;
+  phase?: 'retrying' | 'final';
+  message?: string;
 }
 
 export function createInitialReactEventState(): ReactEventState {
-  return { runId: null, status: 'idle', steps: [] };
+  return { runId: null, status: 'idle', steps: [], decisionTrace: [] };
+}
+
+function traceItem(
+  state: ReactEventState,
+  item: Omit<DecisionTraceItem, 'id'>,
+): DecisionTraceItem[] {
+  return [...state.decisionTrace, { ...item, id: `${state.runId || 'run'}:${state.decisionTrace.length}` }];
 }
 
 /**
@@ -39,6 +50,12 @@ export function reduceReactEvent(
       runId: event.runId || state.runId,
       status: 'running',
       steps: [],
+      decisionTrace: [{
+        id: `${event.runId || 'run'}:0`,
+        kind: 'start',
+        label: '开始分析问题',
+        status: 'active',
+      }],
     };
   }
 
@@ -49,6 +66,16 @@ export function reduceReactEvent(
   if (event.runId && state.runId && event.runId !== state.runId) return state;
 
   switch (event.type) {
+    case 'round_started':
+      return {
+        ...state,
+        status: 'running',
+        decisionTrace: traceItem(state, {
+          kind: 'round',
+          label: `分析第 ${event.round || state.decisionTrace.length} 轮`,
+          status: 'active',
+        }),
+      };
     case 'thought': {
       const content = event.content || '';
       if (!content) return state;
@@ -66,6 +93,11 @@ export function reduceReactEvent(
       return {
         ...state,
         status: 'running',
+        decisionTrace: traceItem(state, {
+          kind: 'action',
+          label: `执行动作：${event.summary || event.toolName || '调用工具'}`,
+          status: 'active',
+        }),
         steps: [
           ...state.steps,
           {
@@ -81,6 +113,12 @@ export function reduceReactEvent(
       return {
         ...state,
         status: 'running',
+        decisionTrace: traceItem(state, {
+          kind: 'result',
+          label: `动作完成：${event.summary || event.toolName || '工具调用'}`,
+          detail: event.duration ? `耗时 ${(event.duration / 1000).toFixed(1)} 秒` : undefined,
+          status: 'done',
+        }),
         steps: [
           ...state.steps,
           {
@@ -97,6 +135,16 @@ export function reduceReactEvent(
       return {
         ...state,
         status: 'running',
+        decisionTrace: traceItem(state, {
+          kind: event.phase === 'retrying' ? 'retry' : 'error',
+          label: event.phase === 'retrying'
+            ? `动作失败，准备重试：${event.toolName || '工具调用'}`
+            : `动作失败：${event.toolName || '工具调用'}`,
+          detail: event.phase === 'retrying'
+            ? `第 ${event.retryCount || 0} 次重试`
+            : undefined,
+          status: event.phase === 'retrying' ? 'active' : 'error',
+        }),
         steps: [
           ...state.steps,
           {
@@ -113,11 +161,35 @@ export function reduceReactEvent(
       return last?.type === 'thought' ? { ...state, steps: state.steps.slice(0, -1) } : state;
     }
     case 'run_completed':
-      return { ...state, status: 'completed' };
+      return {
+        ...state,
+        status: 'completed',
+        decisionTrace: traceItem(state, { kind: 'complete', label: '已完成回答', status: 'done' }),
+      };
+    case 'loop_detected':
+      return {
+        ...state,
+        status: 'running',
+        decisionTrace: traceItem(state, {
+          kind: 'fallback',
+          label: '检测到重复动作，调整为直接回答',
+          detail: event.message,
+          status: 'active',
+        }),
+      };
     case 'run_failed':
-      return { ...state, status: 'failed', error: event.error };
+      return {
+        ...state,
+        status: 'failed',
+        error: event.error,
+        decisionTrace: traceItem(state, { kind: 'failed', label: '生成失败', status: 'error' }),
+      };
     case 'run_cancelled':
-      return { ...state, status: 'cancelled' };
+      return {
+        ...state,
+        status: 'cancelled',
+        decisionTrace: traceItem(state, { kind: 'cancelled', label: '已停止生成', status: 'done' }),
+      };
     default:
       return state;
   }
