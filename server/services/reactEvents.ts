@@ -51,7 +51,7 @@ export type ReactEventPayload =
     }
   | { type: 'loop_detected'; state: 'finalizing'; round: number; message: string }
   | { type: 'answer_ready' }
-  | { type: 'run_completed'; state: 'completed'; content: string; reasoning: string }
+  | { type: 'run_completed'; state: 'completed'; content: string; reasoning: string; estimatedTokens?: number }
   | { type: 'run_failed'; state: 'failed'; error: string }
   | { type: 'run_cancelled'; state: 'cancelled' };
 

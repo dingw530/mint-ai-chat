@@ -33,12 +33,25 @@ export const openaiChatAdapter: ApiAdapter = {
 
     body.thinking = { type: settings.thinkingMode ? 'enabled' : 'disabled' };
 
+    body.enable_thinking = true;
+    body.return_reasoning = true;
+
     if (tools && tools.length > 0) {
       body.tools = tools;
       body.tool_choice = 'auto';
     }
 
     return body;
+  },
+
+  async stream(messages, settings, apiUrl, apiKey, tools, options) {
+    const response = await fetch(this.getUrl(apiUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...this.getHeaders(apiKey) },
+      body: JSON.stringify(this.buildRequest(messages, settings, tools)),
+      signal: options?.signal,
+    });
+    return response;
   },
 
   parseChunk(data: string): ParsedChunk | null {
@@ -62,6 +75,10 @@ export const openaiChatAdapter: ApiAdapter = {
 
     if (delta.reasoning_content) {
       result.reasoning = delta.reasoning_content;
+    }
+
+    if (delta.reasoning) {
+        result.reasoning = delta.reasoning;
     }
 
     if (delta.tool_calls) {

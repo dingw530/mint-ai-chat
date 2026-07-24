@@ -14,6 +14,15 @@ const JSON_TEMPLATE = `{
   }
 }`;
 
+const URL_JSON_TEMPLATE = `{
+  "mcpServers": {
+    "liepin-mcp": {
+      "url": "https://open-agent.liepin.com/mcp/user",
+      "headers": { "x-user-token": "liepin_user_token_xxxx" }
+    }
+  }
+}`;
+
 function StatusDot({ status, error }: { status: string; error?: string | null }) {
   const dotClass = status === 'connected' ? 'status-dot connected'
     : status === 'error' ? 'status-dot error'
@@ -27,7 +36,7 @@ function StatusDot({ status, error }: { status: string; error?: string | null })
 
 interface EnvRow { key: string; value: string; }
 
-const emptyForm = { name: '', command: '', args: '', env: [] as EnvRow[] };
+const emptyForm = { name: '', mode: 'stdio' as 'stdio' | 'url', command: '', url: '', args: '', env: [] as EnvRow[], headers: [] as EnvRow[] };
 
 function ToolDetailModal({ server, onClose }: { server: McpServer; onClose: () => void }) {
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
@@ -118,8 +127,11 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
     setForm({
       name: server.name || '',
       command: server.command || '',
+      mode: server.url ? 'url' : 'stdio',
+      url: server.url || '',
       args: (server.args || []).join('\n'),
       env: Object.entries(server.env || {}).map(([key, value]) => ({ key, value })),
+      headers: Object.entries(server.headers || {}).map(([key, value]) => ({ key, value })),
     });
   };
 
@@ -150,9 +162,20 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
     });
   };
 
+  const updateRows = (field: 'env' | 'headers', idx: number, key: 'key' | 'value', value: string) => {
+    setForm((prev) => ({ ...prev, [field]: prev[field].map((row, i) => i === idx ? { ...row, [key]: value } : row) }));
+  };
+
+  const addHeaderRow = () => setForm((prev) => ({ ...prev, headers: [...prev.headers, { key: '', value: '' }] }));
+  const removeHeaderRow = (idx: number) => setForm((prev) => ({ ...prev, headers: prev.headers.filter((_, i) => i !== idx) }));
+
   const validate = (): string | null => {
     if (!form.name.trim()) return '请输入服务名称';
-    if (!form.command.trim()) return '请输入启动命令';
+    if (form.mode === 'stdio' && !form.command.trim()) return '请输入启动命令';
+    if (form.mode === 'url') {
+      try { const url = new URL(form.url.trim()); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); }
+      catch { return '请输入有效的 HTTP(S) URL'; }
+    }
     for (const [i, row] of form.env.entries()) {
       if (row.key.trim() && !row.value.trim()) {
         return `环境变量 "${row.key}" 的值不能为空`;
@@ -181,17 +204,20 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
     let count = 0;
     for (const [name, cfg] of Object.entries(serversConfig)) {
       const conf = cfg as Record<string, unknown>;
-      if (!conf || typeof conf !== 'object' || !conf.command) {
-        setJsonError(`服务 "${name}" 缺少 command 字段`);
+      if (!conf || typeof conf !== 'object' || (!conf.command && !conf.url)) {
+        setJsonError(`服务 "${name}" 需要 command 或 url 字段`);
         setSaving(false);
         return;
       }
+      if (conf.command && conf.url) { setJsonError(`服务 "${name}" 不能同时包含 command 和 url`); setSaving(false); return; }
       try {
         await createMcpServer({
           name,
           command: conf.command as string,
           args: (conf.args as string[]) || [],
           env: (conf.env as Record<string, string>) || {},
+          url: (conf.url as string) || null,
+          headers: (conf.headers as Record<string, string>) || {},
         });
         count++;
       } catch (err) {
@@ -223,11 +249,13 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
     try {
       const payload = {
         name: form.name.trim(),
-        command: form.command.trim(),
+        command: form.mode === 'stdio' ? form.command.trim() : '',
+        url: form.mode === 'url' ? form.url.trim() : null,
         args: form.args.trim() ? form.args.split('\n').map((s) => s.trim()).filter(Boolean) : [],
         env: Object.fromEntries(
           form.env.filter((row) => row.key.trim()).map((row) => [row.key.trim(), row.value.trim()])
         ),
+        headers: Object.fromEntries(form.headers.filter((row) => row.key.trim()).map((row) => [row.key.trim(), row.value.trim()])),
       };
       if (editingId === 'new') {
         await createMcpServer(payload);
@@ -298,12 +326,12 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
           {jsonMode ? (
             <div className="form-group">
               <label>粘贴 JSON 配置</label>
-              <p className="form-help">支持单个服务配置或 Claude Desktop 格式（含 <code>mcpServers</code> 键）。</p>
+              <p className="form-help">支持 stdio 和 URL 配置，也支持 Claude Desktop 格式（含 <code>mcpServers</code> 键）。</p>
               <textarea
                 className="json-editor"
                 value={jsonText}
                 onChange={(e) => { setJsonText(e.target.value); setJsonError(''); }}
-                placeholder={JSON_TEMPLATE}
+                placeholder={`${JSON_TEMPLATE}\n\nURL 示例：\n${URL_JSON_TEMPLATE}`}
                 rows={12}
                 spellCheck={false}
               />
@@ -312,14 +340,37 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
           ) : (
             <>
               <div className="form-group">
-                <label>名称</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="my-server"
-                />
+                <label>传输模式</label>
+                <select value={form.mode} onChange={(e) => setForm((prev) => ({ ...prev, mode: e.target.value as 'stdio' | 'url' }))}>
+                  <option value="stdio">本地命令（stdio）</option>
+                  <option value="url">远程 URL（Streamable HTTP）</option>
+                </select>
               </div>
+              <div className="form-group">
+                <label>名称</label>
+                <input type="text" value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="my-server" />
+              </div>
+              {form.mode === 'url' ? (
+                <div className="form-group">
+                  <label>服务 URL</label>
+                  <input type="url" value={form.url} onChange={(e) => setForm((prev) => ({ ...prev, url: e.target.value }))} placeholder="https://example.com/mcp" />
+                </div>
+              ) : <>
+              </>}
+              {form.mode === 'url' ? (
+                <div className="form-group">
+                  <label>HTTP Headers</label>
+                  <div className="env-list">
+                    {form.headers.map((row, idx) => <div className="env-row" key={idx}>
+                      <input type="text" value={row.key} onChange={(e) => updateRows('headers', idx, 'key', e.target.value)} placeholder="Header-Name" className="env-key" />
+                      <input type="text" value={row.value} onChange={(e) => updateRows('headers', idx, 'value', e.target.value)} placeholder="value" className="env-value" />
+                      <button className="env-remove-btn" onClick={() => removeHeaderRow(idx)} title="删除">×</button>
+                    </div>)}
+                    <button className="env-add-btn" onClick={addHeaderRow}>+ 添加 Header</button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <div className="form-group">
                 <label>启动命令</label>
                 <input
@@ -369,6 +420,8 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
                   </button>
                 </div>
               </div>
+              </>
+              )}
             </>
           )}
 
@@ -392,7 +445,7 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
                 <tr>
                   <th>状态</th>
                   <th>名称</th>
-                  <th>命令</th>
+                  <th>连接方式</th>
                   <th>工具</th>
                   <th>操作</th>
                 </tr>
@@ -405,7 +458,7 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
                     </td>
                     <td className="mcp-name">{server.name}</td>
                     <td className="mcp-command">
-                      <code>{server.command}</code>
+                      <code>{server.url || server.command}</code>
                     </td>
                     <td>
                       <span className="tool-link" onClick={() => setDetailServer(server)}>

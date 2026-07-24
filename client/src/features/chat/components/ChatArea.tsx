@@ -4,6 +4,8 @@ import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer
 import InputBox from './InputBox';
 import AgentBar from './AgentBar';
 import ChatHeader from './ChatHeader';
+import DecisionTrace from './DecisionTrace';
+import IngestionTaskCards from './IngestionTaskCards';
 import {
   getMessages,
   fetchAgents,
@@ -13,7 +15,7 @@ import {
   getSettings,
 } from '@/services/api';
 import useSSE from '@/hooks/useSSE';
-import type { Conversation, EndpointOutput, Agent, Message, ReActStep } from '@/types';
+import type { Conversation, EndpointOutput, Agent, Message, ReActStep, DecisionTraceItem } from '@/types';
 import {
   createInitialReactEventState,
   reduceReactEvent,
@@ -67,6 +69,7 @@ export default function ChatArea({
   const [activeAgent, setActiveAgent] = useState('general');
   const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
   const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
+  const [decisionTrace, setDecisionTrace] = useState<DecisionTraceItem[]>([]);
   const reactEventStateRef = useRef(createInitialReactEventState());
   const [showReactSteps, setShowReactSteps] = useState(true);
   const { send, abort } = useSSE();
@@ -80,11 +83,13 @@ export default function ChatArea({
     const next = reduceReactEvent(reactEventStateRef.current, event);
     reactEventStateRef.current = next;
     setReactSteps(next.steps);
+    setDecisionTrace(next.decisionTrace);
   }, []);
 
   const resetReactEvents = useCallback(() => {
     reactEventStateRef.current = createInitialReactEventState();
     setReactSteps([]);
+    setDecisionTrace([]);
   }, []);
 
   useEffect(() => {
@@ -249,11 +254,26 @@ export default function ChatArea({
           onRunStarted: (data) => {
             dispatchReactEvent({ type: 'run_started', ...data });
           },
+          onRoundStarted: (data) => {
+            dispatchReactEvent({ type: 'round_started', ...data });
+          },
+          onLoopDetected: (data) => {
+            dispatchReactEvent({ type: 'loop_detected', ...data });
+          },
           onRunCompleted: (data) => {
             dispatchReactEvent({ type: 'run_completed', ...data });
           },
           onRunCancelled: (data) => {
             dispatchReactEvent({ type: 'run_cancelled', ...data });
+          },
+          onTokenUsage: (data) => {
+            const estimatedTokens = Number(data.estimatedTokens);
+            if (!Number.isFinite(estimatedTokens)) return;
+            setMessages((prev) => prev.map((message) =>
+              (message as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId
+                ? { ...message, estimatedTokens }
+                : message,
+            ));
           },
           onChunk: (chunk: string) => {
             streamBufferRef.current.content += chunk;
@@ -560,11 +580,26 @@ export default function ChatArea({
         onRunStarted: (data) => {
           dispatchReactEvent({ type: 'run_started', ...data });
         },
+        onRoundStarted: (data) => {
+          dispatchReactEvent({ type: 'round_started', ...data });
+        },
+        onLoopDetected: (data) => {
+          dispatchReactEvent({ type: 'loop_detected', ...data });
+        },
         onRunCompleted: (data) => {
           dispatchReactEvent({ type: 'run_completed', ...data });
         },
         onRunCancelled: (data) => {
           dispatchReactEvent({ type: 'run_cancelled', ...data });
+        },
+        onTokenUsage: (data) => {
+          const estimatedTokens = Number(data.estimatedTokens);
+          if (!Number.isFinite(estimatedTokens)) return;
+          setMessages((prev) => prev.map((message) =>
+            (message as Message & { _tempId?: string })._tempId === tempAssistantMsg._tempId
+              ? { ...message, estimatedTokens }
+              : message,
+          ));
         },
         onChunk: (chunk: string) => {
           streamBufferRef.current.content += chunk;
@@ -698,6 +733,11 @@ export default function ChatArea({
         onEndpointChange={onEndpointChange}
       />
       <div className="chat-area">
+        {showReactSteps && decisionTrace.length > 0 && (
+          <div className="decision-trace-sticky">
+            <DecisionTrace items={decisionTrace} />
+          </div>
+        )}
         {loading ? (
           <div className="messages-loading">
             <LoadingSpinner />
@@ -713,25 +753,34 @@ export default function ChatArea({
             onLinkClick={onLinkClick}
           />
         )}
-        <AgentBar
-          agents={agents}
-          activeAgent={activeAgent}
-          autoRoutedAgent={autoRoutedAgent}
-          lockedAgent={lockedAgent}
-          routingMode={routingMode}
-          onSelectAgent={handleSelectAgent}
-          onUnlock={handleUnlock}
-        />
-        {sending ? (
-          <button className="stop-btn" onClick={handleStop}>
-            <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
-              <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
-            </svg>
-            停止生成
-          </button>
-        ) : (
-          <InputBox onSend={handleSend} disabled={sending} />
-        )}
+        <div className="chat-composer">
+          <div className="chat-input-zone">
+            <IngestionTaskCards conversationId={activeConversation} />
+            <div className="chat-input-row">
+              <AgentBar
+                agents={agents}
+                activeAgent={activeAgent}
+                autoRoutedAgent={autoRoutedAgent}
+                lockedAgent={lockedAgent}
+                routingMode={routingMode}
+                onSelectAgent={handleSelectAgent}
+                onUnlock={handleUnlock}
+              />
+              <div className="chat-input-main">
+                {sending ? (
+                  <button className="stop-btn" onClick={handleStop}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                    </svg>
+                    停止生成
+                  </button>
+                ) : (
+                  <InputBox onSend={handleSend} disabled={sending} />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ const log = createLogger('manifest-generator');
 // ── 生成 manifest JSON ──
 
 export function generateManifest(descriptors: EndpointDescriptor[], resourcePrefix: string): ManifestEntry[] {
-  return descriptors.map((desc) => ({
+  return descriptors.filter((desc) => !desc.stream).map((desc) => ({
     id: desc.id,
     ipcChannel: desc.ipcChannel || desc.id,
     preloadMethod: desc.preloadMethod || null,

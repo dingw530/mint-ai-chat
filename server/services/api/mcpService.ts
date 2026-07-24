@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { ChildProcess} from 'child_process';
 import { spawn, execSync } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
@@ -9,6 +10,22 @@ import * as mcpServerRepo from '../../repositories/mcpServerRepository.js';
 import { decrypt } from '../utils/encryption.js';
 import type { ToolDefinition } from '../../types.js';
 import { log } from '../utils/logger.js';
+
+/**
+ * Formats an error's underlying cause without exposing sensitive configuration values.
+ * @param error The unknown value caught during an MCP operation.
+ * @returns A readable cause string, or undefined when no cause is available.
+ */
+function formatErrorCause(error: unknown): string | undefined {
+  const cause = (error as { cause?: unknown } | null)?.cause;
+  if (cause === undefined || cause === null) return undefined;
+  if (cause instanceof Error) return `${cause.name}: ${cause.message}`;
+  try {
+    return JSON.stringify(cause);
+  } catch {
+    return String(cause);
+  }
+}
 
 // macOS GUI 应用不继承 shell PATH，需要手动解析命令路径
 function resolveCommand(command: string): string {
@@ -91,14 +108,15 @@ function getShellPath(): string {
 
 interface ConnectedServer {
   client: Client;
-  transport: StdioClientTransport;
-  process: ChildProcess;
+  transport: StdioClientTransport | StreamableHTTPClientTransport;
+  process?: ChildProcess;
   name: string;
 }
 
 class McpService {
   private connections: Map<string, ConnectedServer> = new Map();
   private toolsCache: Map<string, { name: string; description: string; inputSchema?: any }[]> = new Map();
+  private loadedTools = new Set<string>();
   private initialized = false;
 
   async initialize(): Promise<void> {
@@ -110,7 +128,7 @@ class McpService {
     log.info(`Found ${servers.length} MCP server config(s)`);
 
     for (const server of servers) {
-      log.info(`Connecting to "${server.name}": command="${server.command}", args=[${server.args.join(', ')}]`);
+      log.info(`Connecting to "${server.name}": ${server.url ? `url="${server.url}"` : `command="${server.command}"`}`);
       try {
         await this.connectServer(server);
         log.info(`"${server.name}" connected successfully`);
@@ -132,9 +150,46 @@ class McpService {
     command: string;
     args: string[];
     env: Record<string, string>;
+    url?: string | null;
+    headers?: Record<string, string>;
   }): Promise<void> {
     log.info(`[${config.name}] Connecting...`);
-    log.debug(`[${config.name}] Raw config: command="${config.command}", args=[${config.args.join(', ')}], env keys=[${Object.keys(config.env || {}).join(', ')}]`);
+    log.debug(`[${config.name}] Raw config: ${config.url ? `url="${config.url}"` : `command="${config.command}", args=[${config.args.join(', ')}]`}, env keys=[${Object.keys(config.env || {}).join(', ')}], header keys=[${Object.keys(config.headers || {}).join(', ')}]`);
+
+    if (config.url) {
+      let url: URL;
+      try { url = new URL(config.url); } catch { throw new Error(`Invalid MCP URL: ${config.url}`); }
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new Error(`MCP URL must use http or https: ${config.url}`);
+      }
+
+      const transport = new StreamableHTTPClientTransport(url, {
+        requestInit: { headers: config.headers || {} },
+      });
+      const client = new Client(
+        { name: 'ai-chat-client', version: '1.0.0' },
+        { capabilities: {} },
+      );
+      mcpServerRepo.update(config.id, { status: 'connecting', errorMessage: null });
+      try {
+        await client.connect(transport);
+      } catch (err) {
+        const cause = formatErrorCause(err);
+        if (cause) log.error(`[${config.name}] client.connect() cause: ${cause}`);
+        await transport.close().catch(() => undefined);
+        throw err;
+      }
+      const connectedServer: ConnectedServer = { client, transport, name: config.name };
+      this.connections.set(config.name, connectedServer);
+      await this.cacheTools(config, connectedServer);
+      mcpServerRepo.update(config.id, { status: 'connected', errorMessage: null });
+      transport.onerror = (err) => log.error(`[${config.name}] transport error: ${err.message}`);
+      transport.onclose = () => {
+        this.connections.delete(config.name);
+        this.toolsCache.delete(config.name);
+      };
+      return;
+    }
 
     // 解密环境变量
     const decryptedEnv: Record<string, string> = {};
@@ -199,6 +254,8 @@ class McpService {
     } catch (err) {
       const msg = (err as Error).message;
       log.error(`[${config.name}] client.connect() FAILED: ${msg}`);
+      const cause = formatErrorCause(err);
+      if (cause) log.error(`[${config.name}] Cause: ${cause}`);
       log.error(`[${config.name}] Stack: ${(err as Error).stack}`);
 
       // 检查是否是 ENOENT
@@ -229,6 +286,7 @@ class McpService {
       log.error(`[${config.name}] No child process after connect!`);
       throw new Error('MCP server process not available after connection');
     }
+    const stdioProcess = childProc;
 
     log.info(`[${config.name}] Process spawned: pid=${childProc.pid}, channel=${childProc.channel}, connected=${childProc.connected}`);
 
@@ -237,19 +295,7 @@ class McpService {
     };
     this.connections.set(config.name, connectedServer);
 
-    // 收集工具
-    try {
-      const result = await connectedServer.client.listTools();
-      log.info(`[${config.name}] listTools returned ${result.tools.length} tool(s)`);
-      this.toolsCache.set(config.name, result.tools.map((t: any) => ({
-        name: t.name,
-        description: t.description || '',
-        inputSchema: t.inputSchema,
-      })));
-    } catch (err) {
-      log.error(`[${config.name}] listTools failed: ${(err as Error).message}`);
-      this.toolsCache.set(config.name, []);
-    }
+    await this.cacheTools(config, connectedServer);
 
     mcpServerRepo.update(config.id, { status: 'connected', errorMessage: null });
 
@@ -263,7 +309,7 @@ class McpService {
     }, 1000);
 
     // 进程退出监听
-    connectedServer.process.on('exit', (code, signal) => {
+    stdioProcess.on('exit', (code, signal) => {
       log.info(`[${config.name}] Process exited: code=${code}, signal=${signal}`);
       this.connections.delete(config.name);
       const dbServer = mcpServerRepo.findByName(config.name);
@@ -276,10 +322,31 @@ class McpService {
     });
 
     // 收集 stderr
-    connectedServer.process.stderr?.on('data', (data: Buffer) => {
+    stdioProcess.stderr?.on('data', (data: Buffer) => {
       const text = data.toString().trim();
       if (text) log.warn(`[${config.name}] stderr: ${text}`);
     });
+  }
+
+  /**
+   * Discovers and caches tools exposed by a connected MCP server.
+   * @param config MCP server configuration.
+   * @param connectedServer Connected client and transport.
+   * @returns A promise resolved after tool discovery completes.
+   */
+  private async cacheTools(config: { name: string }, connectedServer: ConnectedServer): Promise<void> {
+    try {
+      const result = await connectedServer.client.listTools();
+      log.info(`[${config.name}] listTools returned ${result.tools.length} tool(s)`);
+      this.toolsCache.set(config.name, result.tools.map((t: any) => ({
+        name: t.name,
+        description: t.description || '',
+        inputSchema: t.inputSchema,
+      })));
+    } catch (err) {
+      log.error(`[${config.name}] listTools failed: ${(err as Error).message}`);
+      this.toolsCache.set(config.name, []);
+    }
   }
 
   async disconnectServer(serverName: string): Promise<void> {
@@ -294,17 +361,21 @@ class McpService {
       log.error(`Error closing "${serverName}": ${(err as Error).message}`);
     }
 
-    if (conn.process && !conn.process.killed) {
-      conn.process.kill('SIGTERM');
+    const process = conn.process;
+    if (process && !process.killed) {
+      process.kill('SIGTERM');
       setTimeout(() => {
-        if (!conn.process.killed) {
-          conn.process.kill('SIGKILL');
+        if (!process.killed) {
+          process.kill('SIGKILL');
         }
       }, 3000);
     }
 
     this.connections.delete(serverName);
     this.toolsCache.delete(serverName);
+    for (const name of this.loadedTools) {
+      if (name.startsWith(`${serverName}__`)) this.loadedTools.delete(name);
+    }
 
     const dbServer = mcpServerRepo.findByName(serverName);
     if (dbServer) {
@@ -341,6 +412,64 @@ class McpService {
     const conn = this.connections.get(serverName);
     if (!conn) throw new Error(`MCP server "${serverName}" is not connected`);
     return await conn.client.callTool({ name: toolName, arguments: args });
+  }
+
+  /** 返回不含完整 Schema 的 MCP 工具目录，供主动发现使用。 */
+  getToolCatalog(serverNames?: string[]): Array<{
+    serverName: string;
+    name: string;
+    description: string;
+  }> {
+    const catalog: Array<{ serverName: string; name: string; description: string }> = [];
+    for (const [serverName, serverTools] of this.toolsCache.entries()) {
+      if (serverNames && !serverNames.includes(serverName)) continue;
+      for (const tool of serverTools) {
+        catalog.push({ serverName, name: tool.name, description: tool.description || '' });
+      }
+    }
+    return catalog;
+  }
+
+  /** 按兼容名称查找单个 MCP 工具的完整定义。 */
+  getToolDefinition(fullName: string): ToolDefinition | undefined {
+    const separatorIndex = fullName.indexOf('__');
+    if (separatorIndex <= 0) return undefined;
+    const serverName = fullName.slice(0, separatorIndex);
+    const toolName = fullName.slice(separatorIndex + 2);
+    const tool = this.toolsCache.get(serverName)?.find(item => item.name === toolName);
+    if (!tool) return undefined;
+    return {
+      type: 'function',
+      function: {
+        name: fullName,
+        description: tool.description || '',
+        parameters: tool.inputSchema as Record<string, unknown>,
+      },
+    };
+  }
+
+  /** 返回 MCP 适配器所需的来源和原始 Schema。 */
+  getToolRecord(fullName: string): { serverName: string; name: string; description: string; inputSchema?: Record<string, unknown> } | undefined {
+    const separatorIndex = fullName.indexOf('__');
+    if (separatorIndex <= 0) return undefined;
+    const serverName = fullName.slice(0, separatorIndex);
+    const name = fullName.slice(separatorIndex + 2);
+    const tool = this.toolsCache.get(serverName)?.find(item => item.name === name);
+    return tool ? { serverName, name, description: tool.description || '', inputSchema: tool.inputSchema } : undefined;
+  }
+
+  /** 标记工具已按需加载，下一轮构建工具定义时纳入。 */
+  markToolLoaded(fullName: string): void {
+    if (this.getToolDefinition(fullName)) this.loadedTools.add(fullName);
+  }
+
+  getLoadedToolNames(): string[] {
+    return Array.from(this.loadedTools);
+  }
+
+  /** 返回兼容模式需要注册的全部 MCP 工具名称。 */
+  getAllToolNames(serverNames?: string[]): string[] {
+    return this.getToolCatalog(serverNames).map(tool => `${tool.serverName}__${tool.name}`);
   }
 
   getServerTools(serverName: string) {

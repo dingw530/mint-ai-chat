@@ -7,6 +7,7 @@ interface FileTreeNode {
   name: string;
   type: 'file' | 'directory';
   path: string;
+  modifiedAt: number;
   children?: FileTreeNode[];
 }
 
@@ -109,7 +110,7 @@ function buildFileTree(rootDir: string, currentDir: string): FileTreeNode[] {
 
     if (stat.isDirectory()) {
       const children = buildFileTree(rootDir, fullPath);
-      entries.push({ name: item, type: 'directory', path: relativePath, children });
+      entries.push({ name: item, type: 'directory', path: relativePath, modifiedAt: stat.mtimeMs, children });
     } else if (
       (item.endsWith('.md') ||
         item === '_schema.json' ||
@@ -117,7 +118,7 @@ function buildFileTree(rootDir: string, currentDir: string): FileTreeNode[] {
         /\.(html?|txt|pdf)$/i.test(item)) &&
       item !== '.gitkeep'
     ) {
-      entries.push({ name: item, type: 'file', path: relativePath });
+      entries.push({ name: item, type: 'file', path: relativePath, modifiedAt: stat.mtimeMs });
     }
   }
   return entries;

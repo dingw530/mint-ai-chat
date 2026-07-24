@@ -68,7 +68,7 @@ ${agents || '(暂无可用 Worker)'}
     return true;
   }
 
-  async execute(input: InvokeAgentInput, _context: ToolContext): Promise<AgentResult> {
+  async execute(input: InvokeAgentInput, context: ToolContext): Promise<AgentResult> {
     const startTime = Date.now();
     const { agent_id: agentId, task, timeout_ms: timeoutMs } = input;
 
@@ -115,7 +115,7 @@ ${agents || '(暂无可用 Worker)'}
     const sink = new AccumulatingSink();
 
     try {
-      const result = await reactChat(messages, settings, sink, agentId, signal);
+      const result = await reactChat(messages, settings, sink, agentId, signal, context.conversationId);
 
       return {
         success: true,

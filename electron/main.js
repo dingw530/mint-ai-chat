@@ -185,6 +185,7 @@ async function loadServiceModules() {
     fileParseService: bundle,
     wikiCompiler: bundle,
     wikiIngestionJobService: bundle.wikiIngestionJobService,
+    ingestionA2ui: bundle.ingestionA2ui,
     messageRepository: bundle.messageRepository,
     endpointRegistry: bundle.endpointRegistry,
     registerIpcHandlers: bundle.registerIpcHandlers,

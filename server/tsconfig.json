@@ -15,5 +15,5 @@
     "allowImportingTsExtensions": false
   },
   "include": ["./**/*.ts"],
-  "exclude": ["node_modules", "dist", "data.db*", "__tests__"]
+  "exclude": ["node_modules", "dist", "data.db*", "**/__tests__"]
 }

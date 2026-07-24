@@ -69,6 +69,8 @@ function createSchema(): void {
       command TEXT NOT NULL,
       args TEXT NOT NULL DEFAULT '[]',
       env TEXT NOT NULL DEFAULT '{}',
+      url TEXT,
+      headers TEXT NOT NULL DEFAULT '{}',
       status TEXT NOT NULL DEFAULT 'inactive',
       error_message TEXT,
       created_at TEXT NOT NULL,
@@ -93,10 +95,38 @@ function createSchema(): void {
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,
       category TEXT NOT NULL DEFAULT 'general',
+      memory_key TEXT NOT NULL DEFAULT 'general',
+      value_json TEXT,
+      memory_type TEXT NOT NULL DEFAULT 'semantic',
+      subject TEXT NOT NULL DEFAULT 'user',
+      relationship TEXT,
+      confidence REAL NOT NULL DEFAULT 0.5,
+      importance REAL NOT NULL DEFAULT 0.5,
+      valid_from TEXT,
+      valid_to TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      supersedes_id TEXT,
+      source_message_id TEXT,
+      last_accessed_at TEXT,
+      access_count INTEGER NOT NULL DEFAULT 0,
       source_conversation_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS memory_processing_jobs (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      available_at TEXT NOT NULL,
+      locked_at TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_jobs_status_available
+      ON memory_processing_jobs(status, available_at);
 
     CREATE TABLE IF NOT EXISTS routing_logs (
       id TEXT PRIMARY KEY,

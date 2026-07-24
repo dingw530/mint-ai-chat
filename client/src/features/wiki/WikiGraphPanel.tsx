@@ -107,7 +107,7 @@ function NodeDetailPanel({ node, edges, allNodes, onClose, onOpenFile }: NodeDet
 
 // ── 工具：获取节点的原始颜色 ──
 
-function getFadedColor(bg: string): string {
+export function getFadedColor(bg: string): string {
   // 将 hex 转成半透明 rgba（~10% 不透明度）
   const hex = bg.replace('#', '');
   const r = parseInt(hex.substring(0, 2), 16);
@@ -117,16 +117,16 @@ function getFadedColor(bg: string): string {
 }
 
 /** 画布优先保证图形可读性，完整标题由悬停提示和详情面板承载。 */
-function getGraphNodeLabel(label: string): string {
+export function getGraphNodeLabel(label: string): string {
   const maxLength = 16;
   return label.length > maxLength ? `${label.slice(0, maxLength)}...` : label;
 }
 
-function isWeakGraphEdge(edge: GraphEdge): boolean {
+export function isWeakGraphEdge(edge: GraphEdge): boolean {
   return edge.properties.strength === 'weak' || edge.relation === 'references';
 }
 
-function getGraphEdgeWidth(edge: GraphEdge): number {
+export function getGraphEdgeWidth(edge: GraphEdge): number {
   if (isWeakGraphEdge(edge)) return 0.6;
   const confidence =
     typeof edge.properties.confidence === 'number' ? edge.properties.confidence : 0.55;

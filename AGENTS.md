@@ -115,7 +115,7 @@ docs/exec-plans/README.md       执行计划索引
 | 端点注册 | `server/endpoints/` |
 | 设置/配置 | `server/routes/settings.ts` + `client/src/features/settings/` |
 | Electron 桌面 | `electron/main.js` + `electron/preload.js` |
-| 测试 | `server/__tests__/` |
+| 测试 | 各源码目录下的 `__tests__/` |
 
 ## Constraints (Machine-Readable)
 
@@ -123,6 +123,7 @@ docs/exec-plans/README.md       执行计划索引
 - **MUST**: AI 流式响应使用 SSE，前端使用 `useSSE` hook 消费
 - **MUST NOT**: 禁止在前端硬编码 API URL，必须通过 `/api` 代理或 settings 获取
 - **MUST NOT**: 禁止直接修改数据库 schema，必须通过 `migrations/` 迁移
+- **MUST NOT**: 禁止硬编码
 - **PREFER**: 纯函数优先，便于单元测试覆盖
 - **PREFER**: CSS 设计系统 tokens（custom properties）而非内联样式
 
@@ -234,7 +235,7 @@ docs/
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **mint-ai-chat** (4511 symbols, 8368 relationships, 250 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **mint-ai-chat** (5029 symbols, 9200 relationships, 262 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

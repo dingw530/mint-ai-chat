@@ -24,21 +24,9 @@ router.post(
     }
 
     const { originalname, buffer, size } = req.file;
-    const result = wikiIngestionJobService.start({ name: originalname, buffer, size });
+    const idempotencyKey = typeof req.headers['idempotency-key'] === 'string' ? req.headers['idempotency-key'] : undefined;
+    const result = wikiIngestionJobService.start({ name: originalname, buffer, size, idempotencyKey });
     res.json(result);
-  }),
-);
-
-// GET /api/wiki/jobs/:jobId — 查询作业状态（轮询用）
-router.get(
-  '/jobs/:jobId',
-  asyncHandler(async (req: Request, res: Response) => {
-    const job = wikiIngestionJobService.getStatus(req.params.jobId as string);
-    if (!job) {
-      res.status(404).json({ error: '作业不存在或已过期' });
-      return;
-    }
-    res.json({ job });
   }),
 );
 

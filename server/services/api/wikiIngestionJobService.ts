@@ -1,6 +1,8 @@
 import * as path from 'path';
 import * as settingsService from './settingsService.js';
 import { ingestWikiSource, buildWikiSourceText } from './wikiIngestionService.js';
+import { captureWikiPage } from '../utils/wikiPageCapture.js';
+import { isSupportedFile } from '../utils/fileParseService.js';
 import {
   archiveWikiUpload,
   readArchivedWikiFile,
@@ -11,10 +13,17 @@ import type {
   WikiJobResult,
   WikiUploadInput,
   WikiUploadStartResult,
+  WikiChatIngestionInput,
+  WikiJobStartResult,
 } from './wikiIngestionTypes.js';
 import { parseFile } from '../utils/fileParseService.js';
-import * as jobStore from '../utils/jobStore.js';
+import * as jobStore from '../jobs/adapters/sqliteJobStore.js';
 import type { AiSettings } from '../../types.js';
+import { InProcessJobQueue, type JobQueue } from '../jobs/jobQueue.js';
+import { createJobStoreAdapter, sqliteJobStore, type JobStore } from '../jobs/jobStore.js';
+import { publishJobEvent, subscribeJobEvents, type JobEventListener } from '../jobs/jobEvents.js';
+
+class CancelledJobError extends Error {}
 
 export interface WikiIngestionJobDependencies {
   getAiSettings: typeof settingsService.getAiSettings;
@@ -25,10 +34,19 @@ export interface WikiIngestionJobDependencies {
   createJob: typeof jobStore.createJob;
   updateJob: typeof jobStore.updateJob;
   getJob: typeof jobStore.getJob;
+  getJobByIdempotencyKey: typeof jobStore.getByIdempotencyKey;
+  listJobs: typeof jobStore.listJobs;
+  removeJob: typeof jobStore.removeJob;
+  getJobPayload: typeof jobStore.getJobPayload;
+  countJobs: typeof jobStore.countJobs;
+  claimNext: typeof jobStore.claimNext;
+  recoverRunning: typeof jobStore.recoverRunning;
+  queue: JobQueue;
+  store: JobStore;
 }
 
 const defaultDependencies: WikiIngestionJobDependencies = {
-  getAiSettings: settingsService.getAiSettings,
+  getAiSettings: () => settingsService.getAiSettings(),
   parseFile,
   ingestWikiSource,
   archiveWikiUpload,
@@ -36,6 +54,15 @@ const defaultDependencies: WikiIngestionJobDependencies = {
   createJob: jobStore.createJob,
   updateJob: jobStore.updateJob,
   getJob: jobStore.getJob,
+  getJobByIdempotencyKey: jobStore.getByIdempotencyKey,
+  listJobs: jobStore.listJobs,
+  removeJob: jobStore.removeJob,
+  getJobPayload: jobStore.getJobPayload,
+  countJobs: jobStore.countJobs,
+  claimNext: jobStore.claimNext,
+  recoverRunning: jobStore.recoverRunning,
+  queue: new InProcessJobQueue(),
+  store: sqliteJobStore,
 };
 
 /**
@@ -44,14 +71,44 @@ const defaultDependencies: WikiIngestionJobDependencies = {
 export function createWikiIngestionJobService(
   dependencies: Partial<WikiIngestionJobDependencies> = {},
 ): WikiIngestionJobService {
-  return new WikiIngestionJobService({ ...defaultDependencies, ...dependencies });
+  const merged = { ...defaultDependencies, ...dependencies };
+  const store = dependencies.store || createJobStoreAdapter({
+    create: dependencies.createJob,
+    get: dependencies.getJob,
+    getByIdempotencyKey: dependencies.getJobByIdempotencyKey,
+    list: dependencies.listJobs,
+    count: dependencies.countJobs,
+    update: dependencies.updateJob,
+    getPayload: dependencies.getJobPayload,
+    claimNext: dependencies.claimNext,
+    recoverRunning: dependencies.recoverRunning,
+    remove: dependencies.removeJob,
+  });
+  return new WikiIngestionJobService({ ...merged, store });
 }
 
 /**
  * 统一 Web 与 Electron 的 Wiki 上传、解析、编译和作业状态编排。
  */
 export class WikiIngestionJobService {
-  constructor(private readonly dependencies: WikiIngestionJobDependencies) {}
+  constructor(private readonly dependencies: WikiIngestionJobDependencies) {
+    this.dependencies.queue.start(() => this.runNext());
+    if (this.dependencies.store.recoverRunning() > 0) this.dependencies.queue.enqueue('recovered');
+  }
+
+  /** 订阅任务变化，供 Chat A2UI SSE 使用。 */
+  subscribe(listener: JobEventListener): () => void {
+    return subscribeJobEvents(listener);
+  }
+
+  /** 发布任务变化；任务存储仍是唯一事实来源。 */
+  private updateJob(jobId: string, updates: Parameters<JobStore['update']>[1]): WikiJob | undefined {
+    const current = this.dependencies.store.get(jobId);
+    if (current?.status === 'cancelled' && updates.status !== 'cancelled') return current;
+    const job = this.dependencies.store.update(jobId, updates);
+    if (job) publishJobEvent(job);
+    return job;
+  }
 
   /**
    * 校验并归档上传文件，创建后台作业后立即返回。
@@ -67,11 +124,21 @@ export class WikiIngestionJobService {
       throw new WikiUploadValidationError('Wiki 路径未配置');
     }
 
+    if (normalizedInput.idempotencyKey) {
+      const existing = this.dependencies.store.getByIdempotencyKey(normalizedInput.idempotencyKey);
+      if (existing) return { jobId: existing.id, sourceFile: String(this.dependencies.store.getPayload(existing.id).sourceFile || ''), fileName: existing.fileName, fileSize: existing.fileSize };
+    }
+
     const sourceFile = this.dependencies.archiveWikiUpload(wikiPath, settings, normalizedInput);
-    const jobId = this.dependencies.createJob(normalizedInput.name, normalizedInput.size);
-    void this.run(jobId, normalizedInput, settings, sourceFile).catch((error: unknown) => {
-      this.markError(jobId, error);
+    const jobId = this.dependencies.store.create(normalizedInput.name, normalizedInput.size, {
+      sourceType: 'upload',
+      fileCount: 1,
+      payload: { sourceFile },
+      idempotencyKey: normalizedInput.idempotencyKey,
     });
+    const job = this.getStatus(jobId);
+    if (job) publishJobEvent(job);
+    this.dependencies.queue.enqueue(jobId);
 
     return {
       jobId,
@@ -79,6 +146,207 @@ export class WikiIngestionJobService {
       fileName: normalizedInput.name,
       fileSize: normalizedInput.size,
     };
+  }
+
+  /** 创建 Chat 异步摄入任务；文件在入队前归档，后台任务只读取归档路径。 */
+  startChat(input: WikiChatIngestionInput, conversationId?: string): WikiJobStartResult {
+    const settings = this.dependencies.getAiSettings();
+    const wikiPath = settings.wikiPath;
+    if (!wikiPath) throw new WikiUploadValidationError('Wiki 路径未配置');
+    if (!input.source?.trim() && !input.urls?.length && !input.files?.length) {
+      throw new WikiUploadValidationError('请提供 source、urls 或 files');
+    }
+
+    if (input.idempotencyKey) {
+      const existing = this.dependencies.store.getByIdempotencyKey(input.idempotencyKey);
+      if (existing) return { jobId: existing.id, status: 'queued', executionMode: 'async', fileCount: existing.fileCount || 1, message: '已加入知识摄入任务' };
+    }
+
+    const archivedFiles: Array<{ name: string; existingRelativePath: string }> = [];
+    let totalSize = 0;
+    for (const file of input.files || []) {
+      if (!isSupportedFile(file.name)) {
+        throw new WikiUploadValidationError(`不支持的文件类型: ${path.extname(file.name)}`);
+      }
+      const buffer = Buffer.from(file.content, 'base64');
+      if (settings.wikiMaxFileSize > 0 && buffer.length > settings.wikiMaxFileSize) {
+        throw new WikiUploadValidationError(`文件 ${file.name} 超过大小限制`);
+      }
+      const sourceFile = this.dependencies.archiveWikiUpload(wikiPath, settings, {
+        name: file.name,
+        size: buffer.length,
+        buffer,
+      });
+      archivedFiles.push({ name: file.name, existingRelativePath: sourceFile });
+      totalSize += buffer.length;
+    }
+
+    const fileCount = (input.files?.length || 0) + (input.urls?.length || 0);
+    const jobId = this.dependencies.store.create(
+      input.title || input.files?.[0]?.name || 'Chat Wiki 摄入',
+      totalSize,
+      {
+        sourceType: 'chat',
+        conversationId: conversationId || null,
+        fileCount: Math.max(fileCount, 1),
+        payload: { ...input, files: archivedFiles },
+        idempotencyKey: input.idempotencyKey,
+      },
+    );
+    const job = this.getStatus(jobId);
+    if (job) publishJobEvent(job);
+    this.dependencies.queue.enqueue(jobId);
+    return {
+      jobId,
+      status: 'queued',
+      executionMode: 'async',
+      fileCount: Math.max(fileCount, 1),
+      message: '已加入知识摄入任务',
+    };
+  }
+
+  /** 从持久化 payload 领取并执行一个任务。 */
+  private async runNext(): Promise<void> {
+    const claimed = this.dependencies.store.claimNext();
+    if (!claimed) return;
+    try {
+      const settings = this.dependencies.getAiSettings();
+      const payload = this.dependencies.store.getPayload(claimed.id);
+      if (claimed.sourceType === 'chat') {
+        const archivedFiles = Array.isArray(payload.files)
+          ? payload.files as Array<{ name: string; existingRelativePath: string }>
+          : [];
+        await this.runChat(claimed.id, payload as WikiChatIngestionInput, settings, archivedFiles);
+      } else {
+        await this.run(
+          claimed.id,
+          { name: claimed.fileName, size: claimed.fileSize, buffer: Buffer.alloc(0) },
+          settings,
+          typeof payload.sourceFile === 'string' ? payload.sourceFile : '',
+        );
+      }
+    } catch (error: unknown) {
+      this.markError(claimed.id, error);
+    } finally {
+      this.dependencies.queue.enqueue(claimed.id);
+    }
+  }
+
+  /** 按 Wiki 路径串行保护包含最终文件提交的摄入操作。 */
+  private static readonly commitTails = new Map<string, Promise<void>>();
+
+  private async withWikiCommitLock<T>(wikiPath: string, operation: () => Promise<T>): Promise<T> {
+    const previous = WikiIngestionJobService.commitTails.get(wikiPath) || Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    const tail = previous.then(() => current);
+    WikiIngestionJobService.commitTails.set(wikiPath, tail);
+    await previous;
+    try { return await operation(); } finally {
+      release();
+      if (WikiIngestionJobService.commitTails.get(wikiPath) === tail) WikiIngestionJobService.commitTails.delete(wikiPath);
+    }
+  }
+
+  /** 在可能产生 Wiki 写入前确认任务仍可继续。 */
+  private assertNotCancelled(jobId: string): void {
+    if (this.dependencies.store.get(jobId)?.status === 'cancelled') throw new CancelledJobError('任务已取消');
+  }
+
+  /** 执行 Chat 摄入任务，复用统一 Wiki 编译服务。 */
+  async runChat(
+    jobId: string,
+    input: WikiChatIngestionInput,
+    settings: AiSettings,
+    archivedFiles: Array<{ name: string; existingRelativePath: string }>,
+  ): Promise<void> {
+    try {
+        this.updateJob(jobId, { status: 'parsing', progress: 25, step: '解析资料中' });
+      const segments: Array<{ kind: 'url' | 'file'; name: string; content: string }> = [];
+      const capturedTitles: string[] = [];
+      for (const url of input.urls || []) {
+        const captured = await captureWikiPage(url);
+        const parsed = await this.dependencies.parseFile({
+          name: `${captured.title || 'web-page'}.html`,
+          content: Buffer.from(captured.content, 'utf-8'),
+          size: Buffer.byteLength(captured.content),
+        });
+        segments.push({ kind: 'url', name: captured.title || url, content: parsed.text });
+        if (captured.title) capturedTitles.push(captured.title);
+      }
+      for (const file of archivedFiles) {
+        const content = this.dependencies.readArchivedWikiFile(settings.wikiPath, file.existingRelativePath);
+        const parsed = await this.dependencies.parseFile({ name: file.name, content, size: content.length });
+        segments.push({ kind: 'file', name: file.name, content: parsed.text });
+      }
+      if (capturedTitles[0]) {
+        this.updateJob(jobId, { fileName: capturedTitles[0] });
+      }
+      const sourceText = buildWikiSourceText(input.source || '', segments);
+      if (!sourceText.trim()) throw new Error('未获取到有效内容');
+      this.updateJob(jobId, { status: 'compiling', progress: 60, step: 'AI 编译中' });
+      const items = [
+        ...(input.source?.trim() ? [{ name: input.title || '原始资料', content: input.source, files: [] as Array<{ name: string; existingRelativePath: string }> }] : []),
+        ...segments.map((segment, index) => ({
+          name: segment.name || `输入-${index + 1}`,
+          content: segment.content,
+          files: segment.kind === 'file' ? [archivedFiles.find((file) => file.name === segment.name) || archivedFiles[index] ].filter(Boolean) as Array<{ name: string; existingRelativePath: string }> : [],
+        })),
+      ];
+      const successfulResults: WikiJobResult[] = [];
+      const failedItems: Array<{ name: string; error: string }> = [];
+      for (const [index, item] of items.entries()) {
+        this.assertNotCancelled(jobId);
+        try {
+          const sourceTitle = item.name.replace(/\.[^.]+$/, '') || `untitled-${index + 1}`;
+          const compiled = await this.withWikiCommitLock(settings.wikiPath, () => this.dependencies.ingestWikiSource(settings, settings.wikiPath, {
+            sourceText: buildWikiSourceText('', [{ kind: 'file', name: item.name, content: item.content }]),
+            sourceTitle,
+            sourceFilenameHint: sourceTitle,
+            category: input.category,
+            archivedFiles: item.files,
+          }));
+          successfulResults.push({
+            sourceFile: compiled.sourceFile,
+            format: 'mixed',
+            textLength: item.content.length,
+            preview: item.content.slice(0, 500),
+            pages: compiled.pages,
+            graphErrors: compiled.graphErrors,
+          });
+        } catch (error: unknown) {
+          if (error instanceof CancelledJobError) throw error;
+          failedItems.push({ name: item.name, error: error instanceof Error ? error.message : String(error) });
+        }
+        this.updateJob(jobId, { progress: Math.min(89, 60 + Math.round(((index + 1) / items.length) * 29)), step: 'AI 编译中' });
+      }
+      if (failedItems.length === items.length) {
+        this.updateJob(jobId, { status: 'failed', progress: 100, step: '处理失败', error: failedItems.map((item) => `${item.name}: ${item.error}`).join('; ') });
+        return;
+      }
+      this.updateJob(jobId, {
+        status: 'committing',
+        progress: 90,
+        step: '提交 Wiki 中',
+      });
+      const result: WikiJobResult = {
+        sourceFile: successfulResults[0]?.sourceFile || '',
+        format: 'mixed',
+        textLength: sourceText.length,
+        preview: sourceText.slice(0, 500),
+        pages: successfulResults.flatMap((item) => item.pages || []),
+        graphErrors: successfulResults.flatMap((item) => item.graphErrors || []),
+        ...(failedItems.length ? { failedItems } : {}),
+      };
+      this.updateJob(jobId, {
+        status: failedItems.length ? 'partial_failed' : 'completed',
+        progress: 100,
+        step: failedItems.length ? '部分完成' : result.graphErrors?.length ? '完成（图谱警告）' : '完成',
+        result,
+      });
+    } catch (error: unknown) {
+      if (!(error instanceof CancelledJobError)) this.markError(jobId, error);
+    }
   }
 
   /**
@@ -91,7 +359,7 @@ export class WikiIngestionJobService {
     sourceFile: string,
   ): Promise<void> {
     try {
-      this.dependencies.updateJob(jobId, { status: 'parsing', progress: 30, step: '解析文件中' });
+      this.updateJob(jobId, { status: 'parsing', progress: 30, step: '解析文件中' });
       const content = this.dependencies.readArchivedWikiFile(settings.wikiPath, sourceFile);
       const parsed = await this.dependencies.parseFile({
         name: input.name,
@@ -101,15 +369,15 @@ export class WikiIngestionJobService {
       const preview =
         parsed.text.length > 500 ? `${parsed.text.substring(0, 500)}\n...` : parsed.text;
 
-      this.dependencies.updateJob(jobId, { status: 'compiling', progress: 60, step: 'AI 编译中' });
-      const compiled = await this.dependencies.ingestWikiSource(settings, settings.wikiPath, {
+      this.updateJob(jobId, { status: 'compiling', progress: 60, step: 'AI 编译中' });
+      const compiled = await this.withWikiCommitLock(settings.wikiPath, () => this.dependencies.ingestWikiSource(settings, settings.wikiPath, {
         sourceText: buildWikiSourceText('', [
           { kind: 'file', name: input.name, content: parsed.text },
         ]),
         sourceTitle: input.name.replace(/\.[^.]+$/, ''),
         sourceFilenameHint: path.basename(sourceFile),
         archivedFiles: [{ name: input.name, existingRelativePath: sourceFile }],
-      });
+      }));
 
       const result: WikiJobResult = {
         sourceFile: compiled.sourceFile || sourceFile,
@@ -121,14 +389,19 @@ export class WikiIngestionJobService {
         graphErrors: compiled.graphErrors,
       };
       const hasGraphWarnings = Boolean(compiled.graphErrors && compiled.graphErrors.length > 0);
-      this.dependencies.updateJob(jobId, {
-        status: 'done',
+      this.updateJob(jobId, {
+        status: 'committing',
+        progress: 90,
+        step: '提交 Wiki 中',
+      });
+      this.updateJob(jobId, {
+        status: 'completed',
         progress: 100,
         step: hasGraphWarnings ? '完成（图谱警告）' : '完成',
         result,
       });
     } catch (error: unknown) {
-      this.markError(jobId, error);
+      if (!(error instanceof CancelledJobError)) this.markError(jobId, error);
     }
   }
 
@@ -136,13 +409,60 @@ export class WikiIngestionJobService {
    * 查询作业状态，保持入口层的统一返回类型。
    */
   getStatus(jobId: string): WikiJob | undefined {
-    return this.dependencies.getJob(jobId);
+    return this.dependencies.store.get(jobId);
+  }
+
+  /** 获取任务详情；不存在时返回标准 HTTP 404 错误。 */
+  getRequiredStatus(jobId: string): WikiJob {
+    const job = this.getStatus(jobId);
+    if (!job) {
+      const error = new WikiUploadValidationError('任务不存在或已过期');
+      (error as unknown as { status: number }).status = 404;
+      throw error;
+    }
+    return job;
+  }
+
+  /** 查询任务看板数据。 */
+  list(filter: Parameters<typeof jobStore.listJobs>[0] = {}): WikiJob[] {
+    return this.dependencies.store.list(filter);
+  }
+
+  /** 为 HTTP 与 IPC 提供统一的任务列表返回形状。 */
+  listForApi(status?: string, limit?: number): { jobs: WikiJob[]; total: number } {
+    const jobs = this.list({ status: status as WikiJob['status'] | undefined, limit });
+    return { jobs, total: this.dependencies.store.count(status as WikiJob['status'] | undefined) };
+  }
+
+  /** 取消仍处于排队或执行早期的任务。 */
+  cancel(jobId: string): WikiJob {
+    const job = this.getStatus(jobId);
+    if (!job) throw new WikiUploadValidationError('任务不存在或已过期');
+    if (!['queued', 'pending', 'parsing', 'compiling'].includes(job.status)) {
+      throw new WikiUploadValidationError('当前任务阶段不支持取消');
+    }
+    const updated = this.updateJob(jobId, { status: 'cancelled', progress: job.progress, step: '已取消' });
+    if (!updated) throw new WikiUploadValidationError('任务不存在或已过期');
+    return updated;
+  }
+
+  /** 重置失败任务并重新执行。 */
+  retry(jobId: string): WikiJob {
+    const job = this.getStatus(jobId);
+    if (!job) throw new WikiUploadValidationError('任务不存在或已过期');
+    if (!['error', 'failed', 'partial_failed'].includes(job.status)) {
+      throw new WikiUploadValidationError('当前任务状态不支持重试');
+    }
+    const updated = this.updateJob(jobId, { status: 'queued', progress: 0, step: '等待重试', error: undefined });
+    if (!updated) throw new WikiUploadValidationError('任务不存在或已过期');
+    this.dependencies.queue.enqueue(jobId);
+    return updated;
   }
 
   private markError(jobId: string, error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
-    this.dependencies.updateJob(jobId, {
-      status: 'error',
+    this.updateJob(jobId, {
+      status: 'failed',
       progress: 100,
       step: '处理失败',
       error: message,

@@ -1,6 +1,6 @@
 import { useState, useCallback, type ReactNode } from 'react';
 
-function extractText(node: ReactNode): string {
+export function extractText(node: ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractText).join('');
   const el = node as { props?: { children?: ReactNode } } | null;

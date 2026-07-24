@@ -30,3 +30,8 @@
 | [Wiki 摄入作业统一](<../changes/2026-07-15-wiki-ingestion-job-unification/design-doc.md>) | 2026-07-15 | 已完成 |
 | [ReAct 事件与状态模型](<../changes/2026-07-15-react-event-state-model/design-doc.md>) | 2026-07-15 | 已完成 |
 | [Chat Wiki 知识链接](<../changes/2026-07-21-chat-wiki-links/design-doc.md>) | 2026-07-21 | 已完成 |
+| [决策轨迹第一阶段：行动轨迹](<../changes/2026-07-22-decision-trace/design-doc.md>) | 2026-07-22 | 已完成 |
+| [上下文工程能力改造](<../changes/2026-07-23-context-engineering/design-doc.md>) | 2026-07-23 | 已完成 |
+| [记忆机制优化](<../changes/2026-07-23-memory-mechanism-optimization/design-doc.md>) | 2026-07-23 | 已完成 |
+| [工具运行时安全与 MCP 主动发现](<../changes/2026-07-24-tool-runtime-security-discovery/design-doc.md>) | 2026-07-24 | 已完成 |
+| [Harness 反馈回路](<../changes/2026-07-24-harness-feedback-loop/design-doc.md>) | 2026-07-24 | 已完成 |

@@ -1,8 +1,17 @@
 import * as conversationService from '../../services/api/conversationService.js';
 import { httpError } from '../helpers.js';
+import { streamConversationIngestionEvents } from '../../services/api/ingestionEventsService.js';
 import type { EndpointDescriptor } from '../types.js';
 
 export const conversationsEndpoints: EndpointDescriptor[] = [
+  {
+    id: 'conversations:ingestionEvents',
+    method: 'GET',
+    path: '/:id/ingestion-events',
+    service: streamConversationIngestionEvents,
+    args: [{ from: 'path', name: 'id' }],
+    stream: true,
+  },
   {
     id: 'conversations:list',
     method: 'GET',
@@ -17,7 +26,7 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     method: 'POST',
     path: '/',
     preloadMethod: 'createConversation',
-    service: (title?: string, type?: string) => {
+    service: (title?: string, type?: string): { conversation: ReturnType<typeof conversationService.create> } => {
       if (title !== undefined && typeof title !== 'string') {
         throw httpError(400, 'Title must be a string');
       }
@@ -56,7 +65,7 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     method: 'PATCH',
     path: '/:id',
     preloadMethod: 'patchConversation',
-    service: (id: string, data: Record<string, unknown>) => {
+    service: (id: string, data: Record<string, unknown>): { conversation: ReturnType<typeof conversationService.rename> | ReturnType<typeof conversationService.setLockedAgent> } => {
       if (data?.lockedAgent !== undefined) {
         return { conversation: conversationService.setLockedAgent(id, data.lockedAgent as string) };
       }

@@ -9,7 +9,7 @@
  *
  * 原理:
  *   1. 从 product-spec.md 解析 验收标准 章节中的 AC-xxx 列表
- *   2. 在 server/__tests__/ 中搜索匹配的 AC-xxx 引用（describe/it/test/runIf）
+ *   2. 在 server/ 下的各级 __tests__/ 中搜索匹配的 AC-xxx 引用（describe/it/test/runIf）
  *   3. 输出覆盖率矩阵
  *
  * 注意: AC 编号在各变更中独立命名，跨变更扫描时编号可能冲突（如不同变更都有 AC-001）。
@@ -117,7 +117,7 @@ function collectSpecPaths(): string[] {
  */
 function searchAcInTests(acId: string): { matched: boolean; locations: string[] } {
   const locations: string[] = [];
-  const testDir = join(ROOT, 'server', '__tests__');
+  const testDir = join(ROOT, 'server');
 
   if (!statSync(testDir, { throwIfNoEntry: false })?.isDirectory()) {
     return { matched: false, locations: [] };

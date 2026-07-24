@@ -266,6 +266,129 @@ const migrations: Migration[] = [
       ); CREATE INDEX idx_graph_edge_candidates_status ON graph_edge_candidates(status, created_at);`);
     },
   },
+  {
+    id: 15,
+    name: 'add-ingestion-jobs',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ingestion_jobs (
+          id TEXT PRIMARY KEY,
+          source_type TEXT NOT NULL DEFAULT 'upload' CHECK(source_type IN ('upload', 'chat')),
+          conversation_id TEXT,
+          file_name TEXT NOT NULL,
+          file_size INTEGER NOT NULL DEFAULT 0,
+          file_count INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'queued',
+          progress INTEGER NOT NULL DEFAULT 0,
+          step TEXT NOT NULL DEFAULT '等待处理',
+          payload TEXT NOT NULL DEFAULT '{}',
+          result TEXT,
+          error TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          idempotency_key TEXT,
+          available_at TEXT NOT NULL,
+          locked_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status_updated
+          ON ingestion_jobs(status, updated_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_ingestion_jobs_idempotency
+          ON ingestion_jobs(idempotency_key)
+          WHERE idempotency_key IS NOT NULL;
+      `);
+    },
+  },
+  {
+    id: 16,
+    name: 'repair-ingestion-jobs-table',
+    up: (db) => {
+      // 15 可能在旧版本中已登记但进程曾在 DDL 后异常退出；保持迁移可重入。
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS ingestion_jobs (
+          id TEXT PRIMARY KEY,
+          source_type TEXT NOT NULL DEFAULT 'upload' CHECK(source_type IN ('upload', 'chat')),
+          conversation_id TEXT,
+          file_name TEXT NOT NULL,
+          file_size INTEGER NOT NULL DEFAULT 0,
+          file_count INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'queued',
+          progress INTEGER NOT NULL DEFAULT 0,
+          step TEXT NOT NULL DEFAULT '等待处理',
+          payload TEXT NOT NULL DEFAULT '{}',
+          result TEXT,
+          error TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          idempotency_key TEXT,
+          available_at TEXT NOT NULL,
+          locked_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_ingestion_jobs_status_updated
+          ON ingestion_jobs(status, updated_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_ingestion_jobs_idempotency
+          ON ingestion_jobs(idempotency_key)
+          WHERE idempotency_key IS NOT NULL;
+      `);
+    },
+  },
+  {
+    id: 17,
+    name: 'add-url-transport-to-mcp-servers',
+    up: (db) => {
+      db.exec('ALTER TABLE mcp_servers ADD COLUMN url TEXT');
+      db.exec("ALTER TABLE mcp_servers ADD COLUMN headers TEXT NOT NULL DEFAULT '{}'");
+    },
+  },
+  {
+    id: 18,
+    name: 'add-structured-memory-fields',
+    up: (db) => {
+      const columns = [
+        ["memory_key", "TEXT NOT NULL DEFAULT 'general'"],
+        ['value_json', 'TEXT'],
+        ["memory_type", "TEXT NOT NULL DEFAULT 'semantic'"],
+        ["subject", "TEXT NOT NULL DEFAULT 'user'"],
+        ['relationship', 'TEXT'],
+        ['confidence', 'REAL NOT NULL DEFAULT 0.5'],
+        ['importance', 'REAL NOT NULL DEFAULT 0.5'],
+        ['valid_from', 'TEXT'],
+        ['valid_to', 'TEXT'],
+        ["status", "TEXT NOT NULL DEFAULT 'active'"],
+        ['supersedes_id', 'TEXT'],
+        ['source_message_id', 'TEXT'],
+        ['last_accessed_at', 'TEXT'],
+        ['access_count', 'INTEGER NOT NULL DEFAULT 0'],
+      ];
+      for (const [name, definition] of columns) {
+        try {
+          db.exec(`ALTER TABLE memories ADD COLUMN ${name} ${definition}`);
+        } catch (error: any) {
+          if (!String(error?.message || error).includes('duplicate column')) throw error;
+        }
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_memories_active_key_subject
+          ON memories(status, memory_key, subject, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_memories_category_status
+          ON memories(category, status, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS memory_processing_jobs (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'pending',
+          attempts INTEGER NOT NULL DEFAULT 0,
+          available_at TEXT NOT NULL,
+          locked_at TEXT,
+          error_message TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_jobs_status_available
+          ON memory_processing_jobs(status, available_at);
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

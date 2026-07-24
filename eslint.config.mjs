@@ -3,6 +3,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
   // Global ignore — 不扫描生成目录
@@ -46,7 +47,7 @@ export default tseslint.config(
 
   // 测试文件放宽规则
   {
-    files: ['server/__tests__/**/*.ts'],
+    files: ['server/**/__tests__/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/consistent-type-imports': 'off',
@@ -60,6 +61,34 @@ export default tseslint.config(
     files: ['server/scripts/**/*.ts', 'scripts/**/*.ts'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
+  // Client-side TypeScript/React code runs in the browser, with Vite config
+  // files additionally needing Node globals. Keep legacy migration warnings
+  // visible without making the existing client codebase unlintable.
+  {
+    files: ['client/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+    plugins: { 'react-hooks': reactHooks },
+    rules: {
+      'no-console': 'off',
+      'no-undef': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-unused-expressions': 'off',
+      'no-useless-escape': 'off',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-expressions': 'off',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    files: ['client/vite.config.js'],
+    languageOptions: {
+      globals: { ...globals.node },
     },
   },
 );

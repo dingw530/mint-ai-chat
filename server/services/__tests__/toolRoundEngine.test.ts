@@ -1,0 +1,145 @@
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../adapters/apiAdapter.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../adapters/apiAdapter.js')>()),
+  getAdapter: vi.fn(),
+}));
+
+import { ToolLoopEngine, parseSSEStream } from '../toolRoundEngine.js';
+
+describe('ToolLoopEngine', () => {
+  const engine = new ToolLoopEngine();
+
+  it('rejects missing apiUrl', async () => {
+    await expect(
+      engine.executeRound({
+        messages: [],
+        settings: { apiUrl: '', apiKey: '' } as any,
+      }),
+    ).rejects.toThrow('API URL');
+  });
+
+  it('rejects missing apiKey', async () => {
+    await expect(
+      engine.executeRound({
+        messages: [],
+        settings: { apiUrl: 'https://api.test.com', apiKey: '' } as any,
+      }),
+    ).rejects.toThrow('API Key');
+  });
+
+  it('delegates the streaming LLM request to the adapter', async () => {
+    const adapter = {
+      getUrl: vi.fn(() => 'https://api.test.com/v1/chat/completions'),
+      stream: vi.fn().mockResolvedValue({ ok: false, status: 503, text: vi.fn().mockResolvedValue('down') }),
+    };
+
+    await expect(engine.executeRound({
+      messages: [],
+      settings: { apiUrl: 'https://api.test.com', apiKey: 'key', apiType: 'test' } as any,
+      adapter: adapter as any,
+    })).rejects.toThrow('AI API error');
+
+    expect(adapter.stream).toHaveBeenCalledWith(
+      [],
+      expect.anything(),
+      'https://api.test.com',
+      'key',
+      undefined,
+      expect.objectContaining({ signal: undefined }),
+    );
+  });
+});
+
+describe('parseSSEStream', () => {
+  it('throws on non-ok response', async () => {
+    const response = {
+      ok: false,
+      status: 401,
+      text: vi.fn().mockResolvedValue('Unauthorized'),
+    } as any;
+    await expect(parseSSEStream(response, {} as any)).rejects.toThrow('AI API error');
+  });
+
+  it('accumulates content from SSE chunks', async () => {
+    const adapter = {
+      parseChunk: vi.fn((data: string) => {
+        if (data === 'h') return { content: 'Hello ' };
+        if (data === 'w') return { content: 'World!' };
+        if (data === '[DONE]') return { isFinished: true };
+        return null;
+      }),
+    };
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: h\n\n'));
+        controller.enqueue(encoder.encode('data: w\n\n'));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+
+    const result = await parseSSEStream(
+      { ok: true, body: stream, status: 200 } as any,
+      adapter as any,
+    );
+    expect(result.content).toBe('Hello World!');
+  });
+
+  it('writes to sink', async () => {
+    const adapter = {
+      parseChunk: vi.fn((data: string) => {
+        if (data === 't') return { content: 'test' };
+        if (data === '[DONE]') return { isFinished: true };
+        return null;
+      }),
+    };
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: t\n\n'));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+
+    const sink = { write: vi.fn() };
+    await parseSSEStream(
+      { ok: true, body: stream, status: 200 } as any,
+      adapter as any,
+      sink as any,
+    );
+    expect(sink.write).toHaveBeenCalledWith(expect.stringContaining('test'));
+  });
+
+  it('emits typed stream events when an event callback is provided', async () => {
+    const adapter = {
+      parseChunk: vi.fn((data: string) => {
+        if (data === 't') return { content: 'typed' };
+        if (data === '[DONE]') return { isFinished: true };
+        return null;
+      }),
+    };
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: t\n\n'));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    const events: unknown[] = [];
+
+    await parseSSEStream(
+      { ok: true, body: stream, status: 200 } as any,
+      adapter as any,
+      undefined,
+      { eventType: 'thought', emitEvent: (event) => events.push(event) },
+    );
+
+    expect(events).toEqual([{ type: 'thought', content: 'typed' }]);
+  });
+});

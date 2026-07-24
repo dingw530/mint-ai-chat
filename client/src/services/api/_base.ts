@@ -98,7 +98,7 @@ export async function callEndpoint<T = unknown>(id: string, ...args: unknown[]):
   );
 }
 
-function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string {
+export function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string {
   let url = ep.httpPath;
   let argIdx = 0;
   for (const mapping of ep.args) {
@@ -116,7 +116,7 @@ function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string {
   return url;
 }
 
-function extractBodyFromManifest(ep: ManifestEntry, args: unknown[]): unknown {
+export function extractBodyFromManifest(ep: ManifestEntry, args: unknown[]): unknown {
   const bodyMapping = ep.args.find((a) => a.from === 'body');
   if (!bodyMapping) return undefined;
   return args[ep.args.indexOf(bodyMapping)];
@@ -138,12 +138,20 @@ export function parseSSEChunk(
         callbacks.onRunStarted?.(data);
         return;
       case 'round_started':
+        callbacks.onRoundStarted?.(data);
+        return;
+      case 'loop_detected':
+        callbacks.onLoopDetected?.(data);
         return;
       case 'run_completed':
         callbacks.onRunCompleted?.(data);
+        if (data.estimatedTokens != null) callbacks.onTokenUsage?.(data);
         return;
       case 'run_cancelled':
         callbacks.onRunCancelled?.(data);
+        return;
+      case 'token_usage':
+        callbacks.onTokenUsage?.(data);
         return;
       case 'run_failed':
         callbacks.onError?.(new Error(String(data.error || 'ReAct run failed')));

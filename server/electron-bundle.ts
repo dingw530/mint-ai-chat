@@ -27,6 +27,7 @@ export { generateTitle } from './services/aiProxy.js';
 export { parseFile } from './services/utils/fileParseService.js';
 export { compileSource } from './services/utils/wikiCompiler.js';
 export { ingestWikiSource, buildWikiSourceText } from './services/api/wikiIngestionService.js';
+export * as ingestionA2ui from './services/api/ingestionA2ui.js';
 export {
   createWikiIngestionJobService,
   wikiIngestionJobService,

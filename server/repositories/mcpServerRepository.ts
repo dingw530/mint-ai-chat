@@ -8,6 +8,8 @@ function toCamelCase(row: McpServerRow): McpServer {
     command: row.command,
     args: JSON.parse(row.args),
     env: JSON.parse(row.env),
+    url: row.url,
+    headers: JSON.parse(row.headers),
     status: row.status,
     errorMessage: row.error_message,
     createdAt: row.created_at,
@@ -18,7 +20,7 @@ function toCamelCase(row: McpServerRow): McpServer {
 export function findAll(): McpServer[] {
   const db = getDb();
   const rows = db.prepare(
-    'SELECT id, name, command, args, env, status, error_message, created_at, updated_at FROM mcp_servers ORDER BY created_at ASC'
+    'SELECT id, name, command, args, env, url, headers, status, error_message, created_at, updated_at FROM mcp_servers ORDER BY created_at ASC'
   ).all() as McpServerRow[];
   return rows.map(toCamelCase);
 }
@@ -26,7 +28,7 @@ export function findAll(): McpServer[] {
 export function findById(id: string): McpServer | null {
   const db = getDb();
   const row = db.prepare(
-    'SELECT id, name, command, args, env, status, error_message, created_at, updated_at FROM mcp_servers WHERE id = ?'
+    'SELECT id, name, command, args, env, url, headers, status, error_message, created_at, updated_at FROM mcp_servers WHERE id = ?'
   ).get(id) as McpServerRow | undefined;
   return row ? toCamelCase(row) : null;
 }
@@ -34,24 +36,26 @@ export function findById(id: string): McpServer | null {
 export function findByName(name: string): McpServer | null {
   const db = getDb();
   const row = db.prepare(
-    'SELECT id, name, command, args, env, status, error_message, created_at, updated_at FROM mcp_servers WHERE name = ?'
+    'SELECT id, name, command, args, env, url, headers, status, error_message, created_at, updated_at FROM mcp_servers WHERE name = ?'
   ).get(name) as McpServerRow | undefined;
   return row ? toCamelCase(row) : null;
 }
 
-export function create({ id, name, command, args, env }: {
+export function create({ id, name, command, args, env, url, headers }: {
   id: string;
   name: string;
   command: string;
   args: string[];
   env: Record<string, string>;
+  url?: string | null;
+  headers?: Record<string, string>;
 }): McpServer {
   const db = getDb();
   const now = new Date().toISOString();
   db.prepare(
-    'INSERT INTO mcp_servers (id, name, command, args, env, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, name, command, JSON.stringify(args), JSON.stringify(env), 'inactive', now, now);
-  return { id, name, command, args, env, status: 'inactive', errorMessage: null, createdAt: now, updatedAt: now };
+    'INSERT INTO mcp_servers (id, name, command, args, env, url, headers, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(id, name, command, JSON.stringify(args), JSON.stringify(env), url || null, JSON.stringify(headers || {}), 'inactive', now, now);
+  return { id, name, command, args, env, url: url || null, headers: headers || {}, status: 'inactive', errorMessage: null, createdAt: now, updatedAt: now };
 }
 
 export function update(id: string, fields: Partial<{
@@ -59,6 +63,8 @@ export function update(id: string, fields: Partial<{
   command: string;
   args: string[];
   env: Record<string, string>;
+  url: string | null;
+  headers: Record<string, string>;
   status: string;
   errorMessage: string | null;
 }>): McpServer | null {
@@ -71,6 +77,8 @@ export function update(id: string, fields: Partial<{
   if (fields.command !== undefined) { setClauses.push('command = ?'); params.push(fields.command); }
   if (fields.args !== undefined) { setClauses.push('args = ?'); params.push(JSON.stringify(fields.args)); }
   if (fields.env !== undefined) { setClauses.push('env = ?'); params.push(JSON.stringify(fields.env)); }
+  if (fields.url !== undefined) { setClauses.push('url = ?'); params.push(fields.url || null); }
+  if (fields.headers !== undefined) { setClauses.push('headers = ?'); params.push(JSON.stringify(fields.headers)); }
   if (fields.status !== undefined) { setClauses.push('status = ?'); params.push(fields.status); }
   if (fields.errorMessage !== undefined) { setClauses.push('error_message = ?'); params.push(fields.errorMessage); }
 

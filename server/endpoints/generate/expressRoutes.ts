@@ -18,8 +18,10 @@ function createHandler(desc: EndpointDescriptor): RequestHandler {
 
     // 3. 调用服务
     const result = desc.async
-      ? await desc.service(...serviceArgs)
-      : desc.service(...serviceArgs);
+      ? await desc.service(...serviceArgs, ...(desc.stream ? [req, res] : []))
+      : desc.service(...serviceArgs, ...(desc.stream ? [req, res] : []));
+
+    if (desc.stream) return;
 
     // 4. 包装响应
     const response = wrapResult(result, desc.result ?? 'direct');

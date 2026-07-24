@@ -10,6 +10,7 @@ import { createLogger } from '../utils/logger.js';
 import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
 import type { ReactEventPayload } from './reactEvents.js';
+import { serializeToolResultForContext } from './utils/toolResultArtifact.js';
 
 // 导入 Adapter 实现
 import './adapters/openaiChatAdapter.js';
@@ -26,6 +27,7 @@ export interface ToolRoundInput {
   tools?: ToolDefinition[];
   adapter?: ApiAdapter; // 可选注入，不传则从 settings 自动获取
   signal?: AbortSignal;
+  conversationId?: string;
   label?: string; // 日志标签
   emitEvent?: (event: ReactEventPayload) => void;
 }
@@ -170,16 +172,10 @@ export class ToolLoopEngine {
     }
 
     const url = adapter.getUrl(apiUrl);
-    const headers = adapter.getHeaders(apiKey);
-    const body = adapter.buildRequest(messages, settings, tools);
 
     log.debug('executeRound', { label: label || 'unnamed', url, toolCount: tools?.length || 0 });
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(body),
-    });
+    const response = await adapter.stream(messages, settings, apiUrl, apiKey, tools, { signal });
 
     const eventType =
       label === 'react-answer' ? 'answer' : label === 'react-thought' ? 'thought' : undefined;
@@ -191,10 +187,14 @@ export class ToolLoopEngine {
   }
 
   // 执行工具并返回拼接用的 message 对
-  async executeToolCall(tc: ToolCall, reasoning?: string): Promise<ToolExecutionResult> {
+  async executeToolCall(
+    tc: ToolCall,
+    reasoning?: string,
+    conversationId = '',
+  ): Promise<ToolExecutionResult> {
     let toolResult: unknown;
     try {
-      toolResult = await executeTool(tc);
+      toolResult = await executeTool(tc, conversationId);
       log.debug('tool executed', {
         name: tc.function.name,
         resultPreview: JSON.stringify(toolResult).substring(0, 200),
@@ -203,7 +203,10 @@ export class ToolLoopEngine {
       toolResult = { error: (err as Error).message };
     }
 
-    const resultStr = JSON.stringify(toolResult);
+    const resultStr = await serializeToolResultForContext(toolResult, {
+      summary: getToolResultSummary(tc, toolResult),
+      conversationId,
+    });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
       content: null as unknown as string,
@@ -213,7 +216,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 50000),
+      content: resultStr,
     };
 
     return { assistantMsg, toolMsg, succeeded: true };
@@ -225,11 +228,12 @@ export class ToolLoopEngine {
     reasoning: string | undefined,
     maxRetries: number,
     onRetry?: (attempt: number, error: Error) => void,
+    conversationId = '',
   ): Promise<ToolExecutionResult> {
     let toolResult: unknown;
     let succeeded = true;
     try {
-      toolResult = await retry(() => executeTool(tc), {
+      toolResult = await retry(() => executeTool(tc, conversationId), {
         maxRetries,
         baseDelay: 1000,
         maxDelay: 16000,
@@ -240,7 +244,10 @@ export class ToolLoopEngine {
       succeeded = false;
     }
 
-    const resultStr = JSON.stringify(toolResult);
+    const resultStr = await serializeToolResultForContext(toolResult, {
+      summary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
+      conversationId,
+    });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
       content: null as unknown as string,
@@ -250,7 +257,7 @@ export class ToolLoopEngine {
     const toolMsg: HistoryMessage = {
       role: 'tool',
       tool_call_id: tc.id,
-      content: resultStr.substring(0, 50000),
+      content: resultStr,
     };
 
     return {

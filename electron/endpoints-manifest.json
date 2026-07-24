@@ -572,6 +572,72 @@
     "async": false
   },
   {
+    "id": "wiki:listJobs",
+    "ipcChannel": "wiki:listJobs",
+    "preloadMethod": "listWikiJobs",
+    "method": "GET",
+    "httpPath": "/wiki/jobs",
+    "args": [
+      {
+        "from": "query",
+        "name": "status",
+        "optional": true
+      },
+      {
+        "from": "query",
+        "name": "limit",
+        "optional": true
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:getJob",
+    "ipcChannel": "wiki:getJob",
+    "preloadMethod": "getWikiJob",
+    "method": "GET",
+    "httpPath": "/wiki/jobs/:jobId",
+    "args": [
+      {
+        "from": "path",
+        "name": "jobId"
+      }
+    ],
+    "result": "job",
+    "async": false
+  },
+  {
+    "id": "wiki:retryJob",
+    "ipcChannel": "wiki:retryJob",
+    "preloadMethod": "retryWikiJob",
+    "method": "POST",
+    "httpPath": "/wiki/jobs/:jobId/retry",
+    "args": [
+      {
+        "from": "path",
+        "name": "jobId"
+      }
+    ],
+    "result": "job",
+    "async": false
+  },
+  {
+    "id": "wiki:cancelJob",
+    "ipcChannel": "wiki:cancelJob",
+    "preloadMethod": "cancelWikiJob",
+    "method": "POST",
+    "httpPath": "/wiki/jobs/:jobId/cancel",
+    "args": [
+      {
+        "from": "path",
+        "name": "jobId"
+      }
+    ],
+    "result": "job",
+    "async": false
+  },
+  {
     "id": "graph:data",
     "ipcChannel": "graph:data",
     "preloadMethod": "getGraphData",

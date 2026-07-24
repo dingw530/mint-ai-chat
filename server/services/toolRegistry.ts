@@ -1,21 +1,25 @@
 import type { ToolCall, ToolDefinition } from '../types.js';
 import { mcpService } from './api/mcpService.js';
 import * as agentRepo from '../repositories/agentRepository.js';
-import { toolRegistry as newToolRegistry, toolExecutor } from './tools/index.js';
+import { McpToolAdapter, toolRegistry as newToolRegistry, toolExecutor } from './tools/index.js';
 
 // 获取 Agent 可用的工具定义列表
 export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefinition[]> {
   const tools: ToolDefinition[] = [];
 
   // 全局工具，所有 Agent 可用
-  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash', 'invoke_agent', 'write_file', 'wiki_ingest', 'wiki_lint', 'wiki_search', 'knowledge_graph'];
+  if (isLegacyMcpEnabled()) syncMcpTools();
+  else syncLoadedMcpTools();
+  const globalToolNames = ['http_fetch', 'invoke_skill', 'bash', 'invoke_agent', 'read_artifact', 'write_file', 'wiki_ingest', 'wiki_lint', 'wiki_search', 'knowledge_graph', 'discover_tools', 'load_tool'];
   for (const name of globalToolNames) {
     const def = getToolDefinitionSafe(name);
     if (def) tools.push(def);
   }
 
-  // general 助手仅使用全局工具
-  if (!agentId || agentId === 'general') return tools;
+  // 默认只注入目录发现工具；旧行为必须显式开启兼容开关。
+  if (!agentId || agentId === 'general') {
+    return isLegacyMcpEnabled() ? appendMcpTools(tools) : appendLoadedMcpTools(tools);
+  }
 
   // weather Agent：追加天气工具
   if (agentId === 'weather') {
@@ -29,44 +33,89 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
   if (!agent || !agent.available) return tools;
 
   // 加载 Agent 绑定的 MCP Server 的全部工具
-  const boundServerIds: string[] = agent.mcpServerIds || [];
-  if (boundServerIds.length > 0) {
-    const allMcpTools = await mcpService.getTools();
-    for (const mcpTool of allMcpTools) {
-      const serverName = mcpTool.function.name.split('__')[0];
-      if (boundServerIds.includes(serverName)) {
-        tools.push(mcpTool);
-      }
-    }
-  }
+  return isLegacyMcpEnabled()
+    ? appendMcpTools(tools, agent.mcpServerIds || [])
+    : appendLoadedMcpTools(tools, agent.mcpServerIds || []);
+}
 
+function isLegacyMcpEnabled(): boolean {
+  return process.env.AI_CHAT_MCP_LEGACY_TOOLS === 'true';
+}
+
+/**
+ * Appends connected MCP tools, optionally restricting them to server names.
+ * @param tools Existing tool definitions to extend.
+ * @param serverIds Optional MCP server name allowlist.
+ * @returns The extended tool definitions.
+ */
+function syncLoadedMcpTools(): void {
+  const getLoadedToolNames = (mcpService as typeof mcpService & {
+    getLoadedToolNames?: () => string[];
+  }).getLoadedToolNames;
+  const getToolRecord = (mcpService as typeof mcpService & {
+    getToolRecord?: (name: string) => unknown;
+  }).getToolRecord;
+  if (!getLoadedToolNames || !getToolRecord) return;
+  for (const fullName of getLoadedToolNames.call(mcpService)) {
+    const record = getToolRecord.call(mcpService, fullName) as ConstructorParameters<typeof McpToolAdapter>[0] | undefined;
+    if (record && !newToolRegistry.has(fullName)) newToolRegistry.register(new McpToolAdapter(record));
+  }
+}
+
+function syncMcpTools(serverIds?: string[]): void {
+  const getAllToolNames = (mcpService as typeof mcpService & {
+    getAllToolNames?: (servers?: string[]) => string[];
+  }).getAllToolNames;
+  const getToolRecord = (mcpService as typeof mcpService & {
+    getToolRecord?: (name: string) => unknown;
+  }).getToolRecord;
+  if (!getAllToolNames || !getToolRecord) return;
+  for (const fullName of getAllToolNames.call(mcpService, serverIds)) {
+    const record = getToolRecord.call(mcpService, fullName) as ConstructorParameters<typeof McpToolAdapter>[0] | undefined;
+    if (record && !newToolRegistry.has(fullName)) newToolRegistry.register(new McpToolAdapter(record));
+  }
+}
+
+function appendMcpTools(tools: ToolDefinition[], serverIds?: string[]): ToolDefinition[] {
+  const getAllToolNames = (mcpService as typeof mcpService & {
+    getAllToolNames?: (servers?: string[]) => string[];
+  }).getAllToolNames;
+  if (!getAllToolNames) return tools;
+  for (const fullName of getAllToolNames.call(mcpService, serverIds)) {
+    const definition = getToolDefinitionSafe(fullName);
+    if (definition) tools.push(definition);
+  }
+  return tools;
+}
+
+function appendLoadedMcpTools(tools: ToolDefinition[], serverIds?: string[]): ToolDefinition[] {
+  const getLoadedToolNames = (mcpService as typeof mcpService & {
+    getLoadedToolNames?: () => string[];
+  }).getLoadedToolNames;
+  if (!getLoadedToolNames) return tools;
+  for (const fullName of getLoadedToolNames.call(mcpService)) {
+    const serverName = fullName.split('__')[0];
+    if (serverIds && !serverIds.includes(serverName)) continue;
+    const definition = getToolDefinitionSafe(fullName);
+    if (definition) tools.push(definition);
+  }
   return tools;
 }
 
 // 根据 tool_call 分发执行对应的工具函数
-export async function executeTool(toolCall: ToolCall): Promise<unknown> {
-  const { name, arguments: argsStr } = toolCall.function;
+export async function executeTool(toolCall: ToolCall, conversationId = ''): Promise<unknown> {
+  const { name } = toolCall.function;
+
+  if (isLegacyMcpEnabled()) syncMcpTools();
+  else syncLoadedMcpTools();
 
   // 1. 优先从新工具系统执行（get_weather_forecast, http_fetch 等内置工具）
   if (newToolRegistry.has(name)) {
     const result = await toolExecutor.executeFromToolCall(toolCall, {
-      conversationId: '',
+      conversationId,
     });
     if (result.success) return result.data;
     return { error: result.error };
-  }
-
-  // 2. MCP 工具格式：serverName__toolName
-  const separatorIndex = name.indexOf('__');
-  if (separatorIndex > 0) {
-    const serverName = name.substring(0, separatorIndex);
-    const toolName = name.substring(separatorIndex + 2);
-    try {
-      const args = JSON.parse(argsStr);
-      return await mcpService.callTool(serverName, toolName, args);
-    } catch (err) {
-      return { error: `MCP tool error: ${(err as Error).message}` };
-    }
   }
 
   return { error: `未知工具: ${name}` };
