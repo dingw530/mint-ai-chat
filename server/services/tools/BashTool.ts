@@ -13,6 +13,7 @@ const execAsync = promisify(exec);
 
 const BashInputSchema = z.object({
   command: z.string().describe('要执行的命令'),
+  cwd: z.string().optional().describe('可选工作目录，必须位于 Runtime 允许的目录边界内'),
   timeout: z.coerce.number().int().min(1000).max(120000).optional().default(30000).describe('超时时间（毫秒），默认 30000'),
 });
 
@@ -71,14 +72,16 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
     return { allowed: true };
   }
 
-  async execute(input: BashInput, _context: ToolContext): Promise<BashOutput> {
+  async execute(input: BashInput, context: ToolContext): Promise<BashOutput> {
     const startTime = Date.now();
 
     try {
       const { stdout, stderr } = await execAsync(input.command, {
+        cwd: input.cwd,
         timeout: input.timeout,
         maxBuffer: 1024 * 1024,
         shell: '/bin/bash',
+        signal: context.signal,
       });
 
       return {

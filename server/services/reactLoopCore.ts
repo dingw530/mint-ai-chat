@@ -254,6 +254,9 @@ export async function reactChat(
       .sort((left, right) => left.index - right.index)
       .forEach(({ assistantMsg, toolMsg }) => currentMessages.push(assistantMsg, toolMsg));
 
+    // discover/load 工具可能在本轮改变可用 MCP 工具集；下一轮使用最新定义。
+    tools = await getAllToolDefinitions(agent);
+
     if (signal?.aborted) {
       events.emit({ type: 'run_cancelled', state: 'cancelled' });
       break;

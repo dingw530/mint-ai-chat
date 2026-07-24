@@ -35,3 +35,5 @@
 | [决策轨迹第一阶段：行动轨迹](<../changes/2026-07-22-decision-trace/exec-plan.md>) | 2026-07-22 | 已完成 |
 | [上下文工程能力改造](<../changes/2026-07-23-context-engineering/exec-plan.md>) | 2026-07-23 | 已完成 |
 | [记忆机制优化](<../changes/2026-07-23-memory-mechanism-optimization/exec-plan.md>) | 2026-07-23 | 已完成 |
+| [工具运行时安全与 MCP 主动发现](<../changes/2026-07-24-tool-runtime-security-discovery/exec-plan.md>) | 2026-07-24 | 已完成 |
+| [Harness 反馈回路](<../changes/2026-07-24-harness-feedback-loop/exec-plan.md>) | 2026-07-24 | 已完成 |

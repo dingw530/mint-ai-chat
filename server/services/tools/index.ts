@@ -4,10 +4,12 @@
 
 // 基础设施
 export { BaseTool } from './BaseTool.js';
-export type { ToolContext, ValidationResult, PermissionResult, ToolResult, ToolExecutionMode } from './BaseTool.js';
+export type { ToolContext, ToolAuditEvent, ValidationResult, PermissionResult, ToolResult, ToolExecutionMode } from './BaseTool.js';
 export { ToolRegistry, toolRegistry } from './ToolRegistry.js';
 export { ToolExecutor, toolExecutor } from './ToolExecutor.js';
 export type { ExecutionOptions, ExecutionResult } from './ToolExecutor.js';
+export { McpToolAdapter } from './McpToolAdapter.js';
+export { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 
 // 具体工具
 export { WeatherTool } from './WeatherTool.js';
@@ -41,6 +43,7 @@ import { WikiSearchTool } from './WikiSearchTool.js';
 import { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
 import { CurrentTimeTool } from './CurrentTimeTool.js';
 import { toolRegistry } from './ToolRegistry.js';
+import { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 
 // 内置工具列表
 export const builtinTools = [
@@ -57,6 +60,8 @@ export const builtinTools = [
   new WikiLintTool(),
   new WikiSearchTool(),
   new KnowledgeGraphTool(),
+  new DiscoverToolsTool(),
+  new LoadToolTool(),
 ];
 
 /**

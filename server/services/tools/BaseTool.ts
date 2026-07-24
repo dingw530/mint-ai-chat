@@ -5,6 +5,7 @@
 
 import type { z } from 'zod';
 import type { ToolCall, ToolDefinition } from '../../types.js';
+import type { ToolMetadata } from './toolMetadata.js';
 
 // ── 类型定义 ──
 
@@ -12,7 +13,24 @@ export interface ToolContext {
   conversationId: string;
   userId?: string;
   signal?: AbortSignal;
+  /** 高风险工具的显式审批结果；未设置时不得自动执行。 */
+  approvalGranted?: boolean;
+  /** Bash 等工具允许使用的工作目录边界。 */
+  allowedWorkingDirectory?: string;
+  /** Runtime 审计事件接收器；不应写入敏感原始参数。 */
+  audit?: (event: ToolAuditEvent) => void;
   [key: string]: unknown;
+}
+
+export interface ToolAuditEvent {
+  event: 'started' | 'policy_denied' | 'approval_required' | 'executing' | 'completed' | 'failed' | 'cancelled' | 'timed_out';
+  toolName: string;
+  source: ToolMetadata['source'];
+  riskLevel: ToolMetadata['riskLevel'];
+  conversationId: string;
+  duration?: number;
+  reason?: string;
+  error?: string;
 }
 
 export interface ValidationResult {
@@ -87,6 +105,15 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
    */
   isConcurrencySafe(): boolean {
     return this.isReadOnly();
+  }
+
+  /** 返回统一运行时使用的来源、风险和副作用元数据。 */
+  getMetadata(): ToolMetadata {
+    return {
+      source: 'builtin',
+      riskLevel: this.isReadOnly() ? 'low' : 'medium',
+      sideEffect: this.isReadOnly() ? 'none' : 'filesystem',
+    };
   }
 
   /**

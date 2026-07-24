@@ -116,6 +116,7 @@ interface ConnectedServer {
 class McpService {
   private connections: Map<string, ConnectedServer> = new Map();
   private toolsCache: Map<string, { name: string; description: string; inputSchema?: any }[]> = new Map();
+  private loadedTools = new Set<string>();
   private initialized = false;
 
   async initialize(): Promise<void> {
@@ -372,6 +373,9 @@ class McpService {
 
     this.connections.delete(serverName);
     this.toolsCache.delete(serverName);
+    for (const name of this.loadedTools) {
+      if (name.startsWith(`${serverName}__`)) this.loadedTools.delete(name);
+    }
 
     const dbServer = mcpServerRepo.findByName(serverName);
     if (dbServer) {
@@ -408,6 +412,64 @@ class McpService {
     const conn = this.connections.get(serverName);
     if (!conn) throw new Error(`MCP server "${serverName}" is not connected`);
     return await conn.client.callTool({ name: toolName, arguments: args });
+  }
+
+  /** 返回不含完整 Schema 的 MCP 工具目录，供主动发现使用。 */
+  getToolCatalog(serverNames?: string[]): Array<{
+    serverName: string;
+    name: string;
+    description: string;
+  }> {
+    const catalog: Array<{ serverName: string; name: string; description: string }> = [];
+    for (const [serverName, serverTools] of this.toolsCache.entries()) {
+      if (serverNames && !serverNames.includes(serverName)) continue;
+      for (const tool of serverTools) {
+        catalog.push({ serverName, name: tool.name, description: tool.description || '' });
+      }
+    }
+    return catalog;
+  }
+
+  /** 按兼容名称查找单个 MCP 工具的完整定义。 */
+  getToolDefinition(fullName: string): ToolDefinition | undefined {
+    const separatorIndex = fullName.indexOf('__');
+    if (separatorIndex <= 0) return undefined;
+    const serverName = fullName.slice(0, separatorIndex);
+    const toolName = fullName.slice(separatorIndex + 2);
+    const tool = this.toolsCache.get(serverName)?.find(item => item.name === toolName);
+    if (!tool) return undefined;
+    return {
+      type: 'function',
+      function: {
+        name: fullName,
+        description: tool.description || '',
+        parameters: tool.inputSchema as Record<string, unknown>,
+      },
+    };
+  }
+
+  /** 返回 MCP 适配器所需的来源和原始 Schema。 */
+  getToolRecord(fullName: string): { serverName: string; name: string; description: string; inputSchema?: Record<string, unknown> } | undefined {
+    const separatorIndex = fullName.indexOf('__');
+    if (separatorIndex <= 0) return undefined;
+    const serverName = fullName.slice(0, separatorIndex);
+    const name = fullName.slice(separatorIndex + 2);
+    const tool = this.toolsCache.get(serverName)?.find(item => item.name === name);
+    return tool ? { serverName, name, description: tool.description || '', inputSchema: tool.inputSchema } : undefined;
+  }
+
+  /** 标记工具已按需加载，下一轮构建工具定义时纳入。 */
+  markToolLoaded(fullName: string): void {
+    if (this.getToolDefinition(fullName)) this.loadedTools.add(fullName);
+  }
+
+  getLoadedToolNames(): string[] {
+    return Array.from(this.loadedTools);
+  }
+
+  /** 返回兼容模式需要注册的全部 MCP 工具名称。 */
+  getAllToolNames(serverNames?: string[]): string[] {
+    return this.getToolCatalog(serverNames).map(tool => `${tool.serverName}__${tool.name}`);
   }
 
   getServerTools(serverName: string) {

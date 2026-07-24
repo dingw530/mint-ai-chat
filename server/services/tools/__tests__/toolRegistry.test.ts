@@ -78,7 +78,7 @@ describe('toolRegistry', () => {
       expect(tools.length).toBeGreaterThan(0);
       const names = tools.map(t => t.function.name);
       expect(names).toContain('http_fetch');
-      expect(names).toContain('remote__search');
+      expect(names).not.toContain('remote__search');
       expect(names).not.toContain('get_weather_forecast');
     });
 
@@ -122,7 +122,7 @@ describe('toolRegistry', () => {
 
       const tools = await getAllToolDefinitions('custom-agent');
       const names = tools.map(t => t.function.name);
-      expect(names).toContain('my-tools__read_file');
+      expect(names).not.toContain('my-tools__read_file');
     });
 
     it('returns global tools when custom agent not found', async () => {
@@ -157,24 +157,24 @@ describe('toolRegistry', () => {
       expect((result as any).error).toContain('未知工具');
     });
 
-    it('handles MCP tool calls', async () => {
+    it('does not execute an unloaded MCP tool outside the Runtime', async () => {
       vi.mocked(mcpService.callTool).mockResolvedValue('mcp result');
       const result = await executeTool({
         id: 'call-3',
         type: 'function',
         function: { name: 'fileserver__list', arguments: '{}' },
       });
-      expect(result).toBe('mcp result');
+      expect(result).toEqual({ error: '未知工具: fileserver__list' });
     });
 
-    it('handles MCP tool errors', async () => {
+    it('returns a structured unknown-tool error for unloaded MCP tools', async () => {
       vi.mocked(mcpService.callTool).mockRejectedValue(new Error('connection failed'));
       const result = await executeTool({
         id: 'call-4',
         type: 'function',
         function: { name: 'fileserver__list', arguments: '{}' },
       });
-      expect((result as any).error).toContain('MCP tool error');
+      expect((result as any).error).toContain('未知工具');
     });
 
     it('executes weather tool', async () => {
