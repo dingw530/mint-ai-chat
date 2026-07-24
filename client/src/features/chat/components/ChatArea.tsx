@@ -101,10 +101,6 @@ export default function ChatArea({
     fetchAgents()
       .then((data) => {
         setAgents(data.agents || []);
-        const weather = (data.agents || []).find((a: Agent) => a.id === 'weather');
-        if (!weather?.available && activeAgent === 'weather') {
-          setActiveAgent('general');
-        }
       })
       .catch(() => {
         setAgents([{ id: 'general', label: '通用助手', available: true } as Agent]);

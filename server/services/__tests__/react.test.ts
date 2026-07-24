@@ -208,7 +208,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
     vi.doMock('../api/routingService.js', () => ({
       routingService: {
-        route: vi.fn().mockResolvedValue({ agentId: 'weather', confidence: 0.9, method: 'keyword' }),
+        route: vi.fn().mockResolvedValue({ agentId: 'custom-agent', confidence: 0.9, method: 'keyword' }),
       },
     }));
 
@@ -221,9 +221,9 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
     // Mock agentRepo.findById to return an agent with type != 'orchestrator'
     vi.doMock('../../repositories/agentRepository.js', () => ({
       findById: vi.fn().mockReturnValue({
-        id: 'weather',
-        name: 'Weather',
-        type: 'weather',
+        id: 'custom-agent',
+        name: 'Custom',
+        type: 'custom',
         available: true,
         mcpServerIds: [],
         systemPrompt: null,
@@ -232,8 +232,8 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
     }));
 
     vi.doMock('../api/agentService.js', () => ({
-      list: vi.fn().mockReturnValue([{ id: 'weather', name: 'Weather', type: 'weather', available: true }]),
-	      findById: vi.fn().mockReturnValue({ id: 'weather', name: 'Weather', type: 'weather', available: true, mcpServerIds: [], systemPrompt: null }),    }));
+        list: vi.fn().mockReturnValue([{ id: 'custom-agent', name: 'Custom', type: 'custom', available: true }]),
+	      findById: vi.fn().mockReturnValue({ id: 'custom-agent', name: 'Custom', type: 'custom', available: true, mcpServerIds: [], systemPrompt: null }),    }));
 
     vi.doMock('../../utils/logger.js', () => ({
       createLogger: vi.fn().mockReturnValue({ info: vi.fn(), debug: vi.fn(), error: vi.fn() }),
@@ -242,7 +242,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
     const { sendMessage } = await import('../messageService.js');
     const mockSink = createMockSink();
 
-    await sendMessage('conv-1', 'What is the weather?', mockSink, 'weather');
+    await sendMessage('conv-1', 'What is the request?', mockSink, 'custom-agent');
     expect(reactChatMock).toHaveBeenCalled();
   });
 
@@ -308,7 +308,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
     vi.doMock('../api/agentService.js', () => ({
       list: vi.fn().mockReturnValue([]),
-      findById: vi.fn().mockReturnValue({ id: 'weather', name: 'Weather', type: 'weather', available: true, mcpServerIds: [], systemPrompt: null }),
+      findById: vi.fn().mockReturnValue({ id: 'custom-agent', name: 'Custom', type: 'custom', available: true, mcpServerIds: [], systemPrompt: null }),
     }));
 
     vi.doMock('../../utils/logger.js', () => ({
@@ -316,7 +316,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
     }));
 
     const { sendMessage } = await import('../messageService.js');
-    await sendMessage('conv-1', 'Hello', createMockSink(), 'weather');
+    await sendMessage('conv-1', 'Hello', createMockSink(), 'custom-agent');
     expect(streamChatMock).toHaveBeenCalled();
     expect(reactChatMock).not.toHaveBeenCalled();
   });

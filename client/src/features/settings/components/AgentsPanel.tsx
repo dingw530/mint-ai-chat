@@ -171,7 +171,7 @@ export default function AgentsPanel({ onToast }: AgentsPanelProps) {
               type="text"
               value={form.triggerKeywords}
               onChange={(e) => setForm((prev) => ({ ...prev, triggerKeywords: e.target.value }))}
-              placeholder="天气, 温度, 预报（逗号分隔，路由引擎据此自动匹配）"
+              placeholder="代码, 分析, 总结（逗号分隔，路由引擎据此自动匹配）"
             />
             <p className="form-help">输入关键词，用逗号分隔。用户消息包含这些关键词时，系统自动路由到此 Agent。</p>
           </div>
@@ -223,7 +223,7 @@ export default function AgentsPanel({ onToast }: AgentsPanelProps) {
           <div className="panel-header">
             <button className="btn-primary" onClick={handleNew}>+ 新建 Agent</button>
           </div>
-          {agents.filter((a) => a.id !== 'general' && a.id !== 'weather').length === 0 ? (
+          {agents.filter((a) => a.id !== 'general').length === 0 ? (
             <div className="panel-empty">暂无自定义 Agent。</div>
           ) : (
             <table className="mcp-table">
@@ -238,7 +238,7 @@ export default function AgentsPanel({ onToast }: AgentsPanelProps) {
               </thead>
               <tbody>
                 {agents
-                  .filter((a) => a.id !== 'general' && a.id !== 'weather')
+                  .filter((a) => a.id !== 'general')
                   .map((agent) => {
                     const ids = agent.mcpServerIds || [];
                     return (

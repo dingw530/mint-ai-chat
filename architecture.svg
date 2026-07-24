@@ -67,7 +67,7 @@
 <circle cx="583" cy="378" r="2.5" fill="#ea580c"/>
 <text x="595" y="382" class="body">自定义提示词与工具绑定 · 语义路由</text>
 <circle cx="583" cy="398" r="2.5" fill="#ea580c"/>
-<text x="595" y="402" class="body">Bash / Wiki / MCP / Weather / 文件工具</text>
+<text x="595" y="402" class="body">Bash / Wiki / MCP / 文件工具</text>
 <rect x="1040" y="326" width="500" height="80" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.2" filter="url(#shadow)"/>
 <rect x="1040" y="326" width="8" height="80" rx="4" fill="#64748b"/>
 <rect x="1062" y="336" width="44" height="22" rx="11" fill="#f1f5f9"/>
@@ -123,7 +123,7 @@
 <rect x="972" y="676" width="538" height="28" rx="8" fill="#ffffff"/>
 <text x="988" y="695" class="cardTitle" font-size="14" fill="#2563eb">Product APIs</text>
 <circle cx="990" cy="725" r="2.5" fill="#2563eb"/>
-<text x="1002" y="729" class="small">agent · endpoints · memory · settings · MCP · weather</text>
+<text x="1002" y="729" class="small">agent · endpoints · memory · settings · MCP</text>
 <circle cx="990" cy="747" r="2.5" fill="#2563eb"/>
 <text x="1002" y="751" class="small">wiki · graph · skills · routing logs · security</text>
 <rect x="56" y="776" width="1488" height="120" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-dasharray="6 4"/>
@@ -141,7 +141,7 @@
 <circle cx="516" cy="851" r="2.5" fill="#ea580c"/>
 <text x="528" y="855" class="small">toolRoundEngine · ToolRegistry · ToolExecutor</text>
 <circle cx="516" cy="873" r="2.5" fill="#ea580c"/>
-<text x="528" y="877" class="small">Bash · Wiki · MCP · Weather · File · Agent</text>
+<text x="528" y="877" class="small">Bash · Wiki · MCP · File · Agent</text>
 <rect x="952" y="802" width="558" height="82" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.2" filter="url(#shadow)"/>
 <rect x="952" y="802" width="558" height="28" rx="8" fill="#ffffff"/>
 <text x="968" y="821" class="cardTitle" font-size="14" fill="#7c3aed">AI Adapters</text>
@@ -169,7 +169,7 @@
 <rect x="1004" y="928" width="506" height="28" rx="8" fill="#ffffff"/>
 <text x="1020" y="947" class="cardTitle" font-size="14" fill="#ea580c">External Services</text>
 <circle cx="1022" cy="977" r="2.5" fill="#ea580c"/>
-<text x="1034" y="981" class="small">OpenAI / Anthropic API · QWeather · MCP Servers</text>
+<text x="1034" y="981" class="small">OpenAI / Anthropic API · MCP Servers</text>
 <circle cx="1022" cy="999" r="2.5" fill="#ea580c"/>
 <text x="1034" y="1003" class="small">AI keys encrypted with AES-256-GCM</text>
 <path d="M414 589 H438" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#arrow-violet)"/>

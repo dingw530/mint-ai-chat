@@ -12,7 +12,6 @@ export { McpToolAdapter } from './McpToolAdapter.js';
 export { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 
 // 具体工具
-export { WeatherTool } from './WeatherTool.js';
 export { HttpFetchTool } from './HttpFetchTool.js';
 export { SkillTool } from './SkillTool.js';
 export { BashTool } from './BashTool.js';
@@ -29,7 +28,6 @@ export { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
 export { CurrentTimeTool } from './CurrentTimeTool.js';
 
 // 工具实例（用于注册）
-import { WeatherTool } from './WeatherTool.js';
 import { HttpFetchTool } from './HttpFetchTool.js';
 import { SkillTool } from './SkillTool.js';
 import { BashTool } from './BashTool.js';
@@ -48,7 +46,6 @@ import { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 // 内置工具列表
 export const builtinTools = [
   new CurrentTimeTool(),
-  new WeatherTool(),
   new HttpFetchTool(),
   new SkillTool(),
   new BashTool(),

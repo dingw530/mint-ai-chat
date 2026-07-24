@@ -30,7 +30,7 @@ server/
 ├── services/
 │   ├── adapters/       → AI API 适配器（Anthropic, OpenAI Chat/Responses）
 │   ├── api/            → 业务逻辑（wiki, routing, memory）
-│   ├── tools/          → AI 工具实现（Bash, Wiki, Weather 等）
+│   ├── tools/          → AI 工具实现（Bash, Wiki, MCP 等）
 │   └── utils/          → 工具函数（encryption, token estimation）
 └── __tests__/          → Vitest 集成测试
 
@@ -66,6 +66,13 @@ cd server && npm test                       # 全量测试
 cd server && npm run test:coverage          # 全量测试 + 覆盖率报告（html/lcov/text）
 cd server && npx vitest run __tests__/xxx   # 单文件测试
 
+# Harness 反馈回路
+npm run harness:test
+npm run harness:inspect -- --change <change-id>
+npm run harness:verify -- --change <change-id>
+npm run harness:browser -- --change <change-id>
+npm run harness:loop -- --change <change-id> --allowed-paths '["client/src/"]' --edit-command '["node","scripts/harness-editor.mjs"]'
+
 # 构建
 npm run build               # server tsc + client vite 构建
 
@@ -82,6 +89,9 @@ cd server && npx tsx cli/index.ts           # CLI 入口
 cd server && npx tsx cli/repl.ts            # 交互式 REPL
 ```
 
+Harness 的详细协议、检查项、AC 浏览器场景和运行证据见 [.harness/README.md](.harness/README.md)。运行 `harness:verify` 或 `harness:browser` 前需先启动 `npm run dev`；浏览器检查使用外部 `playwright-cli`，不新增 Playwright/Electron 项目依赖。
+需求到实现的完整 SDD → Harness 链路优先使用 `.claude/skills/sdd-harness-workflow/SKILL.md`；它编排现有 `sdd-doc-generator`，不修改该 Skill。
+
 ## Documentation Map
 
 ```
@@ -89,6 +99,7 @@ docs/changes/                   按 YYYY-MM-DD-业务主题/ 组织的变更文�
 docs/product-specs/README.md    产品规格索引
 docs/design-docs/README.md      设计文档索引
 docs/exec-plans/README.md       执行计划索引
+.harness/README.md               Harness 反馈回路、AC 浏览器场景和运行证据说明
 ```
 
 ## Environment
@@ -99,7 +110,6 @@ docs/exec-plans/README.md       执行计划索引
 | `AI_CHAT_DB_PATH` | SQLite 路径覆盖（默认 `~/.mint/data.db`） |
 | `PORT` | 服务端口（默认 3001） |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 默认 API 密钥 |
-| `QWEATHER_*` | QWeather JWT 认证配置 |
 
 ## Where to Look First
 
@@ -197,7 +207,7 @@ chore: bump express from 4.18 to 4.21
 
 # Development Process
 
-开发过程中必须按以下规则维护 `docs/changes/` 下的文档（按变更组织，含产品规格、设计文档、执行计划）：
+仅产品功能迭代需要按以下规则维护 `docs/changes/` 下的变更文档（按变更组织，含产品规格、设计文档、执行计划）。工程质量、构建、重构、测试、配置和其他非产品功能变更不要求创建或更新这套文档：
 
 ## 目录结构
 ```
@@ -214,7 +224,16 @@ docs/
 └── test-plan.md                       # 全局测试计划
 ```
 
+### Harness 与浏览器验收
+
+- 每个变更以 SDD 的 AC 作为验证事实源；Harness 通过 `docs/changes/<变更标识>/` 读取任务上下文。
+- 影响用户界面或用户流程的变更，应在同一变更目录增加 `browser-scenarios.json`，并将每个场景绑定到一个或多个 `AC-*`。
+- 浏览器场景只验证当前 Spec 变更绑定的 AC；全局页面健康检查不能替代功能验收。
+- `harness:verify` 按“检查 → AC 对应浏览器场景 → 证据记录”执行；失败后可通过 Harness LOOP 进行测试—修改—测试。
+- 不修改 `.claude/skills/sdd-doc-generator/`；Harness 通过独立 adapter 消费 SDD，不改变 SDD 生成流程。
+
 ## 执行前
+- 仅对产品功能迭代执行以下 SDD 文档流程；非产品功能变更跳过本节及后续文档维护步骤
 - 定位当前变更的 exec-plan，确认文档在 `docs/changes/<变更标识>/exec-plan.md` 下
 - 在 `traceability.md` 中将变更状态改为 **执行中**，初始化所有 TP 的执行记录为"待启动"
 

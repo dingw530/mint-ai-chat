@@ -389,6 +389,14 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 19,
+    name: 'retire-weather-agent',
+    up: (db) => {
+      db.prepare("UPDATE conversations SET locked_agent = NULL WHERE locked_agent = 'weather'").run();
+      db.prepare("DELETE FROM agents WHERE id = 'weather'").run();
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

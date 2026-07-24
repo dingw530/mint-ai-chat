@@ -24,9 +24,9 @@ describe('RoutingService', () => {
       triggerKeywords: [], createdAt: '', updatedAt: '',
     },
     {
-      id: 'weather', name: '天气', description: '天气', type: 'weather',
+      id: 'research', name: '研究', description: '研究', type: 'custom',
       systemPrompt: '', mcpServerIds: [], available: true, errorMessage: null,
-      triggerKeywords: ['天气', '/^\\s*天气/'],
+      triggerKeywords: ['研究', '/^\\s*研究/'],
       createdAt: '', updatedAt: '',
     },
   ];
@@ -35,7 +35,7 @@ describe('RoutingService', () => {
     vi.clearAllMocks();
     service = new RoutingService();
     vi.mocked(getAdapter).mockReturnValue({
-      call: vi.fn().mockResolvedValue('weather'),
+      call: vi.fn().mockResolvedValue('research'),
       getUrl: vi.fn(), getHeaders: vi.fn(), buildRequest: vi.fn(), parseChunk: vi.fn(),
     } as any);
   });
@@ -46,32 +46,32 @@ describe('RoutingService', () => {
     });
 
     it('matches substring (0.6)', () => {
-      const r = service.keywordMatch('今天天气如何', agents);
-      expect(r.agentId).toBe('weather');
+      const r = service.keywordMatch('今天研究如何', agents);
+      expect(r.agentId).toBe('research');
       expect(r.confidence).toBe(0.6);
     });
 
     it('matches regex with leading whitespace (0.9)', () => {
-      // `   天气abc` — "天气" is matched by `\s*天气` regex pattern
-      const r = service.keywordMatch('   天气abc', agents);
-      expect(r.agentId).toBe('weather');
+      // `   研究abc` — "研究" is matched by the regex pattern
+      const r = service.keywordMatch('   研究abc', agents);
+      expect(r.agentId).toBe('research');
       expect(r.confidence).toBe(0.9);
     });
 
     it('regex beats substring on same match', () => {
-      // Keyword "/^\\s*天气/" triggers regex match for "  天气abc"
+      // Keyword "/^\\s*研究/" triggers regex match for "  研究abc"
       // Since regex score (0.9) > substring (0.6), regex wins
-      const r = service.keywordMatch('   天气abc', agents);
+      const r = service.keywordMatch('   研究abc', agents);
       expect(r.confidence).toBe(0.9);
     });
 
     it('exact match scores 1.0', () => {
-      const r = service.keywordMatch('天气', agents);
+      const r = service.keywordMatch('研究', agents);
       expect(r.confidence).toBe(1.0);
     });
 
     it('skips unavailable agents', () => {
-      const r = service.keywordMatch('天气', agents.map(a => ({ ...a, available: false })));
+      const r = service.keywordMatch('研究', agents.map(a => ({ ...a, available: false })));
       expect(r.agentId).toBeNull();
     });
   });
@@ -82,7 +82,7 @@ describe('RoutingService', () => {
     });
 
     it('uses lockedAgent', async () => {
-      expect((await service.route('hi', { agents, lockedAgent: 'weather' })).agentId).toBe('weather');
+      expect((await service.route('hi', { agents, lockedAgent: 'research' })).agentId).toBe('research');
     });
 
     it('skips in manual mode', async () => {

@@ -202,7 +202,7 @@ describe('routingLogRepository', () => {
   it('CRUD lifecycle', () => {
     const uid = randomUUID().slice(0, 8);
     const cid = `c_${uid}`;
-    routingLogRepo.create({ id: `rl_${uid}_1`, conversation_id: cid, message_id: 'm1', agent_id: 'weather', confidence: 0.95, method: 'keyword', latency_ms: 5, message_preview: '天气', locked_agent: null, routing_mode: 'auto', created_at: new Date().toISOString() });
+    routingLogRepo.create({ id: `rl_${uid}_1`, conversation_id: cid, message_id: 'm1', agent_id: 'custom-agent', confidence: 0.95, method: 'keyword', latency_ms: 5, message_preview: '自定义请求', locked_agent: null, routing_mode: 'auto', created_at: new Date().toISOString() });
     routingLogRepo.create({ id: `rl_${uid}_2`, conversation_id: cid, message_id: null, agent_id: 'general', confidence: 0, method: 'fallback', latency_ms: 0, message_preview: 'hi', locked_agent: null, routing_mode: 'manual', created_at: new Date().toISOString() });
     expect(routingLogRepo.findAll({ conversationId: cid })).toHaveLength(2);
 

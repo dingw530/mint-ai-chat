@@ -99,20 +99,20 @@ describe('messageService', () => {
     it('routes to locked agent', async () => {
       vi.mocked(conversationRepo.findById).mockReturnValue({
         id: 'conv-2', title: 'Locked', type: 'text',
-        lockedAgent: 'weather', routingMode: 'auto',
+        lockedAgent: 'general', routingMode: 'auto',
         createdAt: '', updatedAt: '',
       });
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
-      await sendMessage('conv-2', '天气如何', sink);
+      await sendMessage('conv-2', '请帮我查询信息', sink);
       expect(routingService.route).not.toHaveBeenCalled(); // locked agent skips routing
     });
 
     it('routes automatically in auto mode', async () => {
       vi.mocked(routingService.route).mockResolvedValue({
-        agentId: 'weather', confidence: 0.6, method: 'keyword', latencyMs: 10,
+        agentId: 'general', confidence: 0.6, method: 'keyword', latencyMs: 10,
       });
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
-      await sendMessage('conv-1', '天气如何', sink);
+      await sendMessage('conv-1', '请帮我查询信息', sink);
       expect(routingService.route).toHaveBeenCalled();
     });
 
@@ -179,13 +179,13 @@ describe('messageService', () => {
 
     it('supports explicit agent override', async () => {
       vi.mocked(agentService.findById).mockReturnValue({
-        id: 'weather', name: 'Weather', description: '',
-        type: 'weather', systemPrompt: 'You are weather bot', mcpServerIds: [],
+        id: 'custom-agent', name: 'Custom', description: '',
+        type: 'custom', systemPrompt: 'You are a custom assistant', mcpServerIds: [],
         available: true, errorMessage: null, triggerKeywords: [],
         createdAt: '', updatedAt: '',
       });
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
-      await sendMessage('conv-1', 'weather?', sink, 'weather');
+      await sendMessage('conv-1', 'custom request', sink, 'custom-agent');
       expect(streamChat).toHaveBeenCalled();
     });
 

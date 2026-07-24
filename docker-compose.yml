@@ -16,11 +16,6 @@ services:
       # ── Server 端口 ──
       - PORT=3001
 
-      # ── 可选：和风天气（天气工具） ──
-      # - QWEATHER_PROJECT_ID=${QWEATHER_PROJECT_ID}
-      # - QWEATHER_KEY_ID=${QWEATHER_KEY_ID}
-      # - QWEATHER_PRIVATE_KEY=${QWEATHER_PRIVATE_KEY}
-
       # ── 可选：AI API Key（也可在 UI 中配置） ──
       # - OPENAI_API_KEY=${OPENAI_API_KEY}
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}

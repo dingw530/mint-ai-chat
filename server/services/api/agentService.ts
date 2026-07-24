@@ -12,34 +12,14 @@ const ORCHESTRATOR_INSTRUCTION = `
 注意：invoke_agent 是同步操作，等待返回结果后再继续。
 一次可以并行调用多个 invoke_agent 来加速处理。`;
 
-// 检查天气工具所需的环境变量是否已配置
-function weatherAvailable(): boolean {
-  return !!(
-    process.env.QWEATHER_PROJECT_ID &&
-    process.env.QWEATHER_KEY_ID &&
-    process.env.QWEATHER_PRIVATE_KEY
-  );
-}
-
 export function list(): Agent[] {
-  const agents = agentRepo.findAll();
-
-  // 更新内置 Agent 的动态 availability（如天气工具的可用性取决于环境变量）
-  return agents.map(agent => {
-    if (agent.id === 'weather') {
-      return { ...agent, available: weatherAvailable() };
-    }
-    return agent;
-  });
+  return agentRepo.findAll();
 }
 
 export function findById(id: string): Agent | null {
   const agent = agentRepo.findById(id);
   if (!agent) return null;
 
-  if (agent.id === 'weather') {
-    return { ...agent, available: weatherAvailable() };
-  }
   // 编排 Agent 自动追加编排指令
   if (agent.type === 'orchestrator') {
     const basePrompt = agent.systemPrompt || '';

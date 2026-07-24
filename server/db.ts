@@ -185,27 +185,14 @@ function createSchema(): void {
 function seedData(): void {
   const now = new Date().toISOString();
 
-  // 和风天气功能是否可用取决于环境变量配置
-  const weatherAvailable = !!(
-    process.env.QWEATHER_PROJECT_ID &&
-    process.env.QWEATHER_KEY_ID &&
-    process.env.QWEATHER_PRIVATE_KEY
-  );
-
   const upsertAgent = db!.prepare(`
     INSERT OR IGNORE INTO agents (id, name, description, type, system_prompt, mcp_server_ids, available, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   upsertAgent.run('general', '通用助手', '通用 AI 对话助手', 'general', null, '[]', 1, now, now);
-  upsertAgent.run('weather', '和风天气', '查询天气预报信息', 'weather', null, '[]', weatherAvailable ? 1 : 0, now, now);
 
   // 确保内置 Agent 的名称始终最新（当旧 DB 已存在时，INSERT OR IGNORE 不会更新名称）
   db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('通用助手', 'general', '通用助手');
-  db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('和风天气', 'weather', '和风天气');
-  db!.prepare('UPDATE agents SET description = ? WHERE id = ? AND description != ?').run('查询天气预报信息', 'weather', '查询天气预报信息');
-
-  const weatherKeywords = JSON.stringify(['天气', '温度', '预报', '风力', '降雨', '晴', '雨', '雪', '台风', '湿度', '空气质量']);
-  db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run(weatherKeywords, 'weather', '[]');
   db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run('[]', 'general', '[]');
 }

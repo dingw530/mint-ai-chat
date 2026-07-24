@@ -121,26 +121,6 @@
     "async": true
   },
   {
-    "id": "weather:query",
-    "ipcChannel": "weather:query",
-    "preloadMethod": "queryWeather",
-    "method": "GET",
-    "httpPath": "/weather/query",
-    "args": [
-      {
-        "from": "query",
-        "name": "city"
-      },
-      {
-        "from": "query",
-        "name": "days",
-        "optional": true
-      }
-    ],
-    "result": "direct",
-    "async": true
-  },
-  {
     "id": "routing-logs:list",
     "ipcChannel": "routing-logs:list",
     "preloadMethod": "getRoutingLogs",

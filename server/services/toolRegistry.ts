@@ -21,13 +21,6 @@ export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefin
     return isLegacyMcpEnabled() ? appendMcpTools(tools) : appendLoadedMcpTools(tools);
   }
 
-  // weather Agent：追加天气工具
-  if (agentId === 'weather') {
-    const weatherDef = getToolDefinitionSafe('get_weather_forecast');
-    if (weatherDef) tools.push(weatherDef);
-    return tools;
-  }
-
   // 自定义 Agent：根据 mcp_server_ids 加载其全部工具
   const agent = agentRepo.findById(agentId);
   if (!agent || !agent.available) return tools;
@@ -109,7 +102,7 @@ export async function executeTool(toolCall: ToolCall, conversationId = ''): Prom
   if (isLegacyMcpEnabled()) syncMcpTools();
   else syncLoadedMcpTools();
 
-  // 1. 优先从新工具系统执行（get_weather_forecast, http_fetch 等内置工具）
+  // 1. 优先从新工具系统执行内置工具
   if (newToolRegistry.has(name)) {
     const result = await toolExecutor.executeFromToolCall(toolCall, {
       conversationId,

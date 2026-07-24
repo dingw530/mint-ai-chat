@@ -235,29 +235,29 @@ runIf(server)('AC-011: Conversation Lock', () => {
   it('should lock conversation to an agent', async () => {
     const res = await request!(`/api/conversations/${convId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ lockedAgent: 'weather' }),
+      body: JSON.stringify({ lockedAgent: 'general' }),
     });
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.conversation.lockedAgent).toBe('weather');
+    expect(data.conversation.lockedAgent).toBe('general');
   });
 
   it('should reflect lockedAgent in conversation list', async () => {
     await request!(`/api/conversations/${convId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ lockedAgent: 'weather' }),
+      body: JSON.stringify({ lockedAgent: 'general' }),
     });
     const res = await request!('/api/conversations');
     const data = await res.json();
     const found = data.conversations.find((c: any) => c.id === convId);
-    expect(found.lockedAgent).toBe('weather');
+    expect(found.lockedAgent).toBe('general');
   });
 
   it('should unlock conversation by setting lockedAgent to null', async () => {
     // Lock first
     await request!(`/api/conversations/${convId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ lockedAgent: 'weather' }),
+      body: JSON.stringify({ lockedAgent: 'general' }),
     });
     // Then unlock
     const unlockRes = await request!(`/api/conversations/${convId}`, {
@@ -272,7 +272,7 @@ runIf(server)('AC-011: Conversation Lock', () => {
   it('should return 404 when locking non-existent conversation', async () => {
     const res = await request!('/api/conversations/non-existent-id', {
       method: 'PATCH',
-      body: JSON.stringify({ lockedAgent: 'weather' }),
+      body: JSON.stringify({ lockedAgent: 'general' }),
     });
     expect(res.status).toBe(404);
   });

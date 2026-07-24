@@ -11,34 +11,6 @@ if (!process.env.AI_CHAT_ENCRYPTION_KEY) {
   process.exit(1);
 }
 
-// ── 和风天气（QWeather）配置诊断 ──
-const qwProjectId = process.env.QWEATHER_PROJECT_ID;
-const qwKeyId = process.env.QWEATHER_KEY_ID;
-const qwPrivateKey = process.env.QWEATHER_PRIVATE_KEY;
-const qwConfigured = !!(qwProjectId && qwKeyId && qwPrivateKey);
-
-// 详细诊断各环境变量的设置情况
-log.info('和风天气配置诊断开始', {
-  projectIdStatus: qwProjectId ? '已设置' : '未设置',
-  projectIdLength: qwProjectId?.length ?? 0,
-  keyIdStatus: qwKeyId ? '已设置' : '未设置',
-  keyIdLength: qwKeyId?.length ?? 0,
-  privateKeyStatus: qwPrivateKey ? '已设置' : '未设置',
-  privateKeyLength: qwPrivateKey?.length ?? 0,
-  privateKeyPrefix: qwPrivateKey ? qwPrivateKey.substring(0, 20) + '...' : null,
-  qwConfigured,
-});
-
-if (!qwConfigured) {
-  const missing: string[] = [];
-  if (!qwProjectId) missing.push('QWEATHER_PROJECT_ID');
-  if (!qwKeyId) missing.push('QWEATHER_KEY_ID');
-  if (!qwPrivateKey) missing.push('QWEATHER_PRIVATE_KEY');
-  log.warn('和风天气功能已禁用', { reason: `缺少环境变量: ${missing.join(', ')}` });
-} else {
-  log.info('和风天气功能已启用');
-}
-
 // 启动时扫描技能
 listSkills().catch(err => log.error('技能扫描失败', { error: err.message }));
 

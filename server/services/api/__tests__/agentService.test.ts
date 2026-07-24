@@ -30,20 +30,6 @@ const GENERAL_AGENT: Agent = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-const WEATHER_AGENT: Agent = {
-  id: 'weather',
-  name: '天气助手',
-  description: '查询天气信息',
-  type: 'weather',
-  systemPrompt: '你是天气助手',
-  mcpServerIds: [],
-  available: true,
-  errorMessage: null,
-  triggerKeywords: ['天气', 'weather'],
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
-
 const CUSTOM_AGENT: Agent = {
   id: 'my-custom',
   name: '自定义 Agent',
@@ -81,53 +67,13 @@ describe('agentService', () => {
     it('returns all agents with correct availability', () => {
       vi.mocked(agentRepo.findAll).mockReturnValue([
         { ...GENERAL_AGENT },
-        { ...WEATHER_AGENT },
         { ...CUSTOM_AGENT },
       ]);
 
       const result = agentService.list();
 
-      expect(result).toHaveLength(3);
-      expect(result.map(a => a.id)).toEqual(['general', 'weather', 'my-custom']);
-    });
-
-    it('marks weather agent as unavailable when QWeather env vars are missing', () => {
-      const originalProjectId = process.env.QWEATHER_PROJECT_ID;
-      const originalKeyId = process.env.QWEATHER_KEY_ID;
-      const originalPrivateKey = process.env.QWEATHER_PRIVATE_KEY;
-
-      delete process.env.QWEATHER_PROJECT_ID;
-      delete process.env.QWEATHER_KEY_ID;
-      delete process.env.QWEATHER_PRIVATE_KEY;
-
-      vi.mocked(agentRepo.findAll).mockReturnValue([
-        { ...GENERAL_AGENT },
-        { ...WEATHER_AGENT },
-      ]);
-
-      const result = agentService.list();
-      const weatherAgent = result.find(a => a.id === 'weather');
-      expect(weatherAgent!.available).toBe(false);
-
-      // Restore
-      if (originalProjectId) process.env.QWEATHER_PROJECT_ID = originalProjectId;
-      if (originalKeyId) process.env.QWEATHER_KEY_ID = originalKeyId;
-      if (originalPrivateKey) process.env.QWEATHER_PRIVATE_KEY = originalPrivateKey;
-    });
-
-    it('marks weather as available when QWeather env vars are set', () => {
-      process.env.QWEATHER_PROJECT_ID = 'test';
-      process.env.QWEATHER_KEY_ID = 'test';
-      process.env.QWEATHER_PRIVATE_KEY = 'test';
-
-      vi.mocked(agentRepo.findAll).mockReturnValue([
-        { ...GENERAL_AGENT },
-        { ...WEATHER_AGENT },
-      ]);
-
-      const result = agentService.list();
-      const weatherAgent = result.find(a => a.id === 'weather');
-      expect(weatherAgent!.available).toBe(true);
+      expect(result).toHaveLength(2);
+      expect(result.map(a => a.id)).toEqual(['general', 'my-custom']);
     });
   });
 

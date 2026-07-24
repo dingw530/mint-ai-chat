@@ -8,15 +8,15 @@ describe('RoutingService.keywordMatch', () => {
 
   const agents: Agent[] = [
     {
-      id: 'weather',
-      name: '天气查询',
-      description: '查询天气预报',
-      type: 'weather',
+      id: 'research',
+      name: '研究助手',
+      description: '研究资料查询',
+      type: 'custom',
       systemPrompt: null,
       mcpServerIds: [],
       available: true,
       errorMessage: null,
-      triggerKeywords: ['天气', '温度', '预报', '/^今天\\s*(的)?[的]?(天气|温度|气温)$/'],
+      triggerKeywords: ['研究', '资料', '查询', '/^今天\\s*(的)?[的]?(研究|资料)$/'],
       createdAt: '',
       updatedAt: '',
     },
@@ -49,16 +49,16 @@ describe('RoutingService.keywordMatch', () => {
   ];
 
   it('should return exact match with confidence 1.0', () => {
-    const result = service.keywordMatch('天气', agents);
-    expect(result.agentId).toBe('weather');
+    const result = service.keywordMatch('研究', agents);
+    expect(result.agentId).toBe('research');
     expect(result.confidence).toBe(1.0);
   });
 
   it('should return the highest scoring agent when multiple agents match', () => {
-    // '预报' is a substring match (0.6) for weather
+    // The custom agent keyword is a substring match (0.6)
     // No music agent keyword matches
-    const result = service.keywordMatch('明天天气怎么样', agents);
-    expect(result.agentId).toBe('weather');
+    const result = service.keywordMatch('明天研究怎么样', agents);
+    expect(result.agentId).toBe('research');
     expect(result.confidence).toBe(0.6);
   });
 
@@ -69,8 +69,8 @@ describe('RoutingService.keywordMatch', () => {
   });
 
   it('should handle regex pattern keywords', () => {
-    const result = service.keywordMatch('今天的气温', agents);
-    expect(result.agentId).toBe('weather');
+    const result = service.keywordMatch('今天的资料', agents);
+    expect(result.agentId).toBe('research');
     expect(result.confidence).toBe(0.9);
   });
 
@@ -81,14 +81,14 @@ describe('RoutingService.keywordMatch', () => {
   });
 
   it('should prefer exact match over substring match', () => {
-    // Both weather and music match: '天气' exact (1.0) vs any music substring
-    const result = service.keywordMatch('天气', agents);
-    expect(result.agentId).toBe('weather');
+    // Both agents match: exact match wins over substring
+    const result = service.keywordMatch('研究', agents);
+    expect(result.agentId).toBe('research');
     expect(result.confidence).toBe(1.0);
   });
 
   it('should handle empty agent list', () => {
-    const result = service.keywordMatch('天气', []);
+    const result = service.keywordMatch('研究', []);
     expect(result.agentId).toBeNull();
     expect(result.confidence).toBe(0);
   });
@@ -109,7 +109,7 @@ describe('RoutingService.keywordMatch', () => {
         updatedAt: '',
       },
     ];
-    const result = service.keywordMatch('天气', noKeywordsAgents);
+    const result = service.keywordMatch('研究', noKeywordsAgents);
     expect(result.agentId).toBeNull();
     expect(result.confidence).toBe(0);
   });
@@ -120,15 +120,15 @@ describe('RoutingService.route', () => {
 
   const agents: Agent[] = [
     {
-      id: 'weather',
-      name: '天气查询',
-      description: '查询天气预报',
-      type: 'weather',
+      id: 'research',
+      name: '研究助手',
+      description: '研究资料查询',
+      type: 'custom',
       systemPrompt: null,
       mcpServerIds: [],
       available: true,
       errorMessage: null,
-      triggerKeywords: ['天气', '温度'],
+      triggerKeywords: ['研究', '资料'],
       createdAt: '',
       updatedAt: '',
     },
@@ -148,7 +148,7 @@ describe('RoutingService.route', () => {
   ];
 
   it('should skip routing and return lockedAgent when lockedAgent is set', async () => {
-    const result = await service.route('天气怎么样', {
+    const result = await service.route('研究怎么样', {
       agents,
       lockedAgent: 'general',
     });
@@ -158,7 +158,7 @@ describe('RoutingService.route', () => {
   });
 
   it('should skip routing when routingMode is manual', async () => {
-    const result = await service.route('天气怎么样', {
+    const result = await service.route('研究怎么样', {
       agents,
       routingMode: 'manual',
     });
@@ -168,16 +168,16 @@ describe('RoutingService.route', () => {
   });
 
   it('should return agent directly via keyword when confidence > 0.8', async () => {
-    const result = await service.route('天气', {
+    const result = await service.route('研究', {
       agents,
     });
-    expect(result.agentId).toBe('weather');
+    expect(result.agentId).toBe('research');
     expect(result.confidence).toBe(1.0);
     expect(result.method).toBe('keyword');
   });
 
   it('should fallback to general when agents list is empty', async () => {
-    const result = await service.route('天气怎么样', {
+    const result = await service.route('研究怎么样', {
       agents: [],
     });
     expect(result.agentId).toBe('general');
@@ -188,15 +188,15 @@ describe('RoutingService.route', () => {
   it('should fallback to general when keyword has low confidence', async () => {
     const lowMatchAgents: Agent[] = [
       {
-        id: 'weather',
-        name: '天气查询',
-        description: '查询天气预报',
-        type: 'weather',
+        id: 'research',
+        name: '研究助手',
+        description: '研究资料查询',
+        type: 'custom',
         systemPrompt: null,
         mcpServerIds: [],
         available: true,
         errorMessage: null,
-        triggerKeywords: ['台风预警'],  // won't match '天气'
+        triggerKeywords: ['论文资料'],  // won't match '研究'
         createdAt: '',
         updatedAt: '',
       },
@@ -214,13 +214,13 @@ describe('RoutingService.route', () => {
         updatedAt: '',
       },
     ];
-    const result = await service.route('今天天气怎么样', { agents: lowMatchAgents });
+    const result = await service.route('今天研究怎么样', { agents: lowMatchAgents });
     expect(result.agentId).toBe('general');
     expect(result.method).toBe('fallback');
   });
 
   it('should have latencyMs >= 0', async () => {
-    const result = await service.route('天气', { agents });
+    const result = await service.route('研究', { agents });
     expect(result.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
@@ -235,7 +235,7 @@ describe('RoutingService.route', () => {
     const serviceWithHook = new RoutingService({
       beforeRoute: async () => ({ skip: true, message: undefined }),
     });
-    const result = await serviceWithHook.route('天气', { agents });
+    const result = await serviceWithHook.route('研究', { agents });
     expect(result.agentId).toBe('general');
     expect(result.confidence).toBe(0);
     expect(result.method).toBe('fallback');
@@ -261,7 +261,7 @@ describe('RoutingService.route', () => {
         updatedAt: '',
       },
     ];
-    const result = await serviceWithHook.route('天气', { agents: agents4 });
+    const result = await serviceWithHook.route('研究', { agents: agents4 });
     // The message was overridden to '音乐', which matches music agent
     expect(result.agentId).toBe('music');
     expect(result.method).toBe('keyword');
@@ -272,7 +272,7 @@ describe('RoutingService.llmClassify', () => {
   const service = new RoutingService();
 
   it('should return null when only general agent is available', async () => {
-    const result = await service.llmClassify('天气', [
+    const result = await service.llmClassify('研究', [
       {
         id: 'general',
         name: '通用助手',
@@ -291,12 +291,12 @@ describe('RoutingService.llmClassify', () => {
   });
 
   it('should return null when all agents are unavailable', async () => {
-    const result = await service.llmClassify('天气', [
+    const result = await service.llmClassify('研究', [
       {
-        id: 'weather',
-        name: '天气查询',
-        description: '天气预报',
-        type: 'weather',
+        id: 'research',
+        name: '研究助手',
+        description: '研究资料',
+        type: 'custom',
         systemPrompt: null,
         mcpServerIds: [],
         available: false,

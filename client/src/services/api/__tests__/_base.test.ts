@@ -19,7 +19,7 @@ describe('API base helpers', () => {
     expect(isElectron()).toBe(false);
     const http = vi.fn().mockResolvedValue('http');
     expect(await ipcOrHttp(vi.fn(), http)).toBe('http');
-    window.electronAPI = { isElectron: true } as typeof window.electronAPI;
+    window.electronAPI = { isElectron: true } as unknown as typeof window.electronAPI;
     expect(await ipcOrHttp(vi.fn().mockRejectedValue(new Error('IPC failed')), http)).toBe('http');
   });
 
@@ -33,14 +33,14 @@ describe('API base helpers', () => {
     parseSSEChunk({ type: 'thought', content: 'thinking' }, callbacks, lastThought);
     parseSSEChunk({ type: 'tool_call_start', callId: 'call-1' }, callbacks, lastThought);
     parseSSEChunk({ type: 'answer', content: 'answer' }, callbacks, lastThought);
-    parseSSEChunk({ type: 'agent', agent: 'weather' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'agent', agent: 'custom-agent' }, callbacks, lastThought);
     parseSSEChunk({ type: 'answer_ready' }, callbacks, lastThought);
     parseSSEChunk({ type: 'token_usage', estimatedTokens: 42 }, callbacks, lastThought);
     parseSSEChunk({ type: 'loop_detected', message: 'fallback' }, callbacks, lastThought);
     expect(callbacks.onThought).toHaveBeenCalledWith('thinking');
     expect(callbacks.onToolCallStart).toHaveBeenCalled();
     expect(callbacks.onChunk).toHaveBeenCalledWith('answer');
-    expect(callbacks.onRouting).toHaveBeenCalledWith('weather');
+    expect(callbacks.onRouting).toHaveBeenCalledWith('custom-agent');
     expect(callbacks.onAnswerReady).not.toHaveBeenCalled();
     expect(callbacks.onTokenUsage).toHaveBeenCalledWith({ type: 'token_usage', estimatedTokens: 42 });
     expect(callbacks.onRoundStarted).toHaveBeenCalledWith({ type: 'round_started', round: 2 });

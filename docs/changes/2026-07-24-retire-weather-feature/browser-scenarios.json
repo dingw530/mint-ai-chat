@@ -1,0 +1,16 @@
+{
+  "scenarios": [
+    {
+      "id": "BS-001",
+      "acceptanceCriteria": ["AC-003", "AC-004"],
+      "route": "/chat",
+      "markers": ["选择 Agent", "输入消息"]
+    },
+    {
+      "id": "BS-002",
+      "acceptanceCriteria": ["AC-004"],
+      "route": "/chat",
+      "markers": ["选择 Agent", "输入消息"]
+    }
+  ]
+}

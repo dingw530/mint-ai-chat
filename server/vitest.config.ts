@@ -21,8 +21,6 @@ export default defineConfig({
       exclude: [
         // AI 适配器需要真实 API 密钥，集成测试覆盖
         'services/adapters/**/*.ts',
-        // 需要真实 QWeather 密钥
-        'services/api/qweatherService.ts',
       ],
       thresholds: {
         lines: 50,
