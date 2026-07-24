@@ -34,6 +34,8 @@ describe('wikiService', () => {
       const result = wikiService.listWiki();
       expect(result.total).toBeGreaterThanOrEqual(1);
       expect(result.tree.length).toBeGreaterThanOrEqual(1);
+      const pages = result.tree.find((node) => node.path === 'pages');
+      expect(pages?.children?.[0].modifiedAt).toEqual(expect.any(Number));
     });
   });
 

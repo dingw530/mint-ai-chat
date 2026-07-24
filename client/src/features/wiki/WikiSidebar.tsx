@@ -41,6 +41,30 @@ function CheckIcon() {
   return <span className="wiki-check-icon">✓</span>;
 }
 
+export type WikiSortMode = 'modified-desc' | 'modified-asc' | 'name-asc' | 'name-desc';
+
+/**
+ * 按指定方式递归排序 Wiki 树节点，保持目录层级不变。
+ *
+ * @param nodes Wiki 树节点
+ * @param mode 排序方式
+ * @returns 排序后的新节点数组
+ */
+export function sortWikiTree(nodes: WikiFileTreeNode[], mode: WikiSortMode): WikiFileTreeNode[] {
+  const direction = mode === 'modified-asc' || mode === 'name-asc' ? 1 : -1;
+  return [...nodes]
+    .map((node) => ({
+      ...node,
+      children: node.children ? sortWikiTree(node.children, mode) : undefined,
+    }))
+    .sort((a, b) => {
+      const comparison = mode === 'name-asc' || mode === 'name-desc'
+        ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        : a.modifiedAt - b.modifiedAt;
+      return comparison * direction || a.path.localeCompare(b.path);
+    });
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -63,6 +87,7 @@ export default function WikiSidebar({
   const [wikiTree, setWikiTree] = useState<WikiFileTreeNode[]>([]);
   const [wikiLoading, setWikiLoading] = useState(false);
   const [wikiError, setWikiError] = useState<string | null>(null);
+  const [wikiSortMode, setWikiSortMode] = useState<WikiSortMode>('modified-desc');
   const [wikiExpandedDirs, setWikiExpandedDirs] = useState<Set<string>>(new Set());
   const [wikiDragOver, setWikiDragOver] = useState(false);
   const [uploadJobs, setUploadJobs] = useState<UploadJob[]>([]);
@@ -353,6 +378,20 @@ export default function WikiSidebar({
       <div className="wiki-tree-header-bar">
         <span className="wiki-tree-header-label">文件</span>
         <div className="wiki-tree-header-actions">
+          <label className="wiki-tree-sort-label">
+            <span className="sr-only">文件排序</span>
+            <select
+              className="wiki-tree-sort-select"
+              value={wikiSortMode}
+              onChange={(event) => setWikiSortMode(event.target.value as WikiSortMode)}
+              aria-label="文件排序方式"
+            >
+              <option value="modified-desc">最新修改</option>
+              <option value="modified-asc">最早修改</option>
+              <option value="name-asc">名称 A-Z</option>
+              <option value="name-desc">名称 Z-A</option>
+            </select>
+          </label>
           <input
             type="file"
             ref={fileInputRef}
@@ -365,10 +404,16 @@ export default function WikiSidebar({
             className="wiki-upload-btn"
             onClick={() => fileInputRef.current?.click()}
             disabled={isWikiUploading}
+            title="上传文件"
+            aria-label="上传文件"
           >
-            +
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 16V4" />
+              <path d="m7 9 5-5 5 5" />
+              <path d="M5 20h14" />
+            </svg>
           </button>
-          <button className="wiki-tree-refresh" onClick={loadWikiTree}>
+          <button className="wiki-tree-refresh" onClick={loadWikiTree} title="刷新文件列表" aria-label="刷新文件列表">
             <svg
               viewBox="0 0 24 24"
               width="13"
@@ -406,7 +451,7 @@ export default function WikiSidebar({
         {!wikiLoading && !wikiError && wikiTree.length === 0 && (
           <div className="wiki-empty">暂无文件</div>
         )}
-        {!wikiLoading && !wikiError && wikiTree.map((node) => renderWikiTreeNode(node))}
+        {!wikiLoading && !wikiError && sortWikiTree(wikiTree, wikiSortMode).map((node) => renderWikiTreeNode(node))}
         {wikiDragOver && <div className="wiki-drop-hint">释放以上传</div>}
       </div>
       {uploadJobs.length > 0 && (

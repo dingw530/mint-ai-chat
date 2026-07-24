@@ -422,6 +422,7 @@ export interface WikiFileTreeNode {
   name: string;
   type: 'file' | 'directory';
   path: string;
+  modifiedAt: number;
   children?: WikiFileTreeNode[];
 }
 

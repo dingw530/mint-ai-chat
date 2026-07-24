@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { getFadedColor, getGraphEdgeWidth, getGraphNodeLabel, isWeakGraphEdge } from '../WikiGraphPanel';
 import { isExternalWikiLink, parseWikiDocument, resolveWikiLinkPath } from '../WikiPanel';
-import { formatFileSize } from '../WikiSidebar';
+import { formatFileSize, sortWikiTree } from '../WikiSidebar';
+import type { WikiFileTreeNode } from '@/types';
 import type { GraphEdge } from '@/services/api/wiki';
 
 describe('Wiki link and document helpers', () => {
@@ -29,6 +30,20 @@ const edge = (overrides: Partial<GraphEdge> = {}): GraphEdge => ({
 });
 
 describe('graph and file display helpers', () => {
+  it('sorts each directory without changing the tree hierarchy', () => {
+    const nodes: WikiFileTreeNode[] = [
+      { name: 'old.md', type: 'file', path: 'old.md', modifiedAt: 100 },
+      { name: 'new.md', type: 'file', path: 'new.md', modifiedAt: 300 },
+      {
+        name: 'docs', type: 'directory', path: 'docs', modifiedAt: 200,
+        children: [{ name: 'nested.md', type: 'file', path: 'docs/nested.md', modifiedAt: 50 }],
+      },
+    ];
+
+    expect(sortWikiTree(nodes, 'modified-desc').map((node) => node.name)).toEqual(['new.md', 'docs', 'old.md']);
+    expect(sortWikiTree(nodes, 'name-asc')[0].children?.[0].path).toBe('docs/nested.md');
+  });
+
   it('fades colors, truncates labels and formats file sizes', () => {
     expect(getFadedColor('#123456')).toBe('rgba(18,52,86,0.12)');
     expect(getGraphNodeLabel('12345678901234567')).toBe('1234567890123456...');
