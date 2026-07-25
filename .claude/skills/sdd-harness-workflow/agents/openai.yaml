@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDD Harness Workflow"
+  short_description: "编排 SDD 生成、AC 验证与 Harness 反馈回路"
+  default_prompt: "按 SDD 变更编排需求澄清、实现、AC 验证和 Harness 测试—修改—测试闭环。"

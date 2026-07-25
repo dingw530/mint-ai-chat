@@ -130,11 +130,6 @@ export default function AgentsPanel({ onToast }: AgentsPanelProps) {
     }
   };
 
-  const getToolCount = (serverName: string): number => {
-    const server = connectedServers.find((s) => s.name === serverName);
-    return server?.tools?.length || 0;
-  };
-
   if (loading) {
     return <div className="panel-loading">加载中...</div>;
   }

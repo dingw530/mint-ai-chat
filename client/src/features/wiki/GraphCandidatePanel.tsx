@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   acceptGraphCandidate,
   listGraphCandidates,
@@ -10,13 +10,15 @@ export default function GraphCandidatePanel() {
   const [items, setItems] = useState<GraphEdgeCandidate[]>([]);
   const [status, setStatus] = useState<'pending' | 'accepted' | 'rejected' | 'expired'>('pending');
   const [error, setError] = useState<string | null>(null);
-  const load = () =>
+  const load = useCallback(() =>
     listGraphCandidates(status)
       .then(setItems)
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message)),
+    [status],
+  );
   useEffect(() => {
     load();
-  }, [status]);
+  }, [load]);
   const accept = async (id: string) => {
     await acceptGraphCandidate(id);
     load();

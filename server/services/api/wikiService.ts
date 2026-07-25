@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as settingsService from './settingsService.js';
 import { normalizeWikiSchema, type WikiCategory, type WikiSchema } from '../utils/wikiShared.js';
+import * as lifecycleRepo from '../../repositories/wikiLifecycleRepository.js';
+import { calculateWikiRetentionScore } from '../utils/wikiRetention.js';
 
 interface FileTreeNode {
   name: string;
@@ -21,6 +23,30 @@ interface WikiReadResponse {
   path: string;
   name: string;
   size: number;
+}
+
+export interface WikiHeatPage {
+  id: string;
+  path: string;
+  title: string;
+  status: lifecycleRepo.WikiPageStatus;
+  accessCount: number;
+  confidence: number;
+  importance: number;
+  retentionScore: number;
+  lastAccessedAt: string | null;
+  lastConfirmedAt: string | null;
+}
+
+export interface WikiHeatResponse {
+  summary: {
+    totalPages: number;
+    activePages: number;
+    stalePages: number;
+    archivedPages: number;
+    totalAccesses: number;
+  };
+  pages: WikiHeatPage[];
 }
 
 function getRootPath(): string {
@@ -97,6 +123,35 @@ export function readWiki(filePath: string): WikiReadResponse {
     name: path.basename(filePath),
     size: stat.size,
   };
+}
+
+/** 返回知识库热度排行和生命周期汇总。 */
+export function getWikiHeat(limit = 30): WikiHeatResponse {
+  const pages = lifecycleRepo.listPagesForHeat();
+  const summary = {
+    totalPages: pages.length,
+    activePages: pages.filter((page) => page.status === 'active').length,
+    stalePages: pages.filter((page) => page.status === 'stale').length,
+    archivedPages: pages.filter((page) => page.status === 'archived').length,
+    totalAccesses: pages.reduce((total, page) => total + page.accessCount, 0),
+  };
+  const ranked = pages
+    .filter((page) => !['deleted', 'superseded'].includes(page.status))
+    .map((page) => ({
+      id: page.id,
+      path: page.path,
+      title: page.title,
+      status: page.status,
+      accessCount: page.accessCount,
+      confidence: page.confidence,
+      importance: page.importance,
+      retentionScore: calculateWikiRetentionScore(page),
+      lastAccessedAt: page.lastAccessedAt,
+      lastConfirmedAt: page.lastConfirmedAt,
+    }))
+    .sort((a, b) => b.retentionScore - a.retentionScore || b.accessCount - a.accessCount)
+    .slice(0, Math.max(1, Math.min(limit, 100)));
+  return { summary, pages: ranked };
 }
 
 function buildFileTree(rootDir: string, currentDir: string): FileTreeNode[] {

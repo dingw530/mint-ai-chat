@@ -34,3 +34,4 @@
 | [记忆机制优化](<../changes/2026-07-23-memory-mechanism-optimization/product-spec.md>) | 2026-07-23 | 已完成 |
 | [工具运行时安全与 MCP 主动发现](<../changes/2026-07-24-tool-runtime-security-discovery/product-spec.md>) | 2026-07-24 | 已完成 |
 | [Harness 反馈回路](<../changes/2026-07-24-harness-feedback-loop/product-spec.md>) | 2026-07-24 | 已完成 |
+| [Wiki 知识生命周期](<../changes/2026-07-24-knowledge-lifecycle/product-spec.md>) | 2026-07-24 | 已完成 |

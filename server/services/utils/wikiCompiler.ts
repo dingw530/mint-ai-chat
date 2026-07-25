@@ -20,7 +20,17 @@ export interface CompileResult {
   pages: { filename: string; title: string; size: number }[];
   compiledPages: CompiledPage[]; // 完整页面数据（含 tags/content），供图构建使用
   relationships: Relationship[]; // AI 输出的页面间语义关系
+  claims: WikiCompiledClaim[]; // AI 输出的可追溯事实，旧模型缺失时由摄入层生成 fallback
   summary: string;
+}
+
+export interface WikiCompiledClaim {
+  pageTitle: string;
+  text: string;
+  normalizedKey?: string;
+  confidence?: number;
+  importance?: number;
+  evidence?: string;
 }
 
 /**
@@ -489,7 +499,7 @@ export async function compileSource(
   );
 
   // AI 常在 content 字段中输出字面换行符，导致 JSON.parse 失败，先尝试宽松解析
-  const compiled: { pages: CompiledPage[]; relationships?: Relationship[]; summary: string } =
+  const compiled: { pages: CompiledPage[]; claims?: WikiCompiledClaim[]; relationships?: Relationship[]; summary: string } =
     tryParseLooseJson(aiResult);
   if (!compiled) {
     console.error(`[wikiCompiler] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
@@ -531,6 +541,7 @@ export async function compileSource(
     pages: results,
     compiledPages: compiled.pages,
     relationships: compiled.relationships || [],
+    claims: compiled.claims || [],
     summary: compiled.summary || `成功创建 ${results.length} 个 Wiki 页面`,
   };
 }

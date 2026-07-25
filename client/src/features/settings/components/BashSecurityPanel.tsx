@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { getElectronAPI } from '@/services/api/_base';
 
 interface BashSecurityConfig {
   blockedCommands: string[];
   blockedDirs: string[];
 }
 
-const electronAPI = (window as any).electronAPI;
+const electronAPI = getElectronAPI();
 const isElectron = !!electronAPI?.isElectron;
 
 interface BashSecurityPanelProps {
@@ -163,4 +164,3 @@ export default function BashSecurityPanel({ onToast }: BashSecurityPanelProps) {
     </div>
   );
 }
-

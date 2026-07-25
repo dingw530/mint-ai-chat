@@ -5,6 +5,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { WikiServiceContext } from '../index.js';
 import { isPathSafe } from '../../services/utils/pathSecurity.js';
 import { isSystemWikiPath, parseWikiPage } from '../../services/utils/wikiShared.js';
+import * as lifecycleRepo from '../../repositories/wikiLifecycleRepository.js';
+import { calculateWikiRetentionScore } from '../../services/utils/wikiRetention.js';
 
 const SearchInputSchema = {
   question: z.string().optional().describe('搜索关键词或问题（与 paths 二选一）'),
@@ -147,8 +149,16 @@ function searchAndRead(
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       const parsed = parseWikiPage(relativePath, content);
-      const score = scorePage(parsed, keywords);
-      if (score > 0) {
+      const baseScore = scorePage(parsed, keywords);
+      let lifecycle: lifecycleRepo.WikiPage | null = null;
+      try {
+        lifecycle = lifecycleRepo.findPageByPath(relativePath);
+      } catch {
+        // 生命周期索引不可用时保留原有 MCP 文件搜索能力。
+      }
+      if (lifecycle && ['superseded', 'archived', 'deleted'].includes(lifecycle.status)) continue;
+      const score = baseScore * (lifecycle ? 1 + calculateWikiRetentionScore(lifecycle) : 2);
+      if (baseScore > 0) {
         scored.push({
           file: relativePath,
           score,
@@ -163,6 +173,23 @@ function searchAndRead(
 
   scored.sort((a, b) => b.score - a.score);
   const top = scored.slice(0, maxResults);
+
+  for (const item of top) {
+    let lifecycle: lifecycleRepo.WikiPage | null = null;
+    try {
+      lifecycle = lifecycleRepo.findPageByPath(item.file);
+    } catch {
+      // 访问反馈失败不影响 MCP 搜索响应。
+    }
+    if (lifecycle) {
+      try {
+        lifecycleRepo.touchPage(lifecycle.id);
+        lifecycleRepo.recordEvent('page', lifecycle.id, 'accessed', null, lifecycle.sourceId, item.file, 'mcp wiki search result selected');
+      } catch {
+        // 搜索结果已经确定，访问统计失败不影响响应。
+      }
+    }
+  }
 
   const results: WikiSearchResult[] = top.map(item => ({
     file: item.file,

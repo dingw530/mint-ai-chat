@@ -6,7 +6,7 @@ export const BASE_URL = '/api';
 
 // 运行时检测 Electron 环境（避免模块加载时序问题）
 export function getElectronAPI(): ElectronAPI | undefined {
-  return (window as any).electronAPI;
+  return window.electronAPI;
 }
 export function isElectron(): boolean {
   return !!getElectronAPI()?.isElectron;
@@ -56,7 +56,7 @@ export interface ManifestEntry {
   preloadMethod: string | null;
   method: string;
   httpPath: string;
-  args: { from: string; name: string; optional?: boolean }[];
+  args: readonly { from: string; name?: string; optional?: boolean }[];
   result: string | null;
   async: boolean;
 }
@@ -67,7 +67,7 @@ export async function getManifest(): Promise<ManifestEntry[]> {
   if (manifestCache) return manifestCache;
   try {
     const mod = await import('../../../../electron/endpoints-manifest.json');
-    manifestCache = mod.default || mod;
+    manifestCache = (mod.default || mod) as unknown as ManifestEntry[];
   } catch {
     manifestCache = [];
   }
@@ -85,7 +85,10 @@ export async function callEndpoint<T = unknown>(id: string, ...args: unknown[]):
     () => {
       if (!ep.preloadMethod) throw new Error(`No preload method for ${id}`);
       const api = getElectronAPI();
-      return (api as any)[ep.preloadMethod](...args);
+      if (!api) throw new Error(`Electron API unavailable for ${id}`);
+      const method = api[ep.preloadMethod as keyof ElectronAPI];
+      if (typeof method !== 'function') throw new Error(`No preload method for ${id}`);
+      return (method as (...methodArgs: unknown[]) => Promise<T>)(...args);
     },
     () => {
       const url = buildUrlFromManifest(ep, args);
@@ -103,12 +106,12 @@ export function buildUrlFromManifest(ep: ManifestEntry, args: unknown[]): string
   let argIdx = 0;
   for (const mapping of ep.args) {
     if (mapping.from === 'path') {
-      url = url.replace(`:${mapping.name}`, String(args[argIdx]));
+      if (mapping.name) url = url.replace(`:${mapping.name}`, String(args[argIdx]));
     } else if (mapping.from === 'query') {
       const value = args[argIdx];
       if (value !== undefined && value !== null) {
         const sep = url.includes('?') ? '&' : '?';
-        url += `${sep}${mapping.name}=${encodeURIComponent(String(value))}`;
+        if (mapping.name) url += `${sep}${mapping.name}=${encodeURIComponent(String(value))}`;
       }
     }
     argIdx++;

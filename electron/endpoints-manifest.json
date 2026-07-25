@@ -498,6 +498,22 @@
     "async": false
   },
   {
+    "id": "wiki:heat",
+    "ipcChannel": "wiki:heat",
+    "preloadMethod": "getWikiHeat",
+    "method": "GET",
+    "httpPath": "/wiki/heat",
+    "args": [
+      {
+        "from": "query",
+        "name": "limit",
+        "optional": true
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
     "id": "wiki:schema",
     "ipcChannel": "wiki:schema",
     "preloadMethod": "getWikiSchema",

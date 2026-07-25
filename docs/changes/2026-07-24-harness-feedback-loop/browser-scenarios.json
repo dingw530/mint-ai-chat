@@ -1,0 +1,23 @@
+{
+  "scenarios": [
+    {
+      "id": "harness-browser-entrypoints",
+      "acceptanceCriteria": ["AC-007"],
+      "route": "/chat",
+      "markers": ["Mint", "输入消息"]
+    },
+    {
+      "id": "harness-wiki-entrypoint",
+      "acceptanceCriteria": ["AC-007"],
+      "route": "/wiki",
+      "markers": ["知识库"]
+    },
+    {
+      "id": "harness-image-entrypoint",
+      "acceptanceCriteria": ["AC-007"],
+      "route": "/image",
+      "markers": ["生图"],
+      "markersAny": ["描述你想要生成的图片", "暂无图片生成模型"]
+    }
+  ]
+}

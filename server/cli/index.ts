@@ -49,6 +49,23 @@ program
     await handleSettings(action, key, value);
   });
 
+const wikiCommand = program
+  .command('wiki')
+  .description('管理 Wiki 知识库');
+
+wikiCommand
+  .command('migrate-lifecycle [path]')
+  .description('将已有 pages/*.md 回填到知识生命周期表')
+  .action(async (wikiPath?: string) => {
+    const { get } = await import('../services/api/settingsService.js');
+    const { migrateExistingWikiPages } = await import('../services/api/wikiKnowledgeLifecycleService.js');
+    const targetPath = wikiPath || get().wikiPath;
+    if (!targetPath) throw new Error('未提供 Wiki 路径，且设置中没有 wikiPath');
+    const result = migrateExistingWikiPages(targetPath);
+    console.log(JSON.stringify({ wikiPath: targetPath, ...result }, null, 2));
+    if (result.errors.length > 0) process.exitCode = 1;
+  });
+
 program
   .command('serve')
   .description('启动 HTTP 服务（Web 界面用）')

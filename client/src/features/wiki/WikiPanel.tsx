@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react';
 import { isElectron } from '@/services/api/_base';
 import { openWikiInObsidian, readWiki } from '@/services/api';
 import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
-import WikiGraphPanel from './WikiGraphPanel';
+const WikiGraphPanel = lazy(() => import('./WikiGraphPanel'));
+const WikiHeatPanel = lazy(() => import('./WikiHeatPanel'));
 
 type WikiFrontmatter = {
   title?: string;
@@ -125,7 +126,7 @@ export function parseWikiDocument(filePath: string, content: string): WikiDocume
 
 interface WikiPanelProps {
   filePath: string | null;
-  viewMode: 'file' | 'graph';
+  viewMode: 'file' | 'graph' | 'heat';
   onAskQuestion?: (question: string) => void;
   onBack?: () => void;
   onFileSelect?: (path: string) => void;
@@ -237,7 +238,13 @@ export default function WikiPanel({ filePath, viewMode, onAskQuestion, onBack, o
       </div>
       {obsidianError && <div className="wiki-obsidian-error">{obsidianError}</div>}
       {viewMode === 'graph' ? (
-        <WikiGraphPanel onOpenFile={onFileSelect} />
+        <Suspense fallback={<div className="panel-loading">图谱加载中...</div>}>
+          <WikiGraphPanel onOpenFile={onFileSelect} />
+        </Suspense>
+      ) : viewMode === 'heat' ? (
+        <Suspense fallback={<div className="panel-loading">热度加载中...</div>}>
+          <WikiHeatPanel onOpenFile={onFileSelect} />
+        </Suspense>
       ) : (
       <div className="wiki-content-scroll">
       {loading && (

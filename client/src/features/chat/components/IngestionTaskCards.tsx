@@ -35,7 +35,7 @@ function getStatusTone(status: string): 'active' | 'success' | 'error' | 'cancel
 }
 
 const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({ props }) => {
-  const model = props.data as IngestionTaskModel | undefined;
+  const model = props.data as unknown as IngestionTaskModel | undefined;
   if (!model) return null;
 
   const progress = Math.max(0, Math.min(100, model.progress));

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getMcpServers, createMcpServer, updateMcpServer, deleteMcpServer, restartMcpServer } from '@/services/api';
-import type { McpServer, McpTool } from '@/types';
+import type { McpServer } from '@/types';
 
 const JSON_TEMPLATE = `{
   "mcpServers": {
@@ -68,9 +68,9 @@ function ToolDetailModal({ server, onClose }: { server: McpServer; onClose: () =
                     {expandedTool === tool.name ? '▲' : '▼'}
                   </span>
                 </div>
-                {expandedTool === tool.name && (tool as any).inputSchema && (
-                  <pre className="tool-schema">
-                    {JSON.stringify((tool as any).inputSchema, null, 2)}
+                  {expandedTool === tool.name && tool.inputSchema && (
+                    <pre className="tool-schema">
+                    {JSON.stringify(tool.inputSchema, null, 2)}
                   </pre>
                 )}
               </div>
@@ -176,7 +176,7 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
       try { const url = new URL(form.url.trim()); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); }
       catch { return '请输入有效的 HTTP(S) URL'; }
     }
-    for (const [i, row] of form.env.entries()) {
+    for (const row of form.env) {
       if (row.key.trim() && !row.value.trim()) {
         return `环境变量 "${row.key}" 的值不能为空`;
       }
@@ -454,7 +454,7 @@ export default function McpServersPanel({ onToast }: McpServersPanelProps) {
                 {servers.map((server) => (
                   <tr key={server.id}>
                     <td>
-                      <StatusDot status={server.status} error={server.errorMessage} />
+                      <StatusDot status={server.status || 'inactive'} error={server.errorMessage} />
                     </td>
                     <td className="mcp-name">{server.name}</td>
                     <td className="mcp-command">

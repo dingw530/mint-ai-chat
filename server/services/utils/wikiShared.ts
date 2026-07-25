@@ -185,6 +185,16 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
       "content": "正文内容（纯 Markdown，不含 YAML frontmatter）"
     }
   ],
+  "claims": [
+    {
+      "pageTitle": "页面标题",
+      "text": "可独立验证的事实或结论",
+      "normalizedKey": "稳定的主题键",
+      "confidence": 0.0,
+      "importance": 0.0,
+      "evidence": "原始资料中的依据"
+    }
+  ],
   "relationships": [
     {
       "source": "源页面标题",

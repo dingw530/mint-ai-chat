@@ -14,7 +14,7 @@ export interface GeneralTabProps {
   memoryEnabled: boolean; setMemoryEnabled: BooleanSetter;
   routingMode: string; setRoutingMode: StringSetter;
   errors: Record<string, string>; setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  apiKeyDirty: boolean; setApiKeyDirty: BooleanSetter;
+  setApiKeyDirty: BooleanSetter;
   theme: string; setTheme: StringSetter;
   reactMaxIterations: number; setReactMaxIterations: NumberSetter;
   toolMaxRetries: number; setToolMaxRetries: NumberSetter;
@@ -25,7 +25,7 @@ export default function GeneralTab({
   apiUrl, setApiUrl, apiKey, setApiKey, modelId, setModelId,
   systemPrompt, setSystemPrompt, thinkingMode, setThinkingMode,
   memoryEnabled, setMemoryEnabled, routingMode, setRoutingMode,
-  errors, setErrors, apiKeyDirty, setApiKeyDirty,
+  errors, setErrors, setApiKeyDirty,
   theme, setTheme, reactMaxIterations, setReactMaxIterations,
   toolMaxRetries, setToolMaxRetries, showReactSteps, setShowReactSteps,
 

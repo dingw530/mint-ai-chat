@@ -22,6 +22,16 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     result: 'direct',
   },
   {
+    id: 'wiki:heat',
+    method: 'GET',
+    path: '/heat',
+    preloadMethod: 'getWikiHeat',
+    service: (limit?: string) => wikiService.getWikiHeat(limit ? Number(limit) : undefined),
+    ipcServiceRef: { module: 'wikiSvc', method: 'getWikiHeat' },
+    args: [{ from: 'query', name: 'limit', optional: true }],
+    result: 'direct',
+  },
+  {
     id: 'wiki:schema',
     method: 'GET',
     path: '/schema',

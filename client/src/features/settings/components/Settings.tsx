@@ -261,7 +261,6 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
                 setRoutingMode={setRoutingMode}
                 errors={errors}
                 setErrors={setErrors}
-                apiKeyDirty={apiKeyDirty}
                 setApiKeyDirty={setApiKeyDirty}
                 theme={localTheme}
                 setTheme={setLocalTheme}
@@ -271,8 +270,6 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
                 setToolMaxRetries={setToolMaxRetries}
                 showReactSteps={showReactSteps}
                 setShowReactSteps={setShowReactSteps}
-                wikiPath={wikiPath}
-                setWikiPath={setWikiPath}
               />
             )}
             {activeTab === 'mcp' && (

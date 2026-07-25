@@ -6,6 +6,8 @@ import type { ToolContext } from './BaseTool.js';
 import { isPathSafe, getWikiPath } from '../utils/pathSecurity.js';
 import { isSystemWikiPath, parseWikiPage } from '../utils/wikiShared.js';
 import { createLogger } from '../../utils/logger.js';
+import * as lifecycleRepo from '../../repositories/wikiLifecycleRepository.js';
+import { calculateWikiRetentionScore } from '../utils/wikiRetention.js';
 
 const log = createLogger('wiki-search');
 
@@ -155,8 +157,19 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
         const parsed = parseWikiPage(relativePath, content);
-        const score = this.scorePage(parsed, keywords);
-        if (score > 0) {
+        const baseScore = this.scorePage(parsed, keywords);
+        let lifecycle: lifecycleRepo.WikiPage | null = null;
+        try {
+          lifecycle = lifecycleRepo.findPageByPath(relativePath);
+        } catch {
+          // 生命周期索引不可用时保留原有文件搜索能力。
+        }
+        if (lifecycle && ['superseded', 'archived', 'deleted'].includes(lifecycle.status)) continue;
+        const retention = lifecycle
+          ? calculateWikiRetentionScore(lifecycle)
+          : 1;
+        const score = baseScore * (1 + retention);
+        if (baseScore > 0) {
           scored.push({
             file: relativePath,
             score,
@@ -171,6 +184,23 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
 
     scored.sort((a, b) => b.score - a.score);
     const top = scored.slice(0, maxResults);
+
+    for (const item of top) {
+      let lifecycle: lifecycleRepo.WikiPage | null = null;
+      try {
+        lifecycle = lifecycleRepo.findPageByPath(item.file);
+      } catch {
+        // 访问反馈是增强能力，不能阻塞搜索结果返回。
+      }
+      if (lifecycle) {
+        try {
+          lifecycleRepo.touchPage(lifecycle.id);
+          lifecycleRepo.recordEvent('page', lifecycle.id, 'accessed', null, lifecycle.sourceId, item.file, 'wiki_search result selected');
+        } catch {
+          // 搜索结果已经确定，访问统计失败不影响响应。
+        }
+      }
+    }
 
     const results: WikiSearchResult[] = top.map(item => ({
       file: item.file,

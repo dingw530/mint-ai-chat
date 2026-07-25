@@ -36,7 +36,6 @@ interface ChatAreaProps {
   activeConversation: string | null;
   conversations: Conversation[];
   onAutoCreate: (title?: string) => Promise<string | undefined>;
-  onRefreshConversations?: () => void;
   onTitleUpdate: (id: string, title: string) => void;
   onUpdateConversation?: (convId: string, updates: Partial<Conversation>) => void;
   activeEndpoint: EndpointOutput | null;
@@ -51,7 +50,6 @@ export default function ChatArea({
   activeConversation,
   conversations,
   onAutoCreate,
-  onRefreshConversations,
   onTitleUpdate,
   onUpdateConversation,
   activeEndpoint,
@@ -94,7 +92,7 @@ export default function ChatArea({
 
   useEffect(() => {
     convIdRef.current = activeConversation;
-  }, [activeConversation]);
+  }, [activeConversation, initialMessage]);
   const prevConvRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -136,7 +134,7 @@ export default function ChatArea({
     } else {
       setMessages([]);
     }
-  }, [activeConversation]);
+  }, [activeConversation, initialMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView(false);
@@ -700,7 +698,7 @@ export default function ChatArea({
       undefined,
       { regenerate: true },
     );
-  }, [messages, send, activeAgent, dispatchReactEvent, resetReactEvents]);
+  }, [messages, send, dispatchReactEvent, resetReactEvents]);
 
   const currentConv = activeConversation
     ? conversations.find((c) => c.id === activeConversation)

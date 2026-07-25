@@ -397,6 +397,57 @@ const migrations: Migration[] = [
       db.prepare("DELETE FROM agents WHERE id = 'weather'").run();
     },
   },
+  {
+    id: 20,
+    name: 'add-wiki-knowledge-lifecycle-tables',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS wiki_sources (
+          id TEXT PRIMARY KEY, path TEXT NOT NULL, content_hash TEXT NOT NULL,
+          source_type TEXT NOT NULL DEFAULT 'unknown', status TEXT NOT NULL DEFAULT 'ingested',
+          authority REAL NOT NULL DEFAULT 0.5, published_at TEXT, ingested_at TEXT NOT NULL,
+          superseded_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          UNIQUE(path, content_hash)
+        );
+        CREATE TABLE IF NOT EXISTS wiki_pages (
+          id TEXT PRIMARY KEY, path TEXT NOT NULL, title TEXT NOT NULL, content_hash TEXT NOT NULL,
+          version INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'draft', source_id TEXT,
+          supersedes_id TEXT, quality_score REAL NOT NULL DEFAULT 0.5,
+          confidence REAL NOT NULL DEFAULT 0.5, importance REAL NOT NULL DEFAULT 0.5,
+          last_confirmed_at TEXT, last_accessed_at TEXT, access_count INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(path, content_hash),
+          FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE SET NULL,
+          FOREIGN KEY (supersedes_id) REFERENCES wiki_pages(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS wiki_claims (
+          id TEXT PRIMARY KEY, page_id TEXT NOT NULL, claim_text TEXT NOT NULL,
+          normalized_key TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'proposed',
+          confidence REAL NOT NULL DEFAULT 0.5, importance REAL NOT NULL DEFAULT 0.5,
+          support_count INTEGER NOT NULL DEFAULT 1, valid_from TEXT, valid_to TEXT,
+          last_confirmed_at TEXT, last_accessed_at TEXT, access_count INTEGER NOT NULL DEFAULT 0,
+          supersedes_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE,
+          FOREIGN KEY (supersedes_id) REFERENCES wiki_claims(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS wiki_knowledge_events (
+          id TEXT PRIMARY KEY, object_type TEXT NOT NULL, object_id TEXT NOT NULL,
+          event_type TEXT NOT NULL, delta REAL, source_id TEXT, source_page TEXT,
+          reason TEXT, created_at TEXT NOT NULL,
+          FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS wiki_lifecycle_jobs (
+          id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'pending', available_at TEXT NOT NULL,
+          locked_at TEXT, attempts INTEGER NOT NULL DEFAULT 0, error_message TEXT,
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_wiki_sources_path_status ON wiki_sources(path, status, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_wiki_pages_status_updated ON wiki_pages(status, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_wiki_claims_key_status ON wiki_claims(normalized_key, status, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_wiki_events_object ON wiki_knowledge_events(object_type, object_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_wiki_lifecycle_jobs_status_available ON wiki_lifecycle_jobs(status, available_at);
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──
