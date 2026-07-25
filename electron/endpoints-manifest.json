@@ -121,26 +121,6 @@
     "async": true
   },
   {
-    "id": "weather:query",
-    "ipcChannel": "weather:query",
-    "preloadMethod": "queryWeather",
-    "method": "GET",
-    "httpPath": "/weather/query",
-    "args": [
-      {
-        "from": "query",
-        "name": "city"
-      },
-      {
-        "from": "query",
-        "name": "days",
-        "optional": true
-      }
-    ],
-    "result": "direct",
-    "async": true
-  },
-  {
     "id": "routing-logs:list",
     "ipcChannel": "routing-logs:list",
     "preloadMethod": "getRoutingLogs",
@@ -512,6 +492,22 @@
       {
         "from": "query",
         "name": "path"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:heat",
+    "ipcChannel": "wiki:heat",
+    "preloadMethod": "getWikiHeat",
+    "method": "GET",
+    "httpPath": "/wiki/heat",
+    "args": [
+      {
+        "from": "query",
+        "name": "limit",
+        "optional": true
       }
     ],
     "result": "direct",

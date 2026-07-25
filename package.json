@@ -11,7 +11,14 @@
     "test:server": "npm test -w mint-server",
     "test:client": "npm test -w mint-client",
     "test:coverage": "npm run test:coverage -w mint-server",
+    "harness:test": "node --test .harness/tests",
+    "harness:inspect": "node .harness/cli.mjs inspect",
+    "harness:check": "node .harness/cli.mjs check",
+    "harness:browser": "node .harness/browser-scenario.mjs",
+    "harness:loop": "node .harness/cli.mjs loop",
+    "harness:verify": "node .harness/cli.mjs verify",
     "build": "npm run build -w mint-server && npm run build -w mint-client",
+    "build:website": "npm run build -w mint-github-pages",
     "start": "npm run start -w mint-server",
     "electron:rebuild": "node scripts/with-node-version.cjs node scripts/rebuild-native.cjs electron",
     "electron:dev": "npm run build -w mint-server && npm run electron:rebuild && concurrently -k \"npm run dev -w mint-client\" \"sleep 3 && cd electron && npx electron .\"",
@@ -52,7 +59,8 @@
   "workspaces": [
     "server",
     "client",
-    "electron"
+    "electron",
+    "website"
   ],
   "engines": {
     "node": "20.18.3"

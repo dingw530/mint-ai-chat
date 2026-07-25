@@ -61,7 +61,7 @@ export const agentsEndpoints: EndpointDescriptor[] = [
         if (data[key] !== undefined) fields[key] = data[key];
       }
       // 不允许修改内置 Agent 的 type
-      if (existing.type === 'general' || existing.type === 'weather') {
+      if (existing.type === 'general') {
         delete fields.type;
       }
       const updated = agentService.update(id, fields);
@@ -81,7 +81,7 @@ export const agentsEndpoints: EndpointDescriptor[] = [
     service: (id: string) => {
       const existing = agentService.findById(id);
       if (!existing) throw httpError(404, 'Agent not found');
-      if (existing.type === 'general' || existing.type === 'weather') {
+      if (existing.type === 'general') {
         throw httpError(403, 'Cannot delete built-in agent');
       }
       agentService.remove(id);

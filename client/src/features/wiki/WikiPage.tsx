@@ -7,7 +7,7 @@ import { useSidebarResize } from '@/hooks/useSidebarResize';
 import { createConversation } from '@/services/api';
 
 type AppContext = { onOpenSettings: () => void };
-type ViewMode = 'file' | 'graph';
+type ViewMode = 'file' | 'graph' | 'heat';
 
 export default function WikiPage() {
   const { onOpenSettings } = useOutletContext<AppContext>();

@@ -3,7 +3,6 @@ import { settingsEndpoints } from './settings.js';
 import { memoriesEndpoints } from './memories.js';
 import { bashSecurityEndpoints } from './bashSecurity.js';
 import { skillsEndpoints } from './skills.js';
-import { weatherEndpoints } from './weather.js';
 import { routingLogsEndpoints } from './routingLogs.js';
 import { imagesEndpoints } from './images.js';
 import { agentsEndpoints } from './agents.js';
@@ -20,7 +19,6 @@ export function registerAllEndpoints(): void {
   endpointRegistry.registerAll(memoriesEndpoints);
   endpointRegistry.registerAll(bashSecurityEndpoints);
   endpointRegistry.registerAll(skillsEndpoints);
-  endpointRegistry.registerAll(weatherEndpoints);
   endpointRegistry.registerAll(routingLogsEndpoints);
   endpointRegistry.registerAll(imagesEndpoints);
   endpointRegistry.registerAll(agentsEndpoints);

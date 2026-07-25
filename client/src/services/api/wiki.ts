@@ -17,6 +17,30 @@ export interface WikiSchema {
   categories: WikiCategory[];
   [key: string]: unknown;
 }
+
+export interface WikiHeatPage {
+  id: string;
+  path: string;
+  title: string;
+  status: 'draft' | 'active' | 'stale' | 'archived' | 'superseded' | 'deleted';
+  accessCount: number;
+  confidence: number;
+  importance: number;
+  retentionScore: number;
+  lastAccessedAt: string | null;
+  lastConfirmedAt: string | null;
+}
+
+export interface WikiHeatResponse {
+  summary: {
+    totalPages: number;
+    activePages: number;
+    stalePages: number;
+    archivedPages: number;
+    totalAccesses: number;
+  };
+  pages: WikiHeatPage[];
+}
 export interface UploadJob {
   id: string;
   status?: string;
@@ -98,6 +122,10 @@ export function readWiki(path: string): Promise<WikiReadResponse> {
   return callEndpoint<WikiReadResponse>('wiki:read', path);
 }
 
+export function getWikiHeat(limit = 30): Promise<WikiHeatResponse> {
+  return callEndpoint<WikiHeatResponse>('wiki:heat', limit);
+}
+
 /**
  * 在 Obsidian 中打开当前配置的 Wiki 根目录。
  */
@@ -118,7 +146,7 @@ export async function uploadWiki(file: File): Promise<string> {
     'api=',
     !!api,
     'electronAPI=',
-    !!(window as any).electronAPI,
+    !!window.electronAPI,
   );
 
   if (electron) {

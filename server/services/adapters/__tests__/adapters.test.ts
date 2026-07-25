@@ -52,7 +52,7 @@ describe('OpenAI Chat Adapter', () => {
   });
 
   it('should parse tool call delta chunk', () => {
-    const data = JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_123', function: { name: 'get_weather' } }] } }] });
+    const data = JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_123', function: { name: 'get_external_data' } }] } }] });
     const result = openaiChatAdapter.parseChunk(data);
     expect(result).not.toBeNull();
     expect(result!.toolCallDelta).toBeDefined();
@@ -103,14 +103,14 @@ describe('Anthropic Adapter', () => {
   });
 
   it('should build request with anthropic tool format', () => {
-    const tools = [{ type: 'function' as const, function: { name: 'get_weather', description: 'Get weather', parameters: { type: 'object', properties: { loc: { type: 'string' } } } } }];
+    const tools = [{ type: 'function' as const, function: { name: 'get_external_data', description: 'Get external data', parameters: { type: 'object', properties: { query: { type: 'string' } } } } }];
     const body = anthropicAdapter.buildRequest(
-      [{ role: 'user', content: 'Weather?' }],
+      [{ role: 'user', content: 'External data?' }],
       mockSettings,
       tools,
     );
     expect(body.tools).toHaveLength(1);
-    expect(body.tools[0]).toHaveProperty('name', 'get_weather');
+    expect(body.tools[0]).toHaveProperty('name', 'get_external_data');
     expect(body.tools[0]).toHaveProperty('input_schema');
     expect(body.tools[0]).not.toHaveProperty('type');
   });
@@ -122,12 +122,12 @@ describe('Anthropic Adapter', () => {
   });
 
   it('should parse tool_use content_block_start', () => {
-    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_123', name: 'get_weather', input: {} } }));
+    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_123', name: 'get_external_data', input: {} } }));
     expect(result).not.toBeNull();
     expect(result!.toolCallDelta).toBeDefined();
     expect(result!.toolCallDelta!.index).toBe(0);
     expect(result!.toolCallDelta!.id).toBe('toolu_123');
-    expect(result!.toolCallDelta!.function!.name).toBe('get_weather');
+    expect(result!.toolCallDelta!.function!.name).toBe('get_external_data');
   });
 
   it('should parse input_json_delta for tool arguments', () => {

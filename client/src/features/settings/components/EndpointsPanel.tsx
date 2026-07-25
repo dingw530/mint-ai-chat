@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import SelectField from '@/shared/components/SelectField';
 import { getEndpoints, createEndpoint, updateEndpoint, deleteEndpoint, activateEndpoint } from '@/services/api';
 import type { EndpointOutput, EndpointInput } from '@/types';
 
-const emptyForm: EndpointInput & { apiType: string } = { name: '', apiUrl: '', apiKey: '', modelId: '', apiType: 'openai-chat', category: 'text' };
+const emptyForm: EndpointInput & { apiType: string; category: 'text' | 'image' } = { name: '', apiUrl: '', apiKey: '', modelId: '', apiType: 'openai-chat', category: 'text' };
 
 const CATEGORY_LABELS: Record<string, string> = {
   text: '文本对话',
@@ -77,15 +77,15 @@ export default function EndpointsPanel({ onToast }: EndpointsPanelProps) {
   const [deleteTarget, setDeleteTarget] = useState<EndpointOutput | null>(null);
   const [detailTarget, setDetailTarget] = useState<EndpointOutput | null>(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     getEndpoints()
       .then((data) => setEndpoints(data.endpoints || []))
       .catch((err) => onToast && onToast('error', `加载端点失败: ${(err as Error).message}`))
       .finally(() => setLoading(false));
-  };
+  }, [onToast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const openAdd = () => {
     setEditingId('__new__');

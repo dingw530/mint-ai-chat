@@ -15,10 +15,10 @@ describe('agentRepository', () => {
   describe('findAll', () => {
     it('returns built-in agents', () => {
       const agents = agentRepo.findAll();
-      // general and weather are seeded in db.ts
-      expect(agents.length).toBeGreaterThanOrEqual(2);
+      // general is seeded in db.ts
+      expect(agents.length).toBeGreaterThanOrEqual(1);
       expect(agents.find(a => a.id === 'general')).toBeDefined();
-      expect(agents.find(a => a.id === 'weather')).toBeDefined();
+      expect(agents.find(a => a.id === 'weather')).toBeUndefined();
     });
   });
 

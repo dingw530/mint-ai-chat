@@ -73,6 +73,7 @@ export interface McpServer {
 export interface McpTool {
   name: string;
   description?: string;
+  inputSchema?: Record<string, unknown>;
 }
 
 export interface EndpointOutput {
@@ -356,11 +357,12 @@ export interface ElectronAPI {
   }) => Promise<{ success: boolean }>;
 
   // 文件
-  downloadFile?: (url: string, filename: string) => Promise<void>;
+  downloadFile?: (url: string, filename: string) => Promise<{ success?: boolean; reason?: string }>;
 
   // Wiki
   openWikiInObsidian: () => Promise<{ success: boolean }>;
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
+  getWikiHeat: (limit?: number) => Promise<import('@/services/api/wiki').WikiHeatResponse>;
   readWiki: (
     path: string,
   ) => Promise<{ content: string; path: string; name: string; size: number }>;

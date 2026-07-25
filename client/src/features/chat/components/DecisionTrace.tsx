@@ -9,7 +9,7 @@ interface DecisionTraceProps {
  */
 export default function DecisionTrace({ items }: DecisionTraceProps) {
   if (items.length === 0) return null;
-  const latestActiveIndex = items.findLastIndex((item) => item.status === 'active');
+  const latestActiveIndex = items.findLastIndex((item: DecisionTraceItem) => item.status === 'active');
 
   return (
     <details className="decision-trace">

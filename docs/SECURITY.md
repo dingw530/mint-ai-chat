@@ -6,7 +6,6 @@
 |------|--------|-------|
 | API Key storage | AES-256-GCM encryption | Server-side repository layer |
 | User sessions | No auth (single-user desktop app) | N/A |
-| QWeather API | JWT (EdDSA) | Weather tool service |
 
 ## Authorization
 

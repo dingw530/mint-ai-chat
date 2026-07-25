@@ -3,11 +3,13 @@ import MarkdownRenderer, { type MarkdownRendererProps } from '@/shared/component
 import ReActStep from './ReActStep';
 import AppIcon from '@/shared/components/AppIcon';
 import AiAvatar from '@/shared/components/AiAvatar';
+import { getElectronAPI } from '@/services/api/_base';
 import type { Message, ReActStep as ReActStepData, ContentSegment } from '@/types';
 
 async function downloadImage(src: string, filename = 'image.png') {
-  if ((window as any).electronAPI?.downloadFile) {
-    const result = await (window as any).electronAPI.downloadFile(src, filename);
+  const electronApi = getElectronAPI();
+  if (electronApi?.downloadFile) {
+    const result = await electronApi.downloadFile(src, filename);
     if (result?.success) return;
     console.warn('[ImageChat] Electron download failed, falling back to blob download:', result?.reason);
   }
@@ -239,7 +241,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
         const isStreaming = msg.role === 'assistant' && msg.id === streamingId;
         const hasSegments = msg.segments && msg.segments.length > 0;
         return (
-          <div key={msg.id || (msg as any)._tempId} className="message-wrapper">
+          <div key={msg.id || msg._tempId} className="message-wrapper">
             <div className={`message-avatar-wrapper ${msg.role}`}>
               <div className="message-avatar">
                 {msg.role === 'user' ? '你' : msg.role === 'error' ? '!' : <AiAvatar size={32} />}

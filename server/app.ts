@@ -8,6 +8,7 @@ import messagesRouter from './routes/messages.js';
 import wikiRouter from './routes/wiki.js';
 import { mcpService } from './services/api/mcpService.js';
 import { startMemoryProcessing } from './services/api/memoryJobService.js';
+import { startWikiLifecycleProcessing } from './services/api/wikiLifecycleService.js';
 
 const app = express();
 
@@ -50,5 +51,6 @@ setTimeout(() => {
 
 // 启动时恢复并处理持久化的用户记忆任务。
 setTimeout(() => startMemoryProcessing(), 0);
+setTimeout(() => startWikiLifecycleProcessing(), 0);
 
 export default app;

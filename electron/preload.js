@@ -84,6 +84,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openWikiInObsidian: () => ipcRenderer.invoke('wiki:openInObsidian'),
   listWiki: () => ipcRenderer.invoke('wiki:list'),
   readWiki: (path) => ipcRenderer.invoke('wiki:read', path),
+  getWikiHeat: (limit) => ipcRenderer.invoke('wiki:heat', limit),
   uploadWiki: (data) => ipcRenderer.invoke('wiki:upload', data),
   getJobStatus: (jobId) => ipcRenderer.invoke('wiki:getJobStatus', jobId),
   listWikiJobs: (status, limit) => ipcRenderer.invoke('wiki:listJobs', status, limit),

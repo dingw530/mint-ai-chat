@@ -184,7 +184,7 @@ export interface AgentRow {
   id: string;
   name: string;
   description: string;
-  type: string;       // 'general' | 'weather' | 'custom'
+  type: string;       // 'general' | 'custom'
   system_prompt: string | null;
   mcp_server_ids: string;    // JSON array ["serverName1", ...]
   available: number;   // 0 or 1

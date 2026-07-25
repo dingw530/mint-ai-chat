@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { listWiki, uploadWiki, getWikiJob, listWikiJobs } from '@/services/api';
-import type { WikiFileTreeNode, UploadJob } from '@/types';
+import type { WikiFileTreeNode } from '@/types';
+import type { UploadJob } from '@/services/api/wiki';
 
 function FileIcon() {
   return (
@@ -74,8 +75,8 @@ export function formatFileSize(bytes: number): string {
 interface WikiSidebarProps {
   selectedFile: string | null;
   onFileSelect: (path: string | null) => void;
-  viewMode: 'file' | 'graph';
-  onViewModeChange: (mode: 'file' | 'graph') => void;
+  viewMode: 'file' | 'graph' | 'heat';
+  onViewModeChange: (mode: 'file' | 'graph' | 'heat') => void;
 }
 
 export default function WikiSidebar({
@@ -126,9 +127,10 @@ export default function WikiSidebar({
   }, [loadJobs]);
 
   useEffect(() => {
+    const pollingRefsToClear = pollingRefs.current;
     return () => {
-      pollingRefs.current.forEach((interval) => clearInterval(interval));
-      pollingRefs.current.clear();
+      pollingRefsToClear.forEach((interval) => clearInterval(interval));
+      pollingRefsToClear.clear();
     };
   }, []);
 
@@ -372,6 +374,17 @@ export default function WikiSidebar({
               <line x1="15" y1="15" x2="17" y2="17" />
             </svg>
             图谱
+          </button>
+          <span className="wiki-mode-sep" />
+          <button
+            className={`wiki-mode-btn ${viewMode === 'heat' ? 'active' : ''}`}
+            onClick={() => onViewModeChange('heat')}
+            title="查看知识热度"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+              <path d="M4 19V9M10 19V5M16 19v-8M22 19V3" />
+            </svg>
+            热度
           </button>
         </div>
       </div>

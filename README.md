@@ -24,7 +24,6 @@ A native desktop AI chat application built with Electron. Connect to any OpenAI-
 - User memory system for context retention
 - **LLM Wiki** — AI-powered knowledge base generation from documents, URLs, and chat
 - **Knowledge Graph** — Visual entity-relation graph (concept / practice / methodology) with auto-build from wiki ingestion
-- Weather forecast via QWeather API
 - Encrypted API key storage (AES-256-GCM)
 - Custom window frame with frameless titlebar
 
@@ -99,7 +98,7 @@ Mint is a personal knowledge chat engine deeply integrated with LLM Wiki, coveri
 
 - **Agent Architecture** — Custom agent system with system prompts, auto-routing, and locked-agent modes
 - **ReAct Pattern** — Reasoning + Acting loop: agents observe, reason, call tools, and incorporate results into responses iteratively
-- **Tool Use** — Plugin-based tool system built on BaseTool, including HTTP requests, Wiki retrieval, weather queries, and more
+- **Tool Use** — Plugin-based tool system built on BaseTool, including HTTP requests, Wiki retrieval, file operations, and more
 - **MCP Protocol** — Model Context Protocol integration with dynamic MCP server connection management
 - **Memory System** — Long-term user memory with multi-category support (general / preferences / facts) and automatic recall
 - **Context Window** — Sliding window token management to control context consumption

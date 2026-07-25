@@ -15,16 +15,6 @@ vi.mock('../../api/mcpService.js', () => ({
 vi.mock('../index.js', () => {
   // Simulate the tool registry with a few tools
   const toolMap = new Map<string, any>();
-  const weatherTool = {
-    name: 'get_weather_forecast',
-    isEnabled: () => true,
-    getCallSummary: (input: { city: string }) => `正在查询：${input.city}`,
-    getResultSummary: (result: { temperature: number }) => `当前温度 ${result.temperature}°C`,
-    getDefinition: () => ({
-      type: 'function',
-      function: { name: 'get_weather_forecast', description: 'Get weather', parameters: {} },
-    }),
-  };
   const fetchTool = {
     name: 'http_fetch',
     isEnabled: () => true,
@@ -33,7 +23,6 @@ vi.mock('../index.js', () => {
       function: { name: 'http_fetch', description: 'HTTP fetch', parameters: {} },
     }),
   };
-  toolMap.set('get_weather_forecast', weatherTool);
   toolMap.set('http_fetch', fetchTool);
 
   return {
@@ -79,13 +68,6 @@ describe('toolRegistry', () => {
       const names = tools.map(t => t.function.name);
       expect(names).toContain('http_fetch');
       expect(names).not.toContain('remote__search');
-      expect(names).not.toContain('get_weather_forecast');
-    });
-
-    it('includes weather tool for weather agent', async () => {
-      const tools = await getAllToolDefinitions('weather');
-      const names = tools.map(t => t.function.name);
-      expect(names).toContain('get_weather_forecast');
     });
 
     it('returns global tools when no agent id', async () => {
@@ -129,7 +111,6 @@ describe('toolRegistry', () => {
       vi.mocked(agentRepo.findById).mockReturnValue(null);
       const tools = await getAllToolDefinitions('nonexistent');
       const names = tools.map(t => t.function.name);
-      expect(names).not.toContain('get_weather_forecast');
     });
   });
 
@@ -177,32 +158,19 @@ describe('toolRegistry', () => {
       expect((result as any).error).toContain('未知工具');
     });
 
-    it('executes weather tool', async () => {
-      const result = await executeTool({
-        id: 'call-5',
-        type: 'function',
-        function: { name: 'get_weather_forecast', arguments: '{"city":"北京"}' },
-      });
-      expect(result).toBe('done');
-    });
   });
 
   describe('summary', () => {
-    const weatherCall = {
+    const unknownCall = {
       id: 'summary-call',
       type: 'function' as const,
-      function: { name: 'get_weather_forecast', arguments: '{"city":"上海"}' },
+      function: { name: 'missing', arguments: '{}' },
     };
 
-    it('returns call and result summaries for builtin tools', () => {
-      expect(getToolCallSummary(weatherCall)).toBe('正在查询：上海');
-      expect(getToolResultSummary(weatherCall, { temperature: 26 })).toBe('当前温度 26°C');
-    });
-
     it('returns undefined for unknown tools and invalid arguments', () => {
-      expect(getToolCallSummary({ ...weatherCall, function: { ...weatherCall.function, name: 'missing' } })).toBeUndefined();
-      expect(getToolCallSummary({ ...weatherCall, function: { ...weatherCall.function, arguments: '{' } })).toBeUndefined();
-      expect(getToolResultSummary({ ...weatherCall, function: { ...weatherCall.function, name: 'missing' } }, {})).toBeUndefined();
+      expect(getToolCallSummary(unknownCall)).toBeUndefined();
+      expect(getToolCallSummary({ ...unknownCall, function: { ...unknownCall.function, arguments: '{' } })).toBeUndefined();
+      expect(getToolResultSummary(unknownCall, {})).toBeUndefined();
     });
   });
 });

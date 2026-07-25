@@ -1,0 +1,26 @@
+{
+  "maxIterations": 3,
+  "allowedPaths": [],
+  "protectedPaths": [
+    ".harness/",
+    ".claude/skills/",
+    "tests/architecture/",
+    "vitest.config.ts",
+    "server/vitest.config.ts",
+    "client/vitest.config.ts"
+  ],
+  "checks": [
+    {
+      "name": "harness-test",
+      "command": "npm",
+      "args": ["run", "harness:test"],
+      "timeoutMs": 120000
+    },
+    {
+      "name": "browser-ac",
+      "command": "node",
+      "args": [".harness/browser-scenario.mjs"],
+      "timeoutMs": 120000
+    }
+  ]
+}

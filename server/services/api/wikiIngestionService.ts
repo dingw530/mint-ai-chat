@@ -5,6 +5,7 @@ import { buildGraphFromPages } from '../graphBuilder.js';
 import { generateCrossBatchCandidates } from './crossBatchSemanticService.js';
 import { createLogger } from '../../utils/logger.js';
 import { archiveWikiRawFile, saveWikiSourceText } from './wikiFileService.js';
+import { registerCompiledKnowledge } from './wikiKnowledgeLifecycleService.js';
 
 export { archiveWikiRawFile, buildWikiSourceText } from './wikiFileService.js';
 export type { WikiSourceSegment } from './wikiIngestionTypes.js';
@@ -92,6 +93,8 @@ export async function ingestWikiSource(
     sourceFile.split('/').pop() || request.sourceTitle,
     { title: request.sourceTitle, category: request.category },
   );
+
+  registerCompiledKnowledge(sourceFile, request.sourceText, compileResult.compiledPages, compileResult.claims);
 
   let graphErrors: string[] = [];
 

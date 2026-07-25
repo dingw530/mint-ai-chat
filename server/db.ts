@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import type DatabaseConstructor from 'better-sqlite3';
+import os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { runMigrations } from './migrations/index.js';
@@ -16,7 +17,7 @@ const Database = require(
 ) as typeof DatabaseConstructor;
 
 // 数据库路径：可通过环境变量覆盖（测试隔离），默认项目根目录
-const DB_PATH: string = process.env.AI_CHAT_DB_PATH || path.join(__dirname, 'data.db');
+const DB_PATH: string = process.env.AI_CHAT_DB_PATH || path.join(os.homedir(), '.mint', 'data.db');
 
 let db: DatabaseConstructor.Database | undefined;
 
@@ -177,6 +178,99 @@ function createSchema(): void {
       FOREIGN KEY (source_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
       FOREIGN KEY (target_id) REFERENCES graph_nodes(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS wiki_sources (
+      id TEXT PRIMARY KEY,
+      path TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      source_type TEXT NOT NULL DEFAULT 'unknown',
+      status TEXT NOT NULL DEFAULT 'ingested',
+      authority REAL NOT NULL DEFAULT 0.5,
+      published_at TEXT,
+      ingested_at TEXT NOT NULL,
+      superseded_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(path, content_hash)
+    );
+
+    CREATE TABLE IF NOT EXISTS wiki_pages (
+      id TEXT PRIMARY KEY,
+      path TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'draft',
+      source_id TEXT,
+      supersedes_id TEXT,
+      quality_score REAL NOT NULL DEFAULT 0.5,
+      confidence REAL NOT NULL DEFAULT 0.5,
+      importance REAL NOT NULL DEFAULT 0.5,
+      last_confirmed_at TEXT,
+      last_accessed_at TEXT,
+      access_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(path, content_hash),
+      FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE SET NULL,
+      FOREIGN KEY (supersedes_id) REFERENCES wiki_pages(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS wiki_claims (
+      id TEXT PRIMARY KEY,
+      page_id TEXT NOT NULL,
+      claim_text TEXT NOT NULL,
+      normalized_key TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      confidence REAL NOT NULL DEFAULT 0.5,
+      importance REAL NOT NULL DEFAULT 0.5,
+      support_count INTEGER NOT NULL DEFAULT 1,
+      valid_from TEXT,
+      valid_to TEXT,
+      last_confirmed_at TEXT,
+      last_accessed_at TEXT,
+      access_count INTEGER NOT NULL DEFAULT 0,
+      supersedes_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE,
+      FOREIGN KEY (supersedes_id) REFERENCES wiki_claims(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS wiki_knowledge_events (
+      id TEXT PRIMARY KEY,
+      object_type TEXT NOT NULL,
+      object_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      delta REAL,
+      source_id TEXT,
+      source_page TEXT,
+      reason TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (source_id) REFERENCES wiki_sources(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS wiki_lifecycle_jobs (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL DEFAULT 'pending',
+      available_at TEXT NOT NULL,
+      locked_at TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_wiki_sources_path_status
+      ON wiki_sources(path, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_wiki_pages_status_updated
+      ON wiki_pages(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_wiki_claims_key_status
+      ON wiki_claims(normalized_key, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_wiki_events_object
+      ON wiki_knowledge_events(object_type, object_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_wiki_lifecycle_jobs_status_available
+      ON wiki_lifecycle_jobs(status, available_at);
   `);
 }
 
@@ -185,27 +279,14 @@ function createSchema(): void {
 function seedData(): void {
   const now = new Date().toISOString();
 
-  // 和风天气功能是否可用取决于环境变量配置
-  const weatherAvailable = !!(
-    process.env.QWEATHER_PROJECT_ID &&
-    process.env.QWEATHER_KEY_ID &&
-    process.env.QWEATHER_PRIVATE_KEY
-  );
-
   const upsertAgent = db!.prepare(`
     INSERT OR IGNORE INTO agents (id, name, description, type, system_prompt, mcp_server_ids, available, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   upsertAgent.run('general', '通用助手', '通用 AI 对话助手', 'general', null, '[]', 1, now, now);
-  upsertAgent.run('weather', '和风天气', '查询天气预报信息', 'weather', null, '[]', weatherAvailable ? 1 : 0, now, now);
 
   // 确保内置 Agent 的名称始终最新（当旧 DB 已存在时，INSERT OR IGNORE 不会更新名称）
   db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('通用助手', 'general', '通用助手');
-  db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('和风天气', 'weather', '和风天气');
-  db!.prepare('UPDATE agents SET description = ? WHERE id = ? AND description != ?').run('查询天气预报信息', 'weather', '查询天气预报信息');
-
-  const weatherKeywords = JSON.stringify(['天气', '温度', '预报', '风力', '降雨', '晴', '雨', '雪', '台风', '湿度', '空气质量']);
-  db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run(weatherKeywords, 'weather', '[]');
   db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run('[]', 'general', '[]');
 }

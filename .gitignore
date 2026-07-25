@@ -22,6 +22,9 @@ server/build/
 # Test results
 client/test-results/
 server/coverage/
+.harness/runs/
+
+.playwright-cli/
 
 # Large generated images (keep SVG, skip PNG)
 architecture.png
