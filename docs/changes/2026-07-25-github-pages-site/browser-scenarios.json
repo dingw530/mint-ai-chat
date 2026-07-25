@@ -1,0 +1,11 @@
+{
+  "scenarios": [
+    {
+      "id": "github-pages-home-bilingual",
+      "acceptanceCriteria": ["AC-001", "AC-002", "AC-003"],
+      "route": "/",
+      "markers": ["Mint", "GitHub", "Wiki 能力"],
+      "markersAny": ["让知识", "Make knowledge"]
+    }
+  ]
+}
