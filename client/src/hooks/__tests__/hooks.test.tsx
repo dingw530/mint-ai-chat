@@ -98,7 +98,7 @@ describe('useSSE', () => {
     act(() => hook.result.current.send('conversation', 'again', callbacks));
     expect(firstAbort).toHaveBeenCalledOnce();
     expect(api.sendMessageStream).toHaveBeenNthCalledWith(
-      2, 'conversation', 'again', expect.objectContaining({ regenerate: undefined }), undefined,
+      2, 'conversation', 'again', callbacks, undefined, {},
     );
     act(() => hook.result.current.abort());
     expect(secondAbort).toHaveBeenCalledOnce();

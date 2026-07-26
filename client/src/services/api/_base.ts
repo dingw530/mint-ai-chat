@@ -176,6 +176,10 @@ export function parseSSEChunk(
         lastThought.value = '';
         callbacks.onToolCallError?.(data);
         return;
+      case 'approval_required':
+        lastThought.value = '';
+        callbacks.onToolApprovalRequired?.(data);
+        return;
       case 'answer':
         if (data.content) callbacks.onChunk?.(data.content as string);
         if (data.reasoning) callbacks.onReasoning?.(data.reasoning as string);

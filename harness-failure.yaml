@@ -1,0 +1,71 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Mint" [ref=e8]
+        - generic [ref=e9]: Mint
+        - button "设置" [ref=e10] [cursor=pointer]:
+          - img [ref=e11]
+      - generic [ref=e14]:
+        - link "对话" [ref=e15] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e16]
+        - link "生图" [ref=e18] [cursor=pointer]:
+          - /url: /image
+          - img [ref=e19]
+        - link "知识库" [ref=e23] [cursor=pointer]:
+          - /url: /wiki
+          - img [ref=e24]
+    - generic [ref=e27]:
+      - button "新建对话" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+        - text: 新建对话
+      - generic [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e37]: 审批 Fixture
+    - button "清空全部" [ref=e39] [cursor=pointer]:
+      - img [ref=e40]
+      - text: 清空全部
+  - generic [ref=e43]:
+    - heading "审批 Fixture" [level=2] [ref=e45]
+    - generic [ref=e46]:
+      - group [ref=e73]:
+        - generic "决策轨迹 · 2 项" [ref=e109] [cursor=pointer]
+      - generic [ref=e47]:
+        - generic [ref=e75]:
+          - generic [ref=e77]: 你
+          - generic [ref=e78]:
+            - generic [ref=e79]: 你
+            - text: 执行高风险操作
+        - generic [ref=e80]:
+          - img "AI" [ref=e83]:
+            - generic [ref=e85]: AI
+          - generic [ref=e86]:
+            - generic [ref=e87]: AI
+            - generic [ref=e88]:
+              - generic [ref=e89]:
+                - generic [ref=e90]:
+                  - img [ref=e91]
+                  - generic [ref=e93]: bash
+                - group [ref=e110]:
+                  - generic "查看返回数据" [active] [ref=e111] [cursor=pointer]
+                  - generic [ref=e128]: child directory listed
+              - generic [ref=e112]:
+                - generic [ref=e113]:
+                  - img [ref=e114]
+                  - generic [ref=e116]: bash
+                - group [ref=e117]:
+                  - generic "查看返回数据" [ref=e118] [cursor=pointer]
+              - paragraph [ref=e121]: 模型已继续执行并完成操作，子目录无需再次授权
+            - button "重新生成" [ref=e100] [cursor=pointer]:
+              - img [ref=e101]
+      - generic [ref=e55]:
+        - generic [ref=e57]:
+          - img [ref=e59]
+          - combobox "选择 Agent" [disabled] [ref=e62]:
+            - generic: general
+            - img [ref=e64]
+        - generic [ref=e123]:
+          - textbox "输入消息..." [ref=e124]
+          - button "发送消息" [disabled] [ref=e125]:
+            - img [ref=e126]

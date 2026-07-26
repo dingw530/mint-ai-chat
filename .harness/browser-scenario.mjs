@@ -45,19 +45,51 @@ function run(args) {
   return output;
 }
 
-function selectScenarios(document) {
-  if (!Array.isArray(document.scenarios)) throw new Error('browser-scenarios.json 的 scenarios 必须是数组');
-  for (const scenario of document.scenarios) {
-    if (!scenario.id || !Array.isArray(scenario.acceptanceCriteria) || !scenario.route) {
-      throw new Error('每个 browser scenario 必须包含 id、acceptanceCriteria 和 route');
-    }
-    const unknownAcs = scenario.acceptanceCriteria.filter((ac) => !declaredAcs.has(ac));
-    if (unknownAcs.length > 0) {
-      throw new Error(`${scenario.id} 引用了当前 Spec 未声明的 AC：${unknownAcs.join(', ')}`);
-    }
+function locatorExpression(target) {
+  if (!target) return 'page.locator("body")';
+  if (typeof target === 'string') return `page.locator(${JSON.stringify(target)})`;
+  if (target.testId) return `page.getByTestId(${JSON.stringify(target.testId)})`;
+  if (target.role) {
+    const options = target.name === undefined ? '' : `, { name: ${JSON.stringify(target.name)}, exact: ${target.exact !== false} }`;
+    return `page.getByRole(${JSON.stringify(target.role)}${options})`;
   }
-  return document.scenarios.filter((scenario) =>
-    scenario.acceptanceCriteria.some((ac) => declaredAcs.has(ac)));
+  if (target.placeholder) return `page.getByPlaceholder(${JSON.stringify(target.placeholder)})`;
+  if (target.label) return `page.getByLabel(${JSON.stringify(target.label)})`;
+  if (target.text) {
+    const locator = `page.getByText(${JSON.stringify(target.text)}, { exact: ${target.exact === true} })`;
+    return target.index === undefined ? locator : `${locator}.nth(${target.index})`;
+  }
+  if (target.css) {
+    const locator = `page.locator(${JSON.stringify(target.css)})`;
+    return target.index === undefined ? locator : `${locator}.nth(${target.index})`;
+  }
+  throw new Error(`不支持的 locator：${JSON.stringify(target)}`);
+}
+
+function runPageCode(body) {
+  const output = run(['run-code', `async page => { ${body} }`]);
+  if (/^### Error\b/m.test(output)) {
+    throw new Error(`Playwright page assertion failed:\n${output}`);
+  }
+  return output;
+}
+
+function routeBody(route) {
+  return typeof route.body === 'string' ? route.body : JSON.stringify(route.body);
+}
+
+function setupRoutes(scenario) {
+  for (const route of scenario.setup?.routes || []) {
+    const body = routeBody(route);
+    const controlBodies = route.controlBodies
+      ? JSON.stringify(Object.fromEntries(Object.entries(route.controlBodies).map(([action, value]) => [action, routeBody({ body: value })])))
+      : null;
+    const bodyExpression = controlBodies
+      ? `((${controlBodies})[request.postDataJSON()?.control?.action] || ${JSON.stringify(body)})`
+      : JSON.stringify(body);
+    const methodGuard = route.method ? `if (request.method() !== ${JSON.stringify(route.method)}) return route.fallback();` : '';
+    runPageCode(`await page.route(${JSON.stringify(route.pattern)}, async route => { const request = route.request(); ${methodGuard} await route.fulfill({ status: ${route.status || 200}, contentType: ${JSON.stringify(route.contentType || (route.method === 'POST' && route.pattern.includes('/messages') ? 'text/event-stream' : 'application/json'))}, body: ${bodyExpression} }); });`);
+  }
 }
 
 function assertScenario(scenario, snapshot) {
@@ -72,8 +104,80 @@ function assertScenario(scenario, snapshot) {
   if (/Console:\s+[1-9]\d* errors?/.test(snapshot)) throw new Error(`${scenario.id} 存在 Console error`);
 }
 
+function assertRequests(scenario, requests) {
+  for (const assertion of scenario.assertRequests || []) {
+    const haystack = requests;
+    if (assertion.contains && !haystack.includes(assertion.contains)) {
+      throw new Error(`${scenario.id} 未找到网络请求片段：${assertion.contains}`);
+    }
+    if (assertion.method && !haystack.includes(assertion.method)) {
+      throw new Error(`${scenario.id} 未找到请求方法：${assertion.method}`);
+    }
+    if (assertion.status && !haystack.includes(`[${assertion.status}]`)) {
+      throw new Error(`${scenario.id} 未找到响应状态：${assertion.status}`);
+    }
+  }
+  if (/=>\s+\[(?:4|5)\d\d\]/.test(requests)) throw new Error(`${scenario.id} 存在 4xx/5xx 请求`);
+}
+
+async function executeStep(scenario, step, index) {
+  const label = `${scenario.id} step ${index + 1}`;
+  switch (step.action) {
+    case 'click': {
+      const locator = locatorExpression(step.target);
+      runPageCode(`const locator = ${locator}; await locator.waitFor({ state: 'visible', timeout: ${step.timeoutMs || 10000} }); await locator.click();`);
+      return;
+    }
+    case 'fill': {
+      const locator = locatorExpression(step.target);
+      runPageCode(`const locator = ${locator}; await locator.waitFor({ state: 'visible', timeout: ${step.timeoutMs || 10000} }); await locator.fill(${JSON.stringify(step.value || '')});`);
+      return;
+    }
+    case 'press': {
+      const locator = locatorExpression(step.target);
+      runPageCode(`const locator = ${locator}; await locator.press(${JSON.stringify(step.key)});`);
+      return;
+    }
+    case 'waitFor': {
+      const locator = step.target ? locatorExpression(step.target) : `page.getByText(${JSON.stringify(step.text)}, { exact: ${step.exact === true} })`;
+      runPageCode(`const locator = ${locator}; await locator.waitFor({ state: '${step.state || 'visible'}', timeout: ${step.timeoutMs || 10000} });`);
+      return;
+    }
+    case 'assertText': {
+      const locator = step.target ? locatorExpression(step.target) : 'page.locator("body")';
+      runPageCode(`const locator = ${locator}; await locator.waitFor({ state: 'visible', timeout: ${step.timeoutMs || 10000} }); const text = await locator.innerText(); if (!text.includes(${JSON.stringify(step.text)})) throw new Error(${JSON.stringify(`${label} 缺少文本：${step.text}`)});`);
+      return;
+    }
+    case 'assertNotText': {
+      const output = run(['snapshot']);
+      if (output.includes(step.text)) throw new Error(`${label} 不应包含文本：${step.text}`);
+      return;
+    }
+    case 'snapshot':
+      run(['snapshot', ...(step.filename ? [`--filename=${step.filename}`] : [])]);
+      return;
+    case 'screenshot':
+      run(['screenshot', ...(step.filename ? [`--filename=${step.filename}`] : [])]);
+      return;
+    case 'assertRequests':
+      assertRequests(scenario, run(['requests']));
+      return;
+    default:
+      throw new Error(`${label} 不支持的 action：${step.action}`);
+  }
+}
+
 const document = await readScenarios();
-const scenarios = selectScenarios(document);
+if (!Array.isArray(document.scenarios)) throw new Error('browser-scenarios.json 的 scenarios 必须是数组');
+for (const scenario of document.scenarios) {
+  if (!scenario.id || !Array.isArray(scenario.acceptanceCriteria) || !scenario.route) {
+    throw new Error('每个 browser scenario 必须包含 id、acceptanceCriteria 和 route');
+  }
+  const unknownAcs = scenario.acceptanceCriteria.filter((ac) => !declaredAcs.has(ac));
+  if (unknownAcs.length > 0) throw new Error(`${scenario.id} 引用了当前 Spec 未声明的 AC：${unknownAcs.join(', ')}`);
+}
+const scenarios = document.scenarios.filter((scenario) =>
+  scenario.acceptanceCriteria.some((ac) => declaredAcs.has(ac)));
 if (scenarios.length === 0) {
   process.stdout.write(`no browser scenarios matched current AC: ${[...declaredAcs].join(', ')}\n`);
   process.exit(0);
@@ -81,17 +185,30 @@ if (scenarios.length === 0) {
 
 let opened = false;
 try {
-  run(['open', new URL(scenarios[0].route, baseUrl).toString()]);
+  run(['open']);
   opened = true;
   for (const scenario of scenarios) {
+    setupRoutes(scenario);
     run(['goto', new URL(scenario.route, baseUrl).toString()]);
-    const snapshot = run(['snapshot']);
-    assertScenario(scenario, snapshot);
+    assertScenario(scenario, run(['snapshot']));
+    run(['tracing-start']);
+    for (let index = 0; index < (scenario.steps || []).length; index += 1) {
+      await executeStep(scenario, scenario.steps[index], index);
+    }
+    assertRequests(scenario, run(['requests']));
     run(['console']);
-    const requests = run(['requests']);
-    if (/=>\s+\[(?:4|5)\d\d\]/.test(requests)) throw new Error(`${scenario.id} 存在 4xx/5xx 请求`);
+    run(['tracing-stop']);
     process.stdout.write(`scenario passed: ${scenario.id} (${scenario.acceptanceCriteria.join(', ')})\n`);
+    run(['unroute']);
   }
+} catch (error) {
+  if (opened) {
+    try { run(['snapshot', '--filename=harness-failure.yaml']); } catch {}
+    try { run(['screenshot', '--filename=harness-failure.png']); } catch {}
+    try { run(['console']); } catch {}
+    try { run(['requests']); } catch {}
+  }
+  throw error;
 } finally {
   if (opened) {
     try { run(['close']); } catch (error) {

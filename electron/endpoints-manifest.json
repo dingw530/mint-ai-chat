@@ -392,6 +392,29 @@
     "async": true
   },
   {
+    "id": "conversations:resolveToolApproval",
+    "ipcChannel": "conversations:resolveToolApproval",
+    "preloadMethod": "resolveToolApproval",
+    "method": "POST",
+    "httpPath": "/conversations/:id/tool-approvals/:approvalId",
+    "args": [
+      {
+        "from": "path",
+        "name": "id"
+      },
+      {
+        "from": "path",
+        "name": "approvalId"
+      },
+      {
+        "from": "body",
+        "name": ""
+      }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
     "id": "conversations:list",
     "ipcChannel": "conversations:list",
     "preloadMethod": "getConversations",

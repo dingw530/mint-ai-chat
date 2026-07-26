@@ -11,6 +11,7 @@ import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
 import type { ReactEventPayload } from './reactEvents.js';
 import { serializeToolResultForContext } from './utils/toolResultArtifact.js';
+import type { ApprovalResumeContext } from './tools/approvalStore.js';
 
 // 导入 Adapter 实现
 import './adapters/openaiChatAdapter.js';
@@ -44,6 +45,7 @@ export interface ToolExecutionResult {
   toolMsg: HistoryMessage;
   succeeded: boolean;
   resultSummary?: string;
+  approvalRequired?: { approvalId?: string; reason: string };
 }
 
 // ── SSE 流解析（无 Express 依赖） ──
@@ -229,16 +231,22 @@ export class ToolLoopEngine {
     maxRetries: number,
     onRetry?: (attempt: number, error: Error) => void,
     conversationId = '',
+    options: { approvalGranted?: boolean; approvalContext?: ApprovalResumeContext } = {},
   ): Promise<ToolExecutionResult> {
     let toolResult: unknown;
     let succeeded = true;
+    let approvalRequired: ToolExecutionResult['approvalRequired'];
     try {
-      toolResult = await retry(() => executeTool(tc, conversationId), {
+      toolResult = await retry(() => executeTool(tc, conversationId, options), {
         maxRetries,
         baseDelay: 1000,
         maxDelay: 16000,
         onRetry: onRetry || (() => {}),
       });
+      if (isApprovalResult(toolResult)) {
+        succeeded = false;
+        approvalRequired = toolResult.approvalRequired;
+      }
     } catch (err) {
       toolResult = { error: `All retries failed: ${(err as Error).message}` };
       succeeded = false;
@@ -265,8 +273,17 @@ export class ToolLoopEngine {
       toolMsg,
       succeeded,
       resultSummary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
+      approvalRequired,
     };
   }
+}
+
+function isApprovalResult(value: unknown): value is { approvalRequired: { approvalId?: string; reason: string } } {
+  return typeof value === 'object'
+    && value !== null
+    && 'approvalRequired' in value
+    && typeof (value as { approvalRequired?: unknown }).approvalRequired === 'object'
+    && (value as { approvalRequired: { reason?: unknown } }).approvalRequired.reason !== undefined;
 }
 
 // 单例

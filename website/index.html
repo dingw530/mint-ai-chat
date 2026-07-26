@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Mint — 一个懂上下文、会行动的开源 AI 工作台。" />
-    <title>Mint — AI workspace for ideas that move</title>
+    <meta name="description" content="Mint — 以 LLM Wiki 知识库为核心、以 Chat 为承载的开源 AI 工作台。" />
+    <title>Mint — LLM Wiki for context-aware AI</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -13,8 +13,8 @@
       <header class="site-header">
         <a class="wordmark" href="#top" aria-label="Mint home"><img class="brand-icon" src="./assets/mint-logo.svg" alt="" />mint<span class="wordmark-cursor">_</span></a>
         <nav class="main-nav" aria-label="Primary navigation">
-          <a href="#capabilities" data-i18n="navCapabilities">能力</a>
-          <a href="#principles" data-i18n="navPrinciples">方法</a>
+          <a href="#capabilities" data-i18n="navCapabilities">技术架构</a>
+          <a href="#principles" data-i18n="navPrinciples">产品架构</a>
           <a href="#open-source" data-i18n="navOpenSource">开源</a>
         </nav>
         <div class="header-actions">
@@ -61,16 +61,17 @@
 
         <section class="manifesto section-grid" id="principles">
           <div class="section-index">02 / 04</div>
-          <div class="manifesto-copy"><p class="eyebrow"><span data-i18n="manifestoLabel">为什么是 Mint</span></p><h2 data-i18n="manifestoTitle">工具应该<br /><strong>懂你的工作。</strong></h2></div>
+          <div class="manifesto-copy"><p class="eyebrow"><span data-i18n="manifestoLabel">产品架构</span></p><h2 data-i18n="manifestoTitle">LLM Wiki 是核心，<br /><strong>Chat 是承载。</strong></h2></div>
           <div class="manifesto-detail"><p data-i18n="manifestoBody">不是又一个聊天窗口。Mint 是一个可以积累上下文、连接知识、调用工具的工作空间。它让 AI 从“回答一个问题”，走向“陪你把事情做完”。</p><div class="rule"></div><div class="stat-row"><span>01</span><span data-i18n="statOne">保持上下文</span><span>→</span></div><div class="stat-row"><span>02</span><span data-i18n="statTwo">连接你的知识</span><span>→</span></div><div class="stat-row"><span>03</span><span data-i18n="statThree">实际完成工作</span><span>→</span></div></div>
         </section>
 
         <section class="capabilities" id="capabilities">
-          <div class="section-heading"><div><p class="eyebrow"><span>03</span><span data-i18n="capabilitiesLabel">核心能力</span></p><h2 data-i18n="capabilitiesTitle">一个空间，<em>三种力量。</em></h2></div><p class="heading-aside" data-i18n="capabilitiesAside">从灵感到交付，保持思路连贯。</p></div>
+          <div class="section-heading"><div><p class="eyebrow"><span>03</span><span data-i18n="capabilitiesLabel">技术架构</span></p><h2 data-i18n="capabilitiesTitle">从文档到上下文，<em>每层都有职责。</em></h2></div><p class="heading-aside" data-i18n="capabilitiesAside">知识库负责积累和编译，Chat 负责把它带入工作。</p></div>
+          <div class="architecture-flow" aria-label="Mint technical architecture"><span data-i18n="flowSource">知识来源</span><b>→</b><span data-i18n="flowWiki">LLM Wiki 编译层</span><b>→</b><span data-i18n="flowContext">上下文检索</span><b>→</b><span data-i18n="flowSurface">Chat / Agent / Tools</span></div>
           <div class="capability-list">
-            <article class="capability-card"><span class="card-number">01</span><div class="card-icon">◌</div><h3 data-i18n="cardOneTitle">自然对话</h3><p data-i18n="cardOneBody">支持多模型的流畅对话，把问题聊清楚，也把下一步聊出来。</p><a href="#open-source" aria-label="Learn about chat">↗</a></article>
-            <article class="capability-card card-featured"><span class="card-number">02</span><div class="card-icon">⌘</div><h3 data-i18n="cardTwoTitle">活的知识库</h3><p data-i18n="cardTwoBody">让文档、想法和经验彼此连接。你的上下文，值得被记住。</p><a href="#open-source" aria-label="Learn about knowledge">↗</a></article>
-            <article class="capability-card"><span class="card-number">03</span><div class="card-icon">✦</div><h3 data-i18n="cardThreeTitle">真正去行动</h3><p data-i18n="cardThreeBody">通过工具和 Agent，把“应该做什么”变成“已经做完了什么”。</p><a href="#open-source" aria-label="Learn about actions">↗</a></article>
+            <article class="capability-card"><span class="card-number">01</span><div class="card-icon">◌</div><h3 data-i18n="cardOneTitle">知识入口层</h3><p data-i18n="cardOneBody">接入 Wiki 文档、文件和外部知识，把分散信息变成可管理的来源。</p><a href="#open-source" aria-label="Learn about knowledge sources">↗</a></article>
+            <article class="capability-card card-featured"><span class="card-number">02</span><div class="card-icon">⌘</div><h3 data-i18n="cardTwoTitle">LLM Wiki 核心层</h3><p data-i18n="cardTwoBody">编译结构、关系和生命周期，提供可检索、可追踪的上下文。</p><a href="#open-source" aria-label="Learn about LLM Wiki core">↗</a></article>
+            <article class="capability-card"><span class="card-number">03</span><div class="card-icon">✦</div><h3 data-i18n="cardThreeTitle">承载与执行层</h3><p data-i18n="cardThreeBody">Chat 承载交互，Agent 和 Tools 消费 Wiki 上下文并执行下一步。</p><a href="#open-source" aria-label="Learn about chat and agent execution">↗</a></article>
           </div>
         </section>
 

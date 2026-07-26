@@ -156,9 +156,10 @@ interface MessageListProps {
   reactSteps?: ReActStepData[];
   showReactSteps?: boolean;
   onLinkClick?: MarkdownRendererProps['onLinkClick'];
+  onToolApproval?: (approvalId: string, action: 'approve' | 'deny') => void;
 }
 
-export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true, onLinkClick }: MessageListProps) {
+export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true, onLinkClick, onToolApproval }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
@@ -187,6 +188,8 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
           if (seg.type === 'tool_call') {
             const statusIcon = seg.status === 'running'
               ? <span className="tool-call-cursor">●</span>
+              : seg.status === 'approval_required'
+                ? <span className="tool-call-status-approval">!</span>
               : seg.status === 'error'
                 ? <span className="tool-call-status-error">✕</span>
                 : null;
@@ -210,6 +213,17 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                   </span>
                   {statusIcon}
                 </div>
+                {seg.status === 'approval_required' && (
+                  <div className="tool-call-approval">
+                    <div className="tool-call-approval-reason">{seg.approvalReason || '此操作需要你的确认'}</div>
+                    {seg.approvalId && onToolApproval && (
+                      <div className="tool-call-approval-actions">
+                        <button type="button" onClick={() => onToolApproval(seg.approvalId!, 'approve')}>批准执行</button>
+                        <button type="button" onClick={() => onToolApproval(seg.approvalId!, 'deny')}>拒绝</button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {seg.status === 'done' && seg.result != null && (
                   <details className="tool-call-result-details">
                     <summary className="tool-call-result-summary">查看返回数据</summary>

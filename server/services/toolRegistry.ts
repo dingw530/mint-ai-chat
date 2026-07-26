@@ -1,7 +1,9 @@
 import type { ToolCall, ToolDefinition } from '../types.js';
 import { mcpService } from './api/mcpService.js';
 import * as agentRepo from '../repositories/agentRepository.js';
-import { McpToolAdapter, toolRegistry as newToolRegistry, toolExecutor } from './tools/index.js';
+import { McpToolAdapter, toolRegistry as newToolRegistry, toolExecutor, toolApprovalStore } from './tools/index.js';
+import { getApprovalScopePath } from './tools/approvalStore.js';
+import type { ApprovalResumeContext } from './tools/approvalStore.js';
 
 // 获取 Agent 可用的工具定义列表
 export async function getAllToolDefinitions(agentId?: string): Promise<ToolDefinition[]> {
@@ -96,7 +98,23 @@ function appendLoadedMcpTools(tools: ToolDefinition[], serverIds?: string[]): To
 }
 
 // 根据 tool_call 分发执行对应的工具函数
-export async function executeTool(toolCall: ToolCall, conversationId = ''): Promise<unknown> {
+export interface ExecuteToolOptions {
+  approvalGranted?: boolean;
+  approvalContext?: ApprovalResumeContext;
+}
+
+/**
+ * 通过统一 Runtime 执行工具并保留结构化执行结果。
+ * @param toolCall 原始工具调用
+ * @param conversationId 会话 ID
+ * @param options 执行授权选项
+ * @returns Runtime 执行结果
+ */
+export async function executeToolDetailed(
+  toolCall: ToolCall,
+  conversationId = '',
+  options: ExecuteToolOptions = {},
+) {
   const { name } = toolCall.function;
 
   if (isLegacyMcpEnabled()) syncMcpTools();
@@ -104,14 +122,43 @@ export async function executeTool(toolCall: ToolCall, conversationId = ''): Prom
 
   // 1. 优先从新工具系统执行内置工具
   if (newToolRegistry.has(name)) {
-    const result = await toolExecutor.executeFromToolCall(toolCall, {
+    const context = {
       conversationId,
-    });
-    if (result.success) return result.data;
-    return { error: result.error };
+      approvalGranted: options.approvalGranted === undefined
+        ? toolApprovalStore.isGranted(conversationId, toolCall)
+        : options.approvalGranted,
+      requestApproval: ({ reason }: { reason: string }) => toolApprovalStore.create({
+        conversationId,
+        toolCall,
+        reason,
+        resume: options.approvalContext,
+        scopePath: getApprovalScopePath(toolCall),
+      }),
+    };
+    return toolExecutor.executeFromToolCall(toolCall, context);
   }
 
-  return { error: `未知工具: ${name}` };
+  return { success: false, error: `未知工具: ${name}`, duration: 0 };
+}
+
+/**
+ * 兼容旧调用方的工具执行 facade。
+ * @param toolCall 原始工具调用
+ * @param conversationId 会话 ID
+ * @param options 执行授权选项
+ * @returns 工具数据或结构化错误
+ */
+export async function executeTool(
+  toolCall: ToolCall,
+  conversationId = '',
+  options: ExecuteToolOptions = {},
+): Promise<unknown> {
+  const result = await executeToolDetailed(toolCall, conversationId, options);
+  if (result.success) return result.data;
+  return {
+    error: result.error,
+    ...(result.approvalRequired ? { approvalRequired: result.approvalRequired } : {}),
+  };
 }
 
 /**

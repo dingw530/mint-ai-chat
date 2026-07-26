@@ -2,8 +2,29 @@ import * as conversationService from '../../services/api/conversationService.js'
 import { httpError } from '../helpers.js';
 import { streamConversationIngestionEvents } from '../../services/api/ingestionEventsService.js';
 import type { EndpointDescriptor } from '../types.js';
+import { resolveToolApproval } from '../../services/api/toolApprovalService.js';
 
 export const conversationsEndpoints: EndpointDescriptor[] = [
+  {
+    id: 'conversations:resolveToolApproval',
+    method: 'POST',
+    path: '/:id/tool-approvals/:approvalId',
+    preloadMethod: 'resolveToolApproval',
+    service: (id: string, approvalId: string, data: Record<string, unknown>) => {
+      const action = data?.action;
+      if (action !== 'approve' && action !== 'deny') {
+        throw httpError(400, 'Approval action must be "approve" or "deny"');
+      }
+      return resolveToolApproval(id, approvalId, action);
+    },
+    args: [
+      { from: 'path', name: 'id' },
+      { from: 'path', name: 'approvalId' },
+      { from: 'body', name: '' },
+    ],
+    async: true,
+    result: 'direct',
+  },
   {
     id: 'conversations:ingestionEvents',
     method: 'GET',

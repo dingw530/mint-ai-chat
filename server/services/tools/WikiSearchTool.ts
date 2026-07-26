@@ -8,6 +8,7 @@ import { isSystemWikiPath, parseWikiPage } from '../utils/wikiShared.js';
 import { createLogger } from '../../utils/logger.js';
 import * as lifecycleRepo from '../../repositories/wikiLifecycleRepository.js';
 import { calculateWikiRetentionScore } from '../utils/wikiRetention.js';
+import { searchWiki } from '../api/wikiSearchService.js';
 
 const log = createLogger('wiki-search');
 
@@ -24,6 +25,13 @@ interface WikiSearchResult {
   file: string;
   content: string;
   score: number;
+  title?: string;
+  heading?: string;
+  snippet?: string;
+  matchTypes?: string[];
+  pageStatus?: lifecycleRepo.WikiPageStatus | null;
+  lastVerifiedAt?: string | null;
+  claimId?: string | null;
 }
 
 interface WikiSearchOutput {
@@ -91,7 +99,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       maxResults: normalizedInput.maxResults,
       includeContent: normalizedInput.includeContent,
     });
-    const result = this.searchAndRead(
+    const result = searchWiki(
       wikiPath,
       normalizedInput.question,
       normalizedInput.maxResults,

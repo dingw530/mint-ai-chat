@@ -1,0 +1,116 @@
+{
+  "scenarios": [
+    {
+      "id": "tool-approval-approve-flow",
+      "acceptanceCriteria": ["AC-016", "AC-017", "AC-018"],
+      "route": "/chat",
+      "markers": ["Mint", "新建对话"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/conversations/fixture-conversation/messages",
+            "method": "POST",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"harness-run\",\"sequence\":1,\"state\":\"running\"}\n\ndata: {\"type\":\"tool_call_start\",\"runId\":\"harness-run\",\"sequence\":2,\"round\":1,\"callId\":\"harness-call\",\"toolName\":\"bash\",\"arguments\":{\"command\":\"rm -rf ./build\"}}\n\ndata: {\"type\":\"approval_required\",\"runId\":\"harness-run\",\"sequence\":3,\"round\":1,\"callId\":\"harness-call\",\"toolName\":\"bash\",\"approvalId\":\"harness-approval\",\"reason\":\"需要确认高风险 Bash 操作\"}\n\ndata: {\"type\":\"tool_call_error\",\"runId\":\"harness-run\",\"sequence\":4,\"round\":1,\"callId\":\"harness-call\",\"toolName\":\"bash\",\"error\":\"需要确认高风险 Bash 操作\",\"retryCount\":0,\"phase\":\"final\",\"status\":\"approval_required\"}\n\ndata: [DONE]\n\n",
+            "controlBodies": {
+              "approve": "data: {\"type\":\"tool_call_end\",\"runId\":\"harness-approval-resume\",\"sequence\":1,\"round\":1,\"callId\":\"harness-call\",\"toolName\":\"bash\",\"result\":\"approved execution\",\"status\":\"success\"}\n\ndata: {\"type\":\"run_started\",\"runId\":\"harness-approval-resume\",\"sequence\":2,\"state\":\"running\"}\n\ndata: {\"type\":\"tool_call_start\",\"runId\":\"harness-approval-resume\",\"sequence\":3,\"round\":2,\"callId\":\"harness-child-call\",\"toolName\":\"bash\",\"arguments\":{\"command\":\"ls client/src\",\"cwd\":\"/Users/wangding/WorkSpace/personal/ai-chat/client\"}}\n\ndata: {\"type\":\"tool_call_end\",\"runId\":\"harness-approval-resume\",\"sequence\":4,\"round\":2,\"callId\":\"harness-child-call\",\"toolName\":\"bash\",\"result\":\"child directory listed\",\"status\":\"success\"}\n\ndata: {\"type\":\"answer\",\"runId\":\"harness-approval-resume\",\"sequence\":5,\"content\":\"模型已继续执行并完成操作，子目录无需再次授权\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"harness-approval-resume\",\"sequence\":6,\"state\":\"completed\",\"content\":\"模型已继续执行并完成操作，子目录无需再次授权\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n",
+              "deny": "data: {\"type\":\"tool_call_error\",\"runId\":\"harness-deny-resume\",\"sequence\":1,\"round\":1,\"callId\":\"harness-call\",\"toolName\":\"bash\",\"error\":\"已拒绝执行\",\"retryCount\":0,\"phase\":\"final\",\"status\":\"failed\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"harness-deny-resume\",\"sequence\":2,\"state\":\"completed\",\"content\":\"\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n"
+            }
+          },
+          {
+            "pattern": "**/api/conversations/fixture-conversation/tool-approvals/harness-approval",
+            "method": "POST",
+            "status": 200,
+            "body": {"status": "completed", "approvalId": "harness-approval", "toolName": "bash", "result": "approved execution", "continuation": {"content": "模型已继续执行并完成操作", "reasoning": "", "events": [{"type": "run_started", "state": "running"}, {"type": "answer", "content": "模型已继续执行并完成操作"}, {"type": "run_completed", "state": "completed", "content": "模型已继续执行并完成操作", "reasoning": ""}]}}
+          },
+          {
+            "pattern": "**/api/conversations/fixture-conversation/ingestion-events",
+            "method": "GET",
+            "body": ""
+          },
+          {
+            "pattern": "**/api/conversations/fixture-conversation/messages?*",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations/fixture-conversation/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations?*",
+            "method": "GET",
+            "body": {"conversations": [{"id": "fixture-conversation", "title": "审批 Fixture", "type": "text", "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {"conversations": [{"id": "fixture-conversation", "title": "审批 Fixture", "type": "text", "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}
+          },
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/endpoints?*", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/agents?*", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"showReactSteps": true}},
+          {"pattern": "**/api/settings?*", "method": "GET", "body": {"showReactSteps": true}}
+        ]
+      },
+      "steps": [
+        {"action": "fill", "target": {"placeholder": "输入消息..."}, "value": "执行高风险操作"},
+        {"action": "click", "target": {"role": "button", "name": "发送消息"}},
+        {"action": "waitFor", "target": {"role": "button", "name": "批准执行"}},
+        {"action": "assertText", "text": "需要确认高风险 Bash 操作"},
+        {"action": "click", "target": {"role": "button", "name": "批准执行"}},
+        {"action": "waitFor", "target": {"text": "查看返回数据", "index": 0}},
+        {"action": "click", "target": {"text": "查看返回数据", "index": 0}},
+        {"action": "assertText", "text": "模型已继续执行并完成操作"},
+        {"action": "assertText", "text": "子目录无需再次授权"},
+        {"action": "assertNotText", "text": "批准执行"}
+      ],
+      "assertRequests": [
+        {"method": "POST", "contains": "/conversations/fixture-conversation/messages", "status": 200}
+      ]
+    },
+    {
+      "id": "tool-approval-deny-flow",
+      "acceptanceCriteria": ["AC-016", "AC-017"],
+      "route": "/chat",
+      "markers": ["Mint", "新建对话"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/conversations/fixture-conversation/messages",
+            "method": "POST",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"harness-run-deny\",\"sequence\":1,\"state\":\"running\"}\n\ndata: {\"type\":\"tool_call_start\",\"runId\":\"harness-run-deny\",\"sequence\":2,\"round\":1,\"callId\":\"harness-call-deny\",\"toolName\":\"bash\",\"arguments\":{\"command\":\"rm -rf ./build\"}}\n\ndata: {\"type\":\"approval_required\",\"runId\":\"harness-run-deny\",\"sequence\":3,\"round\":1,\"callId\":\"harness-call-deny\",\"toolName\":\"bash\",\"approvalId\":\"harness-approval-deny\",\"reason\":\"需要确认高风险 Bash 操作\"}\n\ndata: {\"type\":\"tool_call_error\",\"runId\":\"harness-run-deny\",\"sequence\":4,\"round\":1,\"callId\":\"harness-call-deny\",\"toolName\":\"bash\",\"error\":\"需要确认高风险 Bash 操作\",\"retryCount\":0,\"phase\":\"final\",\"status\":\"approval_required\"}\n\ndata: [DONE]\n\n",
+            "controlBodies": {
+              "deny": "data: {\"type\":\"tool_call_error\",\"runId\":\"harness-deny-resume\",\"sequence\":1,\"round\":1,\"callId\":\"harness-call-deny\",\"toolName\":\"bash\",\"error\":\"已拒绝执行\",\"retryCount\":0,\"phase\":\"final\",\"status\":\"failed\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"harness-deny-resume\",\"sequence\":2,\"state\":\"completed\",\"content\":\"\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n"
+            }
+          },
+          {"pattern": "**/api/conversations/fixture-conversation/tool-approvals/harness-approval-deny", "method": "POST", "status": 200, "body": {"status": "denied", "approvalId": "harness-approval-deny", "toolName": "bash", "reason": "用户拒绝执行"}},
+          {"pattern": "**/api/conversations/fixture-conversation/ingestion-events", "method": "GET", "body": ""},
+          {"pattern": "**/api/conversations/fixture-conversation/messages?*", "method": "GET", "body": {"messages": []}},
+          {"pattern": "**/api/conversations/fixture-conversation/messages", "method": "GET", "body": {"messages": []}},
+          {"pattern": "**/api/conversations?*", "method": "GET", "body": {"conversations": [{"id": "fixture-conversation", "title": "审批 Fixture", "type": "text", "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}},
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": [{"id": "fixture-conversation", "title": "审批 Fixture", "type": "text", "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/endpoints?*", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/agents?*", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"showReactSteps": true}},
+          {"pattern": "**/api/settings?*", "method": "GET", "body": {"showReactSteps": true}}
+        ]
+      },
+      "steps": [
+        {"action": "fill", "target": {"placeholder": "输入消息..."}, "value": "执行高风险操作"},
+        {"action": "click", "target": {"role": "button", "name": "发送消息"}},
+        {"action": "waitFor", "target": {"role": "button", "name": "拒绝"}},
+        {"action": "click", "target": {"role": "button", "name": "拒绝"}},
+        {"action": "waitFor", "text": "已拒绝执行"},
+        {"action": "assertNotText", "text": "approved execution"}
+      ],
+      "assertRequests": [
+        {"method": "POST", "contains": "/conversations/fixture-conversation/messages", "status": 200}
+      ]
+    }
+  ]
+}

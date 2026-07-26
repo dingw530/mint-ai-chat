@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameConversation: (id, title) => ipcRenderer.invoke('conversations:rename', id, title),
   lockAgent: (id, agentId) => ipcRenderer.invoke('conversations:lockAgent', id, agentId),
   generateTitle: (id) => ipcRenderer.invoke('conversations:generateTitle', id),
+  resolveToolApproval: (conversationId, approvalId, data) =>
+    ipcRenderer.invoke('conversations:resolveToolApproval', conversationId, approvalId, data),
 
   // ── 消息 ──
   getMessages: (convId) => ipcRenderer.invoke('messages:list', convId),

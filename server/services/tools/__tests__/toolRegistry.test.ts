@@ -36,6 +36,10 @@ vi.mock('../index.js', () => {
     toolExecutor: {
       executeFromToolCall: vi.fn().mockResolvedValue({ success: true, data: 'done' }),
     },
+    toolApprovalStore: {
+      isGranted: vi.fn().mockReturnValue(false),
+      create: vi.fn().mockReturnValue('approval-test-id'),
+    },
     initializeTools: vi.fn(),
   };
 });
@@ -124,7 +128,7 @@ describe('toolRegistry', () => {
       expect(result).toBe('done');
       expect(toolExecutor.executeFromToolCall).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'call-1' }),
-        { conversationId: 'conv-1' },
+        expect.objectContaining({ conversationId: 'conv-1', requestApproval: expect.any(Function) }),
       );
     });
 

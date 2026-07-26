@@ -8,6 +8,17 @@ function trimOutput(value, maxLength = 12000) {
   return `${value.slice(0, maxLength)}\n...[truncated ${value.length - maxLength} chars]`;
 }
 
+/** Try to parse stdout as structured test runner JSON. */
+function tryParseStructuredOutput(stdout) {
+  try {
+    const parsed = JSON.parse(stdout);
+    if (parsed && typeof parsed === 'object' && parsed.summary && Array.isArray(parsed.failures)) {
+      return parsed;
+    }
+  } catch { /* not JSON */ }
+  return null;
+}
+
 /**
  * 执行一个显式命令并返回统一结果。
  * @param {import('./task.mjs').HarnessCheck} check
@@ -70,6 +81,14 @@ export async function runCheck(check, { rootDir, artifactDir, signal, task }) {
   const failure = status === 'failed'
     ? (result.error || (timedOut ? `Timed out after ${timeoutMs}ms` : trimOutput(stderr || stdout || `Exited with code ${result.exitCode}`)))
     : undefined;
+
+  // Try to parse structured test failures (scripts/test-runner.mjs output)
+  const parsed = tryParseStructuredOutput(stdout);
+  if (parsed && parsed.failures && parsed.failures.length > 0) {
+    const failurePath = path.join(artifactDir, `${check.name}-failures.json`);
+    await fs.writeFile(failurePath, JSON.stringify(parsed.failures, null, 2), 'utf8');
+  }
+
   const output = [
     `$ ${commandLine}`,
     `cwd: ${cwd}`,

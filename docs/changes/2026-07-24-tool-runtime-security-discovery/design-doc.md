@@ -145,3 +145,31 @@ interface McpToolCatalogItem {
 ## 7. 发布与回滚
 
 先以兼容开关灰度动态发现；若发现模型无法使用发现工具，可切回全量 MCP 注入。统一 Runtime 出现问题时保留 facade 和旧配置，不回退到 MCP 业务层直接调用；应通过修复 adapter 或暂时关闭对应 MCP Server 降级。
+
+## 8. 设计补丁：审批消费闭环（DS-006）
+
+原 DS-002 只产生三态决策，本补丁补齐 `approval_required` 的消费路径：
+
+```text
+ToolExecutor → approval store(一次性请求)
+             → ReactEvent approval_required
+             → SSE/IPC parser → ChatArea 工具卡片
+             → approve/deny endpoint
+             → ToolExecutor(approvalGranted=true)
+```
+
+- Runtime 在审批决策时创建短生命周期、进程内的一次性 `approvalId`，不记录原始敏感参数。
+- ReAct 事件新增 `approval_required`，关联 `callId`、`toolName`、`approvalId` 和原因；同一次调用以 `tool_call_error(status=approval_required)` 收口，不得发送成功事件。
+- `POST /api/conversations/:conversationId/tool-approvals/:approvalId` 由 Endpoint Registry 注册，body 为 `{ action: 'approve' | 'deny' }`。
+- 服务端校验会话归属、状态和过期时间；批准后以原始 ToolCall 重新进入 `ToolExecutor`，拒绝/重复消费直接返回结构化结果。
+- UI 在工具卡片中展示原因和批准/拒绝按钮；批准成功显示结果，拒绝或过期显示错误状态。HTTP 与 Electron 共享同一前端 API/事件协议，Electron 在无 IPC endpoint 时回退 HTTP。
+- Chat `/messages` SSE 链路接收结构化 `tool_approval` control message，服务端安全消费原始调用，并使用审批请求保存的 ReAct 上下文恢复模型轮次；工具结果会作为 tool message 注入原上下文，继续执行后续工具调用或生成最终回答。若恢复轮次再次要求审批，则创建新的短生命周期审批请求并回传新的 UI 事件。旧的审批 endpoint 保留为兼容入口，但 UI 不再依赖其 JSON continuation。
+
+### 8.1 验收证据矩阵补充
+
+| AC | 证据 | 验证方式 |
+|---|---|---|
+| AC-015 | Runtime/React loop 审批事件测试 | Vitest |
+| AC-016 | SSE parser、Reducer、工具卡片交互测试 | Vitest + browser |
+| AC-017 | 审批 store/Endpoint 集成测试 | Vitest |
+| AC-018 | HTTP/Electron 共用 parser 与 API fallback 测试 | Vitest |

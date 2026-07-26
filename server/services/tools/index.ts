@@ -8,6 +8,9 @@ export type { ToolContext, ToolAuditEvent, ValidationResult, PermissionResult, T
 export { ToolRegistry, toolRegistry } from './ToolRegistry.js';
 export { ToolExecutor, toolExecutor } from './ToolExecutor.js';
 export type { ExecutionOptions, ExecutionResult } from './ToolExecutor.js';
+export { ToolApprovalStore, toolApprovalStore } from './approvalStore.js';
+export { getApprovalScopePath } from './approvalStore.js';
+export type { ApprovalAction, ApprovalResumeContext, PendingToolApproval } from './approvalStore.js';
 export { McpToolAdapter } from './McpToolAdapter.js';
 export { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 

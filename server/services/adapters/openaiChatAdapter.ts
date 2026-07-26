@@ -45,11 +45,12 @@ export const openaiChatAdapter: ApiAdapter = {
   },
 
   async stream(messages, settings, apiUrl, apiKey, tools, options) {
-    const response = await fetch(this.getUrl(apiUrl), {
+      console.log(apiUrl);
+      const response = await fetch(this.getUrl(apiUrl), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...this.getHeaders(apiKey) },
       body: JSON.stringify(this.buildRequest(messages, settings, tools)),
-      signal: options?.signal,
+      signal: options?.signal ?? AbortSignal.timeout(60_000),
     });
     return response;
   },
@@ -113,7 +114,7 @@ export const openaiChatAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
-      signal: options?.signal,
+      signal: options?.signal ?? AbortSignal.timeout(60_000),
     });
 
     if (!response.ok) {

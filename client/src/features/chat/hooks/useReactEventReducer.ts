@@ -24,6 +24,9 @@ export interface ReactReducerEvent {
   content?: string;
   round?: number;
   phase?: 'retrying' | 'final';
+  status?: 'retrying' | 'failed' | 'approval_required';
+  approvalId?: string;
+  reason?: string;
   message?: string;
 }
 
@@ -136,7 +139,7 @@ export function reduceReactEvent(
         ...state,
         status: 'running',
         decisionTrace: traceItem(state, {
-          kind: event.phase === 'retrying' ? 'retry' : 'error',
+            kind: event.phase === 'retrying' ? 'retry' : 'error',
           label: event.phase === 'retrying'
             ? `动作失败，准备重试：${event.toolName || '工具调用'}`
             : `动作失败：${event.toolName || '工具调用'}`,
@@ -153,8 +156,22 @@ export function reduceReactEvent(
             toolName: event.toolName || '',
             error: event.error || '',
             retryCount: event.retryCount || 0,
+            status: event.status,
+            approvalId: event.approvalId,
+            approvalReason: event.reason,
           },
         ],
+      };
+    case 'approval_required':
+      return {
+        ...state,
+        status: 'running',
+        decisionTrace: traceItem(state, {
+          kind: 'action',
+          label: `等待审批：${event.toolName || '工具调用'}`,
+          detail: event.reason,
+          status: 'active',
+        }),
       };
     case 'answer_ready': {
       const last = state.steps[state.steps.length - 1];
