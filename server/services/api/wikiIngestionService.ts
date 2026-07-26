@@ -6,6 +6,7 @@ import { generateCrossBatchCandidates } from './crossBatchSemanticService.js';
 import { createLogger } from '../../utils/logger.js';
 import { archiveWikiRawFile, saveWikiSourceText } from './wikiFileService.js';
 import { registerCompiledKnowledge } from './wikiKnowledgeLifecycleService.js';
+import { rebuildWikiSearchIndex } from './wikiSearchService.js';
 
 export { archiveWikiRawFile, buildWikiSourceText } from './wikiFileService.js';
 export type { WikiSourceSegment } from './wikiIngestionTypes.js';
@@ -95,6 +96,7 @@ export async function ingestWikiSource(
   );
 
   registerCompiledKnowledge(sourceFile, request.sourceText, compileResult.compiledPages, compileResult.claims);
+  rebuildWikiSearchIndex(wikiPath);
 
   let graphErrors: string[] = [];
 

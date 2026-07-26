@@ -448,6 +448,45 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 21,
+    name: 'add-wiki-search-index',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS wiki_search_documents (
+          id TEXT PRIMARY KEY,
+          page_id TEXT,
+          source_path TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          heading TEXT NOT NULL DEFAULT '',
+          body TEXT NOT NULL,
+          document_type TEXT NOT NULL CHECK(document_type IN ('chunk', 'claim')),
+          content_hash TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_wiki_search_documents_page
+          ON wiki_search_documents(source_path, updated_at DESC);
+        CREATE VIRTUAL TABLE IF NOT EXISTS wiki_search_documents_fts USING fts5(
+          title, heading, body, source_path,
+          document_id UNINDEXED
+        );
+      `);
+    },
+  },
+  {
+    id: 22,
+    name: 'repair-wiki-search-fts-table',
+    up: (db) => {
+      db.exec(`
+        DROP TABLE IF EXISTS wiki_search_documents_fts;
+        CREATE VIRTUAL TABLE wiki_search_documents_fts USING fts5(
+          title, heading, body, source_path,
+          document_id UNINDEXED
+        );
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

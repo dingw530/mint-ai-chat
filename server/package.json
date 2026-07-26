@@ -9,13 +9,15 @@
     "cli:serve": "node ../scripts/with-node-version.cjs tsx cli/index.ts serve",
     "start": "node ../scripts/with-node-version.cjs node --dns-result-order=ipv4first dist/index.js",
     "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' node ../scripts/with-node-version.cjs tsx watch index.ts",
-    "build": "node ../scripts/with-node-version.cjs tsc",
+    "build": "node ../scripts/with-node-version.cjs tsc && node ../scripts/with-node-version.cjs node ../scripts/generate-endpoints-manifest.mjs",
     "build:mcp": "node ../scripts/with-node-version.cjs esbuild mcp/cli.ts --bundle --platform=node --target=node18 --outfile=dist/mcp-server.cjs --external:better-sqlite3",
     "test": "node ../scripts/with-node-version.cjs vitest run",
     "test:watch": "node ../scripts/with-node-version.cjs vitest",
     "test:coverage": "node ../scripts/with-node-version.cjs vitest run --coverage",
     "build:bundle": "node ../scripts/with-node-version.cjs node scripts/bundle.cjs",
-    "rebuild:sqlite": "node ../scripts/with-node-version.cjs node ../scripts/rebuild-native.cjs node"
+    "rebuild:sqlite": "node ../scripts/with-node-version.cjs node ../scripts/rebuild-native.cjs node",
+    "test:coverage:check": "node ../scripts/with-node-version.cjs vitest run --coverage",
+    "test:boundary": "node ../scripts/with-node-version.cjs vitest run architecture/"
   },
   "bin": {
     "mint": "./dist/cli/index.js"

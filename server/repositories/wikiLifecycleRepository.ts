@@ -104,6 +104,26 @@ export function findPageByPath(path: string): WikiPage | null {
   return row ? mapPage(row) : null;
 }
 
+/** 根据页面 ID 查询最新生命周期记录。 */
+export function findPageById(id: string): WikiPage | null {
+  const row = getDb().prepare('SELECT * FROM wiki_pages WHERE id = ?').get(id);
+  return row ? mapPage(row) : null;
+}
+
+/** 查询页面下仍可用于检索的 Claim。 */
+export function findActiveClaimsForPage(pageId: string): WikiClaim[] {
+  const rows = getDb().prepare("SELECT * FROM wiki_claims WHERE page_id = ? AND status IN ('proposed','verified','contested') ORDER BY confidence DESC, updated_at DESC").all(pageId) as any[];
+  return rows.map(mapClaim);
+}
+
+/** 将生命周期信息转换为检索的轻量加权，避免热度压过文本相关性。 */
+export function getSearchRelevanceBoost(page: WikiPage): number {
+  const statusBoost = page.status === 'active' ? 1.2 : page.status === 'stale' ? -0.8 : 0;
+  const confidenceBoost = Math.max(-0.5, Math.min(0.8, page.confidence - 0.5));
+  const usageBoost = Math.min(0.5, Math.log1p(page.accessCount) * 0.08);
+  return statusBoost + confidenceBoost + usageBoost;
+}
+
 /** 创建页面版本；相同 path/hash 已存在时返回既有版本。 */
 export function createPage(input: Pick<WikiPage, 'path' | 'title' | 'contentHash'> & Partial<Pick<WikiPage, 'sourceId' | 'status' | 'confidence' | 'importance' | 'qualityScore'>>): WikiPage {
   const existing = getDb().prepare('SELECT * FROM wiki_pages WHERE path = ? AND content_hash = ?').get(input.path, input.contentHash);

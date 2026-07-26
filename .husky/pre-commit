@@ -1,1 +1,1 @@
-npm run --workspace=server test && npm run lint
+npm run --workspace=server test

@@ -27,6 +27,7 @@ export function getDb(): DatabaseConstructor.Database {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');   // WAL 模式提升并发读写性能
     db.pragma('foreign_keys = ON');    // 启用外键约束
+    db.pragma('busy_timeout = 5000');  // 索引重建与生命周期写入并发时短暂等待写锁
     createSchema();
     runMigrations(db);
     seedData();
@@ -271,6 +272,25 @@ function createSchema(): void {
       ON wiki_knowledge_events(object_type, object_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_wiki_lifecycle_jobs_status_available
       ON wiki_lifecycle_jobs(status, available_at);
+
+    CREATE TABLE IF NOT EXISTS wiki_search_documents (
+      id TEXT PRIMARY KEY,
+      page_id TEXT,
+      source_path TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      heading TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL,
+      document_type TEXT NOT NULL CHECK(document_type IN ('chunk', 'claim')),
+      content_hash TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (page_id) REFERENCES wiki_pages(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_wiki_search_documents_page
+      ON wiki_search_documents(source_path, updated_at DESC);
+    CREATE VIRTUAL TABLE IF NOT EXISTS wiki_search_documents_fts USING fts5(
+      title, heading, body, source_path,
+      document_id UNINDEXED
+    );
   `);
 }
 

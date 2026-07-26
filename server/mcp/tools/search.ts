@@ -7,6 +7,7 @@ import { isPathSafe } from '../../services/utils/pathSecurity.js';
 import { isSystemWikiPath, parseWikiPage } from '../../services/utils/wikiShared.js';
 import * as lifecycleRepo from '../../repositories/wikiLifecycleRepository.js';
 import { calculateWikiRetentionScore } from '../../services/utils/wikiRetention.js';
+import { searchWiki } from '../../services/api/wikiSearchService.js';
 
 const SearchInputSchema = {
   question: z.string().optional().describe('搜索关键词或问题（与 paths 二选一）'),
@@ -278,7 +279,7 @@ export function registerSearchTool(server: McpServer, ctx: WikiServiceContext): 
       }
 
       // 搜索模式
-      const result = searchAndRead(ctx.wikiPath, question, normalizedMaxResults, normalizedIncludeContent);
+      const result = searchWiki(ctx.wikiPath, question, normalizedMaxResults, normalizedIncludeContent);
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result) }],
       };
