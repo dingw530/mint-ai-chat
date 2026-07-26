@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { mkdirSync } from 'node:fs';
 import type DatabaseConstructor from 'better-sqlite3';
 import os from 'node:os';
 import path from 'path';
@@ -24,6 +25,7 @@ let db: DatabaseConstructor.Database | undefined;
 // 获取数据库单例：延迟初始化，首次调用时自动建表、迁移、种子数据
 export function getDb(): DatabaseConstructor.Database {
   if (!db) {
+    mkdirSync(path.dirname(DB_PATH), { recursive: true });
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');   // WAL 模式提升并发读写性能
     db.pragma('foreign_keys = ON');    // 启用外键约束
