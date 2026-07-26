@@ -26,10 +26,7 @@ export default function useSSE(): UseSSEReturn {
       abortRef.current();
       abortRef.current = null;
     }
-    const { abort } = sendMessageStream(conversationId, content, {
-      ...callbacks,
-      regenerate: options.regenerate,
-    }, agent, options);
+    const { abort } = sendMessageStream(conversationId, content, callbacks, agent, options);
     abortRef.current = abort;
   }, []);
 
