@@ -36,6 +36,10 @@ export interface ExecutionResult<T = unknown> {
   error?: string;
   duration: number;        // 执行时长（毫秒）
   retries?: number;        // 实际重试次数
+  approvalRequired?: {
+    approvalId?: string;
+    reason: string;
+  };
 }
 
 // ── 工具执行器 ──
@@ -130,7 +134,13 @@ export class ToolExecutor {
       context,
     });
     if (policy.action !== 'allow' && (policy.action === 'deny' || !context.approvalGranted)) {
-      emit(policy.action === 'deny' ? 'policy_denied' : 'approval_required', { reason: policy.reason });
+      const approvalId = policy.action === 'approval_required'
+        ? context.requestApproval?.({ reason: policy.reason })
+        : undefined;
+      emit(policy.action === 'deny' ? 'policy_denied' : 'approval_required', {
+        reason: policy.reason,
+        approvalId,
+      });
       log.info('tool_policy_denied', {
         tool: toolName,
         action: policy.action,
@@ -143,6 +153,9 @@ export class ToolExecutor {
           ? `Approval required: ${policy.reason}`
           : `Policy denied: ${policy.reason}`,
         duration: Date.now() - startTime,
+        ...(policy.action === 'approval_required'
+          ? { approvalRequired: { approvalId, reason: policy.reason } }
+          : {}),
       };
     }
 

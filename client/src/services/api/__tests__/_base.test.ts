@@ -27,6 +27,7 @@ describe('API base helpers', () => {
     const callbacks = {
       onThought: vi.fn(), onAnswerReady: vi.fn(), onToolCallStart: vi.fn(), onChunk: vi.fn(),
       onRouting: vi.fn(), onTokenUsage: vi.fn(), onRoundStarted: vi.fn(), onLoopDetected: vi.fn(),
+      onToolApprovalRequired: vi.fn(),
     };
     const lastThought = { value: '' };
     parseSSEChunk({ type: 'round_started', round: 2 }, callbacks, lastThought);
@@ -37,6 +38,7 @@ describe('API base helpers', () => {
     parseSSEChunk({ type: 'answer_ready' }, callbacks, lastThought);
     parseSSEChunk({ type: 'token_usage', estimatedTokens: 42 }, callbacks, lastThought);
     parseSSEChunk({ type: 'loop_detected', message: 'fallback' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'approval_required', approvalId: 'approval-1', reason: 'confirm' }, callbacks, lastThought);
     expect(callbacks.onThought).toHaveBeenCalledWith('thinking');
     expect(callbacks.onToolCallStart).toHaveBeenCalled();
     expect(callbacks.onChunk).toHaveBeenCalledWith('answer');
@@ -45,5 +47,6 @@ describe('API base helpers', () => {
     expect(callbacks.onTokenUsage).toHaveBeenCalledWith({ type: 'token_usage', estimatedTokens: 42 });
     expect(callbacks.onRoundStarted).toHaveBeenCalledWith({ type: 'round_started', round: 2 });
     expect(callbacks.onLoopDetected).toHaveBeenCalledWith({ type: 'loop_detected', message: 'fallback' });
+    expect(callbacks.onToolApprovalRequired).toHaveBeenCalledWith({ type: 'approval_required', approvalId: 'approval-1', reason: 'confirm' });
   });
 });

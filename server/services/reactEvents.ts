@@ -36,8 +36,16 @@ export type ReactEventPayload =
       error: string;
       retryCount: number;
       phase: 'retrying' | 'final';
-      status: 'retrying' | 'failed';
+      status: 'retrying' | 'failed' | 'approval_required';
       maxRetries?: number;
+    }
+  | {
+      type: 'approval_required';
+      round: number;
+      callId: string;
+      toolName: string;
+      approvalId?: string;
+      reason: string;
     }
   | {
       type: 'tool_call_end';

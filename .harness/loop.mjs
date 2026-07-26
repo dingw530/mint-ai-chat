@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { captureWorktree, evaluateDiff } from './diff-policy.mjs';
 import { allChecksPassed, runChecks } from './check-runner.mjs';
@@ -61,7 +62,13 @@ export async function runLoop(task, { run, rootDir, editCommand, dryRun = false 
 
     const failureFile = path.join(iterationDir, 'failure.json');
     const taskFile = `${run.artifactDir}/task.json`;
-    await writeJson(failureFile, { iteration, results });
+
+    // Merge structured test failures from check results
+    const structuredFailures = results.flatMap(r => {
+      const fPath = path.join(iterationDir, `${r.name}-failures.json`);
+      try { return JSON.parse(fs.readFileSync(fPath, 'utf8')); } catch { return []; }
+    });
+    await writeJson(failureFile, { iteration, results, structuredFailures });
     const editExitCode = await runEditor(editCommand, {
       rootDir,
       taskFile,

@@ -32,7 +32,9 @@
     "lint:fix:server": "eslint server/ --fix",
     "lint:fix:client": "eslint client/ --fix",
     "format": "prettier --check \"server/**/*.ts\"",
-    "format:fix": "prettier --write \"server/**/*.ts\""
+    "format:fix": "prettier --write \"server/**/*.ts\"",
+    "coverage:report": "node scripts/coverage-report.mjs",
+    "test:runner": "node scripts/test-runner.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

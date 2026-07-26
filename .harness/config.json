@@ -11,16 +11,28 @@
   ],
   "checks": [
     {
-      "name": "harness-test",
-      "command": "npm",
-      "args": ["run", "harness:test"],
-      "timeoutMs": 120000
+      "name": "unit",
+      "command": "node",
+      "args": ["scripts/test-runner.mjs"],
+      "timeoutMs": 180000
     },
     {
       "name": "browser-ac",
       "command": "node",
       "args": [".harness/browser-scenario.mjs"],
       "timeoutMs": 120000
+    },
+    {
+      "name": "coverage",
+      "command": "npm",
+      "args": ["run", "--workspace=server", "test:coverage:check", "--", "--poolOptions.threads.singleThread"],
+      "timeoutMs": 120000
+    },
+    {
+      "name": "boundary",
+      "command": "npm",
+      "args": ["run", "--workspace=server", "test:boundary"],
+      "timeoutMs": 30000
     }
   ]
 }

@@ -4,6 +4,7 @@ import { BaseTool } from '../BaseTool.js';
 import { ToolExecutor } from '../ToolExecutor.js';
 import { ToolRegistry } from '../ToolRegistry.js';
 import { evaluateToolPolicy } from '../toolPolicy.js';
+import { ToolApprovalStore } from '../approvalStore.js';
 
 const context = { conversationId: 'security-test' };
 
@@ -67,6 +68,63 @@ describe('tool runtime security policy', () => {
     expect(tool.execute).toHaveBeenCalledOnce();
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ event: 'approval_required', toolName: 'side_effect' }));
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ event: 'completed', toolName: 'side_effect' }));
+  });
+
+  it('returns a structured approval request and consumes it once', async () => {
+    const tool = new SideEffectTool();
+    const registry = new ToolRegistry();
+    registry.register(tool);
+    const approvalStore = new ToolApprovalStore();
+    const result = await new ToolExecutor(registry).execute('side_effect', { value: 'x' }, {
+      ...context,
+      requestApproval: ({ reason }) => approvalStore.create({
+        conversationId: context.conversationId,
+        toolCall: {
+          id: 'call-1', type: 'function', function: { name: 'side_effect', arguments: '{"value":"x"}' },
+        },
+        reason,
+      }),
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.approvalRequired?.approvalId).toBeTruthy();
+    const approvalId = result.approvalRequired!.approvalId!;
+    expect(approvalStore.consume(context.conversationId, approvalId, 'approve')).toMatchObject({ reason: expect.any(String) });
+    expect(approvalStore.consume(context.conversationId, approvalId, 'approve')).toBeUndefined();
+    expect(tool.execute).not.toHaveBeenCalled();
+  });
+
+  it('keeps an approved Bash directory grant within the same conversation', () => {
+    const approvalStore = new ToolApprovalStore();
+    const conversationId = 'directory-grant-test';
+    const approvalId = approvalStore.create({
+      conversationId,
+      reason: '需要确认',
+      scopePath: '/Users/wangding/WorkSpace/personal/ai-chat',
+      toolCall: {
+        id: 'directory-grant-call',
+        type: 'function',
+        function: { name: 'bash', arguments: '{"command":"ls -la /Users/wangding/WorkSpace/personal/ai-chat"}' },
+      },
+    });
+
+    approvalStore.consume(conversationId, approvalId, 'approve');
+
+    expect(approvalStore.isGranted(conversationId, {
+      id: 'child-call',
+      type: 'function',
+      function: { name: 'bash', arguments: '{"command":"ls client/src"}' },
+    })).toBe(false);
+    expect(approvalStore.isGranted(conversationId, {
+      id: 'child-call-absolute',
+      type: 'function',
+      function: { name: 'bash', arguments: '{"command":"ls -la /Users/wangding/WorkSpace/personal/ai-chat/client/src"}' },
+    })).toBe(true);
+    expect(approvalStore.isGranted('other-conversation', {
+      id: 'other-call',
+      type: 'function',
+      function: { name: 'bash', arguments: '{"command":"ls -la /Users/wangding/WorkSpace/personal/ai-chat/client/src"}' },
+    })).toBe(false);
   });
 
   it('reports timeout and passes cancellation to the tool', async () => {

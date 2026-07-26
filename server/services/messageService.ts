@@ -12,6 +12,7 @@ import { getAllToolDefinitions } from './toolRegistry.js';
 import type { HttpError, HistoryMessage } from '../types.js';
 import type { Sink } from './sink.js';
 import { parseFile, isSupportedFile } from './utils/fileParseService.js';
+import { streamToolApproval } from './api/toolApprovalService.js';
 
 /**
  * 将用户记忆作为动态上下文插入当前用户消息之前，避免修改静态 system prompt。
@@ -50,6 +51,22 @@ export function getMessages(conversationId: string) {
     throw err;
   }
   return messageRepo.findByConversationId(conversationId);
+}
+
+/**
+ * Resume an approved tool call through the normal chat SSE stream.
+ * @param conversationId Conversation owning the approval
+ * @param approvalId One-time approval identifier
+ * @param action Approval decision
+ * @param sink Chat SSE sink
+ */
+export function resumeToolApproval(
+  conversationId: string,
+  approvalId: string,
+  action: 'approve' | 'deny',
+  sink: Sink,
+): Promise<void> {
+  return streamToolApproval(conversationId, approvalId, action, sink);
 }
 
 // 发送消息：保存用户消息 → 路由决策 → 拼接历史 → SSE 流式调用 AI → 保存 AI 回复

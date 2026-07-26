@@ -977,6 +977,11 @@ body::after {
   border-left-color: var(--error-text);
 }
 
+.tool-call-segment.tool-call-approval_required {
+  opacity: 1;
+  border-left-color: var(--warning-text, #d99a2b);
+}
+
 .tool-call-header {
   display: flex;
   align-items: center;
@@ -1007,6 +1012,43 @@ body::after {
 .tool-call-status-error {
   color: var(--error-text);
   font-size: 11px;
+}
+
+.tool-call-status-approval {
+  color: var(--warning-text, #d99a2b);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tool-call-approval {
+  display: grid;
+  gap: 8px;
+  margin-left: 18px;
+  padding: 4px 8px 8px;
+}
+
+.tool-call-approval-reason {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.tool-call-approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tool-call-approval-actions button {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.tool-call-approval-actions button:first-child {
+  border-color: var(--accent);
 }
 
 .tool-call-error-body {

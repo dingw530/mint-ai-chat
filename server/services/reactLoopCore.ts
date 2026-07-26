@@ -93,6 +93,7 @@ export async function reactChat(
   let iteration = 0;
   const recentCallSignatures: string[] = [];
   let forceFinalAnswer = false;
+  let awaitingApproval = false;
 
   while (iteration < maxIterations && !events.isTerminal) {
     const round = iteration + 1;
@@ -218,11 +219,41 @@ export async function reactChat(
             });
           },
           conversationId,
+          {
+            approvalContext: {
+              messages: currentMessages.map(message => ({
+                ...message,
+                ...(message.tool_calls ? { tool_calls: message.tool_calls.map(call => ({ ...call, function: { ...call.function } })) } : {}),
+              })),
+              settings,
+              agent,
+              reasoning: result.reasoning,
+            },
+          },
         );
         const duration = Date.now() - startedAt;
         const resultStr = execution.toolMsg.content.substring(0, 2000);
 
-        if (execution.succeeded) {
+        if (execution.approvalRequired) {
+          events.emit({
+            type: 'approval_required',
+            round,
+            callId,
+            toolName: toolCall.function.name,
+            approvalId: execution.approvalRequired.approvalId,
+            reason: execution.approvalRequired.reason,
+          });
+          events.emit({
+            type: 'tool_call_error',
+            round,
+            callId,
+            toolName: toolCall.function.name,
+            error: execution.approvalRequired.reason,
+            retryCount: attempts,
+            phase: 'final',
+            status: 'approval_required',
+          });
+        } else if (execution.succeeded) {
           events.emit({
             type: 'tool_call_end',
             round,
@@ -246,9 +277,19 @@ export async function reactChat(
           });
         }
 
-        return { index, assistantMsg: execution.assistantMsg, toolMsg: execution.toolMsg };
+        return {
+          index,
+          assistantMsg: execution.assistantMsg,
+          toolMsg: execution.toolMsg,
+          approvalRequired: execution.approvalRequired,
+        };
       }),
     );
+
+    if (toolResults.some(result => result.approvalRequired)) {
+      awaitingApproval = true;
+      break;
+    }
 
     toolResults
       .sort((left, right) => left.index - right.index)
@@ -287,7 +328,7 @@ export async function reactChat(
   if (!events.isTerminal && !sink.writableEnded) {
     if (signal?.aborted) {
       events.emit({ type: 'run_cancelled', state: 'cancelled' });
-    } else if (!streamedAsAnswer) {
+    } else if (!streamedAsAnswer && !awaitingApproval) {
       if (finalReasoning) events.emit({ type: 'thought', reasoning: finalReasoning });
       events.emit({ type: 'answer_ready' });
       events.emit({

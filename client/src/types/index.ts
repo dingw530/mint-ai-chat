@@ -160,12 +160,14 @@ export interface ToolCallSegment {
   callId?: string;
   toolName: string;
   summary?: string;
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'approval_required';
   arguments?: unknown;
   result?: string;
   error?: string;
   duration?: number;
   retryCount?: number;
+  approvalId?: string;
+  approvalReason?: string;
 }
 
 export interface TextSegment {
@@ -205,6 +207,9 @@ export interface ToolCallErrorStep {
   toolName: string;
   error: string;
   retryCount: number;
+  status?: 'retrying' | 'failed' | 'approval_required';
+  approvalId?: string;
+  approvalReason?: string;
 }
 
 export type ReActStep = ThoughtStep | ToolCallStartStep | ToolCallEndStep | ToolCallErrorStep;
@@ -242,6 +247,7 @@ export interface SendCallbacks {
   onToolCallStart?: (data: Record<string, unknown>) => void;
   onToolCallEnd?: (data: Record<string, unknown>) => void;
   onToolCallError?: (data: Record<string, unknown>) => void;
+  onToolApprovalRequired?: (data: Record<string, unknown>) => void;
   onAnswerReady?: (content: string) => void;
   onRunStarted?: (data: Record<string, unknown>) => void;
   onRoundStarted?: (data: Record<string, unknown>) => void;
@@ -253,6 +259,11 @@ export interface SendCallbacks {
 
 export interface SendOptions {
   regenerate?: boolean;
+  control?: {
+    type: 'tool_approval';
+    approvalId: string;
+    action: 'approve' | 'deny';
+  };
 }
 
 export interface StreamReturn {
@@ -307,6 +318,11 @@ export interface ElectronAPI {
   renameConversation: (id: string, title: string) => Promise<{ conversation: Conversation }>;
   lockAgent: (id: string, agentId: string | null) => Promise<{ conversation: Conversation }>;
   generateTitle: (id: string) => Promise<{ title: string }>;
+  resolveToolApproval: (
+    conversationId: string,
+    approvalId: string,
+    data: { action: 'approve' | 'deny' },
+  ) => Promise<unknown>;
 
   // 消息
   getMessages: (convId: string) => Promise<{ messages: Message[] }>;

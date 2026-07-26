@@ -19,6 +19,8 @@ export interface ToolContext {
   allowedWorkingDirectory?: string;
   /** Runtime 审计事件接收器；不应写入敏感原始参数。 */
   audit?: (event: ToolAuditEvent) => void;
+  /** Runtime 创建待审批请求时调用，不得写入原始敏感参数。 */
+  requestApproval?: (request: { reason: string }) => string;
   [key: string]: unknown;
 }
 
@@ -31,6 +33,7 @@ export interface ToolAuditEvent {
   duration?: number;
   reason?: string;
   error?: string;
+  approvalId?: string;
 }
 
 export interface ValidationResult {

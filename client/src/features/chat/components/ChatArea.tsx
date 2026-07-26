@@ -90,6 +90,91 @@ export default function ChatArea({
     setDecisionTrace([]);
   }, []);
 
+  const handleToolApproval = useCallback((approvalId: string, action: 'approve' | 'deny') => {
+    if (!activeConversation) return;
+    const updateApprovalMessage = (update: (message: Message) => Message) => {
+      setMessages((prev) => prev.map((message) => (
+        message.segments?.some((segment) => segment.type === 'tool_call' && segment.approvalId === approvalId)
+          ? update(message)
+          : message
+      )));
+    };
+    const appendText = (content: string) => updateApprovalMessage((message) => {
+      const segments = [...(message.segments || [])];
+      const last = segments[segments.length - 1];
+      if (last?.type === 'text') segments[segments.length - 1] = { ...last, content: last.content + content };
+      else segments.push({ type: 'text', content });
+      return { ...message, content: message.content + content, segments };
+    });
+
+    setSending(true);
+    send(activeConversation, '', {
+      onRunStarted: (data) => dispatchReactEvent({ type: 'run_started', ...data }),
+      onRoundStarted: (data) => dispatchReactEvent({ type: 'round_started', ...data }),
+      onChunk: appendText,
+      onAnswerReady: (content) => { if (content) appendText(content); },
+      onReasoning: (content) => updateApprovalMessage((message) => ({
+        ...message,
+        reasoning: `${message.reasoning || ''}${content}`,
+      })),
+      onToolCallStart: (data) => updateApprovalMessage((message) => ({
+        ...message,
+        segments: [...(message.segments || []), {
+          type: 'tool_call',
+          callId: data.callId as string | undefined,
+          toolName: String(data.toolName || ''),
+          status: 'running',
+          arguments: data.arguments,
+        }],
+      })),
+      onToolCallEnd: (data) => updateApprovalMessage((message) => ({
+        ...message,
+        segments: message.segments?.map((segment) => (
+          segment.type === 'tool_call' && (segment.approvalId === approvalId || segment.callId === data.callId)
+            ? { ...segment, status: 'done' as const, result: String(data.result || '') }
+            : segment
+        )),
+      })),
+      onToolCallError: (data) => updateApprovalMessage((message) => ({
+        ...message,
+        segments: message.segments?.map((segment) => (
+          data.status !== 'approval_required'
+            && segment.type === 'tool_call'
+            && (segment.approvalId === approvalId || segment.callId === data.callId)
+            ? { ...segment, status: 'error' as const, error: String(data.error || '') }
+            : segment
+        )),
+      })),
+      onToolApprovalRequired: (data) => updateApprovalMessage((message) => ({
+        ...message,
+        segments: [...(message.segments || []), {
+          type: 'tool_call',
+          callId: data.callId as string | undefined,
+          toolName: String(data.toolName || ''),
+          status: 'approval_required',
+          approvalId: data.approvalId as string | undefined,
+          approvalReason: data.reason as string | undefined,
+        }],
+      })),
+      onRunCompleted: (data) => dispatchReactEvent({ type: 'run_completed', ...data }),
+      onRunCancelled: (data) => dispatchReactEvent({ type: 'run_cancelled', ...data }),
+      onLoopDetected: (data) => dispatchReactEvent({ type: 'loop_detected', ...data }),
+      onDone: () => { setSending(false); setStreamingId(null); },
+      onError: (error) => {
+        updateApprovalMessage((message) => ({
+          ...message,
+          segments: message.segments?.map((segment) => (
+            segment.type === 'tool_call' && segment.approvalId === approvalId
+              ? { ...segment, status: 'error' as const, error: error.message }
+              : segment
+          )),
+        }));
+        setSending(false);
+        setStreamingId(null);
+      },
+    }, undefined, { control: { type: 'tool_approval', approvalId, action } });
+  }, [activeConversation, dispatchReactEvent, send]);
+
   useEffect(() => {
     convIdRef.current = activeConversation;
   }, [activeConversation, initialMessage]);
@@ -420,6 +505,25 @@ export default function ChatArea({
               return updated;
             });
           },
+          onToolApprovalRequired: (data: Record<string, unknown>) => {
+            dispatchReactEvent({ type: 'approval_required', ...data });
+            setMessages((prev) => prev.map((message) => {
+              if ((message as Message & { _tempId?: string })._tempId !== tempAssistantMsg._tempId) return message;
+              return {
+                ...message,
+                segments: message.segments?.map((segment) => (
+                  segment.type === 'tool_call' && segment.status === 'running' && segment.callId === data.callId
+                    ? {
+                      ...segment,
+                      status: 'approval_required' as const,
+                      approvalId: data.approvalId as string | undefined,
+                      approvalReason: data.reason as string | undefined,
+                    }
+                    : segment
+                )),
+              };
+            }));
+          },
           onAnswerReady: () => {
             dispatchReactEvent({ type: 'answer_ready' });
           },
@@ -657,6 +761,9 @@ export default function ChatArea({
         onToolCallError: (data: Record<string, unknown>) => {
           dispatchReactEvent({ type: 'tool_call_error', ...data });
         },
+        onToolApprovalRequired: (data: Record<string, unknown>) => {
+          dispatchReactEvent({ type: 'approval_required', ...data });
+        },
         onAnswerReady: () => {
           dispatchReactEvent({ type: 'answer_ready' });
         },
@@ -745,6 +852,7 @@ export default function ChatArea({
             reactSteps={reactSteps}
             showReactSteps={showReactSteps}
             onLinkClick={onLinkClick}
+            onToolApproval={handleToolApproval}
           />
         )}
         <div className="chat-composer">

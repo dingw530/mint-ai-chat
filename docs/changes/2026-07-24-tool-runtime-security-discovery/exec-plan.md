@@ -2,7 +2,7 @@
 
 ## 文档信息
 
-- 状态：已完成
+- 状态：执行中（审批消费补充）
 - 关联产品规格：./product-spec.md
 - 关联设计文档：./design-doc.md
 - 关联追溯：./traceability.md
@@ -66,6 +66,27 @@
 - 产出：一致性、约定和验证报告
 - 验证：验收证据矩阵全部通过
 
+### TP-008：审批事件与一次性消费
+
+- 状态：已完成
+- 关联：DS-006、AC-015、AC-017
+- 产出：审批请求 store、Runtime 结构化审批结果、批准/拒绝 endpoint、一次性消费测试
+- 验证：`toolRuntimeSecurity.test.ts`、`toolApprovalService.test.ts`、IPC endpoint test 通过
+
+### TP-009：SSE/IPC 与聊天 UI 消费
+
+- 状态：已完成
+- 关联：DS-006、AC-016、AC-018
+- 产出：React 事件协议、SSE parser、Reducer、工具卡片批准/拒绝交互、样式与前端测试
+- 验证：客户端 32 项测试、构建、Harness browser scenario 通过
+
+### TP-010：闭环回归与 Harness 证据
+
+- 状态：已完成（存在外部回归阻塞）
+- 关联：AC-013~AC-018
+- 产出：跨层回归、浏览器场景、执行记录和验证证据
+- 验证：`npm run build`、Harness verify/browser 通过；服务端全量回归另有既有 Wiki 外键失败
+
 ## 风险与依赖
 
 - MCP SDK 返回的 inputSchema 可能不是 Zod，需要安全转换或保留 JSON Schema 校验。
@@ -97,3 +118,11 @@
 
 - 状态：已完成
 - 审计结论：AC-001~AC-014 均有实现或测试证据；未发现 MCP 业务层绕过 Runtime 的调用路径。
+
+### 2026-07-26：Harness run 2026-07-26T07-00-14-513Z-33518
+
+- 状态：completed
+- TP：未指定
+- 轮次：1
+- 证据目录：.harness/runs/2026-07-24-tool-runtime-security-discovery/2026-07-26T07-00-14-513Z-33518
+- 检查结果：harness-test:passed, browser-ac:passed

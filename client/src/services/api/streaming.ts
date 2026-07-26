@@ -22,7 +22,7 @@ export function sendMessageStream(
   options?: SendOptions,
 ): StreamReturn {
   // Electron IPC 路径
-  if (isElectron()) {
+  if (isElectron() && !options?.control) {
     const api = getElectronAPI()!;
     const lastThought = { value: '' };
 
@@ -49,7 +49,9 @@ export function sendMessageStream(
 
   // HTTP SSE 路径
   const controller = new AbortController();
-  const body: Record<string, unknown> = { content };
+  const body: Record<string, unknown> = options?.control
+    ? { control: options.control }
+    : { content };
   if (options?.regenerate) body.regenerate = true;
   if (agent !== undefined) body.agent = agent;
 
