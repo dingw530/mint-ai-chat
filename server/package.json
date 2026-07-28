@@ -4,6 +4,7 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "exports": { "./eval": "./dist/eval.js" },
   "scripts": {
     "cli": "node ../scripts/with-node-version.cjs tsx cli/index.ts",
     "cli:serve": "node ../scripts/with-node-version.cjs tsx cli/index.ts serve",

@@ -17,7 +17,7 @@
     "harness:browser": "node .harness/browser-scenario.mjs",
     "harness:loop": "node .harness/cli.mjs loop",
     "harness:verify": "node .harness/cli.mjs verify",
-    "build": "npm run build -w mint-server && npm run build -w mint-client",
+    "build": "npm run build -w mint-server && npm run build -w agent-eval && npm run build -w mint-client",
     "build:website": "npm run build -w mint-github-pages",
     "start": "npm run start -w mint-server",
     "electron:rebuild": "node scripts/with-node-version.cjs node scripts/rebuild-native.cjs electron",
@@ -34,7 +34,8 @@
     "format": "prettier --check \"server/**/*.ts\"",
     "format:fix": "prettier --write \"server/**/*.ts\"",
     "coverage:report": "node scripts/coverage-report.mjs",
-    "test:runner": "node scripts/test-runner.mjs"
+    "test:runner": "node scripts/test-runner.mjs",
+    "eval:agent": "npm run build -w mint-server && npm run build -w agent-eval && node scripts/with-node-version.cjs node agent-eval/dist/cli.js"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -59,6 +60,7 @@
     "typescript-eslint": "^8.62.1"
   },
   "workspaces": [
+    "agent-eval",
     "server",
     "client",
     "electron",
