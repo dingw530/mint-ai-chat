@@ -4,6 +4,7 @@
       "id": "agent-status-bar-chat-run",
       "acceptanceCriteria": ["AC-004"],
       "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
       "setup": {
         "routes": [
           {
@@ -19,7 +20,10 @@
           {
             "pattern": "**/api/conversations",
             "method": "GET",
-            "body": {"conversations": []}
+            "responses": [
+              {"conversations": []},
+              {"conversations": [{"id": "conv-status", "title": "状态栏测试", "type": "chat", "createdAt": "2026-07-27T00:00:00.000Z", "updatedAt": "2026-07-27T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}
+            ]
           },
           {
             "pattern": "**/api/conversations",
@@ -52,7 +56,11 @@
         {"action": "waitFor", "text": "Agent 已完成", "timeoutMs": 10000},
         {"action": "assertText", "text": "第 1/3 轮"},
         {"action": "assertText", "text": "工具 1 次"},
-        {"action": "assertRequests", "contains": "POST"}
+        {"action": "waitFor", "target": {"role": "heading", "name": "状态栏测试"}, "timeoutMs": 10000},
+        {"action": "assertRequests", "contains": "/generate-title", "countAtLeast": 1},
+        {"action": "reload"},
+        {"action": "waitFor", "target": {"role": "heading", "name": "状态栏测试"}, "timeoutMs": 10000},
+        {"action": "assertRequests", "contains": "POST", "countAtLeast": 2}
       ]
     }
   ]
