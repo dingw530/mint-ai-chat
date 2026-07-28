@@ -4,7 +4,9 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "exports": { "./eval": "./dist/eval.js" },
+  "exports": {
+    "./eval": "./dist/eval.js"
+  },
   "scripts": {
     "cli": "node ../scripts/with-node-version.cjs tsx cli/index.ts",
     "cli:serve": "node ../scripts/with-node-version.cjs tsx cli/index.ts serve",
@@ -39,7 +41,7 @@
     "multer": "^2.2.0",
     "pdfjs-dist": "^4.9.155",
     "undici": "^7.5.0",
-    "uuid": "^9.0.0"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

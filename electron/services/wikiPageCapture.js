@@ -19,7 +19,7 @@ function createElectronPageCaptureProvider(options = {}) {
         webPreferences: {
           contextIsolation: true,
           nodeIntegration: false,
-          sandbox: false,
+          sandbox: true,
         },
       });
 

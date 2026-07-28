@@ -70,8 +70,8 @@
     "node": "20.18.3"
   },
   "dependencies": {
-    "electron": "^33.4.11",
+    "electron": "^41.0.2",
     "sharp": "^0.35.1",
-    "undici": "^5.29.0"
+    "undici": "^7.29.0"
   }
 }
