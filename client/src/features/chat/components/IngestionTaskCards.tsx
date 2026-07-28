@@ -22,6 +22,15 @@ interface IngestionTaskModel {
   result: { sourceFile?: string; error?: string } | null;
 }
 
+function isIngestionTaskModel(value: unknown): value is IngestionTaskModel {
+  if (!value || typeof value !== 'object') return false;
+  const model = value as Partial<IngestionTaskModel>;
+  return typeof model.jobId === 'string'
+    && typeof model.title === 'string'
+    && typeof model.status === 'string'
+    && typeof model.progress === 'number';
+}
+
 const ingestionTaskCardApi = createMintComponentApi(
   'IngestionTaskCard',
   z.object({ data: DynamicValueSchema }),
@@ -35,7 +44,7 @@ function getStatusTone(status: string): 'active' | 'success' | 'error' | 'cancel
 }
 
 const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({ props }) => {
-  const model = props.data as unknown as IngestionTaskModel | undefined;
+  const model = isIngestionTaskModel(props.data) ? props.data : undefined;
   if (!model) return null;
 
   const progress = Math.max(0, Math.min(100, model.progress));

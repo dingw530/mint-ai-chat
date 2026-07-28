@@ -1,39 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import MessageList from './MessageList';
 import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
-import InputBox from './InputBox';
-import AgentBar from './AgentBar';
-import ChatHeader from './ChatHeader';
-import DecisionTrace from './DecisionTrace';
-import AgentRunStatus, { type AgentRunStatusData } from './AgentRunStatus';
-import IngestionTaskCards from './IngestionTaskCards';
+import ChatAreaView from './ChatAreaView';
+import { parseAgentRunStatusData } from './AgentRunStatus';
 import {
-  getMessages,
-  fetchAgents,
   generateTitle,
   lockAgent,
   unlockAgent,
-  getSettings,
 } from '@/services/api';
 import useSSE from '@/hooks/useSSE';
-import type { Conversation, EndpointOutput, Agent, Message, ReActStep, DecisionTraceItem } from '@/types';
-import {
-  createInitialReactEventState,
-  reduceReactEvent,
-  type ReactReducerEvent,
-} from '../hooks/useReactEventReducer';
+import type { Conversation, EndpointOutput, Message } from '@/types';
+import useChatConversationData from '../hooks/useChatConversationData';
 
-function LoadingSpinner() {
-  return (
-    <div className="loading-spinner">
-      <span />
-      <span />
-      <span />
-    </div>
-  );
-}
-
-interface ChatAreaProps {
+export interface ChatAreaProps {
   activeConversation: string | null;
   conversations: Conversation[];
   onAutoCreate: (title?: string) => Promise<string | undefined>;
@@ -60,38 +38,32 @@ export default function ChatArea({
   onInitialMessageSent,
   onLinkClick,
 }: ChatAreaProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
   const [streamingId, setStreamingId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [activeAgent, setActiveAgent] = useState('general');
-  const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
-  const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
-  const [decisionTrace, setDecisionTrace] = useState<DecisionTraceItem[]>([]);
-  const [agentRunStatus, setAgentRunStatus] = useState<AgentRunStatusData | null>(null);
-  const reactEventStateRef = useRef(createInitialReactEventState());
-  const [showReactSteps, setShowReactSteps] = useState(true);
   const { send, abort } = useSSE();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const convIdRef = useRef<string | null>(activeConversation);
   // Streaming perf: accumulate chunks in a ref and throttle state updates
   const streamBufferRef = useRef<{ id: string; content: string }>({ id: '', content: '' });
   const streamRafRef = useRef<number>(0);
 
-  const dispatchReactEvent = useCallback((event: ReactReducerEvent) => {
-    const next = reduceReactEvent(reactEventStateRef.current, event);
-    reactEventStateRef.current = next;
-    setReactSteps(next.steps);
-    setDecisionTrace(next.decisionTrace);
-  }, []);
-
-  const resetReactEvents = useCallback(() => {
-    reactEventStateRef.current = createInitialReactEventState();
-    setReactSteps([]);
-    setDecisionTrace([]);
-    setAgentRunStatus(null);
-  }, []);
+  const {
+    messages,
+    setMessages,
+    loading,
+    agents,
+    activeAgent,
+    setActiveAgent,
+    autoRoutedAgent,
+    setAutoRoutedAgent,
+    reactSteps,
+    decisionTrace,
+    agentRunStatus,
+    setAgentRunStatus,
+    showReactSteps,
+    messagesEndRef,
+    dispatchReactEvent,
+    resetReactEvents,
+  } = useChatConversationData({ activeConversation, initialMessage });
 
   const handleToolApproval = useCallback((approvalId: string, action: 'approve' | 'deny') => {
     if (!activeConversation) return;
@@ -114,7 +86,10 @@ export default function ChatArea({
     send(activeConversation, '', {
       onRunStarted: (data) => dispatchReactEvent({ type: 'run_started', ...data }),
       onRoundStarted: (data) => dispatchReactEvent({ type: 'round_started', ...data }),
-      onAgentStatus: (data) => setAgentRunStatus(data as unknown as AgentRunStatusData),
+      onAgentStatus: (data) => {
+        const status = parseAgentRunStatusData(data);
+        if (status) setAgentRunStatus(status);
+      },
       onChunk: appendText,
       onAnswerReady: (content) => { if (content) appendText(content); },
       onReasoning: (content) => updateApprovalMessage((message) => ({
@@ -188,61 +163,11 @@ export default function ChatArea({
   const prevConvRef = useRef<string | null>(null);
 
   useEffect(() => {
-    fetchAgents()
-      .then((data) => {
-        setAgents(data.agents || []);
-      })
-      .catch(() => {
-        setAgents([{ id: 'general', label: '通用助手', available: true } as Agent]);
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    getSettings()
-      .then((data) => {
-        setShowReactSteps(data.showReactSteps !== false);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (activeConversation) {
-      if (initialMessage) {
-        // Wiki -> Chat 跳转: 对话刚创建无消息, handleSend 会加 temp 消息
-        setLoading(false);
-        setMessages([]);
-        return;
-      }
-      setLoading(true);
-      setMessages([]);
-      getMessages(activeConversation)
-        .then((data) => {
-          setMessages(data.messages || []);
-        })
-        .catch((err) => {
-          console.error('Failed to load messages:', err);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setMessages([]);
-    }
-  }, [activeConversation, initialMessage]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView(false);
-  }, [messages]);
-
-  useEffect(() => {
     if (prevConvRef.current && prevConvRef.current !== activeConversation) {
       abort();
     }
     prevConvRef.current = activeConversation;
   }, [activeConversation, abort]);
-
-  useEffect(() => {
-    setAutoRoutedAgent(null);
-    resetReactEvents();
-  }, [activeConversation, resetReactEvents]);
 
   // Auto-send initial message from external source (e.g. wiki -> chat)
   // Conversation is already created by App; just send the message.
@@ -343,7 +268,10 @@ export default function ChatArea({
           onRoundStarted: (data) => {
             dispatchReactEvent({ type: 'round_started', ...data });
           },
-          onAgentStatus: (data) => setAgentRunStatus(data as unknown as AgentRunStatusData),
+          onAgentStatus: (data) => {
+            const status = parseAgentRunStatusData(data);
+            if (status) setAgentRunStatus(status);
+          },
           onLoopDetected: (data) => {
             dispatchReactEvent({ type: 'loop_detected', ...data });
           },
@@ -690,7 +618,10 @@ export default function ChatArea({
           onRoundStarted: (data) => {
             dispatchReactEvent({ type: 'round_started', ...data });
           },
-          onAgentStatus: (data) => setAgentRunStatus(data as unknown as AgentRunStatusData),
+          onAgentStatus: (data) => {
+            const status = parseAgentRunStatusData(data);
+            if (status) setAgentRunStatus(status);
+          },
         onLoopDetected: (data) => {
           dispatchReactEvent({ type: 'loop_detected', ...data });
         },
@@ -837,65 +768,33 @@ export default function ChatArea({
   );
 
   return (
-    <div className="main-area">
-      <ChatHeader
-        title={title}
-        activeEndpoint={activeEndpoint}
-        endpoints={endpoints}
-        onEndpointChange={onEndpointChange}
-      />
-      <div className="chat-area">
-        {showReactSteps && (decisionTrace.length > 0 || agentRunStatus) && (
-          <div className="chat-top-status">
-            {agentRunStatus && <AgentRunStatus status={agentRunStatus} />}
-            {decisionTrace.length > 0 && <DecisionTrace items={decisionTrace} />}
-          </div>
-        )}
-        {loading ? (
-          <div className="messages-loading">
-            <LoadingSpinner />
-          </div>
-        ) : (
-          <MessageList
-            messages={messages}
-            streamingId={streamingId}
-            scrollRef={messagesEndRef}
-            onRegenerate={handleRegenerate}
-            reactSteps={reactSteps}
-            showReactSteps={showReactSteps}
-            onLinkClick={onLinkClick}
-            onToolApproval={handleToolApproval}
-          />
-        )}
-        <div className="chat-composer">
-          <div className="chat-input-zone">
-            <IngestionTaskCards conversationId={activeConversation} />
-            <div className="chat-input-row">
-              <AgentBar
-                agents={agents}
-                activeAgent={activeAgent}
-                autoRoutedAgent={autoRoutedAgent}
-                lockedAgent={lockedAgent}
-                routingMode={routingMode}
-                onSelectAgent={handleSelectAgent}
-                onUnlock={handleUnlock}
-              />
-              <div className="chat-input-main">
-                {sending ? (
-                  <button className="stop-btn" onClick={handleStop}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
-                    </svg>
-                    停止生成
-                  </button>
-                ) : (
-                  <InputBox onSend={handleSend} disabled={sending} />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ChatAreaView
+      activeConversation={activeConversation}
+      activeEndpoint={activeEndpoint}
+      endpoints={endpoints}
+      title={title}
+      loading={loading}
+      messages={messages}
+      streamingId={streamingId}
+      messagesEndRef={messagesEndRef}
+      reactSteps={reactSteps}
+      decisionTrace={decisionTrace}
+      agentRunStatus={agentRunStatus}
+      showReactSteps={showReactSteps}
+      sending={sending}
+      agents={agents}
+      activeAgent={activeAgent}
+      autoRoutedAgent={autoRoutedAgent}
+      lockedAgent={lockedAgent}
+      routingMode={routingMode}
+      onEndpointChange={onEndpointChange}
+      onRegenerate={handleRegenerate}
+      onLinkClick={onLinkClick}
+      onToolApproval={handleToolApproval}
+      onSelectAgent={handleSelectAgent}
+      onUnlock={handleUnlock}
+      onStop={handleStop}
+      onSend={handleSend}
+    />
   );
 }

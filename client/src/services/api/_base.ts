@@ -61,13 +61,23 @@ export interface ManifestEntry {
   async: boolean;
 }
 
+function isManifestEntry(value: unknown): value is ManifestEntry {
+  if (!value || typeof value !== 'object') return false;
+  const entry = value as Partial<ManifestEntry>;
+  return typeof entry.id === 'string'
+    && typeof entry.ipcChannel === 'string'
+    && typeof entry.method === 'string'
+    && typeof entry.httpPath === 'string';
+}
+
 let manifestCache: ManifestEntry[] | null = null;
 
 export async function getManifest(): Promise<ManifestEntry[]> {
   if (manifestCache) return manifestCache;
   try {
     const mod = await import('../../../../electron/endpoints-manifest.json');
-    manifestCache = (mod.default || mod) as unknown as ManifestEntry[];
+    const candidate: unknown = mod.default || mod;
+    manifestCache = Array.isArray(candidate) ? candidate.filter(isManifestEntry) : [];
   } catch {
     manifestCache = [];
   }

@@ -26,6 +26,10 @@ const sanitizeSchema = {
   },
 };
 
+const codeComponent: Components['code'] = ({ children, className }) => (
+  <CodeBlock className={className}>{children}</CodeBlock>
+);
+
 export interface MarkdownRendererProps {
   content: string;
   linkTarget?: '_blank' | '_self';
@@ -38,7 +42,7 @@ export default function MarkdownRenderer({ content, linkTarget = '_blank', onLin
 
     const components: Partial<Components> = {
       pre: ({ children }) => <>{children}</>,
-      code: CodeBlock as unknown as Components['code'],
+      code: codeComponent,
       table: ({ children }) => (
         <div className="table-wrapper">
           <table>{children}</table>
@@ -67,8 +71,8 @@ export default function MarkdownRenderer({ content, linkTarget = '_blank', onLin
     return (
       <div className="markdown-body">
         <ReactMarkdown
-          rehypePlugins={[rehypeHighlight as unknown as (tree: unknown) => void, [rehypeSanitize, sanitizeSchema]]}
-          remarkPlugins={[remarkGfm as unknown as (tree: unknown) => void]}
+          rehypePlugins={[rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
+          remarkPlugins={[remarkGfm]}
           urlTransform={(url) => url.startsWith('mint-wiki:') ? url : defaultUrlTransform(url)}
           components={components}
         >

@@ -10,6 +10,24 @@ export interface AgentRunStatusData {
   phase: string;
 }
 
+/** 将 SSE 的松散字段解析为可安全渲染的状态快照。 */
+export function parseAgentRunStatusData(data: Record<string, unknown>): AgentRunStatusData | null {
+  if (typeof data.round !== 'number' || typeof data.maxRounds !== 'number') return null;
+  if (typeof data.toolCount !== 'number' || typeof data.retryCount !== 'number') return null;
+  if (typeof data.phase !== 'string' || typeof data.loopDetected !== 'boolean') return null;
+  return {
+    round: data.round,
+    maxRounds: data.maxRounds,
+    elapsedMs: typeof data.elapsedMs === 'number' ? data.elapsedMs : 0,
+    toolCount: data.toolCount,
+    currentTool: typeof data.currentTool === 'string' ? data.currentTool : undefined,
+    retryCount: data.retryCount,
+    lastError: typeof data.lastError === 'string' ? data.lastError : undefined,
+    loopDetected: data.loopDetected,
+    phase: data.phase,
+  };
+}
+
 interface AgentRunStatusProps {
   status: AgentRunStatusData | null;
 }
