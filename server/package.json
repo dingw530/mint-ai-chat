@@ -31,7 +31,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@modelcontextprotocol/server-everything": "^2026.1.26",
-    "better-sqlite3": "^11.0.0",
+    "better-sqlite3": "^12.11.1",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "cors": "^2.8.5",
