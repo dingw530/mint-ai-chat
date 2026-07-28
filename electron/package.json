@@ -8,7 +8,7 @@
     "build:mac": "node prepare.js && electron-builder --mac"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@modelcontextprotocol/server-everything": "^2026.1.26",
     "better-sqlite3": "^11.0.0",
     "chalk": "^4.1.2",
