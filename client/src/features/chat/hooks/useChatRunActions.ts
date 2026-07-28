@@ -130,7 +130,14 @@ export default function useChatRunActions({
     setStreamingId(null);
   }, [flushStream, setSending, setStreamingId, updateTempMessage]);
 
-  const runConversation = useCallback((conversationId: string, content: string, tempId: string, agent?: string, options?: SendOptions) => {
+  const runConversation = useCallback((
+    conversationId: string,
+    content: string,
+    tempId: string,
+    agent?: string,
+    options?: SendOptions,
+    onCompleted?: () => void,
+  ) => {
     streamBufferRef.current = { id: tempId, content: '' };
     const conversation = conversations.find((item) => item.id === conversationId);
     send(conversationId, content, createChatStreamCallbacks({
@@ -139,6 +146,7 @@ export default function useChatRunActions({
       streamBufferRef,
       scheduleFlush,
       finishStream,
+      onCompleted,
       updateTempMessage,
       setActiveAgent,
       setAutoRoutedAgent,
@@ -188,12 +196,22 @@ export default function useChatRunActions({
     setSending(true);
     setStreamingId(assistantMessage.id);
     resetReactEvents();
-    runConversation(conversationId, content, assistantMessage._tempId, isAutoRoute(conversation) ? undefined : activeAgent);
-    if (createdNow || !conversation?.title) {
-      generateTitle(conversationId)
-        .then((data) => { if (data?.title) onTitleUpdate(conversationId, data.title); })
-        .catch(() => {});
-    }
+    const shouldGenerateTitle = createdNow || !conversation?.title;
+    const onCompleted = shouldGenerateTitle
+      ? () => {
+        generateTitle(conversationId)
+          .then((data) => { if (data?.title) onTitleUpdate(conversationId, data.title); })
+          .catch(() => {});
+      }
+      : undefined;
+    runConversation(
+      conversationId,
+      content,
+      assistantMessage._tempId,
+      isAutoRoute(conversation) ? undefined : activeAgent,
+      undefined,
+      onCompleted,
+    );
   }, [activeAgent, activeConversation, conversations, onAutoCreate, onTitleUpdate, resetReactEvents, runConversation, setMessages, setSending, setStreamingId]);
 
   const handleRegenerate = useCallback(() => {

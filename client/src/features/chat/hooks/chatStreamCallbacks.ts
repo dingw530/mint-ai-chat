@@ -10,6 +10,7 @@ interface StreamCallbackOptions {
   streamBufferRef: MutableRefObject<{ id: string; content: string }>;
   scheduleFlush: () => void;
   finishStream: (tempId: string, error?: Error) => void;
+  onCompleted?: () => void;
   updateTempMessage: (tempId: string, update: (message: Message) => Message) => void;
   setActiveAgent: (agentId: string) => void;
   setAutoRoutedAgent: (agentId: string) => void;
@@ -24,6 +25,7 @@ export function createChatStreamCallbacks({
   streamBufferRef,
   scheduleFlush,
   finishStream,
+  onCompleted,
   updateTempMessage,
   setActiveAgent,
   setAutoRoutedAgent,
@@ -139,7 +141,10 @@ export function createChatStreamCallbacks({
       }));
     },
     onAnswerReady: () => dispatchReactEvent({ type: 'answer_ready' }),
-    onDone: () => finishStream(tempId),
+    onDone: () => {
+      finishStream(tempId);
+      onCompleted?.();
+    },
     onError: (error) => {
       dispatchReactEvent({ type: 'run_failed', error: error.message });
       finishStream(tempId, error);
