@@ -69,6 +69,11 @@ function isAutoRoute(conversation: Conversation | undefined): boolean {
   return (conversation?.routingMode || 'auto') === 'auto' && !conversation?.lockedAgent;
 }
 
+function needsGeneratedTitle(conversation: Conversation | undefined, createdNow: boolean): boolean {
+  const title = conversation?.title?.trim();
+  return createdNow || !title || title === 'New Conversation';
+}
+
 /** 管理消息流式运行、重新生成和工具审批动作。 */
 export default function useChatRunActions({
   activeConversation,
@@ -196,7 +201,7 @@ export default function useChatRunActions({
     setSending(true);
     setStreamingId(assistantMessage.id);
     resetReactEvents();
-    const shouldGenerateTitle = createdNow || !conversation?.title;
+    const shouldGenerateTitle = needsGeneratedTitle(conversation, createdNow);
     const onCompleted = shouldGenerateTitle
       ? () => {
         generateTitle(conversationId)

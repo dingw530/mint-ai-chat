@@ -10,6 +10,7 @@ import { streamChat } from './aiProxy.js';
 import { reactChat } from './reactLoopCore.js';
 import { getAllToolDefinitions } from './toolOrchestration.js';
 import type { HttpError, HistoryMessage } from '../types.js';
+import { DeferredEndSink } from './sink.js';
 import type { Sink } from './sink.js';
 import { parseFile, isSupportedFile } from './utils/fileParseService.js';
 import { streamToolApproval } from './api/toolApprovalService.js';
@@ -78,6 +79,7 @@ interface FileAttachment {
 }
 
 export async function sendMessage(conversationId: string, content: string, sink: Sink, agent?: string, regenerate?: boolean, files?: FileAttachment[]): Promise<void> {
+  const deferredSink = new DeferredEndSink(sink);
   const conversation = conversationRepo.findById(conversationId);
   if (!conversation) {
     const err: HttpError = new Error('Conversation not found');
@@ -236,8 +238,8 @@ export async function sendMessage(conversationId: string, content: string, sink:
     }
 
     const { content: fullContent, reasoning: fullReasoning } = useReact
-      ? await reactChat(messages, settings, sink, resolvedAgent, orchestratorSignal, conversationId)
-      : await streamChat(messages, settings, sink, resolvedAgent, conversationId);
+      ? await reactChat(messages, settings, deferredSink, resolvedAgent, orchestratorSignal, conversationId)
+      : await streamChat(messages, settings, deferredSink, resolvedAgent, conversationId);
 
     clearTimeout(orchestratorTimer);
     // AI 回复完成后持久化（流式结束时才写入）
@@ -258,11 +260,13 @@ export async function sendMessage(conversationId: string, content: string, sink:
         }
       }
     }
+    deferredSink.flush();
   } catch (err) {
     console.error('AI streaming error:', err);
-    if (!sink.writableEnded) {
-      sink.write(JSON.stringify({ error: 'AI streaming failed' }));
-      sink.end();
+    if (!deferredSink.writableEnded) {
+      deferredSink.write(JSON.stringify({ error: 'AI streaming failed' }));
+      deferredSink.end();
     }
+    deferredSink.flush();
   }
 }

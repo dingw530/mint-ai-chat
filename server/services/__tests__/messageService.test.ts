@@ -87,7 +87,7 @@ describe('messageService', () => {
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
       await sendMessage('conv-1', 'hello', sink);
       expect(messageRepo.create).toHaveBeenCalledTimes(2); // user msg + AI response
-      expect(streamChat).toHaveBeenCalledWith(expect.any(Array), expect.any(Object), sink, 'general', 'conv-1');
+      expect(streamChat).toHaveBeenCalledWith(expect.any(Array), expect.any(Object), expect.any(Object), 'general', 'conv-1');
     });
 
     it('does not re-save user message on regenerate', async () => {
