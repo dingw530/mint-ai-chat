@@ -48,7 +48,7 @@ import * as agentRepo from '../../../repositories/agentRepository.js';
 import { mcpService } from '../../api/mcpService.js';
 import { toolExecutor } from '../index.js';
 
-const { getAllToolDefinitions, executeTool, getToolCallSummary, getToolResultSummary } = await import('../../toolRegistry.js');
+const { getAllToolDefinitions, executeTool, getToolCallSummary, getToolResultSummary } = await import('../../toolOrchestration.js');
 
 describe('toolRegistry', () => {
   beforeEach(() => {

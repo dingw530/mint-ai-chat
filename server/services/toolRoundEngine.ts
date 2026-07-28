@@ -5,7 +5,7 @@
 import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
 import type { ApiAdapter } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
-import { executeTool, getToolResultSummary } from './toolRegistry.js';
+import { executeTool, getToolResultSummary } from './toolOrchestration.js';
 import { createLogger } from '../utils/logger.js';
 import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';

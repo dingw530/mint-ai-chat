@@ -1,7 +1,7 @@
 import type { ToolCall, ToolDefinition } from '../types.js';
 import { mcpService } from './api/mcpService.js';
 import * as agentRepo from '../repositories/agentRepository.js';
-import { McpToolAdapter, toolRegistry as newToolRegistry, toolExecutor, toolApprovalStore } from './tools/index.js';
+import { McpToolAdapter, toolRegistry as runtimeRegistry, toolExecutor, toolApprovalStore } from './tools/index.js';
 import { getApprovalScopePath } from './tools/approvalStore.js';
 import type { ApprovalResumeContext } from './tools/approvalStore.js';
 
@@ -53,7 +53,7 @@ function syncLoadedMcpTools(): void {
   if (!getLoadedToolNames || !getToolRecord) return;
   for (const fullName of getLoadedToolNames.call(mcpService)) {
     const record = getToolRecord.call(mcpService, fullName) as ConstructorParameters<typeof McpToolAdapter>[0] | undefined;
-    if (record && !newToolRegistry.has(fullName)) newToolRegistry.register(new McpToolAdapter(record));
+    if (record && !runtimeRegistry.has(fullName)) runtimeRegistry.register(new McpToolAdapter(record));
   }
 }
 
@@ -67,7 +67,7 @@ function syncMcpTools(serverIds?: string[]): void {
   if (!getAllToolNames || !getToolRecord) return;
   for (const fullName of getAllToolNames.call(mcpService, serverIds)) {
     const record = getToolRecord.call(mcpService, fullName) as ConstructorParameters<typeof McpToolAdapter>[0] | undefined;
-    if (record && !newToolRegistry.has(fullName)) newToolRegistry.register(new McpToolAdapter(record));
+    if (record && !runtimeRegistry.has(fullName)) runtimeRegistry.register(new McpToolAdapter(record));
   }
 }
 
@@ -121,7 +121,7 @@ export async function executeToolDetailed(
   else syncLoadedMcpTools();
 
   // 1. 优先从新工具系统执行内置工具
-  if (newToolRegistry.has(name)) {
+  if (runtimeRegistry.has(name)) {
     const context = {
       conversationId,
       approvalGranted: options.approvalGranted === undefined
@@ -167,10 +167,10 @@ export async function executeTool(
  */
 export function getToolCallSummary(toolCall: ToolCall): string | undefined {
   const toolName = toolCall.function.name;
-  if (!newToolRegistry.has(toolName)) return undefined;
+  if (!runtimeRegistry.has(toolName)) return undefined;
 
   try {
-    return newToolRegistry.getCallSummary(toolName, JSON.parse(toolCall.function.arguments));
+    return runtimeRegistry.getCallSummary(toolName, JSON.parse(toolCall.function.arguments));
   } catch {
     return undefined;
   }
@@ -182,15 +182,15 @@ export function getToolCallSummary(toolCall: ToolCall): string | undefined {
  */
 export function getToolResultSummary(toolCall: ToolCall, result: unknown): string | undefined {
   const toolName = toolCall.function.name;
-  if (!newToolRegistry.has(toolName)) return undefined;
-  return newToolRegistry.getResultSummary(toolName, result);
+  if (!runtimeRegistry.has(toolName)) return undefined;
+  return runtimeRegistry.getResultSummary(toolName, result);
 }
 
 /**
  * 安全获取工具定义，工具未注册或未启用时返回 undefined
  */
 function getToolDefinitionSafe(name: string): ToolDefinition | undefined {
-  const tool = newToolRegistry.get(name);
+  const tool = runtimeRegistry.get(name);
   if (!tool || !tool.isEnabled()) return undefined;
   return tool.getDefinition();
 }

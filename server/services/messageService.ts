@@ -8,11 +8,12 @@ import * as agentService from './api/agentService.js';
 import { routingService } from './api/routingService.js';
 import { streamChat } from './aiProxy.js';
 import { reactChat } from './reactLoopCore.js';
-import { getAllToolDefinitions } from './toolRegistry.js';
+import { getAllToolDefinitions } from './toolOrchestration.js';
 import type { HttpError, HistoryMessage } from '../types.js';
 import type { Sink } from './sink.js';
 import { parseFile, isSupportedFile } from './utils/fileParseService.js';
 import { streamToolApproval } from './api/toolApprovalService.js';
+import { AI_REQUEST_TIMEOUT_MS } from './adapters/apiAdapter.js';
 
 /**
  * 将用户记忆作为动态上下文插入当前用户消息之前，避免修改静态 system prompt。
@@ -229,7 +230,7 @@ export async function sendMessage(conversationId: string, content: string, sink:
       const agentInfo = agentService.findById(resolvedAgent);
       if (agentInfo?.type === 'orchestrator') {
         const controller = new AbortController();
-        orchestratorTimer = setTimeout(() => controller.abort(), 120_000);
+        orchestratorTimer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
         orchestratorSignal = controller.signal;
       }
     }

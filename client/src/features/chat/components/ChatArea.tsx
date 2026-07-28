@@ -5,6 +5,7 @@ import InputBox from './InputBox';
 import AgentBar from './AgentBar';
 import ChatHeader from './ChatHeader';
 import DecisionTrace from './DecisionTrace';
+import AgentRunStatus, { type AgentRunStatusData } from './AgentRunStatus';
 import IngestionTaskCards from './IngestionTaskCards';
 import {
   getMessages,
@@ -68,6 +69,7 @@ export default function ChatArea({
   const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
   const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
   const [decisionTrace, setDecisionTrace] = useState<DecisionTraceItem[]>([]);
+  const [agentRunStatus, setAgentRunStatus] = useState<AgentRunStatusData | null>(null);
   const reactEventStateRef = useRef(createInitialReactEventState());
   const [showReactSteps, setShowReactSteps] = useState(true);
   const { send, abort } = useSSE();
@@ -88,6 +90,7 @@ export default function ChatArea({
     reactEventStateRef.current = createInitialReactEventState();
     setReactSteps([]);
     setDecisionTrace([]);
+    setAgentRunStatus(null);
   }, []);
 
   const handleToolApproval = useCallback((approvalId: string, action: 'approve' | 'deny') => {
@@ -111,6 +114,7 @@ export default function ChatArea({
     send(activeConversation, '', {
       onRunStarted: (data) => dispatchReactEvent({ type: 'run_started', ...data }),
       onRoundStarted: (data) => dispatchReactEvent({ type: 'round_started', ...data }),
+      onAgentStatus: (data) => setAgentRunStatus(data as unknown as AgentRunStatusData),
       onChunk: appendText,
       onAnswerReady: (content) => { if (content) appendText(content); },
       onReasoning: (content) => updateApprovalMessage((message) => ({
@@ -157,7 +161,10 @@ export default function ChatArea({
         }],
       })),
       onRunCompleted: (data) => dispatchReactEvent({ type: 'run_completed', ...data }),
-      onRunCancelled: (data) => dispatchReactEvent({ type: 'run_cancelled', ...data }),
+      onRunCancelled: (data) => {
+        dispatchReactEvent({ type: 'run_cancelled', ...data });
+        setAgentRunStatus((previous) => previous ? { ...previous, phase: 'cancelled' } : previous);
+      },
       onLoopDetected: (data) => dispatchReactEvent({ type: 'loop_detected', ...data }),
       onDone: () => { setSending(false); setStreamingId(null); },
       onError: (error) => {
@@ -336,6 +343,7 @@ export default function ChatArea({
           onRoundStarted: (data) => {
             dispatchReactEvent({ type: 'round_started', ...data });
           },
+          onAgentStatus: (data) => setAgentRunStatus(data as unknown as AgentRunStatusData),
           onLoopDetected: (data) => {
             dispatchReactEvent({ type: 'loop_detected', ...data });
           },
@@ -344,6 +352,7 @@ export default function ChatArea({
           },
           onRunCancelled: (data) => {
             dispatchReactEvent({ type: 'run_cancelled', ...data });
+            setAgentRunStatus((previous) => previous ? { ...previous, phase: 'cancelled' } : previous);
           },
           onTokenUsage: (data) => {
             const estimatedTokens = Number(data.estimatedTokens);
@@ -678,9 +687,10 @@ export default function ChatArea({
         onRunStarted: (data) => {
           dispatchReactEvent({ type: 'run_started', ...data });
         },
-        onRoundStarted: (data) => {
-          dispatchReactEvent({ type: 'round_started', ...data });
-        },
+          onRoundStarted: (data) => {
+            dispatchReactEvent({ type: 'round_started', ...data });
+          },
+          onAgentStatus: (data) => setAgentRunStatus(data as unknown as AgentRunStatusData),
         onLoopDetected: (data) => {
           dispatchReactEvent({ type: 'loop_detected', ...data });
         },
@@ -689,6 +699,7 @@ export default function ChatArea({
         },
         onRunCancelled: (data) => {
           dispatchReactEvent({ type: 'run_cancelled', ...data });
+          setAgentRunStatus((previous) => previous ? { ...previous, phase: 'cancelled' } : previous);
         },
         onTokenUsage: (data) => {
           const estimatedTokens = Number(data.estimatedTokens);
@@ -834,9 +845,10 @@ export default function ChatArea({
         onEndpointChange={onEndpointChange}
       />
       <div className="chat-area">
-        {showReactSteps && decisionTrace.length > 0 && (
-          <div className="decision-trace-sticky">
-            <DecisionTrace items={decisionTrace} />
+        {showReactSteps && (decisionTrace.length > 0 || agentRunStatus) && (
+          <div className="chat-top-status">
+            {agentRunStatus && <AgentRunStatus status={agentRunStatus} />}
+            {decisionTrace.length > 0 && <DecisionTrace items={decisionTrace} />}
           </div>
         )}
         {loading ? (

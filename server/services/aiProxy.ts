@@ -1,7 +1,7 @@
-import { getAllToolDefinitions } from './toolRegistry.js';
+import { getAllToolDefinitions } from './toolOrchestration.js';
 import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
 import type { ApiAdapter} from './adapters/apiAdapter.js';
-import { getAdapter } from './adapters/apiAdapter.js';
+import { AI_REQUEST_TIMEOUT_MS, getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
@@ -65,6 +65,7 @@ export async function streamFromAPI(url: string, headers: Record<string, string>
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
   });
 
   if (!response.ok) {

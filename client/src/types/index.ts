@@ -251,6 +251,7 @@ export interface SendCallbacks {
   onAnswerReady?: (content: string) => void;
   onRunStarted?: (data: Record<string, unknown>) => void;
   onRoundStarted?: (data: Record<string, unknown>) => void;
+  onAgentStatus?: (data: Record<string, unknown>) => void;
   onLoopDetected?: (data: Record<string, unknown>) => void;
   onRunCompleted?: (data: Record<string, unknown>) => void;
   onRunCancelled?: (data: Record<string, unknown>) => void;
@@ -403,6 +404,7 @@ export interface ElectronAPI {
   listGraphCandidates: (status?: string) => Promise<unknown[]>;
   acceptGraphCandidate: (id: string) => Promise<unknown>;
   rejectGraphCandidate: (id: string, data?: { note?: string }) => Promise<{ success: boolean }>;
+
 }
 
 export interface UploadJob {

@@ -41,7 +41,7 @@ vi.mock('../reactLoopCore.js', () => ({
   reactChat: vi.fn(),
 }));
 
-vi.mock('../toolRegistry.js', () => ({
+vi.mock('../toolOrchestration.js', () => ({
   getAllToolDefinitions: vi.fn().mockResolvedValue([]),
 }));
 

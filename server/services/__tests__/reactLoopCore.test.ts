@@ -21,7 +21,7 @@ vi.mock('../toolRoundEngine.js', () => ({
   },
 }));
 
-vi.mock('../toolRegistry.js', () => ({
+vi.mock('../toolOrchestration.js', () => ({
   getAllToolDefinitions: vi.fn().mockResolvedValue([]),
   getToolCallSummary: vi.fn().mockReturnValue(undefined),
 }));
@@ -108,7 +108,7 @@ describe('reactChat', () => {
     };
     const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
     const contextMessages: any[] = [];
-    const { getToolCallSummary } = await import('../toolRegistry.js');
+    const { getToolCallSummary } = await import('../toolOrchestration.js');
     vi.mocked(getToolCallSummary).mockReturnValue('正在执行工具');
 
     vi.mocked(toolLoopEngine.executeRound)

@@ -85,7 +85,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
 
   it('should route to streamChat when agent has no tools', async () => {
     // Mock toolRegistry to return empty tools
-    vi.doMock('../toolRegistry.js', () => ({
+    vi.doMock('../toolOrchestration.js', () => ({
       getAllToolDefinitions: vi.fn().mockResolvedValue([]),
       executeTool: vi.fn(),
     }));
@@ -161,7 +161,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
   it('should route to reactChat when agent has tools', async () => {
     const mockToolDef = { type: 'function', function: { name: 'test_tool', description: 'Test', parameters: {} } };
 
-    vi.doMock('../toolRegistry.js', () => ({
+    vi.doMock('../toolOrchestration.js', () => ({
       getAllToolDefinitions: vi.fn().mockResolvedValue([mockToolDef]),
       executeTool: vi.fn(),
     }));
@@ -249,7 +249,7 @@ describe('Tool Routing — messageService reactChat vs streamChat', () => {
   it('should use streamChat when reactMaxIterations is 0', async () => {
     const mockToolDef = { type: 'function', function: { name: 'test_tool', description: 'Test', parameters: {} } };
 
-    vi.doMock('../toolRegistry.js', () => ({
+    vi.doMock('../toolOrchestration.js', () => ({
       getAllToolDefinitions: vi.fn().mockResolvedValue([mockToolDef]),
       executeTool: vi.fn(),
     }));

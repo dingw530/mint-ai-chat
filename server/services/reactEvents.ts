@@ -1,4 +1,5 @@
 import type { Sink } from './sink.js';
+import type { AgentStatusSnapshot } from './agentStatusBar.js';
 
 export type ReactRunState =
   | 'running'
@@ -18,6 +19,7 @@ export interface ReactEventBase {
 export type ReactEventPayload =
   | { type: 'run_started'; state: 'running' }
   | { type: 'round_started'; state: 'awaiting_model'; round: number }
+  | ({ type: 'agent_status' } & AgentStatusSnapshot)
   | { type: 'thought' | 'answer'; content?: string; reasoning?: string }
   | {
       type: 'tool_call_start';
