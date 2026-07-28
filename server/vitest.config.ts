@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     globals: true,
     include: ['**/__tests__/**/*.test.ts'],
+    // Integration suites use SQLite fixtures; concurrent files race on them.
+    fileParallelism: false,
     env: {
       AI_CHAT_LOG_LEVEL: 'debug',
       AI_CHAT_DB_PATH: '/tmp/ai-chat-vitest.db',

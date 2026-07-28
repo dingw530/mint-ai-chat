@@ -1,6 +1,6 @@
 import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
 import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
-import { registerAdapter } from './apiAdapter.js';
+import { AI_REQUEST_TIMEOUT_MS, registerAdapter } from './apiAdapter.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('anthropic-adapter');
@@ -109,7 +109,7 @@ export const anthropicAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...this.getHeaders(apiKey) },
       body: JSON.stringify(this.buildRequest(messages, settings, tools)),
-      signal: options?.signal,
+      signal: options?.signal ?? AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     });
     return response;
   },
@@ -219,7 +219,7 @@ export const anthropicAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
-      signal: options?.signal,
+      signal: options?.signal ?? AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {

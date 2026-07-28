@@ -12,8 +12,32 @@ import { startWikiLifecycleProcessing } from './services/api/wikiLifecycleServic
 
 const app = express();
 
-// CORS 允许前端（localhost:5173）跨域请求
-app.use(cors());
+const defaultCorsOrigins = [
+  'http://localhost:5800',
+  'http://127.0.0.1:5800',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+
+/**
+ * Resolves configured development origins without opening the API to the
+ * entire network. Requests without an Origin are allowed for Electron.
+ * @param origin Browser Origin header, when present
+ * @returns Whether the origin is allowed to receive CORS headers
+ */
+function isAllowedCorsOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;
+  const configuredOrigins = process.env.AI_CHAT_CORS_ORIGINS
+    ?.split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
+  const allowedOrigins = configuredOrigins?.length ? configuredOrigins : defaultCorsOrigins;
+  return allowedOrigins.includes(origin);
+}
+
+app.use(cors({
+  origin: (origin, callback) => callback(null, isAllowedCorsOrigin(origin)),
+}));
 app.use(express.json());
 
 // ── 手动路由（SSE 流式、generateTitle 等复杂端点） ──

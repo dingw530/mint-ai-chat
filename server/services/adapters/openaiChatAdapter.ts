@@ -1,6 +1,6 @@
 import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
 import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
-import { registerAdapter } from './apiAdapter.js';
+import { AI_REQUEST_TIMEOUT_MS, registerAdapter } from './apiAdapter.js';
 
 export const openaiChatAdapter: ApiAdapter = {
   getUrl(baseUrl: string): string {
@@ -50,7 +50,7 @@ export const openaiChatAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...this.getHeaders(apiKey) },
       body: JSON.stringify(this.buildRequest(messages, settings, tools)),
-      signal: options?.signal ?? AbortSignal.timeout(60_000),
+      signal: options?.signal ?? AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     });
     return response;
   },
@@ -114,7 +114,7 @@ export const openaiChatAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
-      signal: options?.signal ?? AbortSignal.timeout(60_000),
+      signal: options?.signal ?? AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
