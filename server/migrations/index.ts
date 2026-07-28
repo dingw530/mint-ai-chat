@@ -364,8 +364,9 @@ const migrations: Migration[] = [
       for (const [name, definition] of columns) {
         try {
           db.exec(`ALTER TABLE memories ADD COLUMN ${name} ${definition}`);
-        } catch (error: any) {
-          if (!String(error?.message || error).includes('duplicate column')) throw error;
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.includes('duplicate column')) throw error;
         }
       }
       db.exec(`
@@ -514,9 +515,9 @@ export function runMigrations(db: Database.Database): void {
       m.up(db);
       db.prepare('INSERT INTO _migrations (id, name) VALUES (?, ?)').run(m.id, m.name);
       console.log(`[db/migration] Applied: #${m.id} ${m.name}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 列已存在等幂等错误可安全忽略；其他错误打印警告但不阻塞后续迁移
-      const msg = err?.message ?? String(err);
+      const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('duplicate column') || msg.includes('already exists')) {
         // SQLite 不同版本的错误信息可能不同，记录已存在则视为已应用
         db.prepare('INSERT OR IGNORE INTO _migrations (id, name) VALUES (?, ?)').run(m.id, m.name);

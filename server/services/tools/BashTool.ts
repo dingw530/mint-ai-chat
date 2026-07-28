@@ -90,22 +90,28 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
         exitCode: 0,
         duration: Date.now() - startTime,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       const duration = Date.now() - startTime;
+      const details = typeof err === 'object' && err !== null ? err as {
+        code?: string | number;
+        stdout?: string;
+        stderr?: string;
+        message?: string;
+      } : {};
 
-      if (err.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+      if (details.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
         return {
-          stdout: err.stdout?.substring(0, 10000) || '',
-          stderr: err.stderr?.substring(0, 5000) || '',
+          stdout: details.stdout?.substring(0, 10000) || '',
+          stderr: details.stderr?.substring(0, 5000) || '',
           exitCode: null,
           duration,
         };
       }
 
       return {
-        stdout: err.stdout || '',
-        stderr: err.stderr || err.message,
-        exitCode: err.code || null,
+        stdout: details.stdout || '',
+        stderr: details.stderr || details.message || String(err),
+        exitCode: typeof details.code === 'number' ? details.code : null,
         duration,
       };
     }

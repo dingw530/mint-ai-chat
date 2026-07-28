@@ -440,7 +440,7 @@ ${newBody}
     mergedPage.tags = mergeLists(
       (existingParsed?.tags as string[] | undefined) ?? [],
       llmParsed?.tags && Array.isArray(llmParsed.tags)
-        ? (llmParsed.tags as unknown as string[])
+      ? llmParsed.tags.filter((tag): tag is string => typeof tag === 'string')
         : (page.tags ?? []),
     );
     console.log(
@@ -499,13 +499,13 @@ export async function compileSource(
   );
 
   // AI 常在 content 字段中输出字面换行符，导致 JSON.parse 失败，先尝试宽松解析
-  const compiled: { pages: CompiledPage[]; claims?: WikiCompiledClaim[]; relationships?: Relationship[]; summary: string } =
-    tryParseLooseJson(aiResult);
-  if (!compiled) {
+  const parsed = tryParseLooseJson(aiResult);
+  if (!parsed) {
     console.error(`[wikiCompiler] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
     console.error(aiResult);
     throw new Error('AI 返回格式异常，完整返回已打印到日志');
   }
+  const compiled: { pages: CompiledPage[]; claims?: WikiCompiledClaim[]; relationships?: Relationship[]; summary: string } = parsed;
 
   if (!compiled.pages || compiled.pages.length === 0) {
     throw new Error('AI 未生成任何 Wiki 页面');

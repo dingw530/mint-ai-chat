@@ -24,9 +24,21 @@ export interface WikiSearchDocument {
   rank: number;
 }
 
+interface WikiSearchDocumentRow {
+  id: string;
+  page_id: string | null;
+  source_path: string;
+  title: string;
+  heading: string;
+  body: string;
+  document_type: WikiSearchDocument['documentType'];
+  content_hash: string;
+  rank: number | null;
+}
+
 const now = (): string => new Date().toISOString();
 
-function mapDocument(row: any): WikiSearchDocument {
+function mapDocument(row: WikiSearchDocumentRow): WikiSearchDocument {
   return {
     id: row.id,
     pageId: row.page_id ?? null,
@@ -90,7 +102,7 @@ export function searchDocuments(query: string, limit: number): WikiSearchDocumen
     WHERE wiki_search_documents_fts MATCH ?
     ORDER BY rank ASC
     LIMIT ?
-  `).all(match, Math.max(1, Math.min(limit, 100))) as any[];
+  `).all(match, Math.max(1, Math.min(limit, 100))) as WikiSearchDocumentRow[];
   return rows.map(mapDocument);
 }
 

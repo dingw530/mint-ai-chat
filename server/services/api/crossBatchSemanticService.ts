@@ -6,6 +6,7 @@ import { getAdapter } from '../adapters/apiAdapter.js';
 import { normalizeGraphRelation } from '../../utils/graphOntology.js';
 import type { AiSettings } from '../../types.js';
 import type { CompiledPage } from '../utils/wikiShared.js';
+import { isRecord } from '../../utils/typeGuards.js';
 
 const ALLOWED = ['基于', '导致', '应对', '应用于', '约束', '案例', '区别于'];
 const GENERIC = new Set(['ai', '产品', '工程', '实践']);
@@ -61,9 +62,11 @@ export async function generateCrossBatchCandidates(
     settings.apiKey,
     { maxTokens: 2048, temperature: 0.1 },
   );
-  let judged: any[] = [];
+  let judged: Record<string, unknown>[] = [];
   try {
-    judged = JSON.parse(raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1));
+    const parsed: unknown = JSON.parse(raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1));
+    if (!Array.isArray(parsed)) return;
+    judged = parsed.filter(isRecord);
   } catch {
     return;
   }

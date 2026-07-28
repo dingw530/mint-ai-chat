@@ -190,7 +190,7 @@ export class ToolExecutor {
 
         return {
           success: true,
-          data: result,
+          data: result as T,
           duration: Date.now() - startTime,
           retries: actualRetries,
         };

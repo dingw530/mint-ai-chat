@@ -10,6 +10,7 @@ import * as mcpServerRepo from '../../repositories/mcpServerRepository.js';
 import { decrypt } from '../utils/encryption.js';
 import type { ToolDefinition } from '../../types.js';
 import { log } from '../utils/logger.js';
+import { getErrorMessage } from '../../utils/typeGuards.js';
 
 /**
  * Formats an error's underlying cause without exposing sensitive configuration values.
@@ -75,7 +76,7 @@ function resolveCommand(command: string): string {
       return resolved;
     }
   } catch (err) {
-    log.warn(`resolveCommand: "which" failed: ${(err as Error).message}`);
+    log.warn(`resolveCommand: "which" failed: ${getErrorMessage(err)}`);
   }
 
   log.warn(`resolveCommand: could not resolve "${command}", will try as-is`);
@@ -113,9 +114,13 @@ interface ConnectedServer {
   name: string;
 }
 
+function isChildProcess(value: unknown): value is ChildProcess {
+  return typeof value === 'object' && value !== null && 'pid' in value && 'kill' in value;
+}
+
 class McpService {
   private connections: Map<string, ConnectedServer> = new Map();
-  private toolsCache: Map<string, { name: string; description: string; inputSchema?: any }[]> = new Map();
+  private toolsCache: Map<string, { name: string; description: string; inputSchema?: Record<string, unknown> }[]> = new Map();
   private loadedTools = new Set<string>();
   private initialized = false;
 
@@ -133,9 +138,9 @@ class McpService {
         await this.connectServer(server);
         log.info(`"${server.name}" connected successfully`);
       } catch (err) {
-        const msg = (err as Error).message;
+        const msg = getErrorMessage(err);
         log.error(`Failed to connect "${server.name}": ${msg}`);
-        log.error(`Stack: ${(err as Error).stack}`);
+        log.error(`Stack: ${err instanceof Error ? err.stack : undefined}`);
         mcpServerRepo.update(server.id, {
           status: 'error',
           errorMessage: msg,
@@ -252,11 +257,11 @@ class McpService {
       await client.connect(transport);
       log.info(`[${config.name}] client.connect() succeeded`);
     } catch (err) {
-      const msg = (err as Error).message;
+      const msg = getErrorMessage(err);
       log.error(`[${config.name}] client.connect() FAILED: ${msg}`);
       const cause = formatErrorCause(err);
       if (cause) log.error(`[${config.name}] Cause: ${cause}`);
-      log.error(`[${config.name}] Stack: ${(err as Error).stack}`);
+      log.error(`[${config.name}] Stack: ${err instanceof Error ? err.stack : undefined}`);
 
       // 检查是否是 ENOENT
       if (msg.includes('ENOENT') || msg.includes('spawn')) {
@@ -274,14 +279,15 @@ class McpService {
             test.kill();
           });
         } catch (e) {
-          log.error(`[${config.name}] Test spawn threw: ${(e as Error).message}`);
+          log.error(`[${config.name}] Test spawn threw: ${getErrorMessage(e)}`);
         }
       }
 
       throw err;
     }
 
-    const childProc = (transport as any)._process as ChildProcess | undefined;
+    const childProcValue = Reflect.get(transport, '_process');
+    const childProc = isChildProcess(childProcValue) ? childProcValue : undefined;
     if (!childProc) {
       log.error(`[${config.name}] No child process after connect!`);
       throw new Error('MCP server process not available after connection');
@@ -338,13 +344,13 @@ class McpService {
     try {
       const result = await connectedServer.client.listTools();
       log.info(`[${config.name}] listTools returned ${result.tools.length} tool(s)`);
-      this.toolsCache.set(config.name, result.tools.map((t: any) => ({
+      this.toolsCache.set(config.name, result.tools.map((t) => ({
         name: t.name,
         description: t.description || '',
-        inputSchema: t.inputSchema,
+        inputSchema: t.inputSchema as Record<string, unknown> | undefined,
       })));
     } catch (err) {
-      log.error(`[${config.name}] listTools failed: ${(err as Error).message}`);
+      log.error(`[${config.name}] listTools failed: ${getErrorMessage(err)}`);
       this.toolsCache.set(config.name, []);
     }
   }

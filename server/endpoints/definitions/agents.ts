@@ -56,7 +56,7 @@ export const agentsEndpoints: EndpointDescriptor[] = [
     service: (id: string, data: Record<string, unknown>) => {
       const existing = agentService.findById(id);
       if (!existing) throw httpError(404, 'Agent not found');
-      const fields: Record<string, any> = {};
+      const fields: Record<string, unknown> = {};
       for (const key of ['name', 'description', 'type', 'systemPrompt', 'mcpServerIds', 'available', 'triggerKeywords']) {
         if (data[key] !== undefined) fields[key] = data[key];
       }

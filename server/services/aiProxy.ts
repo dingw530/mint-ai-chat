@@ -6,6 +6,7 @@ import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
 import { estimateMessagesTokens } from './utils/tokenEstimator.js';
+import { getErrorMessage } from '../utils/typeGuards.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -47,9 +48,9 @@ export async function readStream(
 ): Promise<StreamResult> {
   if (!response.ok) {
     const errorText = await response.text();
-    const err: any = new Error(`AI API error (${response.status}): ${errorText}`);
-    err.status = response.status;
-    throw err;
+    throw Object.assign(new Error(`AI API error (${response.status}): ${errorText}`), {
+      status: response.status,
+    });
   }
 
   const result = await parseSSEStream(response, adapter, sink, options);
@@ -114,8 +115,7 @@ export async function streamChat(
       }
       return result;
     } catch (err) {
-      const error = err as any;
-      sink.write(JSON.stringify({ error: error.message }));
+      sink.write(JSON.stringify({ error: getErrorMessage(err) }));
       sink.end();
       return { content: '', reasoning: '', toolCalls: null };
     }
@@ -128,8 +128,7 @@ export async function streamChat(
       { messages, settings, tools, adapter, label: 'streamChat-tool1' },
     );
   } catch (err) {
-    const error = err as any;
-    sink.write(JSON.stringify({ error: error.message }));
+    sink.write(JSON.stringify({ error: getErrorMessage(err) }));
     sink.end();
     return { content: '', reasoning: '', toolCalls: null };
   }
@@ -166,8 +165,7 @@ export async function streamChat(
       sink,
     );
   } catch (err) {
-    const error = err as any;
-    sink.write(JSON.stringify({ error: error.message }));
+    sink.write(JSON.stringify({ error: getErrorMessage(err) }));
     sink.end();
     return { content: '', reasoning: '', toolCalls: null };
   }

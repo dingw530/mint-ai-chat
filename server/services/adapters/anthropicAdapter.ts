@@ -2,6 +2,7 @@ import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.
 import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
 import { AI_REQUEST_TIMEOUT_MS, registerAdapter } from './apiAdapter.js';
 import { createLogger } from '../../utils/logger.js';
+import { isRecord, readNumber, readString } from '../../utils/typeGuards.js';
 
 const log = createLogger('anthropic-adapter');
 
@@ -39,7 +40,7 @@ export const anthropicAdapter: ApiAdapter = {
       }
 
       if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
-        const content: any[] = [];
+        const content: Record<string, unknown>[] = [];
         if (m.content) {
           content.push({ type: 'text', text: m.content });
         }
@@ -59,7 +60,7 @@ export const anthropicAdapter: ApiAdapter = {
       }
 
       if (m.role === 'tool') {
-        let toolContent: any;
+        let toolContent: unknown;
         try {
           toolContent = JSON.parse(m.content);
         } catch {
@@ -117,47 +118,50 @@ export const anthropicAdapter: ApiAdapter = {
   parseChunk(data: string): ParsedChunk | null {
     if (data === '[DONE]') return { isFinished: true };
 
-    let parsed: any;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(data);
     } catch {
       return null;
     }
 
-    const type = parsed.type;
+    if (!isRecord(parsed)) return null;
+    const type = readString(parsed, 'type');
     if (!type) return null;
 
     switch (type) {
-      case 'message_start':
-        log.debug('parseChunk:message_start', { model: parsed.message?.model, stopReason: parsed.message?.stop_reason });
+      case 'message_start': {
+        const message = isRecord(parsed.message) ? parsed.message : {};
+        log.debug('parseChunk:message_start', { model: readString(message, 'model'), stopReason: readString(message, 'stop_reason') });
         return null;
+      }
 
       case 'content_block_start': {
-        const block = parsed.content_block;
-        if (block?.type === 'tool_use') {
-          const index = parsed.index ?? 0;
+        const block = isRecord(parsed.content_block) ? parsed.content_block : {};
+        if (readString(block, 'type') === 'tool_use') {
+          const index = readNumber(parsed, 'index') ?? 0;
           const tc: ToolCallDelta = {
             index,
-            id: block.id,
+            id: readString(block, 'id'),
             type: 'function',
-            function: { name: block.name, arguments: '' },
+            function: { name: readString(block, 'name'), arguments: '' },
           };
-          log.debug('parseChunk:tool_use_start', { name: block.name, id: block.id });
+          log.debug('parseChunk:tool_use_start', { name: readString(block, 'name'), id: readString(block, 'id') });
           return { toolCallDelta: tc };
         }
         return null;
       }
 
       case 'content_block_delta': {
-        const delta = parsed.delta;
-        if (delta?.type === 'text_delta') {
-          return { content: delta.text };
+        const delta = isRecord(parsed.delta) ? parsed.delta : {};
+        if (readString(delta, 'type') === 'text_delta') {
+          return { content: readString(delta, 'text') };
         }
-        if (delta?.type === 'input_json_delta') {
-          const index = parsed.index ?? 0;
+        if (readString(delta, 'type') === 'input_json_delta') {
+          const index = readNumber(parsed, 'index') ?? 0;
           const tc: ToolCallDelta = {
             index,
-            function: { arguments: delta.partial_json || '' },
+            function: { arguments: readString(delta, 'partial_json') || '' },
           };
           return { toolCallDelta: tc };
         }
@@ -167,9 +171,11 @@ export const anthropicAdapter: ApiAdapter = {
       case 'content_block_stop':
         return null;
 
-      case 'message_delta':
-        log.debug('parseChunk:message_delta', { stopReason: parsed.delta?.stop_reason, usage: parsed.usage });
+      case 'message_delta': {
+        const delta = isRecord(parsed.delta) ? parsed.delta : {};
+        log.debug('parseChunk:message_delta', { stopReason: readString(delta, 'stop_reason'), usage: parsed.usage });
         return null;
+      }
 
       case 'message_stop':
         log.debug('parseChunk:message_stop');
@@ -227,8 +233,10 @@ export const anthropicAdapter: ApiAdapter = {
       throw new Error(`AI API error (${response.status}): ${errText.substring(0, 200)}`);
     }
 
-    const data = (await response.json()) as any;
-    return data.content?.[0]?.text || '';
+    const data: unknown = await response.json();
+    if (!isRecord(data) || !Array.isArray(data.content)) return '';
+    const content = data.content[0];
+    return isRecord(content) ? readString(content, 'text') || '' : '';
   },
 };
 

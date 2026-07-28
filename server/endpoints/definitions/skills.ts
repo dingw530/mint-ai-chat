@@ -9,7 +9,7 @@ export const skillsEndpoints: EndpointDescriptor[] = [
     preloadMethod: 'getSkills',
     service: async () => {
       const skills = await listSkills();
-      return { skills: skills.map((s: any) => ({ name: s.name, description: s.description })) };
+      return { skills: skills.map((s) => ({ name: s.name, description: s.description })) };
     },
     result: 'direct',
     async: true,

@@ -1,4 +1,4 @@
-import { generateImage } from '../../services/api/imageService.js';
+import { generateImage, type GenerateImageParams } from '../../services/api/imageService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 
@@ -10,7 +10,7 @@ async function generateImageEndpoint(data: Record<string, unknown>) {
   if (!prompt || !(prompt as string).trim()) {
     throw httpError(400, 'prompt 不能为空');
   }
-  return generateImage({ endpointId, prompt, size, quality, output_format } as any);
+  return generateImage({ endpointId, prompt, size, quality, output_format } as GenerateImageParams);
 }
 
 export const imagesEndpoints: EndpointDescriptor[] = [

@@ -6,22 +6,21 @@ const log = createLogger('ipc-handlers');
 
 // ── 服务引用解析 ──
 
-interface ServiceMap {
-  [key: string]: any;
-}
+type DynamicService = (...args: never[]) => unknown;
+type ServiceMap = Record<string, unknown>;
 
-function resolveService(ref: ServiceRef, services: ServiceMap): ((...args: any[]) => any) | null {
+function resolveService(ref: ServiceRef, services: ServiceMap): DynamicService | null {
   const module = services[ref.module];
-  if (!module) return null;
-  const method = module[ref.method];
+  if (!module || typeof module !== 'object') return null;
+  const method = Reflect.get(module, ref.method);
   if (typeof method !== 'function') return null;
-  return method.bind(module);
+  return method.bind(module) as DynamicService;
 }
 
 // ── IPC handle 接口（兼容 Electron 的 ipcMain） ──
 
 interface IpcMain {
-  handle(channel: string, handler: (event: any, ...args: any[]) => any): void;
+  handle(channel: string, handler: (event: unknown, ...args: unknown[]) => unknown): void;
 }
 
 // ── 注册 IPC handlers ──
@@ -36,7 +35,7 @@ export function registerIpcHandlers(
     const channel = desc.ipcChannel || desc.id;
 
     // 优先使用 ipcServiceRef（从 services 对象解析），否则直接用 desc.service
-    let serviceFn: ((...args: any[]) => any) | null = null;
+    let serviceFn: DynamicService | null = null;
     if (desc.ipcServiceRef) {
       serviceFn = resolveService(desc.ipcServiceRef, services);
       if (!serviceFn) {
@@ -49,10 +48,10 @@ export function registerIpcHandlers(
 
     const isAsync = desc.async || false;
 
-    ipcMain.handle(channel, async (_event: any, ...ipcArgs: any[]) => {
+    ipcMain.handle(channel, async (_event: unknown, ...ipcArgs: unknown[]) => {
       const result = isAsync
-        ? await serviceFn!(...ipcArgs)
-        : serviceFn!(...ipcArgs);
+        ? await Reflect.apply(serviceFn!, undefined, ipcArgs)
+        : Reflect.apply(serviceFn!, undefined, ipcArgs);
 
       return wrapResult(result, desc.result ?? 'direct');
     });

@@ -1,6 +1,7 @@
 import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
 import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
 import { AI_REQUEST_TIMEOUT_MS, registerAdapter } from './apiAdapter.js';
+import { isRecord, readNumber, readString } from '../../utils/typeGuards.js';
 
 export const openaiResponsesAdapter: ApiAdapter = {
   getUrl(baseUrl: string): string {
@@ -56,23 +57,24 @@ export const openaiResponsesAdapter: ApiAdapter = {
   parseChunk(data: string): ParsedChunk | null {
     if (data === '[DONE]') return { isFinished: true };
 
-    let parsed: any;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(data);
     } catch {
       return null;
     }
 
-    const type = parsed.type || '';
+    if (!isRecord(parsed)) return null;
+    const type = readString(parsed, 'type') || '';
 
     switch (type) {
       case 'response.output_text.delta':
-        return { content: parsed.delta || '' };
+        return { content: readString(parsed, 'delta') || '' };
 
       case 'response.function_call_arguments.delta': {
         const tc: ToolCallDelta = {
-          index: parsed.output_index ?? 0,
-          function: { arguments: parsed.delta || '' },
+          index: readNumber(parsed, 'output_index') ?? 0,
+          function: { arguments: readString(parsed, 'delta') || '' },
         };
         return { toolCallDelta: tc };
       }
@@ -120,8 +122,12 @@ export const openaiResponsesAdapter: ApiAdapter = {
       throw new Error(`AI API error (${response.status}): ${errText.substring(0, 200)}`);
     }
 
-    const data = (await response.json()) as any;
-    return data.output?.[0]?.content?.[0]?.text || '';
+    const data: unknown = await response.json();
+    if (!isRecord(data) || !Array.isArray(data.output)) return '';
+    const output = data.output[0];
+    if (!isRecord(output) || !Array.isArray(output.content)) return '';
+    const content = output.content[0];
+    return isRecord(content) ? readString(content, 'text') || '' : '';
   },
 };
 

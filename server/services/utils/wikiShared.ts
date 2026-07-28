@@ -100,6 +100,21 @@ export interface ParsedWikiPage {
   body: string;
 }
 
+export interface LooseWikiPage {
+  filename: string;
+  title: string;
+  tags: string[];
+  created: string;
+  source: string;
+  content: string;
+}
+
+export interface LooseWikiParseResult {
+  pages: LooseWikiPage[];
+  relationships: Relationship[];
+  summary: string;
+}
+
 // ── Prompt ──
 
 export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM Wiki 三层架构（Schema → Wiki → Sources）。
@@ -215,7 +230,7 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
  *  1. 先尝试标准 parse / 提取 {...}
  *  2. 若仍失败，用正则逐个提取 page 对象中的 filename/title/tags/content
  *  3. 对 content 字段，通过引号平衡算法安全截取原始内容并手动转义 */
-export function tryParseLooseJson(text: string): any {
+export function tryParseLooseJson(text: string): LooseWikiParseResult | null {
   // 1. standard parse
   try { return JSON.parse(text); } catch { /* empty */ }
 
@@ -227,7 +242,7 @@ export function tryParseLooseJson(text: string): any {
   }
 
   // 3. field-by-field extraction when content has unescaped quotes/newlines
-  const pages: any[] = [];
+  const pages: LooseWikiPage[] = [];
   const pageRe = /\{\s*"filename"\s*:\s*"([^"]+)"\s*,\s*"title"\s*:\s*"([^"]+)"\s*,\s*"tags"\s*:\s*(\[[^\]]+\])\s*,/g;
   let m: RegExpExecArray | null;
   while ((m = pageRe.exec(text)) !== null) {
@@ -275,7 +290,7 @@ export function tryParseLooseJson(text: string): any {
   }
 
   if (pages.length > 0) {
-    let relationships: any[] = [];
+    let relationships: Relationship[] = [];
     const relMatch = text.match(/"relationships"s*:s*([[sS]*?])s*,s*"summary"/);
     if (relMatch) {
       try { relationships = JSON.parse(relMatch[1]); } catch { /* skip */ }

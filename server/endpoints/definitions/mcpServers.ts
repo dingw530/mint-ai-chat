@@ -41,7 +41,7 @@ async function createMcpServer(data: Record<string, unknown>) {
 async function updateMcpServer(id: string, data: Record<string, unknown>) {
   const existing = mcpServerRepo.findById(id);
   if (!existing) throw httpError(404, 'MCP Server not found');
-  const fields: Record<string, any> = {};
+  const fields: Record<string, unknown> = {};
   for (const key of ['name', 'command', 'args', 'env', 'url', 'headers']) {
     if (data[key] !== undefined) fields[key] = data[key];
   }

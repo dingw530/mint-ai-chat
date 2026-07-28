@@ -17,9 +17,10 @@ function createHandler(desc: EndpointDescriptor): RequestHandler {
     }
 
     // 3. 调用服务
+    const invocationArgs = [...serviceArgs, ...(desc.stream ? [req, res] : [])];
     const result = desc.async
-      ? await desc.service(...serviceArgs, ...(desc.stream ? [req, res] : []))
-      : desc.service(...serviceArgs, ...(desc.stream ? [req, res] : []));
+      ? await Reflect.apply(desc.service, undefined, invocationArgs)
+      : Reflect.apply(desc.service, undefined, invocationArgs);
 
     if (desc.stream) return;
 

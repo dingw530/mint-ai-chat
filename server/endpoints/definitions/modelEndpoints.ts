@@ -1,6 +1,25 @@
 import * as endpointService from '../../services/api/endpointService.js';
 import * as settingsRepo from '../../repositories/settingsRepository.js';
 import type { EndpointDescriptor } from '../types.js';
+import type { EndpointInput } from '../../types.js';
+import { httpError } from '../helpers.js';
+
+function readEndpointCategory(value: unknown): 'text' | 'image' | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'text' || value === 'image') return value;
+  throw httpError(400, '分类值无效，仅支持 text 或 image');
+}
+
+function toEndpointInput(data: Record<string, unknown>): EndpointInput {
+  return {
+    name: typeof data.name === 'string' ? data.name : '',
+    apiUrl: typeof data.apiUrl === 'string' ? data.apiUrl : '',
+    apiKey: typeof data.apiKey === 'string' ? data.apiKey : undefined,
+    modelId: typeof data.modelId === 'string' ? data.modelId : '',
+    apiType: typeof data.apiType === 'string' ? data.apiType : undefined,
+    category: readEndpointCategory(data.category),
+  };
+}
 
 export const modelEndpointsEndpoints: EndpointDescriptor[] = [
   {
@@ -28,7 +47,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
     path: '/',
     preloadMethod: 'createEndpoint',
     service: (data: Record<string, unknown>) => {
-      const endpoint = endpointService.create(data as any);
+      const endpoint = endpointService.create(toEndpointInput(data));
       return { endpoint };
     },
     args: [{ from: 'body' }],
@@ -40,7 +59,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
     path: '/:id',
     preloadMethod: 'updateEndpoint',
     service: (id: string, data: Record<string, unknown>) => {
-      const endpoint = endpointService.updateEndpoint(id, data as any);
+      const endpoint = endpointService.updateEndpoint(id, toEndpointInput(data));
       return { endpoint };
     },
     args: [
