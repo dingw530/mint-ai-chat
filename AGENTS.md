@@ -136,6 +136,11 @@ docs/exec-plans/README.md       执行计划索引
 - **MUST NOT**: 禁止硬编码
 - **PREFER**: 纯函数优先，便于单元测试覆盖
 - **PREFER**: CSS 设计系统 tokens（custom properties）而非内联样式
+- **MUST** 封装同作用域 ≥3 个 let 为状态对象 + 工厂函数，外传前做防御性副本
+- **MUST NOT** 函数超过 120 行；循环体 ≥30 行、分支 ≥20行必须提取为命名函数
+- **MUST NOT** 生产代码使用 as any / as unknown as T / as T 绕过类型系统
+
+
 
 # Commit Convention
 
@@ -254,7 +259,7 @@ docs/
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **mint-ai-chat** (5029 symbols, 9200 relationships, 262 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **mint-ai-chat** (5901 symbols, 10752 relationships, 276 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

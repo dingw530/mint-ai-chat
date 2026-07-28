@@ -36,3 +36,4 @@
 | [工具运行时安全与 MCP 主动发现](<../changes/2026-07-24-tool-runtime-security-discovery/design-doc.md>) | 2026-07-24 | 已完成 |
 | [Harness 反馈回路](<../changes/2026-07-24-harness-feedback-loop/design-doc.md>) | 2026-07-24 | 已完成 |
 | [Wiki 知识生命周期](<../changes/2026-07-24-knowledge-lifecycle/design-doc.md>) | 2026-07-24 | 已完成 |
+| [Agent 状态栏](<../changes/2026-07-27-agent-status-bar/design-doc.md>) | 2026-07-27 | 已完成 |
