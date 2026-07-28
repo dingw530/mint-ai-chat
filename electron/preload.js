@@ -110,4 +110,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listGraphCandidates: (status) => ipcRenderer.invoke('graph:listCandidates', status),
   acceptGraphCandidate: (id) => ipcRenderer.invoke('graph:acceptCandidate', id),
   rejectGraphCandidate: (id, data) => ipcRenderer.invoke('graph:rejectCandidate', id, data),
+
 });
