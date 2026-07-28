@@ -7,7 +7,7 @@ import DecisionTrace from './DecisionTrace';
 import AgentRunStatus, { type AgentRunStatusData } from './AgentRunStatus';
 import IngestionTaskCards from './IngestionTaskCards';
 import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
-import type { Agent, Conversation, DecisionTraceItem, EndpointOutput, Message, ReActStep } from '@/types';
+import type { Agent, DecisionTraceItem, EndpointOutput, Message, ReActStep } from '@/types';
 
 function LoadingSpinner() {
   return <div className="loading-spinner"><span /><span /><span /></div>;

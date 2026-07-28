@@ -59,7 +59,7 @@ export default function ChatArea({
     resetReactEvents,
   } = conversationData;
 
-  const actions = useChatRunActions({
+  const runActions = useChatRunActions({
     activeConversation,
     conversations,
     messages,
@@ -77,6 +77,7 @@ export default function ChatArea({
     send,
     abort,
   });
+  const { handleSend } = runActions;
 
   useEffect(() => {
     if (previousConversationRef.current && previousConversationRef.current !== activeConversation) abort();
@@ -85,9 +86,9 @@ export default function ChatArea({
 
   useEffect(() => {
     if (!initialMessage || sending) return;
-    actions.handleSend(initialMessage);
+    handleSend(initialMessage);
     onInitialMessageSent?.();
-  }, [actions.handleSend, initialMessage, onInitialMessageSent, sending]);
+  }, [handleSend, initialMessage, onInitialMessageSent, sending]);
 
   const currentConversation = activeConversation
     ? conversations.find((conversation) => conversation.id === activeConversation)
@@ -124,13 +125,13 @@ export default function ChatArea({
       lockedAgent={lockedAgent}
       routingMode={routingMode}
       onEndpointChange={onEndpointChange}
-      onRegenerate={actions.handleRegenerate}
+      onRegenerate={runActions.handleRegenerate}
       onLinkClick={onLinkClick}
-      onToolApproval={actions.handleToolApproval}
+      onToolApproval={runActions.handleToolApproval}
       onSelectAgent={agentActions.handleSelectAgent}
       onUnlock={agentActions.handleUnlock}
-      onStop={actions.handleStop}
-      onSend={actions.handleSend}
+      onStop={runActions.handleStop}
+      onSend={handleSend}
     />
   );
 }
