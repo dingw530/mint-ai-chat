@@ -9,12 +9,11 @@ function ChatIcon() {
   );
 }
 
-function ImageIcon() {
+function AssistantIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <path d="m21 15-5-5L5 21" />
+      <path d="M12 3a4 4 0 0 0-4 4v1H6a3 3 0 0 0-3 3v5a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-5a3 3 0 0 0-3-3h-2V7a4 4 0 0 0-4-4Z" />
+      <path d="M8 13h.01M16 13h.01M9 16c1.7 1 4.3 1 6 0" />
     </svg>
   );
 }
@@ -37,6 +36,7 @@ function SettingsIcon() {
     </svg>
   );
 }
+
 
 interface SidebarHeaderProps {
   onOpenSettings: () => void;
@@ -64,11 +64,11 @@ export default function SidebarHeader({ onOpenSettings }: SidebarHeaderProps) {
           <ChatIcon />
         </NavLink>
         <NavLink
-          to="/image"
+          to="/agents"
           className={({ isActive }) => `module-btn${isActive ? ' active' : ''}`}
-          title="生图"
+          title="助手"
         >
-          <ImageIcon />
+          <AssistantIcon />
         </NavLink>
         <NavLink
           to="/wiki"

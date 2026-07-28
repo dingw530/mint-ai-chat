@@ -254,6 +254,84 @@ body::after {
   position: relative;
 }
 
+/* --------------------------------------------
+   Assistant Page
+   -------------------------------------------- */
+.assistant-page {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  padding: 56px clamp(24px, 7vw, 112px);
+}
+
+.assistant-page-header {
+  max-width: 920px;
+  margin: 0 auto 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.assistant-page-kicker,
+.assistant-sidebar-kicker {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.assistant-page-header h1 {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.assistant-page-header p {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.assistant-page-content {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.assistant-sidebar-note {
+  padding: 28px 18px;
+  color: var(--text-secondary);
+}
+
+.assistant-sidebar-note strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+
+.assistant-sidebar-note p {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .assistant-page {
+    padding: 32px 20px;
+  }
+
+  .assistant-page-header h1 {
+    font-size: 26px;
+  }
+}
+
 .main-area::before {
   content: '';
   position: absolute;
@@ -2983,21 +3061,74 @@ body::after {
   box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
 }
 
-.decision-trace-sticky {
+.chat-top-status {
   position: absolute;
   top: 12px;
   right: 24px;
   z-index: 5;
-  width: min(320px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: max-content;
+  min-width: 0;
+  max-width: calc(100% - 32px);
+  padding: 5px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
   margin: 0;
   pointer-events: none;
 }
 
-.decision-trace-sticky .decision-trace {
+.chat-top-status .decision-trace {
+  width: min(320px, calc(100vw - 32px));
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: auto;
   max-height: min(60vh, 520px);
   overflow-y: auto;
 }
+
+.agent-run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  max-width: none;
+  padding: 7px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.agent-run-status-pulse {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.agent-run-status--completed .agent-run-status-pulse { background: var(--success, #4aa579); }
+.agent-run-status--failed .agent-run-status-pulse,
+.agent-run-status--cancelled .agent-run-status-pulse { background: var(--error-text, #c55); }
+.agent-run-status-phase { color: var(--text-primary); font-weight: 600; }
+.agent-run-status-stat,
+.agent-run-status-tool,
+.agent-run-status-warning,
+.agent-run-status-error { overflow: hidden; text-overflow: ellipsis; }
+.agent-run-status-tool { color: var(--accent); }
+.agent-run-status-warning,
+.agent-run-status-error { color: var(--error-text, #c55); }
 
 .decision-trace summary {
   padding: 9px 13px;

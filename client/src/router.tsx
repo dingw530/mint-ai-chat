@@ -3,6 +3,7 @@ import AppProvider from './App';
 import ChatPage from './features/chat/ChatPage';
 import ImagePage from './features/images/ImagePage';
 import WikiPage from './features/wiki/WikiPage';
+import AssistantPage from './features/assistants/AssistantPage';
 
 const isElectron = typeof window !== 'undefined' && window.electronAPI?.isElectron;
 
@@ -14,6 +15,7 @@ const routes = [
       { path: '/chat', element: <ChatPage /> },
       { path: '/image', element: <ImagePage /> },
       { path: '/wiki', element: <WikiPage /> },
+      { path: '/agents', element: <AssistantPage /> },
     ],
   },
 ];
