@@ -4,8 +4,6 @@ import crypto from 'crypto';
 import type { Server } from 'http';
 
 const TEST_DB_PATH = '/tmp/ai-chat-images-test.db';
-const TEST_PORT = 3098;
-const BASE_URL = `http://localhost:${TEST_PORT}`;
 const AUTH_HEADERS = { 'Content-Type': 'application/json' };
 
 if (fs.existsSync(TEST_DB_PATH)) {
@@ -13,7 +11,6 @@ if (fs.existsSync(TEST_DB_PATH)) {
 }
 
 process.env.NODE_ENV = 'test';
-process.env.PORT = String(TEST_PORT);
 process.env.AI_CHAT_ENCRYPTION_KEY = crypto.randomBytes(16).toString('hex');
 process.env.AI_CHAT_DB_PATH = TEST_DB_PATH;
 
@@ -27,9 +24,12 @@ const { server, request } = await (async (): Promise<{ server: Server | null; re
     let req: RequestFn;
 
     await new Promise<void>((resolve, reject) => {
-      srv = app.listen(TEST_PORT, () => {
+      srv = app.listen(0, () => {
+        const address = srv.address();
+        if (!address || typeof address === 'string') throw new Error('Test server did not bind to a port');
+        const baseUrl = `http://localhost:${address.port}`;
         req = (url: string, options: any = {}) => {
-          return fetch(`${BASE_URL}${url}`, {
+          return fetch(`${baseUrl}${url}`, {
             headers: AUTH_HEADERS,
             ...options,
           });
