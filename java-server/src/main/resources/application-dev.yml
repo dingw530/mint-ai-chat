@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:${AI_CHAT_DB_PATH:/Users/wangding/.mint/data.db}
+
+mint:
+  workspace:
+    path: ${WORKSPACE_PATH:/workspace}

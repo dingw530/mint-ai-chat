@@ -36,6 +36,7 @@
 | 2026-07-30 | TP-008 | 验证 | `browser-scenarios.json` 与 Harness 运行证据 | `harness:verify` run `2026-07-30T03-25-15-103Z-84441`：unit/browser-ac/coverage/boundary 全部 PASS | 浏览器使用 mock API；Java runtime 证据另行记录 |
 | 2026-07-30 | TP-002/TP-007/TP-008 | 完成/验证 | Maven、Docker、固定 fixture 双跑、adapter、MCP transport、事务回滚与 run-level tool snapshot 测试 | `mvn verify` 13 tests passed；Docker health、非 root/workspace/本机绑定通过；conversations/settings/endpoints/memories/wiki-list/wiki-schema/wiki-heat 固定场景一致 | 真实 Provider、真实外部 MCP Server、完整异步 Wiki 摄入、工具审批/重试和自动记忆提取未验证 |
 | 2026-07-30 | TP-003/TP-004/TP-008 | 真实浏览器联调 | Vite 代理可配置化、Vite `5810` → Java `3310` → mock Provider `3410` | 浏览器真实请求和页面结果通过：会话创建、Agent/设置/端点读取、Java SSE 文本 `Java live response`、token 展示、设置页打开；fresh DB 缺失 `agents` 已由 V6 migration 修复 | 真实 Provider 仍未验证；CSP meta warning 为既有前端警告 |
+| 2026-07-31 | TP-005 | 完成 | Java Wiki list 递归目录树兼容修正 | `WikiServiceTest` 覆盖嵌套目录、文件总数和 Node 兼容字段 | 完整 Wiki 生命周期语义仍待验证 |
 
 ## 设计偏差
 

@@ -1,0 +1,5 @@
+mybatis:
+  mapper-locations: classpath:/mapper/*.xml
+  type-aliases-package: com.mint.server.conversation,com.mint.server.model,com.mint.server.memory,com.mint.server.agent,com.mint.server.mcp
+  configuration:
+    map-underscore-to-camel-case: true

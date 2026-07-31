@@ -1,0 +1,28 @@
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${PORT:3002}
+  shutdown: graceful
+
+spring:
+  profiles:
+    active: dev
+  config:
+    import: optional:classpath:application-mybatis.yml
+  application:
+    name: mint-java-server
+  main:
+    web-application-type: reactive
+  datasource:
+    url: jdbc:sqlite:${AI_CHAT_DB_PATH:/data/data.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:4}
+      connection-timeout: 5000
+
+mint:
+  concurrency:
+    max-ai-runs: ${MAX_AI_RUNS:12}
+  workspace:
+    path: ${WORKSPACE_PATH:/workspace}
+  encryption:
+    key: ${AI_CHAT_ENCRYPTION_KEY:}

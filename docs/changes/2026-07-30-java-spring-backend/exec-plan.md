@@ -110,6 +110,7 @@
 | 2026-07-30 | TP-008 | 验证 | Harness browser scenario、Node unit/coverage/boundary 回归 | `harness:verify` run `2026-07-30T03-25-15-103Z-84441` 四项均 PASS；浏览器覆盖 AC-001/AC-002 | Harness 场景使用 mock HTTP，Java 实际端点由独立 fixture/runtime smoke 覆盖 |
 | 2026-07-30 | TP-002/TP-007/TP-008 | 完成/验证 | Maven、Docker、固定 fixture 双跑、adapter、MCP transport、事务回滚与 run-level tool snapshot 测试 | Java `mvn verify`：13 tests passed；Docker health、非 root `mint`、`/workspace` 写入、`127.0.0.1` 映射通过；固定场景七组 JSON 结果一致 | 真实 Provider、真实外部 MCP Server、完整异步 Wiki 摄入、工具审批/重试和自动记忆提取仍未验证 |
 | 2026-07-30 | TP-003/TP-004/TP-008 | 真实浏览器联调 | `client/vite.config.js` 支持 `VITE_API_PROXY_TARGET`/`VITE_DEV_PORT`；Vite `5810` → Java `3310`；Java `3310` → mock OpenAI Provider `3410` | 浏览器真实请求：`POST /api/conversations` 201、`GET /api/agents` 200、`POST /messages` 200、`generate-title` 200；页面显示 `Java live response` 和约 8 tokens；设置页打开成功 | 首次 fresh DB 暴露缺少 `agents` 表，已通过 additive V6 migration 修复；浏览器保留 CSP meta 警告 |
+| 2026-07-31 | TP-005 | 完成 | `WikiService.list()` 递归目录树、`WikiServiceTest` | Java 21 下 `mvn -Dtest=WikiServiceTest test` 通过；嵌套目录返回 `children`，`total` 仅计可见文件 | 真实 Wiki 生命周期语义仍待验证 |
 
 ### 2026-07-30：Harness run 2026-07-30T03-29-19-911Z-88788
 

@@ -1,0 +1,25 @@
+services:
+  mint-java:
+    build: .
+    ports:
+      - "127.0.0.1:${MINT_JAVA_PORT:-3002}:3002"
+    volumes:
+      - mint-java-data:/data
+      - mint-java-workspace:/workspace
+    environment:
+      AI_CHAT_DB_PATH: /data/data.db
+      AI_CHAT_ENCRYPTION_KEY: ${AI_CHAT_ENCRYPTION_KEY:?AI_CHAT_ENCRYPTION_KEY is required}
+      SERVER_ADDRESS: 0.0.0.0
+      PORT: 3002
+      WORKSPACE_PATH: /workspace
+      MAX_AI_RUNS: 12
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:3002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  mint-java-data:
+  mint-java-workspace:
