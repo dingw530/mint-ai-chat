@@ -443,6 +443,11 @@ describe('BashTool', () => {
     expect(result.exitCode).toBe(0);
   });
 
+  it('should use the Mint workspace by default', async () => {
+    const result = await tool.execute({ command: 'pwd' }, ctx);
+    expect(result.stdout.trim()).toBe(path.join(os.homedir(), '.mint'));
+  });
+
   it('should capture stderr', async () => {
     const result = await tool.execute({ command: 'echo err >&2' }, ctx);
     expect(result.stderr.trim()).toBe('err');

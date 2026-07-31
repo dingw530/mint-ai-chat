@@ -6,6 +6,7 @@ import type { ToolContext, PermissionResult } from './BaseTool.js';
 import { checkCommand } from '../api/bashSecurityService.js';
 import * as path from 'path';
 import { getWikiPath } from '../utils/pathSecurity.js';
+import { getMintWorkspacePath } from '../utils/mintWorkspace.js';
 
 const execAsync = promisify(exec);
 
@@ -77,7 +78,7 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
 
     try {
       const { stdout, stderr } = await execAsync(input.command, {
-        cwd: input.cwd,
+        cwd: input.cwd ?? getMintWorkspacePath(),
         timeout: input.timeout,
         maxBuffer: 1024 * 1024,
         shell: '/bin/bash',
