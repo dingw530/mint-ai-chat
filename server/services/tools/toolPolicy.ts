@@ -2,6 +2,7 @@ import { isIP } from 'node:net';
 import path from 'node:path';
 import type { ToolContext } from './BaseTool.js';
 import type { ToolMetadata, ToolPolicyDecision } from './toolMetadata.js';
+import { getMintWorkspacePath } from '../utils/mintWorkspace.js';
 
 interface PolicyInput {
   toolName: string;
@@ -68,7 +69,7 @@ export function evaluateToolPolicy(input: PolicyInput): ToolPolicyDecision {
 
   if (toolName === 'bash' && typeof args === 'object' && args !== null) {
     const command = String((args as { command?: unknown }).command || '');
-    const directory = context.allowedWorkingDirectory;
+    const directory = context.allowedWorkingDirectory ?? getMintWorkspacePath();
     const cwd = (args as { cwd?: unknown }).cwd;
     if (directory && typeof cwd === 'string' && !pathStaysInDirectory(cwd, directory)) {
       return { action: 'deny', reason: 'Bash 工作目录超出允许范围' };
@@ -76,7 +77,9 @@ export function evaluateToolPolicy(input: PolicyInput): ToolPolicyDecision {
     if (directory && !bashPathsStayInDirectory(command, directory)) {
       return { action: 'deny', reason: 'Bash 命令访问了允许工作目录之外的路径' };
     }
-    if (isHighRiskBash(command)) return { action: 'approval_required', reason: 'Bash 命令可能修改系统或访问敏感目录' };
+    if (context.allowedWorkingDirectory && isHighRiskBash(command)) {
+      return { action: 'approval_required', reason: 'Bash 命令可能修改系统或访问敏感目录' };
+    }
   }
 
   if (metadata.requiresApproval || metadata.riskLevel === 'critical' || (metadata.source === 'mcp' && metadata.sideEffect === 'external')) {

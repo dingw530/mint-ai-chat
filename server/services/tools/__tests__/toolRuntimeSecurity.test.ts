@@ -5,6 +5,7 @@ import { ToolExecutor } from '../ToolExecutor.js';
 import { ToolRegistry } from '../ToolRegistry.js';
 import { evaluateToolPolicy } from '../toolPolicy.js';
 import { ToolApprovalStore } from '../approvalStore.js';
+import { getMintWorkspacePath } from '../../utils/mintWorkspace.js';
 
 const context = { conversationId: 'security-test' };
 
@@ -50,6 +51,17 @@ describe('tool runtime security policy', () => {
       toolName: 'bash', metadata: { source: 'builtin', riskLevel: 'medium', sideEffect: 'filesystem' },
       input: { command: 'cat /etc/hosts', cwd: '/tmp' },
       context: { ...context, allowedWorkingDirectory: '/tmp/project' },
+    }).action).toBe('deny');
+  });
+
+  it('allows unrestricted Bash commands in the default Mint workspace', () => {
+    expect(evaluateToolPolicy({
+      toolName: 'bash', metadata: { source: 'builtin', riskLevel: 'medium', sideEffect: 'filesystem' },
+      input: { command: 'rm -rf ./build-cache', cwd: getMintWorkspacePath() }, context,
+    })).toEqual({ action: 'allow' });
+    expect(evaluateToolPolicy({
+      toolName: 'bash', metadata: { source: 'builtin', riskLevel: 'medium', sideEffect: 'filesystem' },
+      input: { command: 'ls /tmp', cwd: getMintWorkspacePath() }, context,
     }).action).toBe('deny');
   });
 
