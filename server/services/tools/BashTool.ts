@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { exec } from 'child_process';
+import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
@@ -9,6 +11,14 @@ import { getWikiPath } from '../utils/pathSecurity.js';
 import { getMintWorkspacePath } from '../utils/mintWorkspace.js';
 
 const execAsync = promisify(exec);
+
+/**
+ * 获取当前运行环境可用的 POSIX shell。
+ * @returns {string} Bash 或 POSIX shell 的可执行路径
+ */
+function getShellPath(): string {
+  return existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
+}
 
 // ── 输入 Schema ──
 
@@ -77,11 +87,13 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
     const startTime = Date.now();
 
     try {
+      const cwd = input.cwd ?? getMintWorkspacePath();
+      if (!input.cwd) await mkdir(cwd, { recursive: true });
       const { stdout, stderr } = await execAsync(input.command, {
-        cwd: input.cwd ?? getMintWorkspacePath(),
+        cwd,
         timeout: input.timeout,
         maxBuffer: 1024 * 1024,
-        shell: '/bin/bash',
+        shell: getShellPath(),
         signal: context.signal,
       });
 
