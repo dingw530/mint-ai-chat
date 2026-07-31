@@ -5,6 +5,7 @@ import * as searchRepo from '../../repositories/wikiSearchRepository.js';
 import { isSystemWikiPath, parseWikiPage } from '../utils/wikiShared.js';
 
 export interface WikiSearchResult {
+  chunkId: string;
   file: string;
   title: string;
   heading: string;
@@ -142,6 +143,7 @@ export function searchWiki(wikiPath: string, question: string, maxResults: numbe
       try { fullContent = fs.readFileSync(path.join(wikiPath, resultPath(candidate.sourcePath)), 'utf8'); } catch { /* 保留证据片段 */ }
     }
     results.push({
+      chunkId: candidate.id,
       file: candidate.sourcePath,
       title: candidate.title,
       heading: candidate.heading,

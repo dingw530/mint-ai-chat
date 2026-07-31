@@ -4,6 +4,9 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "exports": {
+    "./eval": "./dist/eval.js"
+  },
   "scripts": {
     "cli": "node ../scripts/with-node-version.cjs tsx cli/index.ts",
     "cli:serve": "node ../scripts/with-node-version.cjs tsx cli/index.ts serve",
@@ -26,9 +29,9 @@
     "node": "20.18.3"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@modelcontextprotocol/server-everything": "^2026.1.26",
-    "better-sqlite3": "^11.0.0",
+    "better-sqlite3": "^12.11.1",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "cors": "^2.8.5",
@@ -38,7 +41,7 @@
     "multer": "^2.2.0",
     "pdfjs-dist": "^4.9.155",
     "undici": "^7.5.0",
-    "uuid": "^9.0.0"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

@@ -60,7 +60,7 @@ export interface EndpointDescriptor {
   preloadMethod?: string;
 
   /** Express 环境下的服务函数引用 */
-  service: (...args: any[]) => any;
+  service: (...args: never[]) => unknown;
 
   /** IPC 环境下的服务引用路径（用于从 services 对象中解析）。如省略，IPC handler 直接使用 service 函数 */
   ipcServiceRef?: ServiceRef;
@@ -72,7 +72,7 @@ export interface EndpointDescriptor {
   result?: ResultMapping;
 
   /** 可选的请求体 Zod 验证 schema */
-  bodySchema?: z.ZodType<any>;
+  bodySchema?: z.ZodType<unknown>;
 
   /** 服务函数是否为 async */
   async?: boolean;

@@ -21,7 +21,7 @@ vi.mock('../toolRoundEngine.js', () => ({
   },
 }));
 
-vi.mock('../toolRegistry.js', () => ({
+vi.mock('../toolOrchestration.js', () => ({
   getAllToolDefinitions: vi.fn().mockResolvedValue([]),
   getToolCallSummary: vi.fn().mockReturnValue(undefined),
 }));
@@ -93,6 +93,8 @@ describe('reactChat', () => {
     );
     expect(result.content).toBe('final answer');
     expect(result.reasoning).toBe('some reasoning');
+    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+    expect(events.some((event) => event.type === 'answer' && event.content === 'final answer')).toBe(true);
   });
 
   it('preserves tool call order while correlating same-name calls by callId', async () => {
@@ -108,7 +110,7 @@ describe('reactChat', () => {
     };
     const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
     const contextMessages: any[] = [];
-    const { getToolCallSummary } = await import('../toolRegistry.js');
+    const { getToolCallSummary } = await import('../toolOrchestration.js');
     vi.mocked(getToolCallSummary).mockReturnValue('正在执行工具');
 
     vi.mocked(toolLoopEngine.executeRound)
@@ -157,6 +159,7 @@ describe('reactChat', () => {
     expect(
       events.filter((event) => event.type === 'tool_call_end').map((event) => event.callId),
     ).toEqual(['call-2', 'call-1']);
+    expect(events.some((event) => event.type === 'answer' && event.content === 'done')).toBe(true);
     expect(
       events.filter((event) => event.type === 'tool_call_end').map((event) => event.summary),
     ).toEqual(['工具执行完成', '工具执行完成']);

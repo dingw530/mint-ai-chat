@@ -130,7 +130,7 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
     }
     return {
       valid: false,
-      error: result.error.issues.map((issue: any) => issue.message).join('; '),
+      error: result.error.issues.map((issue) => issue.message).join('; '),
     };
   }
 
@@ -233,8 +233,8 @@ export abstract class BaseTool<Input = unknown, Output = unknown> {
    */
   protected zodToJsonSchema(schema: z.ZodType<unknown>): Record<string, unknown> {
     // Use Zod v4 built-in toJSONSchema for accurate type/constraint generation
-    if (typeof (schema as any).toJSONSchema === 'function') {
-      const full = (schema as any).toJSONSchema() as Record<string, unknown>;
+    if ('toJSONSchema' in schema && typeof schema.toJSONSchema === 'function') {
+      const full = schema.toJSONSchema() as Record<string, unknown>;
       const result: Record<string, unknown> = { type: 'object', properties: full.properties || {} };
       // Remove from required any field that carries a default (optional+default should not be required)
       const props = (full.properties || {}) as Record<string, Record<string, unknown>>;

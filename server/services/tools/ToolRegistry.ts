@@ -13,13 +13,13 @@ const log = createLogger('tool-registry');
 // ── 工具注册表 ──
 
 export class ToolRegistry {
-  private tools = new Map<string, BaseTool<any, any>>();
-  private toolsByCategory = new Map<string, BaseTool<any, any>[]>();
+  private tools = new Map<string, BaseTool<unknown, unknown>>();
+  private toolsByCategory = new Map<string, BaseTool<unknown, unknown>[]>();
 
   /**
    * 注册工具
    */
-  register(tool: BaseTool<any, any>): void {
+  register(tool: BaseTool<unknown, unknown>): void {
     if (this.tools.has(tool.name)) {
       log.warn(`Tool ${tool.name} already registered, overwriting`);
     }
@@ -30,7 +30,7 @@ export class ToolRegistry {
   /**
    * 批量注册工具
    */
-  registerAll(tools: BaseTool<any, any>[]): void {
+  registerAll(tools: BaseTool<unknown, unknown>[]): void {
     for (const tool of tools) {
       this.register(tool);
     }
@@ -39,7 +39,7 @@ export class ToolRegistry {
   /**
    * 按类别注册工具
    */
-  registerByCategory(category: string, tools: BaseTool<any, any>[]): void {
+  registerByCategory(category: string, tools: BaseTool<unknown, unknown>[]): void {
     this.toolsByCategory.set(category, tools);
     for (const tool of tools) {
       this.register(tool);
@@ -49,7 +49,7 @@ export class ToolRegistry {
   /**
    * 获取工具
    */
-  get(name: string): BaseTool<any, any> | undefined {
+  get(name: string): BaseTool<unknown, unknown> | undefined {
     return this.tools.get(name);
   }
 
@@ -63,7 +63,7 @@ export class ToolRegistry {
   /**
    * 获取所有已启用的工具
    */
-  getAllEnabled(): BaseTool<any, any>[] {
+  getAllEnabled(): BaseTool<unknown, unknown>[] {
     return Array.from(this.tools.values()).filter(tool => tool.isEnabled());
   }
 

@@ -61,13 +61,23 @@ export interface ManifestEntry {
   async: boolean;
 }
 
+function isManifestEntry(value: unknown): value is ManifestEntry {
+  if (!value || typeof value !== 'object') return false;
+  const entry = value as Partial<ManifestEntry>;
+  return typeof entry.id === 'string'
+    && typeof entry.ipcChannel === 'string'
+    && typeof entry.method === 'string'
+    && typeof entry.httpPath === 'string';
+}
+
 let manifestCache: ManifestEntry[] | null = null;
 
 export async function getManifest(): Promise<ManifestEntry[]> {
   if (manifestCache) return manifestCache;
   try {
     const mod = await import('../../../../electron/endpoints-manifest.json');
-    manifestCache = (mod.default || mod) as unknown as ManifestEntry[];
+    const candidate: unknown = mod.default || mod;
+    manifestCache = Array.isArray(candidate) ? candidate.filter(isManifestEntry) : [];
   } catch {
     manifestCache = [];
   }
@@ -143,12 +153,18 @@ export function parseSSEChunk(
       case 'round_started':
         callbacks.onRoundStarted?.(data);
         return;
+      case 'agent_status':
+        callbacks.onAgentStatus?.(data);
+        return;
       case 'loop_detected':
         callbacks.onLoopDetected?.(data);
         return;
       case 'run_completed':
         callbacks.onRunCompleted?.(data);
         if (data.estimatedTokens != null) callbacks.onTokenUsage?.(data);
+        return;
+      case 'a2ui':
+        callbacks.onA2ui?.(data);
         return;
       case 'run_cancelled':
         callbacks.onRunCancelled?.(data);

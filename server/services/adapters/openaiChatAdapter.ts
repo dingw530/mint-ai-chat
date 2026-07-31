@@ -1,6 +1,7 @@
-import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
+import type { HistoryMessage, ToolDefinition } from '../../types.js';
 import type { ApiAdapter, ParsedChunk, CallOptions} from './apiAdapter.js';
-import { registerAdapter } from './apiAdapter.js';
+import { AI_REQUEST_TIMEOUT_MS, registerAdapter } from './apiAdapter.js';
+import { isRecord, readNumber, readString } from '../../utils/typeGuards.js';
 
 export const openaiChatAdapter: ApiAdapter = {
   getUrl(baseUrl: string): string {
@@ -50,7 +51,7 @@ export const openaiChatAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...this.getHeaders(apiKey) },
       body: JSON.stringify(this.buildRequest(messages, settings, tools)),
-      signal: options?.signal ?? AbortSignal.timeout(60_000),
+      signal: options?.signal ?? AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     });
     return response;
   },
@@ -58,34 +59,42 @@ export const openaiChatAdapter: ApiAdapter = {
   parseChunk(data: string): ParsedChunk | null {
     if (data === '[DONE]') return { isFinished: true };
 
-    let parsed: any;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(data);
     } catch {
       return null;
     }
 
-    const delta = parsed.choices?.[0]?.delta;
-    if (!delta) return null;
+    if (!isRecord(parsed) || !Array.isArray(parsed.choices)) return null;
+    const firstChoice = parsed.choices[0];
+    if (!isRecord(firstChoice) || !isRecord(firstChoice.delta)) return null;
+    const delta = firstChoice.delta;
 
     const result: ParsedChunk = {};
 
-    if (delta.content) {
-      result.content = delta.content;
-    }
+    const content = readString(delta, 'content');
+    if (content) result.content = content;
 
-    if (delta.reasoning_content) {
-      result.reasoning = delta.reasoning_content;
-    }
+    const reasoningContent = readString(delta, 'reasoning_content');
+    if (reasoningContent) result.reasoning = reasoningContent;
 
-    if (delta.reasoning) {
-        result.reasoning = delta.reasoning;
-    }
+    const reasoning = readString(delta, 'reasoning');
+    if (reasoning) result.reasoning = reasoning;
 
-    if (delta.tool_calls) {
-      for (const tc of delta.tool_calls as ToolCallDelta[]) {
-        result.toolCallDelta = tc;
-        break; // 只取第一个 tool call delta
+    if (Array.isArray(delta.tool_calls)) {
+      const rawToolCall = delta.tool_calls.find(isRecord);
+      if (rawToolCall) {
+        const rawFunction = isRecord(rawToolCall.function) ? rawToolCall.function : undefined;
+        result.toolCallDelta = {
+          index: readNumber(rawToolCall, 'index') ?? 0,
+          id: readString(rawToolCall, 'id'),
+          type: readString(rawToolCall, 'type'),
+          function: rawFunction ? {
+            name: readString(rawFunction, 'name'),
+            arguments: readString(rawFunction, 'arguments'),
+          } : undefined,
+        };
       }
     }
 
@@ -114,7 +123,7 @@ export const openaiChatAdapter: ApiAdapter = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(body),
-      signal: options?.signal ?? AbortSignal.timeout(60_000),
+      signal: options?.signal ?? AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -122,8 +131,11 @@ export const openaiChatAdapter: ApiAdapter = {
       throw new Error(`AI API error (${response.status}): ${errText.substring(0, 200)}`);
     }
 
-    const data = (await response.json()) as any;
-    return data.choices?.[0]?.message?.content || '';
+    const data: unknown = await response.json();
+    if (!isRecord(data) || !Array.isArray(data.choices)) return '';
+    const choice = data.choices[0];
+    if (!isRecord(choice) || !isRecord(choice.message)) return '';
+    return readString(choice.message, 'content') || '';
   },
 };
 

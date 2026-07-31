@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { A2uiSurface } from '@a2ui/react/v0_9';
-import { createA2uiProcessor, parseA2uiMessage } from '../a2uiProtocol';
+import { buildPersistedA2uiMessages, createA2uiProcessor, parseA2uiMessage } from '../a2uiProtocol';
 import { mintCatalog } from '../IngestionTaskCards';
 
 const model = {
@@ -17,6 +17,41 @@ const model = {
 };
 
 describe('official A2UI v0.9 ingestion protocol', () => {
+  it('rebuilds a persisted wiki block as official messages', () => {
+    const messages = buildPersistedA2uiMessages({
+      id: 'block-1', messageId: 'message-1', blockIndex: 0, textOffset: 4,
+      kind: 'wiki_source_reference', version: 1,
+      data: { refId: 'C1', title: 'Architecture', file: 'pages/a.md', heading: 'Overview', snippet: 'fact', chunkId: 'pages/a.md#chunk:0' },
+      createdAt: '', updatedAt: '',
+    });
+    expect(messages).toHaveLength(3);
+    expect(messages[1]).toMatchObject({ updateComponents: { components: [{ component: 'SourceReferenceCard' }] } });
+  });
+
+  it('silently drops an unknown persisted block', () => {
+    expect(buildPersistedA2uiMessages({
+      id: 'block-unknown', messageId: 'message-1', blockIndex: 0, textOffset: 0,
+      kind: 'unknown', version: 99, data: {}, createdAt: '', updatedAt: '',
+    })).toEqual([]);
+  });
+
+  it('renders a wiki source reference through the shared Mint Catalog', async () => {
+    const processor = createA2uiProcessor(mintCatalog);
+    processor.processMessages([
+      { version: 'v0.9', createSurface: { surfaceId: 'source-1', catalogId: 'mint' } },
+      { version: 'v0.9', updateComponents: { surfaceId: 'source-1', components: [{ id: 'root', component: 'SourceReferenceCard', data: { path: '/source' } }] } },
+      { version: 'v0.9', updateDataModel: { surfaceId: 'source-1', path: '/source', value: { refId: 'C1', title: 'Architecture', file: 'pages/a.md', heading: '', snippet: 'fact', chunkId: 'a#0' } } },
+    ]);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<A2uiSurface surface={processor.model.getSurface('source-1')!} />));
+    expect(container.querySelector('.source-reference-card')).not.toBeNull();
+    expect(container.textContent).toContain('Architecture');
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it('rejects the old flat custom envelope and accepts official messages', () => {
     expect(parseA2uiMessage(JSON.stringify({ type: 'createSurface', surfaceId: 'surface-1', catalogId: 'mint' }))).toBeNull();
     expect(parseA2uiMessage(JSON.stringify({

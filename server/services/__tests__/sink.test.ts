@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AccumulatingSink, IpcSink, TerminalSink } from '../sink.js';
+import { AccumulatingSink, DeferredEndSink, IpcSink, TerminalSink } from '../sink.js';
 
 describe('AccumulatingSink', () => {
   it('should accumulate written data', () => {
@@ -79,6 +79,21 @@ describe('IpcSink', () => {
     expect(sink.writableEnded).toBe(false);
     sink.end();
     expect(sink.writableEnded).toBe(true);
+  });
+});
+
+describe('DeferredEndSink', () => {
+  it('should defer the underlying end until flush', () => {
+    const delegate = new AccumulatingSink();
+    const sink = new DeferredEndSink(delegate);
+
+    sink.write('assistant response');
+    sink.end();
+
+    expect(delegate.writableEnded).toBe(false);
+    sink.flush();
+    expect(delegate.writableEnded).toBe(true);
+    expect(delegate.data).toBe('assistant response');
   });
 });
 

@@ -1,5 +1,8 @@
 import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
 
+/** 应用层单次 LLM 请求的默认超时时间（毫秒）。 */
+export const AI_REQUEST_TIMEOUT_MS = 180_000;
+
 export interface ParsedChunk {
   content?: string;
   reasoning?: string;

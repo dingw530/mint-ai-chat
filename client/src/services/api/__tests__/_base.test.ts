@@ -26,14 +26,16 @@ describe('API base helpers', () => {
   it('dispatches SSE event types and tracks thought text', () => {
     const callbacks = {
       onThought: vi.fn(), onAnswerReady: vi.fn(), onToolCallStart: vi.fn(), onChunk: vi.fn(),
-      onRouting: vi.fn(), onTokenUsage: vi.fn(), onRoundStarted: vi.fn(), onLoopDetected: vi.fn(),
-      onToolApprovalRequired: vi.fn(),
+      onRouting: vi.fn(), onTokenUsage: vi.fn(), onRoundStarted: vi.fn(), onAgentStatus: vi.fn(), onLoopDetected: vi.fn(),
+      onToolApprovalRequired: vi.fn(), onA2ui: vi.fn(),
     };
     const lastThought = { value: '' };
     parseSSEChunk({ type: 'round_started', round: 2 }, callbacks, lastThought);
+    parseSSEChunk({ type: 'agent_status', round: 2, toolCount: 1 }, callbacks, lastThought);
     parseSSEChunk({ type: 'thought', content: 'thinking' }, callbacks, lastThought);
     parseSSEChunk({ type: 'tool_call_start', callId: 'call-1' }, callbacks, lastThought);
     parseSSEChunk({ type: 'answer', content: 'answer' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'a2ui', segmentId: 'segment-1', surfaceId: 'surface-1', message: { version: 'v0.9' } }, callbacks, lastThought);
     parseSSEChunk({ type: 'agent', agent: 'custom-agent' }, callbacks, lastThought);
     parseSSEChunk({ type: 'answer_ready' }, callbacks, lastThought);
     parseSSEChunk({ type: 'token_usage', estimatedTokens: 42 }, callbacks, lastThought);
@@ -46,7 +48,9 @@ describe('API base helpers', () => {
     expect(callbacks.onAnswerReady).not.toHaveBeenCalled();
     expect(callbacks.onTokenUsage).toHaveBeenCalledWith({ type: 'token_usage', estimatedTokens: 42 });
     expect(callbacks.onRoundStarted).toHaveBeenCalledWith({ type: 'round_started', round: 2 });
+    expect(callbacks.onAgentStatus).toHaveBeenCalledWith({ type: 'agent_status', round: 2, toolCount: 1 });
     expect(callbacks.onLoopDetected).toHaveBeenCalledWith({ type: 'loop_detected', message: 'fallback' });
     expect(callbacks.onToolApprovalRequired).toHaveBeenCalledWith({ type: 'approval_required', approvalId: 'approval-1', reason: 'confirm' });
+    expect(callbacks.onA2ui).toHaveBeenCalledWith({ type: 'a2ui', segmentId: 'segment-1', surfaceId: 'surface-1', message: { version: 'v0.9' } });
   });
 });

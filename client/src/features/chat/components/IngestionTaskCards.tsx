@@ -22,6 +22,15 @@ interface IngestionTaskModel {
   result: { sourceFile?: string; error?: string } | null;
 }
 
+function isIngestionTaskModel(value: unknown): value is IngestionTaskModel {
+  if (!value || typeof value !== 'object') return false;
+  const model = value as Partial<IngestionTaskModel>;
+  return typeof model.jobId === 'string'
+    && typeof model.title === 'string'
+    && typeof model.status === 'string'
+    && typeof model.progress === 'number';
+}
+
 const ingestionTaskCardApi = createMintComponentApi(
   'IngestionTaskCard',
   z.object({ data: DynamicValueSchema }),
@@ -35,7 +44,7 @@ function getStatusTone(status: string): 'active' | 'success' | 'error' | 'cancel
 }
 
 const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({ props }) => {
-  const model = props.data as unknown as IngestionTaskModel | undefined;
+  const model = isIngestionTaskModel(props.data) ? props.data : undefined;
   if (!model) return null;
 
   const progress = Math.max(0, Math.min(100, model.progress));
@@ -56,7 +65,44 @@ const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({
   );
 });
 
-export const mintCatalog = new Catalog('mint', [ingestionTaskCard]);
+interface SourceReferenceModel {
+  refId: string;
+  title: string;
+  file: string;
+  heading: string;
+  snippet: string;
+  chunkId: string;
+  score?: number;
+}
+
+function isSourceReferenceModel(value: unknown): value is SourceReferenceModel {
+  if (!value || typeof value !== 'object') return false;
+  const model = value as Partial<SourceReferenceModel>;
+  return typeof model.refId === 'string'
+    && typeof model.title === 'string'
+    && typeof model.file === 'string'
+    && typeof model.snippet === 'string'
+    && typeof model.chunkId === 'string';
+}
+
+const sourceReferenceCardApi = createMintComponentApi(
+  'SourceReferenceCard',
+  z.object({ data: DynamicValueSchema }),
+);
+
+const sourceReferenceCard = createComponentImplementation(sourceReferenceCardApi, ({ props }) => {
+  const model = isSourceReferenceModel(props.data) ? props.data : undefined;
+  if (!model) return null;
+    return (
+      <article className="source-reference-card">
+      <span className="source-reference-card-label">[{model.refId}]</span>
+      <strong className="source-reference-card-title">{model.title}</strong>
+      <span className="source-reference-card-file">{model.file}</span>
+      </article>
+    );
+});
+
+export const mintCatalog = new Catalog('mint', [ingestionTaskCard, sourceReferenceCard]);
 
 /** 将浏览器 SSE 和 Electron IPC 产生的官方 JSONL 消息交给同一个 renderer。 */
 export default function IngestionTaskCards({ conversationId }: { conversationId: string | null }) {

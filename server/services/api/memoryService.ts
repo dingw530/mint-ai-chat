@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import * as memoryRepo from '../../repositories/memoryRepository.js';
-import { getAdapter } from '../adapters/apiAdapter.js';
+import { AI_REQUEST_TIMEOUT_MS, getAdapter } from '../adapters/apiAdapter.js';
 import type {
   Memory, CreateMemoryParams, UpdateMemoryParams, AiSettings,
   MemoryOperationAction,
@@ -209,7 +209,7 @@ export async function performExtraction(
 - 无法确定主体、键或事实时不要猜测，返回空 operations`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
 
   try {
     const adapter = getAdapter(settings.apiType || 'openai-chat');
@@ -245,7 +245,7 @@ export async function performExtraction(
     return true;
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
-      console.error('[memory] Extraction timed out after 10s');
+      console.error('[memory] Extraction timed out after 180s');
     } else {
       console.error('[memory] Extraction failed:', err);
     }

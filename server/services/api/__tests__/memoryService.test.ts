@@ -14,6 +14,7 @@ vi.mock('../../../repositories/memoryRepository.js', () => ({
 }));
 
 vi.mock('../../adapters/apiAdapter.js', () => ({
+  AI_REQUEST_TIMEOUT_MS: 180_000,
   getAdapter: vi.fn(),
 }));
 

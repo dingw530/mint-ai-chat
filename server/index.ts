@@ -2,6 +2,7 @@ import 'dotenv/config';
 import app from './app.js';
 import { createLogger } from './utils/logger.js';
 import { listSkills } from './services/api/skillService.js';
+import { getAddressPort, getErrorMessage } from './utils/typeGuards.js';
 
 const log = createLogger('server');
 
@@ -24,23 +25,31 @@ export async function startServer(preferredPort?: number): Promise<number> {
 
   return new Promise((resolve, reject) => {
     const server = app.listen(desiredPort, () => {
-      const actualPort = (server.address() as any).port;
+      const actualPort = getAddressPort(server.address());
+      if (actualPort === null) {
+        reject(new Error('Server started without a TCP address'));
+        return;
+      }
       log.info('服务启动完成', { port: actualPort });
       resolve(actualPort);
     });
 
-    server.on('error', (err: any) => {
+    server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
         log.warn(`端口 ${desiredPort} 已被占用，尝试随机端口`);
         server.close();
         const fallback = app.listen(0, () => {
-          const actualPort = (fallback.address() as any).port;
+          const actualPort = getAddressPort(fallback.address());
+          if (actualPort === null) {
+            reject(new Error('Fallback server started without a TCP address'));
+            return;
+          }
           log.info('服务在随机端口启动完成', { port: actualPort });
           resolve(actualPort);
         });
         fallback.on('error', reject);
       } else {
-        log.error('服务启动失败', { error: err.message });
+        log.error('服务启动失败', { error: getErrorMessage(err) });
         reject(err);
       }
     });

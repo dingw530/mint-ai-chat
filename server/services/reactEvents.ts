@@ -1,4 +1,6 @@
 import type { Sink } from './sink.js';
+import type { AgentStatusSnapshot } from './agentStatusBar.js';
+import type { A2uiMessage } from './a2ui/types.js';
 
 export type ReactRunState =
   | 'running'
@@ -18,7 +20,8 @@ export interface ReactEventBase {
 export type ReactEventPayload =
   | { type: 'run_started'; state: 'running' }
   | { type: 'round_started'; state: 'awaiting_model'; round: number }
-  | { type: 'thought' | 'answer'; content?: string; reasoning?: string }
+  | ({ type: 'agent_status' } & AgentStatusSnapshot)
+  | { type: 'thought' | 'answer'; content?: string; reasoning?: string; round?: number }
   | {
       type: 'tool_call_start';
       state: 'executing_tools';
@@ -59,6 +62,7 @@ export type ReactEventPayload =
     }
   | { type: 'loop_detected'; state: 'finalizing'; round: number; message: string }
   | { type: 'answer_ready' }
+  | { type: 'a2ui'; segmentId: string; surfaceId: string; message: A2uiMessage; round?: number }
   | { type: 'run_completed'; state: 'completed'; content: string; reasoning: string; estimatedTokens?: number }
   | { type: 'run_failed'; state: 'failed'; error: string }
   | { type: 'run_cancelled'; state: 'cancelled' };

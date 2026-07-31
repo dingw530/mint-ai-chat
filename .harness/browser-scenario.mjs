@@ -80,6 +80,9 @@ function routeBody(route) {
 
 function setupRoutes(scenario) {
   for (const route of scenario.setup?.routes || []) {
+    const responseBodies = route.responses
+      ? JSON.stringify(route.responses.map((value) => routeBody({ body: value })))
+      : null;
     const body = routeBody(route);
     const controlBodies = route.controlBodies
       ? JSON.stringify(Object.fromEntries(Object.entries(route.controlBodies).map(([action, value]) => [action, routeBody({ body: value })])))
@@ -88,7 +91,10 @@ function setupRoutes(scenario) {
       ? `((${controlBodies})[request.postDataJSON()?.control?.action] || ${JSON.stringify(body)})`
       : JSON.stringify(body);
     const methodGuard = route.method ? `if (request.method() !== ${JSON.stringify(route.method)}) return route.fallback();` : '';
-    runPageCode(`await page.route(${JSON.stringify(route.pattern)}, async route => { const request = route.request(); ${methodGuard} await route.fulfill({ status: ${route.status || 200}, contentType: ${JSON.stringify(route.contentType || (route.method === 'POST' && route.pattern.includes('/messages') ? 'text/event-stream' : 'application/json'))}, body: ${bodyExpression} }); });`);
+    const responseExpression = responseBodies
+      ? `(${responseBodies})[Math.min(responseIndex++, ${route.responses.length - 1})]`
+      : bodyExpression;
+    runPageCode(`let responseIndex = 0; await page.route(${JSON.stringify(route.pattern)}, async route => { const request = route.request(); ${methodGuard} await route.fulfill({ status: ${route.status || 200}, contentType: ${JSON.stringify(route.contentType || (route.method === 'POST' && route.pattern.includes('/messages') ? 'text/event-stream' : 'application/json'))}, body: ${responseExpression} }); });`);
   }
 }
 
@@ -101,7 +107,15 @@ function assertScenario(scenario, snapshot) {
   if (scenario.markersAny && !scenario.markersAny.some((marker) => snapshot.includes(marker))) {
     throw new Error(`${scenario.id} 缺少预期运行态标记：${scenario.markersAny.join(' / ')}`);
   }
-  if (/Console:\s+[1-9]\d* errors?/.test(snapshot)) throw new Error(`${scenario.id} 存在 Console error`);
+}
+
+function assertConsole(scenario, output) {
+  const ignored = scenario.ignoreConsoleErrors || [];
+  const errors = output.split('\n').filter((line) => line.startsWith('[ERROR]'));
+  const unexpected = errors.filter((line) => !ignored.some((pattern) => line.includes(pattern)));
+  if (unexpected.length > 0) {
+    throw new Error(`${scenario.id} 存在未忽略的 Console error：\n${unexpected.join('\n')}`);
+  }
 }
 
 function assertRequests(scenario, requests) {
@@ -115,6 +129,22 @@ function assertRequests(scenario, requests) {
     }
     if (assertion.status && !haystack.includes(`[${assertion.status}]`)) {
       throw new Error(`${scenario.id} 未找到响应状态：${assertion.status}`);
+    }
+    if (assertion.countAtLeast !== undefined) {
+      const count = assertion.contains
+        ? haystack.split(assertion.contains).length - 1
+        : 0;
+      if (count < assertion.countAtLeast) {
+        throw new Error(`${scenario.id} 请求片段出现 ${count} 次，少于预期 ${assertion.countAtLeast} 次：${assertion.contains}`);
+      }
+    }
+    if (assertion.countExactly !== undefined) {
+      const count = assertion.contains
+        ? haystack.split(assertion.contains).length - 1
+        : 0;
+      if (count !== assertion.countExactly) {
+        throw new Error(`${scenario.id} 请求片段出现 ${count} 次，预期 ${assertion.countExactly} 次：${assertion.contains}`);
+      }
     }
   }
   if (/=>\s+\[(?:4|5)\d\d\]/.test(requests)) throw new Error(`${scenario.id} 存在 4xx/5xx 请求`);
@@ -162,6 +192,9 @@ async function executeStep(scenario, step, index) {
     case 'assertRequests':
       assertRequests(scenario, run(['requests']));
       return;
+    case 'reload':
+      run(['reload']);
+      return;
     default:
       throw new Error(`${label} 不支持的 action：${step.action}`);
   }
@@ -191,12 +224,13 @@ try {
     setupRoutes(scenario);
     run(['goto', new URL(scenario.route, baseUrl).toString()]);
     assertScenario(scenario, run(['snapshot']));
+    assertConsole(scenario, run(['console']));
     run(['tracing-start']);
     for (let index = 0; index < (scenario.steps || []).length; index += 1) {
       await executeStep(scenario, scenario.steps[index], index);
     }
     assertRequests(scenario, run(['requests']));
-    run(['console']);
+    assertConsole(scenario, run(['console']));
     run(['tracing-stop']);
     process.stdout.write(`scenario passed: ${scenario.id} (${scenario.acceptanceCriteria.join(', ')})\n`);
     run(['unroute']);

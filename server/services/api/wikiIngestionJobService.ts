@@ -417,7 +417,7 @@ export class WikiIngestionJobService {
     const job = this.getStatus(jobId);
     if (!job) {
       const error = new WikiUploadValidationError('任务不存在或已过期');
-      (error as unknown as { status: number }).status = 404;
+      Object.defineProperty(error, 'status', { value: 404, writable: true, configurable: true });
       throw error;
     }
     return job;

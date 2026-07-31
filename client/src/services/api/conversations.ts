@@ -36,7 +36,7 @@ export function renameConversation(id: string, title: string): Promise<{ convers
   );
 }
 
-export function lockAgent(conversationId: string, agentId: string): Promise<{ conversation: Conversation }> {
+export function lockAgent(conversationId: string, agentId: string | null): Promise<{ conversation: Conversation }> {
   return ipcOrHttp(
     () => getElectronAPI()!.lockAgent(conversationId, agentId),
     () => request(`/conversations/${conversationId}`, { method: 'PATCH', body: JSON.stringify({ lockedAgent: agentId }) }),
@@ -44,7 +44,7 @@ export function lockAgent(conversationId: string, agentId: string): Promise<{ co
 }
 
 export function unlockAgent(conversationId: string): Promise<{ conversation: Conversation }> {
-  return lockAgent(conversationId, null as unknown as string);
+  return lockAgent(conversationId, null);
 }
 
 export function getMessages(conversationId: string): Promise<{ messages: Message[] }> {

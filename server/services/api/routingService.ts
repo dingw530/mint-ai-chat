@@ -3,7 +3,7 @@ import { createLogger } from '../../utils/logger.js';
 import * as settingsService from './settingsService.js';
 import * as routingLogRepo from '../../repositories/routingLogRepository.js';
 import type { Agent } from '../../types.js';
-import { getAdapter } from '../adapters/apiAdapter.js';
+import { AI_REQUEST_TIMEOUT_MS, getAdapter } from '../adapters/apiAdapter.js';
 
 // ── 类型定义 ──
 
@@ -168,7 +168,7 @@ export class RoutingService {
   /**
    * LLM 分类（异步）
    * 调用 AI API 从候选 Agent 中选择最匹配的
-   * 3 秒超时，超时返回 null 进行降级
+   * 超时返回 null 进行降级
    */
   async llmClassify(message: string, candidates: Agent[]): Promise<{ agentId: string; confidence: number } | null> {
     // 无候选 Agent（仅有 general）时跳过
@@ -185,7 +185,7 @@ export class RoutingService {
       if (!adapter) return null;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
 
       const content = await adapter.call(
         [

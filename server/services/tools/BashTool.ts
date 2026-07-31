@@ -1,13 +1,24 @@
 import { z } from 'zod';
 import { exec } from 'child_process';
+import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
 import { checkCommand } from '../api/bashSecurityService.js';
 import * as path from 'path';
 import { getWikiPath } from '../utils/pathSecurity.js';
+import { getMintWorkspacePath } from '../utils/mintWorkspace.js';
 
 const execAsync = promisify(exec);
+
+/**
+ * 获取当前运行环境可用的 POSIX shell。
+ * @returns {string} Bash 或 POSIX shell 的可执行路径
+ */
+function getShellPath(): string {
+  return existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
+}
 
 // ── 输入 Schema ──
 
@@ -76,11 +87,13 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
     const startTime = Date.now();
 
     try {
+      const cwd = input.cwd ?? getMintWorkspacePath();
+      if (!input.cwd) await mkdir(cwd, { recursive: true });
       const { stdout, stderr } = await execAsync(input.command, {
-        cwd: input.cwd,
+        cwd,
         timeout: input.timeout,
         maxBuffer: 1024 * 1024,
-        shell: '/bin/bash',
+        shell: getShellPath(),
         signal: context.signal,
       });
 
@@ -90,22 +103,28 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
         exitCode: 0,
         duration: Date.now() - startTime,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       const duration = Date.now() - startTime;
+      const details = typeof err === 'object' && err !== null ? err as {
+        code?: string | number;
+        stdout?: string;
+        stderr?: string;
+        message?: string;
+      } : {};
 
-      if (err.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+      if (details.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
         return {
-          stdout: err.stdout?.substring(0, 10000) || '',
-          stderr: err.stderr?.substring(0, 5000) || '',
+          stdout: details.stdout?.substring(0, 10000) || '',
+          stderr: details.stderr?.substring(0, 5000) || '',
           exitCode: null,
           duration,
         };
       }
 
       return {
-        stdout: err.stdout || '',
-        stderr: err.stderr || err.message,
-        exitCode: err.code || null,
+        stdout: details.stdout || '',
+        stderr: details.stderr || details.message || String(err),
+        exitCode: typeof details.code === 'number' ? details.code : null,
         duration,
       };
     }

@@ -17,7 +17,7 @@
     "harness:browser": "node .harness/browser-scenario.mjs",
     "harness:loop": "node .harness/cli.mjs loop",
     "harness:verify": "node .harness/cli.mjs verify",
-    "build": "npm run build -w mint-server && npm run build -w mint-client",
+    "build": "npm run build -w mint-server && npm run build -w agent-eval && npm run build -w mint-client",
     "build:website": "npm run build -w mint-github-pages",
     "start": "npm run start -w mint-server",
     "electron:rebuild": "node scripts/with-node-version.cjs node scripts/rebuild-native.cjs electron",
@@ -26,15 +26,16 @@
     "electron:build:mac": "npm run build -w mint-server && ELECTRON=true npm run build -w mint-client && cd electron && npm run build:mac",
     "prepare": "husky",
     "lint": "npm run lint:server && npm run lint:client",
-    "lint:server": "eslint server/",
-    "lint:client": "eslint client/",
+    "lint:server": "eslint server/ --max-warnings=0",
+    "lint:client": "eslint client/ --max-warnings=0",
     "lint:fix": "npm run lint:fix:server && npm run lint:fix:client",
     "lint:fix:server": "eslint server/ --fix",
     "lint:fix:client": "eslint client/ --fix",
     "format": "prettier --check \"server/**/*.ts\"",
     "format:fix": "prettier --write \"server/**/*.ts\"",
     "coverage:report": "node scripts/coverage-report.mjs",
-    "test:runner": "node scripts/test-runner.mjs"
+    "test:runner": "node scripts/test-runner.mjs",
+    "eval:agent": "npm run build -w mint-server && npm run build -w agent-eval && node scripts/with-node-version.cjs node agent-eval/dist/cli.js"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -59,6 +60,7 @@
     "typescript-eslint": "^8.62.1"
   },
   "workspaces": [
+    "agent-eval",
     "server",
     "client",
     "electron",
@@ -68,8 +70,8 @@
     "node": "20.18.3"
   },
   "dependencies": {
-    "electron": "^33.4.11",
+    "electron": "^41.0.2",
     "sharp": "^0.35.1",
-    "undici": "^5.29.0"
+    "undici": "^7.29.0"
   }
 }

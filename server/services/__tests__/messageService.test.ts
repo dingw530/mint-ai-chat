@@ -12,6 +12,11 @@ vi.mock('../../repositories/messageRepository.js', () => ({
   updateConversationTimestamp: vi.fn(),
 }));
 
+vi.mock('../../repositories/a2uiRepository.js', () => ({
+  findUiBlocksByMessageId: vi.fn(() => []),
+  createUiBlock: vi.fn(),
+}));
+
 vi.mock('../api/settingsService.js', () => ({
   getAiSettings: vi.fn(),
 }));
@@ -41,12 +46,13 @@ vi.mock('../reactLoopCore.js', () => ({
   reactChat: vi.fn(),
 }));
 
-vi.mock('../toolRegistry.js', () => ({
+vi.mock('../toolOrchestration.js', () => ({
   getAllToolDefinitions: vi.fn().mockResolvedValue([]),
 }));
 
 import * as conversationRepo from '../../repositories/conversationRepository.js';
 import * as messageRepo from '../../repositories/messageRepository.js';
+import * as a2uiRepository from '../../repositories/a2uiRepository.js';
 import * as settingsService from '../api/settingsService.js';
 import * as memoryService from '../api/memoryService.js';
 import * as agentService from '../api/agentService.js';
@@ -73,6 +79,7 @@ describe('messageService', () => {
       showReactSteps: true, maxContextRounds: 10, wikiPath: '', wikiMaxFileSize: 10485760,
     });
     vi.mocked(streamChat).mockResolvedValue({ content: 'response', reasoning: '', toolCalls: null });
+    vi.mocked(a2uiRepository.createUiBlock).mockImplementation(() => undefined);
   });
 
   describe('sendMessage', () => {
@@ -87,7 +94,7 @@ describe('messageService', () => {
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
       await sendMessage('conv-1', 'hello', sink);
       expect(messageRepo.create).toHaveBeenCalledTimes(2); // user msg + AI response
-      expect(streamChat).toHaveBeenCalledWith(expect.any(Array), expect.any(Object), sink, 'general', 'conv-1');
+      expect(streamChat).toHaveBeenCalledWith(expect.any(Array), expect.any(Object), expect.any(Object), 'general', 'conv-1');
     });
 
     it('does not re-save user message on regenerate', async () => {
@@ -195,6 +202,40 @@ describe('messageService', () => {
         { name: 'test.txt', content: Buffer.from('hello').toString('base64'), type: 'text/plain' },
       ]);
       expect(messageRepo.create).toHaveBeenCalled();
+    });
+
+    it('persists UI blocks after the assistant message', async () => {
+      vi.mocked(streamChat).mockResolvedValue({
+        content: 'response', reasoning: '', toolCalls: null,
+        uiBlocks: [{
+          id: 'block-1', messageId: '', blockIndex: 0, textOffset: 8,
+          kind: 'wiki_source_reference', version: 1, data: { refId: 'C1' },
+          createdAt: '', updatedAt: '',
+        }],
+      });
+      const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+      await sendMessage('conv-1', 'hi', sink);
+      expect(a2uiRepository.createUiBlock).toHaveBeenCalledWith(expect.objectContaining({
+        messageId: expect.any(String), blockIndex: 0, kind: 'wiki_source_reference',
+      }));
+    });
+
+    it('keeps the text answer when UI block persistence fails', async () => {
+      vi.mocked(streamChat).mockResolvedValue({
+        content: 'response', reasoning: '', toolCalls: null,
+        uiBlocks: [{
+          id: 'block-1', messageId: '', blockIndex: 0, textOffset: 8,
+          kind: 'wiki_source_reference', version: 1, data: { refId: 'C1' },
+          createdAt: '', updatedAt: '',
+        }],
+      });
+      vi.mocked(a2uiRepository.createUiBlock).mockImplementation(() => { throw new Error('db unavailable'); });
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+      await sendMessage('conv-1', 'hi', sink);
+      expect(messageRepo.create).toHaveBeenCalledTimes(2);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[a2ui] failed to persist UI block'), expect.objectContaining({ error: 'db unavailable' }));
+      errorSpy.mockRestore();
     });
   });
 

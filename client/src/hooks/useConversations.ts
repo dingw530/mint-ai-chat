@@ -8,6 +8,8 @@ import {
 } from '@/services/api';
 import type { Conversation } from '@/types';
 
+const DEFAULT_CONVERSATION_TITLE = 'New Conversation';
+
 export function useConversations(type?: string) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +19,18 @@ export function useConversations(type?: string) {
   const getConversations = useCallback(async (fetchType?: string) => {
     try {
       const data = await fetchConvs(fetchType);
-      setConversations(data.conversations || []);
+      setConversations((previous) => {
+        const previousById = new Map(previous.map((conversation) => [conversation.id, conversation]));
+        return (data.conversations || []).map((conversation) => {
+          const previousConversation = previousById.get(conversation.id);
+          const hasGeneratedTitle = previousConversation
+            && previousConversation.title !== DEFAULT_CONVERSATION_TITLE
+            && conversation.title === DEFAULT_CONVERSATION_TITLE;
+          return hasGeneratedTitle
+            ? { ...conversation, title: previousConversation.title }
+            : conversation;
+        });
+      });
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
     } finally {

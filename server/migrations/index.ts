@@ -364,8 +364,9 @@ const migrations: Migration[] = [
       for (const [name, definition] of columns) {
         try {
           db.exec(`ALTER TABLE memories ADD COLUMN ${name} ${definition}`);
-        } catch (error: any) {
-          if (!String(error?.message || error).includes('duplicate column')) throw error;
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.includes('duplicate column')) throw error;
         }
       }
       db.exec(`
@@ -487,6 +488,38 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 23,
+    name: 'add-a2ui-message-blocks-and-registry',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS message_ui_blocks (
+          id TEXT PRIMARY KEY,
+          message_id TEXT NOT NULL,
+          block_index INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          data_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(message_id, block_index),
+          FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_message_ui_blocks_message
+          ON message_ui_blocks(message_id, block_index);
+        CREATE TABLE IF NOT EXISTS a2ui_component_registry (
+          kind TEXT PRIMARY KEY,
+          catalog_id TEXT NOT NULL,
+          component_name TEXT NOT NULL,
+          data_schema_version INTEGER NOT NULL,
+          data_schema TEXT NOT NULL DEFAULT '{}',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──
@@ -514,9 +547,9 @@ export function runMigrations(db: Database.Database): void {
       m.up(db);
       db.prepare('INSERT INTO _migrations (id, name) VALUES (?, ?)').run(m.id, m.name);
       console.log(`[db/migration] Applied: #${m.id} ${m.name}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 列已存在等幂等错误可安全忽略；其他错误打印警告但不阻塞后续迁移
-      const msg = err?.message ?? String(err);
+      const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('duplicate column') || msg.includes('already exists')) {
         // SQLite 不同版本的错误信息可能不同，记录已存在则视为已应用
         db.prepare('INSERT OR IGNORE INTO _migrations (id, name) VALUES (?, ?)').run(m.id, m.name);

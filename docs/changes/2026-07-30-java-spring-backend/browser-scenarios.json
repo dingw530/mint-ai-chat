@@ -1,0 +1,77 @@
+{
+  "scenarios": [
+    {
+      "id": "chat-http-sse-and-settings",
+      "acceptanceCriteria": ["AC-001", "AC-002"],
+      "route": "/chat",
+      "markers": ["Mint", "发送消息开始对话"],
+      "ignoreConsoleErrors": ["Content Security Policy directive 'frame-ancestors' is ignored"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/conversations/java-conversation/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations/java-conversation/messages",
+            "method": "POST",
+            "contentType": "text/event-stream",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"run-1\",\"sequence\":1}\n\ndata: {\"type\":\"answer\",\"content\":\"Java response\",\"runId\":\"run-1\",\"sequence\":2}\n\ndata: {\"type\":\"token_usage\",\"estimatedTokens\":4,\"source\":\"estimated\",\"runId\":\"run-1\",\"sequence\":3}\n\ndata: {\"type\":\"run_completed\",\"content\":\"Java response\",\"state\":\"completed\",\"runId\":\"run-1\",\"sequence\":4}\n\n"
+          },
+          {
+            "pattern": "**/api/conversations/java-conversation/generate-title",
+            "method": "POST",
+            "body": {"title": "Java response"}
+          },
+          {
+            "pattern": "**/api/conversations/java-conversation/ingestion-events",
+            "method": "GET",
+            "contentType": "text/event-stream",
+            "body": ""
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {"conversations": []}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "POST",
+            "body": {"conversation": {"id": "java-conversation", "title": "New Conversation", "type": "text", "createdAt": "2026-07-30T00:00:00Z", "updatedAt": "2026-07-30T00:00:00Z", "lockedAgent": null, "routingMode": "auto"}}
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {"endpoints": [{"id": "endpoint-1", "name": "Mock", "apiUrl": "http://mock", "apiKeyMasked": "", "modelId": "mock", "apiType": "openai-chat", "category": "text", "isActive": true, "sortOrder": 0, "createdAt": "2026-07-30T00:00:00Z", "updatedAt": "2026-07-30T00:00:00Z"}]}
+          },
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": []}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"apiUrl": "http://mock", "modelId": "mock", "apiKeyMasked": "", "systemPrompt": "", "showReactSteps": true}
+          }
+        ]
+      },
+      "steps": [
+        {"action": "click", "target": {"role": "button", "name": "新建对话"}},
+        {"action": "fill", "target": {"placeholder": "输入消息..."}, "value": "hello Java"},
+        {"action": "click", "target": {"role": "button", "name": "发送消息"}},
+        {"action": "waitFor", "target": {"text": "Java response", "index": 2}},
+        {"action": "click", "target": {"css": ".sidebar-header-settings"}},
+        {"action": "waitFor", "target": {"role": "heading", "name": "设置"}},
+        {"action": "assertText", "text": "通用设置"},
+        {"action": "assertRequests"}
+      ],
+      "assertRequests": [
+        {"contains": "/api/conversations", "method": "POST", "status": 200},
+        {"contains": "/api/conversations/java-conversation/messages", "method": "POST", "status": 200},
+        {"contains": "/api/settings", "method": "GET", "status": 200}
+      ]
+    }
+  ]
+}

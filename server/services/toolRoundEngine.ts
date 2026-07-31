@@ -5,13 +5,14 @@
 import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
 import type { ApiAdapter } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
-import { executeTool, getToolResultSummary } from './toolRegistry.js';
+import { executeTool, getToolResultSummary } from './toolOrchestration.js';
 import { createLogger } from '../utils/logger.js';
 import type { Sink } from './sink.js';
 import { retry } from './utils/retryWrapper.js';
 import type { ReactEventPayload } from './reactEvents.js';
 import { serializeToolResultForContext } from './utils/toolResultArtifact.js';
 import type { ApprovalResumeContext } from './tools/approvalStore.js';
+import { getErrorMessage } from '../utils/typeGuards.js';
 
 // 导入 Adapter 实现
 import './adapters/openaiChatAdapter.js';
@@ -63,9 +64,9 @@ export async function parseSSEStream(
 ): Promise<ToolRoundResult> {
   if (!response.ok) {
     const errorText = await response.text();
-    const err: any = new Error(`AI API error (${response.status}): ${errorText}`);
-    err.status = response.status;
-    throw err;
+    throw Object.assign(new Error(`AI API error (${response.status}): ${errorText}`), {
+      status: response.status,
+    });
   }
 
   const reader = (response.body as ReadableStream<Uint8Array>).getReader();
@@ -211,7 +212,7 @@ export class ToolLoopEngine {
     });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
-      content: null as unknown as string,
+      content: '',
       tool_calls: [tc],
       reasoning: reasoning || undefined,
     };
@@ -248,7 +249,7 @@ export class ToolLoopEngine {
         approvalRequired = toolResult.approvalRequired;
       }
     } catch (err) {
-      toolResult = { error: `All retries failed: ${(err as Error).message}` };
+      toolResult = { error: `All retries failed: ${getErrorMessage(err)}` };
       succeeded = false;
     }
 
@@ -258,7 +259,7 @@ export class ToolLoopEngine {
     });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
-      content: null as unknown as string,
+      content: '',
       tool_calls: [tc],
       reasoning: reasoning || undefined,
     };

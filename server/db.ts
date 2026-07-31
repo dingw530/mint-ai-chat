@@ -62,6 +62,32 @@ function createSchema(): void {
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS message_ui_blocks (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL,
+      block_index INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      data_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(message_id, block_index),
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_message_ui_blocks_message
+      ON message_ui_blocks(message_id, block_index);
+
+    CREATE TABLE IF NOT EXISTS a2ui_component_registry (
+      kind TEXT PRIMARY KEY,
+      catalog_id TEXT NOT NULL,
+      component_name TEXT NOT NULL,
+      data_schema_version INTEGER NOT NULL,
+      data_schema TEXT NOT NULL DEFAULT '{}',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -307,6 +333,12 @@ function seedData(): void {
   `);
 
   upsertAgent.run('general', '通用助手', '通用 AI 对话助手', 'general', null, '[]', 1, now, now);
+
+  db!.prepare(`
+    INSERT OR IGNORE INTO a2ui_component_registry
+      (kind, catalog_id, component_name, data_schema_version, data_schema, enabled, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('wiki_source_reference', 'mint', 'SourceReferenceCard', 1, '{}', 1, now, now);
 
   // 确保内置 Agent 的名称始终最新（当旧 DB 已存在时，INSERT OR IGNORE 不会更新名称）
   db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('通用助手', 'general', '通用助手');

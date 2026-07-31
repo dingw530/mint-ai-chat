@@ -18,6 +18,41 @@ export interface Sink {
   get writableEnded(): boolean;
 }
 
+/**
+ * 延迟底层流结束，确保响应完成后的持久化工作先执行。
+ * @param delegate 实际输出目标
+ */
+export class DeferredEndSink implements Sink {
+  private pendingEnd = false;
+
+  constructor(private readonly delegate: Sink) {}
+
+  write(data: string): void {
+    this.delegate.write(data);
+  }
+
+  writeEvent(event: ReactEvent): void {
+    if (this.delegate.writeEvent) this.delegate.writeEvent(event);
+    else this.delegate.write(JSON.stringify(event));
+  }
+
+  end(): void {
+    this.pendingEnd = true;
+  }
+
+  flush(): void {
+    if (this.pendingEnd && !this.delegate.writableEnded) this.delegate.end();
+  }
+
+  get headersSent(): boolean {
+    return this.delegate.headersSent;
+  }
+
+  get writableEnded(): boolean {
+    return this.delegate.writableEnded;
+  }
+}
+
 // Express Response 适配：将数据以 SSE data: 格式写入 HTTP 响应
 export class ResSink implements Sink {
   private _ended = false;
