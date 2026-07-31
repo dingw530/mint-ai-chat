@@ -8,6 +8,7 @@ interface StreamCallbackOptions {
   tempId: string;
   isAutoRoute: boolean;
   streamBufferRef: MutableRefObject<{ id: string; content: string }>;
+  flushStream: () => void;
   scheduleFlush: () => void;
   finishStream: (tempId: string, error?: Error) => void;
   onCompleted?: () => void;
@@ -18,11 +19,16 @@ interface StreamCallbackOptions {
   dispatchReactEvent: (event: ReactReducerEvent) => void;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
 /** 为普通对话运行构造统一的 SSE 回调。 */
 export function createChatStreamCallbacks({
   tempId,
   isAutoRoute,
   streamBufferRef,
+  flushStream,
   scheduleFlush,
   finishStream,
   onCompleted,
@@ -52,6 +58,29 @@ export function createChatStreamCallbacks({
     onChunk: (content) => {
       streamBufferRef.current.content += content;
       scheduleFlush();
+    },
+    onA2ui: (data) => {
+      const segmentId = typeof data.segmentId === 'string' ? data.segmentId : '';
+      const message = data.message;
+      if (!segmentId || !isRecord(message)) return;
+      flushStream();
+      updateTempMessage(tempId, (current) => {
+        const segments = [...(current.segments || [])];
+        const existing = segments.find((segment) => segment.type === 'a2ui' && segment.segmentId === segmentId);
+        if (existing && existing.type === 'a2ui') {
+          return {
+            ...current,
+            segments: segments.map((segment) => (
+              segment.type === 'a2ui' && segment.segmentId === segmentId
+                ? { ...segment, messages: [...segment.messages, message] }
+                : segment
+            )),
+          };
+        } else {
+          segments.push({ type: 'a2ui', segmentId, messages: [message] });
+        }
+        return { ...current, segments };
+      });
     },
     onReasoning: (content) => updateTempMessage(tempId, (message) => {
       const segments = [...(message.segments || [])];

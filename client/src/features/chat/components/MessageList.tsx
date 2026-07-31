@@ -5,6 +5,8 @@ import AppIcon from '@/shared/components/AppIcon';
 import AiAvatar from '@/shared/components/AiAvatar';
 import { getElectronAPI } from '@/services/api/_base';
 import type { Message, ReActStep as ReActStepData, ContentSegment } from '@/types';
+import { buildPersistedA2uiMessages } from './a2uiProtocol';
+import A2uiSegment from './A2uiSegment';
 
 async function downloadImage(src: string, filename = 'image.png') {
   const electronApi = getElectronAPI();
@@ -243,17 +245,46 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
               </div>
             );
           }
+          if (seg.type === 'a2ui') {
+            return <A2uiSegment key={seg.segmentId || i} segment={seg} />;
+          }
           return null;
         })}
       </div>
     );
   }
 
+  function getSegments(message: Message): ContentSegment[] {
+    if (message.segments && message.segments.length > 0) return message.segments;
+    if (message.role !== 'assistant' || !message.uiBlocks?.length) return [];
+    const segments: ContentSegment[] = [];
+    let cursor = 0;
+    message.uiBlocks
+      .slice()
+      .sort((left, right) => left.blockIndex - right.blockIndex)
+      .forEach((block) => {
+        const offset = Math.max(cursor, Math.min(message.content.length, block.textOffset || 0));
+        if (offset > cursor) segments.push({ type: 'text', content: message.content.slice(cursor, offset) });
+        const messagesForBlock = buildPersistedA2uiMessages(block);
+        if (messagesForBlock.length > 0) {
+          segments.push({
+            type: 'a2ui',
+            segmentId: `persisted-${block.id}`,
+            messages: messagesForBlock as Record<string, unknown>[],
+          });
+        }
+        cursor = offset;
+      });
+    if (cursor < message.content.length) segments.push({ type: 'text', content: message.content.slice(cursor) });
+    return segments;
+  }
+
   return (
     <div className="messages-container" ref={containerRef}>
       {messages.map((msg) => {
         const isStreaming = msg.role === 'assistant' && msg.id === streamingId;
-        const hasSegments = msg.segments && msg.segments.length > 0;
+        const displaySegments = msg.role === 'assistant' ? getSegments(msg) : [];
+        const hasSegments = displaySegments.length > 0;
         return (
           <div key={msg.id || msg._tempId} className="message-wrapper">
             <div className={`message-avatar-wrapper ${msg.role}`}>
@@ -269,7 +300,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
               </div>
               {msg.role === 'assistant' && hasSegments ? (
                 <>
-                  {renderSegments(msg.segments!)}
+                  {renderSegments(displaySegments)}
                 </>
               ) : (
                 <>

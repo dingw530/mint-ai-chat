@@ -6,6 +6,7 @@ function createOptions() {
     tempId: 'assistant-1',
     isAutoRoute: true,
     streamBufferRef: { current: { id: 'assistant-1', content: '' } },
+    flushStream: vi.fn(),
     scheduleFlush: vi.fn(),
     finishStream: vi.fn(),
     updateTempMessage: vi.fn(),
@@ -28,5 +29,19 @@ describe('createChatStreamCallbacks', () => {
     expect(onCompleted).toHaveBeenCalledOnce();
     expect(options.finishStream.mock.invocationCallOrder[0])
       .toBeLessThan(onCompleted.mock.invocationCallOrder[0]);
+  });
+
+  it('flushes text before inserting an A2UI segment', () => {
+    const options = createOptions();
+    const callbacks = createChatStreamCallbacks(options);
+    callbacks.onChunk?.('before');
+    callbacks.onA2ui?.({
+      type: 'a2ui',
+      segmentId: 'segment-1',
+      message: { version: 'v0.9', createSurface: { surfaceId: 'surface-1', catalogId: 'mint' } },
+    });
+
+    expect(options.flushStream).toHaveBeenCalledOnce();
+    expect(options.updateTempMessage).toHaveBeenCalledOnce();
   });
 });

@@ -15,6 +15,8 @@ import type { Sink } from './sink.js';
 import { parseFile, isSupportedFile } from './utils/fileParseService.js';
 import { streamToolApproval } from './api/toolApprovalService.js';
 import { AI_REQUEST_TIMEOUT_MS } from './adapters/apiAdapter.js';
+import * as a2uiRepository from '../repositories/a2uiRepository.js';
+import type { PersistedUiBlock } from '../types.js';
 
 /**
  * 将用户记忆作为动态上下文插入当前用户消息之前，避免修改静态 system prompt。
@@ -52,7 +54,31 @@ export function getMessages(conversationId: string) {
     err.status = 404;
     throw err;
   }
-  return messageRepo.findByConversationId(conversationId);
+  return messageRepo.findByConversationId(conversationId).map((message) => ({
+    ...message,
+    uiBlocks: a2uiRepository.findUiBlocksByMessageId(message.id),
+  }));
+}
+
+function persistUiBlocks(messageId: string, blocks: PersistedUiBlock[] | undefined): void {
+  if (!blocks || blocks.length === 0) return;
+  blocks.forEach((block, index) => {
+    try {
+      a2uiRepository.createUiBlock({
+        ...block,
+        messageId,
+        blockIndex: index,
+      });
+    } catch (error) {
+      console.error('[a2ui] failed to persist UI block', {
+        messageId,
+        blockId: block.id,
+        kind: block.kind,
+        version: block.version,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
 }
 
 /**
@@ -204,6 +230,11 @@ export async function sendMessage(conversationId: string, content: string, sink:
       '- 在最终回答中引用正式 Wiki 页面时，必须使用 Markdown 链接：`[页面标题](mint-wiki://open?path=<URL编码后的相对路径>)`。',
       '- path 必须是 Wiki 根目录下的相对路径（优先使用 pages/ 下的正式页面），例如 `pages/AI实践/LLM-Wiki.md`。',
       '- 不要输出 Wiki 磁盘绝对路径、file:// 链接或普通文件路径作为可点击引用。',
+      '- wiki_search 原始工具结果提供 chunkId；聊天编排层会在发给你的工具结果中追加本轮引用 refId（如 C1）。',
+      '- 只有工具结果中实际出现的 refId 才可以使用；引用对应事实时，将 [C1] 放在完整句子的句末标点之后。',
+      '- [C1] 不得插入句子、短语、括号或分号中间；不要写成“这是 [C1] 一个例子”，应写成“这是一个例子。[C1]”。',
+      '- 一段包含多个来源时，将各标记放在各自完整句子的末尾，例如“第一项结论。[C1] 第二项结论。[C2]”。',
+      '- [C1] 等标记会作为轻量引用保留在回答正文中；不要解释标记含义，也不要删除或改写标记。',
     ].join('\n'));
   }
 
@@ -237,21 +268,23 @@ export async function sendMessage(conversationId: string, content: string, sink:
       }
     }
 
-    const { content: fullContent, reasoning: fullReasoning } = useReact
+    const { content: fullContent, reasoning: fullReasoning, uiBlocks: fullUiBlocks } = useReact
       ? await reactChat(messages, settings, deferredSink, resolvedAgent, orchestratorSignal, conversationId)
       : await streamChat(messages, settings, deferredSink, resolvedAgent, conversationId);
 
     clearTimeout(orchestratorTimer);
     // AI 回复完成后持久化（流式结束时才写入）
     if (fullContent) {
+      const assistantMessageId = uuidv4();
       messageRepo.create({
-        id: uuidv4(),
+        id: assistantMessageId,
         conversationId,
         role: 'assistant',
         content: fullContent,
         reasoning: fullReasoning || null,
         createdAt: new Date().toISOString(),
       });
+      persistUiBlocks(assistantMessageId, fullUiBlocks);
 
       // 异步提取记忆（v1.5.1 增加价值判断预检查）
       if (settings.memoryEnabled) {

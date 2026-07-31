@@ -1,0 +1,54 @@
+{
+  "scenarios": [
+    {
+      "id": "inline-a2ui-wiki-source-and-reload",
+      "acceptanceCriteria": ["AC-001", "AC-005", "AC-006"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"showReactSteps": true, "routingMode": "manual"}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {"conversations": [{"id":"conv-a2ui","title":"A2UI 引用测试","type":"chat","createdAt":"2026-07-28T00:00:00.000Z","updatedAt":"2026-07-28T00:00:00.000Z","lockedAgent":null,"routingMode":"manual"}]}
+          },
+          {
+            "pattern": "**/api/conversations/conv-a2ui/messages",
+            "method": "GET",
+            "responses": [
+              {"messages": []},
+              {"messages": [{"id":"assistant-a2ui","conversationId":"conv-a2ui","role":"assistant","content":"SQLite 使用 WAL 模式。","createdAt":"2026-07-28T00:00:00.000Z","uiBlocks": [{"id":"block-1","messageId":"assistant-a2ui","blockIndex":0,"textOffset":24,"kind":"wiki_source_reference","version":1,"data":{"refId":"C1","title":"数据库设计","file":"pages/架构/数据库设计.md","heading":"索引设计","snippet":"SQLite 使用 WAL 模式。","chunkId":"pages/架构/数据库设计.md#chunk:0"},"createdAt":"2026-07-28T00:00:00.000Z","updatedAt":"2026-07-28T00:00:00.000Z"}]}]}
+            ]
+          },
+          {
+            "pattern": "**/api/conversations/conv-a2ui/messages",
+            "method": "POST",
+            "contentType": "text/event-stream",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"run-a2ui\",\"sequence\":1}\n\ndata: {\"type\":\"answer\",\"runId\":\"run-a2ui\",\"sequence\":2,\"content\":\"SQLite 使用 WAL 模式。\"}\n\ndata: {\"type\":\"a2ui\",\"runId\":\"run-a2ui\",\"sequence\":3,\"segmentId\":\"segment-1\",\"surfaceId\":\"surface-1\",\"message\":{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"surface-1\",\"catalogId\":\"mint\"}}}\n\ndata: {\"type\":\"a2ui\",\"runId\":\"run-a2ui\",\"sequence\":4,\"segmentId\":\"segment-1\",\"surfaceId\":\"surface-1\",\"message\":{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"surface-1\",\"components\":[{\"id\":\"root\",\"component\":\"SourceReferenceCard\",\"data\":{\"path\":\"/source\"}}]}}}\n\ndata: {\"type\":\"a2ui\",\"runId\":\"run-a2ui\",\"sequence\":5,\"segmentId\":\"segment-1\",\"surfaceId\":\"surface-1\",\"message\":{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"surface-1\",\"path\":\"/source\",\"value\":{\"refId\":\"C1\",\"title\":\"数据库设计\",\"file\":\"pages/架构/数据库设计.md\",\"heading\":\"索引设计\",\"snippet\":\"SQLite 使用 WAL 模式。\"}}}}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"run-a2ui\",\"sequence\":6,\"state\":\"completed\",\"content\":\"SQLite 使用 WAL 模式。\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n"
+          }
+        ]
+      },
+      "markers": ["输入消息"],
+      "steps": [
+        {"action":"waitFor","target":{"role":"heading","name":"A2UI 引用测试"},"timeoutMs":10000},
+        {"action":"fill","target":{"placeholder":"输入消息..."},"value":"SQLite 使用什么模式？"},
+        {"action":"press","target":{"placeholder":"输入消息..."},"key":"Enter"},
+        {"action":"waitFor","text":"数据库设计","exact":true,"timeoutMs":10000},
+        {"action":"assertText","text":"SQLite 使用 WAL 模式。"},
+        {"action":"reload"},
+        {"action":"waitFor","text":"数据库设计","exact":true,"timeoutMs":10000},
+        {"action":"assertText","text":"SQLite 使用 WAL 模式。"}
+      ]
+    }
+  ]
+}

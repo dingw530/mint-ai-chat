@@ -93,6 +93,8 @@ describe('reactChat', () => {
     );
     expect(result.content).toBe('final answer');
     expect(result.reasoning).toBe('some reasoning');
+    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+    expect(events.some((event) => event.type === 'answer' && event.content === 'final answer')).toBe(true);
   });
 
   it('preserves tool call order while correlating same-name calls by callId', async () => {
@@ -157,6 +159,7 @@ describe('reactChat', () => {
     expect(
       events.filter((event) => event.type === 'tool_call_end').map((event) => event.callId),
     ).toEqual(['call-2', 'call-1']);
+    expect(events.some((event) => event.type === 'answer' && event.content === 'done')).toBe(true);
     expect(
       events.filter((event) => event.type === 'tool_call_end').map((event) => event.summary),
     ).toEqual(['工具执行完成', '工具执行完成']);

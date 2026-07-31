@@ -20,7 +20,20 @@ export interface Message {
   createdAt: string;
   _tempId?: string;
   segments?: ContentSegment[];
+  uiBlocks?: PersistedUiBlock[];
   estimatedTokens?: number;
+}
+
+export interface PersistedUiBlock {
+  id: string;
+  messageId: string;
+  blockIndex: number;
+  textOffset: number;
+  kind: string;
+  version: number;
+  data: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface WikiCategory {
@@ -175,7 +188,13 @@ export interface TextSegment {
   content: string;
 }
 
-export type ContentSegment = ThinkingSegment | ToolCallSegment | TextSegment;
+export interface A2uiSegment {
+  type: 'a2ui';
+  segmentId: string;
+  messages: Record<string, unknown>[];
+}
+
+export type ContentSegment = ThinkingSegment | ToolCallSegment | TextSegment | A2uiSegment;
 
 // ── ReAct 步骤类型 ──
 
@@ -238,6 +257,7 @@ export interface DecisionTraceItem {
 
 export interface SendCallbacks {
   onChunk?: (chunk: string) => void;
+  onA2ui?: (data: Record<string, unknown>) => void;
   onReasoning?: (chunk: string) => void;
   onDone?: () => void;
   onError?: (err: Error) => void;

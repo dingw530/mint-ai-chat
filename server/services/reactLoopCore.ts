@@ -17,6 +17,7 @@ import {
   removeAgentStatusMessages,
   type AgentStatusSnapshot,
 } from './agentStatusBar.js';
+import { A2UIComposer } from './a2ui/composer.js';
 
 // ── 编辑距离相似度（用于循环检测） ──
 function levenshteinSimilarity(a: string, b: string): number {
@@ -78,6 +79,37 @@ function createRunState(): ReactRunState {
     toolCount: 0,
     retryCount: 0,
   };
+}
+
+/** 将模型答案交给 Composer，并把文本与 A2UI 输出转发到 ReactEvent 流。 */
+function emitComposedAnswer(
+  composer: A2UIComposer,
+  events: ReactEventEmitter,
+  runId: string,
+  round: number,
+  content: string,
+  completed = false,
+): void {
+  const output = composer.handle({
+    runId,
+    round,
+    event: { kind: completed ? 'answer_completed' : 'answer_chunk', content },
+  });
+  for (const item of output.outputs) {
+    if (item.kind === 'text') {
+      events.emit({ type: 'answer', content: item.content, round });
+      continue;
+    }
+    for (const message of item.emission.messages) {
+      events.emit({
+        type: 'a2ui',
+        segmentId: item.emission.segmentId,
+        surfaceId: item.emission.surfaceId,
+        message,
+        round,
+      });
+    }
+  }
 }
 
 /** 从运行状态生成状态栏快照；快照中的计数器必须复制，避免后续轮次改变已发送事件。 */
@@ -321,6 +353,7 @@ export async function reactChat(
 ): Promise<StreamResult> {
   const runId = uuidv4();
   const events = new ReactEventEmitter(sink, runId);
+  const a2uiComposer = new A2UIComposer();
   const finishSink = () => {
     if (!sink.writableEnded) sink.end();
   };
@@ -335,13 +368,13 @@ export async function reactChat(
   const { apiUrl, apiKey } = settings;
   if (!apiUrl || !apiKey) {
     fail(new Error('API URL or API Key not configured'));
-    return { content: '', reasoning: '', toolCalls: null };
+    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [] };
   }
 
   const adapter = getAdapter(settings.apiType || 'openai-chat');
   if (!adapter) {
     fail(new Error(`Unsupported API type: ${settings.apiType}`));
-    return { content: '', reasoning: '', toolCalls: null };
+    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [] };
   }
 
   const maxIterations = Math.max(1, Math.min(20, settings.reactMaxIterations ?? 5));
@@ -352,7 +385,7 @@ export async function reactChat(
     tools = await getAllToolDefinitions(agent);
   } catch (error) {
     fail(error);
-    return { content: '', reasoning: '', toolCalls: null };
+    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [] };
   }
 
   let currentMessages: HistoryMessage[] = [...messages];
@@ -380,7 +413,10 @@ export async function reactChat(
 
     // 检测到重复调用后，将下一次模型请求标记为最终回答，避免继续消耗工具轮次。
     const isLast = state.forceFinalAnswer || iteration === maxIterations - 1;
-    const label = isLast ? 'react-answer' : 'react-thought';
+    // 工具结果之后的模型轮次就是面向用户的回答轮，应实时走 Composer；
+    // 首轮无工具调用的直接回答仍由 executeRound 完成后兜底处理。
+    const isAnswerRound = isLast || state.toolCount > 0;
+    const label = isAnswerRound ? 'react-answer' : 'react-thought';
     currentMessages = [
       ...removeAgentStatusMessages(currentMessages),
       buildAgentStatusMessage(
@@ -394,6 +430,7 @@ export async function reactChat(
     events.emit({ type: 'round_started', state: 'awaiting_model', round });
 
     let result: StreamResult;
+    let answerStreamedThisRound = false;
     try {
       result = await toolLoopEngine.executeRound(
         {
@@ -404,6 +441,11 @@ export async function reactChat(
           signal,
           label,
           emitEvent: (event: ReactEventPayload) => {
+            if (event.type === 'answer' && event.content) {
+              answerStreamedThisRound = true;
+              emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
+              return;
+            }
             events.emit({
               ...event,
               ...(event.type === 'thought' || event.type === 'answer' ? { round } : {}),
@@ -422,7 +464,11 @@ export async function reactChat(
       result.toolCalls?.filter((toolCall): toolCall is ToolCall => Boolean(toolCall)) || null;
 
     if (!toolCalls || toolCalls.length === 0) {
-      state.finalContent = result.content;
+      if (!answerStreamedThisRound && result.content) {
+        emitComposedAnswer(a2uiComposer, events, runId, round, result.content);
+      }
+      emitComposedAnswer(a2uiComposer, events, runId, round, '', true);
+      state.finalContent = a2uiComposer.sanitizeContent(result.content);
       state.finalReasoning = result.reasoning;
       state.streamedAsAnswer = true;
       events.emit({
@@ -466,7 +512,20 @@ export async function reactChat(
 
     toolResults
       .sort((left, right) => left.index - right.index)
-      .forEach(({ assistantMsg, toolMsg }) => currentMessages.push(assistantMsg, toolMsg));
+      .forEach((toolResult) => {
+        const toolCall = toolCalls[toolResult.index];
+        const uiResult = a2uiComposer.handle({
+          runId,
+          round,
+          event: {
+            kind: 'tool_result',
+            toolName: toolCall.function.name,
+            result: toolResult.toolMsg.content,
+          },
+        });
+        if (uiResult.contextResult) toolResult.toolMsg.content = uiResult.contextResult;
+        currentMessages.push(toolResult.assistantMsg, toolResult.toolMsg);
+      });
 
     // discover/load 工具可能在本轮改变可用 MCP 工具集；下一轮使用最新定义。
     tools = await getAllToolDefinitions(agent);
@@ -512,12 +571,17 @@ export async function reactChat(
       events.emit({
         type: 'run_completed',
         state: 'completed',
-        content: state.finalContent,
+        content: a2uiComposer.sanitizeContent(state.finalContent),
         reasoning: state.finalReasoning,
       });
     }
   }
 
   finishSink();
-  return { content: state.finalContent, reasoning: state.finalReasoning, toolCalls: null };
+  return {
+    content: a2uiComposer.sanitizeContent(state.finalContent),
+    reasoning: state.finalReasoning,
+    toolCalls: null,
+    uiBlocks: a2uiComposer.getBlocks(),
+  };
 }

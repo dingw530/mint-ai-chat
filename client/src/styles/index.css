@@ -1027,6 +1027,43 @@ body::after {
   overflow-y: auto;
 }
 
+.a2ui-answer-segment {
+  margin: 4px 0;
+}
+
+.source-reference-card {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  max-width: 100%;
+  padding: 3px 0 3px 9px;
+  border-left: 2px solid var(--accent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.source-reference-card-label {
+  color: var(--accent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.source-reference-card-file {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-reference-card-title {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .tool-call-segment {
   display: flex;
   align-items: center;

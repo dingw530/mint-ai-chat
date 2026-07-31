@@ -1,5 +1,6 @@
 import { A2uiMessageSchema, MessageProcessor, type Catalog, type ComponentApi, type SurfaceModel } from '@a2ui/web_core/v0_9';
 import type { ReactComponentImplementation } from '@a2ui/react/v0_9';
+import type { PersistedUiBlock } from '@/types';
 
 export type A2uiMessage = typeof A2uiMessageSchema._type;
 export type A2uiCatalog = Catalog<ReactComponentImplementation>;
@@ -23,4 +24,26 @@ export function createA2uiProcessor(catalog: A2uiCatalog): MessageProcessor<Reac
 /** 将自定义 Catalog API 约束为官方 ComponentApi，避免业务组件绕过 Catalog 注册。 */
 export function createMintComponentApi<Schema extends ComponentApi['schema']>(name: string, schema: Schema): ComponentApi<Schema> {
   return { name, schema };
+}
+
+/** 将持久化业务 Block 恢复为官方 A2UI 消息；未知契约只记录并降级为纯文本。 */
+export function buildPersistedA2uiMessages(block: PersistedUiBlock): A2uiMessage[] {
+  if (block.kind !== 'wiki_source_reference' || block.version !== 1) {
+    console.warn('[a2ui] ignored unsupported persisted block', { kind: block.kind, version: block.version });
+    return [];
+  }
+  const surfaceId = `answer-source-${block.id}`;
+  const source = { ...block.data };
+  delete source.textOffset;
+  return [
+    { version: 'v0.9', createSurface: { surfaceId, catalogId: 'mint' } },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId,
+        components: [{ id: 'root', component: 'SourceReferenceCard', data: { path: '/source' } }],
+      },
+    },
+    { version: 'v0.9', updateDataModel: { surfaceId, path: '/source', value: source } },
+  ];
 }

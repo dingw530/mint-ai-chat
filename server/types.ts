@@ -19,6 +19,17 @@ export interface MessageRow {
   created_at: string;
 }
 
+export interface UiBlockRow {
+  id: string;
+  message_id: string;
+  block_index: number;
+  kind: string;
+  version: number;
+  data_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface HistoryMessageRow {
   role: string;
   content: string;
@@ -44,6 +55,19 @@ export interface Message {
   reasoning?: string | null;
   imageData?: string | null;
   createdAt: string;
+  uiBlocks?: PersistedUiBlock[];
+}
+
+export interface PersistedUiBlock {
+  id: string;
+  messageId: string;
+  blockIndex: number;
+  textOffset: number;
+  kind: string;
+  version: number;
+  data: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // 发送给 AI 的历史消息，兼容 tool_calls 和 tool_call_id
@@ -142,6 +166,7 @@ export interface StreamResult {
   content: string;
   reasoning: string;
   toolCalls: ToolCall[] | null;
+  uiBlocks?: PersistedUiBlock[];
 }
 
 export interface StreamChunk {

@@ -163,6 +163,9 @@ export function parseSSEChunk(
         callbacks.onRunCompleted?.(data);
         if (data.estimatedTokens != null) callbacks.onTokenUsage?.(data);
         return;
+      case 'a2ui':
+        callbacks.onA2ui?.(data);
+        return;
       case 'run_cancelled':
         callbacks.onRunCancelled?.(data);
         return;

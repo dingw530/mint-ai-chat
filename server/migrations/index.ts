@@ -488,6 +488,38 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 23,
+    name: 'add-a2ui-message-blocks-and-registry',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS message_ui_blocks (
+          id TEXT PRIMARY KEY,
+          message_id TEXT NOT NULL,
+          block_index INTEGER NOT NULL,
+          kind TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          data_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(message_id, block_index),
+          FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_message_ui_blocks_message
+          ON message_ui_blocks(message_id, block_index);
+        CREATE TABLE IF NOT EXISTS a2ui_component_registry (
+          kind TEXT PRIMARY KEY,
+          catalog_id TEXT NOT NULL,
+          component_name TEXT NOT NULL,
+          data_schema_version INTEGER NOT NULL,
+          data_schema TEXT NOT NULL DEFAULT '{}',
+          enabled INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

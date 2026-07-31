@@ -110,9 +110,11 @@ export default function useChatRunActions({
     updateTempMessage(buffer.id, (message) => {
       const segments = [...(message.segments || [])];
       const last = segments[segments.length - 1];
-      if (last?.type === 'text') segments[segments.length - 1] = { ...last, content };
+      if (last?.type === 'text') {
+        segments[segments.length - 1] = { ...last, content: last.content + content };
+      }
       else segments.push({ type: 'text', content });
-      return { ...message, content, segments };
+      return { ...message, content: message.content + content, segments };
     });
   }, [updateTempMessage]);
 
@@ -149,6 +151,7 @@ export default function useChatRunActions({
       tempId,
       isAutoRoute: isAutoRoute(conversation),
       streamBufferRef,
+      flushStream,
       scheduleFlush,
       finishStream,
       onCompleted,
@@ -158,7 +161,7 @@ export default function useChatRunActions({
       setAgentRunStatus,
       dispatchReactEvent,
     }), agent, options);
-  }, [conversations, dispatchReactEvent, finishStream, scheduleFlush, send, setActiveAgent, setAgentRunStatus, setAutoRoutedAgent, updateTempMessage]);
+  }, [conversations, dispatchReactEvent, finishStream, flushStream, scheduleFlush, send, setActiveAgent, setAgentRunStatus, setAutoRoutedAgent, updateTempMessage]);
 
   const handleToolApproval = useCallback((approvalId: string, action: 'approve' | 'deny') => {
     if (!activeConversation) return;
