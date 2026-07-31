@@ -8,36 +8,37 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![GitHub Stars](https://img.shields.io/github/stars/dingw530/mint-ai-chat?style=social)](https://github.com/dingw530/mint-ai-chat)
 
-A native desktop AI chat application built with Electron. Connect to any OpenAI-compatible API endpoint with your own credentials — your data stays on your machine.
+Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构建为原生桌面应用。它可以将文档、网页和对话沉淀为可持续使用的知识，并连接任意兼容 OpenAI 的 API 端点；所有数据始终保留在本机。
 
 <p align="center">
-  <img src="screenshots/mint-preview.png" alt="Mint Preview" width="800" />
+  <img src="screenshots/mint-preview.png" alt="Mint 预览" width="800" />
 </p>
 
-## Features
+## 功能特性
 
-- Native desktop experience (macOS, Windows, Linux)
-- Real-time streaming responses
-- Multi-conversation management
-- Custom agent & endpoint configuration
-- MCP Server support (Model Context Protocol)
-- User memory system for context retention
-- **LLM Wiki** — AI-powered knowledge base generation from documents, URLs, and chat
-- **Knowledge Graph** — Visual entity-relation graph (concept / practice / methodology) with auto-build from wiki ingestion
-- Encrypted API key storage (AES-256-GCM)
-- Custom window frame with frameless titlebar
+- 原生桌面体验（macOS、Windows、Linux）
+- 实时流式响应
+- 多对话管理
+- 自定义 Agent 与 API 端点配置
+- 支持 MCP Server（Model Context Protocol）
+- 用户记忆系统，用于保留上下文
+- **LLM Wiki 知识库** —— 从文档、URL 和聊天内容构建可检索、可持续积累的 AI 知识库
+- **知识库问答** —— 基于 Wiki 知识进行上下文增强对话，帮助用户理解、整理和应用个人知识
+- **知识图谱** —— 可视化实体关系图（概念 / 实践 / 方法论），支持从 Wiki 导入内容后自动构建
+- 使用 AES-256-GCM 加密存储 API 密钥
+- 自定义无边框窗口与标题栏
 
-## Tech Stack
+## 技术栈
 
-- **Desktop**: Electron 33
-- **Frontend**: React 18, Vite 5, plain CSS with design tokens
-- **Backend**: Express 4, TypeScript, better-sqlite3 (SQLite)
-- **IPC**: Direct service layer calls (no HTTP overhead)
-- **Testing**: Vitest
+- **桌面端**：Electron 33
+- **前端**：React 18、Vite 5、使用设计令牌的原生 CSS
+- **后端**：Express 4、TypeScript、better-sqlite3（SQLite）
+- **IPC**：直接调用服务层（无 HTTP 开销）
+- **测试**：Vitest
 
-## Getting Started
+## 快速开始
 
-### Prerequisites
+### 环境要求
 
 - Node.js 20.18.3
 
@@ -60,7 +61,7 @@ npm run electron:rebuild
 
 不要直接在项目根目录执行通用的 `npm rebuild better-sqlite3`，它可能覆盖另一套 ABI。
 
-### Install
+### 安装
 
 ```bash
 cd server && npm install
@@ -68,14 +69,14 @@ cd client && npm install
 cd electron && npm install
 ```
 
-### Run in Development
+### 开发模式运行
 
 ```bash
-# Launch Electron app (auto-starts server + client dev server)
+# 启动 Electron 应用（自动启动 server 和 client 开发服务器）
 npm run electron:dev
 ```
 
-### Build Desktop App
+### 构建桌面应用
 
 ```bash
 # macOS
@@ -84,70 +85,72 @@ npm run electron:build:mac
 
 ```
 
-Output will be in `electron/release/`.
+构建产物位于 `electron/release/`。
 
-### Test
+### 测试
 
 ```bash
 cd server && npm test
 ```
 
-## About This Project
+## 项目简介
 
-Mint is a personal knowledge chat engine deeply integrated with LLM Wiki, covering the full modern stack and core concepts:
+Mint 的核心定位是以 LLM Wiki 知识库为基础的个人 AI 助手：它帮助用户采集、整理、理解和调用个人知识，并在此基础上提供智能对话与自动化能力。
 
-- **Agent Architecture** — Custom agent system with system prompts, auto-routing, and locked-agent modes
-- **ReAct Pattern** — Reasoning + Acting loop: agents observe, reason, call tools, and incorporate results into responses iteratively
-- **Tool Use** — Plugin-based tool system built on BaseTool, including HTTP requests, Wiki retrieval, file operations, and more
-- **MCP Protocol** — Model Context Protocol integration with dynamic MCP server connection management
-- **Memory System** — Long-term user memory with multi-category support (general / preferences / facts) and automatic recall
-- **Context Window** — Sliding window token management to control context consumption
-- **Skills System** — Hot-pluggable skills loaded dynamically from local Markdown files
-- **Knowledge Graph** — Entity-relation graph with three node types (concept / practice / methodology), vis-network force-directed rendering, and auto-building from wiki ingestion. Nodes are deduplicated by label; cross-batch edges are created via AI-specified relations or shared tags.
-- **Streaming** — SSE-based real-time streaming response with chunk-by-chunk rendering
-- **Multi-Model** — Compatible with any OpenAI-format API endpoint for flexible model switching
-- **IPC Architecture** — Direct service layer invocation in Electron main process, bypassing HTTP overhead
-- **End-to-End Encryption** — API keys encrypted with AES-256-GCM
+产品围绕以下能力构建：
 
-## Architecture
+- **Agent 架构** —— 自定义 Agent 系统，支持系统提示词、自动路由和锁定 Agent 模式
+- **ReAct 模式** —— 推理与行动循环：Agent 观察、推理、调用工具，并迭代地将工具结果整合到响应中
+- **工具调用** —— 基于 BaseTool 的插件式工具系统，包含 HTTP 请求、Wiki 检索、文件操作等
+- **MCP 协议** —— 集成 Model Context Protocol，支持动态管理 MCP Server 连接
+- **记忆系统** —— 支持多类别（通用 / 偏好 / 事实）的长期用户记忆与自动召回
+- **上下文窗口** —— 使用滑动窗口管理 Token，控制上下文消耗
+- **Skills 系统** —— 从本地 Markdown 文件动态加载、热插拔 Skills
+- **知识图谱** —— 包含三种节点类型（概念 / 实践 / 方法论）的实体关系图，使用 vis-network 进行力导向渲染，并可从 Wiki 导入内容后自动构建。节点按标签去重；跨批次边通过 AI 指定的关系或共享标签创建。
+- **流式响应** —— 基于 SSE 的实时流式响应，按数据块逐步渲染
+- **多模型** —— 兼容任意 OpenAI 格式的 API 端点，支持灵活切换模型
+- **IPC 架构** —— 在 Electron 主进程中直接调用服务层，绕过 HTTP 开销
+- **端到端加密** —— 使用 AES-256-GCM 加密 API 密钥
+
+## 架构
 
 <p align="center">
-  <img src="architecture.svg" alt="Mint Architecture" width="900" />
+  <img src="architecture.svg" alt="Mint 架构" width="900" />
 </p>
 
-In Electron mode, the app runs the server **in-process** — service modules are loaded directly into the main process and invoked via IPC handlers, bypassing HTTP entirely. This eliminates network overhead and gives the renderer direct access to services.
+在 Electron 模式下，应用会在**同一进程内**运行 server：服务模块直接加载到主进程中，并通过 IPC handler 调用，完全绕过 HTTP。这可以消除网络开销，并让渲染进程直接访问服务。
 
 ```
-Renderer (React)
+渲染进程（React）
     ↕ IPC (contextBridge)
-Main Process
-    ├── Service Layer (conversation, message, settings, agent, endpoint, memory, mcp)
+主进程
+    ├── 服务层（conversation、message、settings、agent、endpoint、memory、mcp）
     ├── SQLite (better-sqlite3)
-    └── AI Proxy (OpenAI-compatible streaming)
+    └── AI 代理（兼容 OpenAI 的流式接口）
 ```
 
-## Project Structure
+## 项目结构
 
 ```
-electron/             # Electron main process
-  main.js             # Window creation, IPC handlers, lifecycle
-  preload.js          # contextBridge API exposed to renderer
-  logger.js           # File-based logging
+electron/             # Electron 主进程
+  main.js             # 创建窗口、IPC handlers、生命周期管理
+  preload.js          # 向渲染进程暴露的 contextBridge API
+  logger.js           # 基于文件的日志
 
-client/               # React SPA (renderer)
+client/               # React SPA（渲染进程）
   src/
-    components/       # UI (Sidebar, ChatArea, Settings, Agents, etc.)
-    hooks/            # useSSE, useIPC
-    services/         # API client (auto-detects Electron vs HTTP)
-    styles/           # Design system (CSS custom properties)
+    components/       # UI（Sidebar、ChatArea、Settings、Agents 等）
+    hooks/            # useSSE、useIPC
+    services/         # API 客户端（自动识别 Electron 与 HTTP）
+    styles/           # 设计系统（CSS 自定义属性）
 
-server/               # Express API (TypeScript)
-  index.ts            # Entry point
-  services/           # Business logic layer
-  repositories/       # Data access (SQLite)
-  __tests__/          # Integration & unit tests
+server/               # Express API（TypeScript）
+  index.ts            # 入口
+  services/           # 业务逻辑层
+  repositories/       # 数据访问层（SQLite）
+  __tests__/          # 集成测试与单元测试
 ```
 
-## License
+## 许可证
 
 MIT
