@@ -111,7 +111,6 @@ export class A2UIComposer {
     while (match) {
       const boundaryEnd = match.index + match[0].length;
       this.appendTextPart(content.slice(cursor, boundaryEnd), outputs);
-      outputs.push(...this.flushPendingEmissions());
       cursor = boundaryEnd;
       match = paragraphBreak.exec(content);
     }

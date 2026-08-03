@@ -37,6 +37,27 @@ describe('A2UIComposer', () => {
     expect(composer.sanitizeContent('事实 [C1]。 [C99] [C')).toBe('事实 [C1]。');
   });
 
+  it('reuses one reference id for chunks from the same file', () => {
+    const composer = new A2UIComposer();
+    const result = composer.handle({
+      runId: 'run-1',
+      round: 1,
+      event: {
+        kind: 'tool_result',
+        toolName: 'wiki_search',
+        result: {
+          results: [
+            { file: 'pages/a.md', chunkId: 'pages/a.md#chunk:0' },
+            { file: 'pages/a.md', chunkId: 'pages/a.md#chunk:1' },
+          ],
+        },
+      },
+    });
+
+    expect(result.contextResult).toContain('"refId":"C1"');
+    expect(result.contextResult).not.toContain('"refId":"C2"');
+  });
+
   it('places references after the paragraph containing the marker', () => {
     const composer = new A2UIComposer();
     composer.handle({
@@ -49,8 +70,42 @@ describe('A2UIComposer', () => {
       round: 1,
       event: { kind: 'answer_chunk', content: '第一句 [C1] 后续内容。\n\n第二段。' },
     });
-    expect(result.outputs.map((item) => item.kind)).toEqual(['text', 'surface', 'text']);
-    expect(composer.getBlocks()[0].textOffset).toBe('第一句 [C1] 后续内容。\n\n'.length);
+    expect(result.outputs.map((item) => item.kind)).toEqual(['text']);
+    expect(composer.getBlocks()).toHaveLength(0);
+
+    const completed = composer.handle({
+      runId: 'run-1',
+      round: 1,
+      event: { kind: 'answer_completed', content: '' },
+    });
+    expect(completed.outputs.map((item) => item.kind)).toEqual(['surface']);
+    expect(composer.getBlocks()[0].textOffset).toBe('第一句 [C1] 后续内容。\n\n第二段。'.length);
+  });
+
+  it('emits one source card when multiple chunks belong to the same file', () => {
+    const composer = new A2UIComposer();
+    composer.handle({
+      runId: 'run-1',
+      round: 1,
+      event: {
+        kind: 'tool_result',
+        toolName: 'wiki_search',
+        result: {
+          results: [
+            { file: 'pages/a.md', chunkId: 'pages/a.md#chunk:0', title: 'A' },
+            { file: 'pages/a.md', chunkId: 'pages/a.md#chunk:1', title: 'A' },
+          ],
+        },
+      },
+    });
+
+    composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_chunk', content: '结论 [C1]。补充 [C2]。' } });
+    const completed = composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_completed', content: '' } });
+
+    expect(completed.outputs).toHaveLength(1);
+    expect(completed.outputs[0].kind).toBe('surface');
+    expect(composer.getBlocks()).toHaveLength(1);
+    expect(composer.getBlocks()[0].data.refId).toBe('C1');
   });
 
   it('allocates distinct references for multiple searches', () => {
