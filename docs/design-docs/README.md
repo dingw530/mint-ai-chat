@@ -37,3 +37,4 @@
 | [Harness 反馈回路](<../changes/2026-07-24-harness-feedback-loop/design-doc.md>) | 2026-07-24 | 已完成 |
 | [Wiki 知识生命周期](<../changes/2026-07-24-knowledge-lifecycle/design-doc.md>) | 2026-07-24 | 已完成 |
 | [Agent 状态栏](<../changes/2026-07-27-agent-status-bar/design-doc.md>) | 2026-07-27 | 已完成 |
+| [Context Artifact 生命周期第一阶段](<../changes/2026-08-03-context-artifact-lifecycle/design-doc.md>) | 2026-08-03 | 已完成 |
