@@ -1,0 +1,300 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200" role="img" aria-labelledby="title desc">
+  <title id="title">Mint 记忆机制全链路</title>
+  <desc id="desc">展示 Mint 从用户提问开始，经记忆读取与上下文注入、AI 回答，再到异步记忆提取、候选对账、版本化写回和失败重试的完整链路。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
+    </linearGradient>
+    <linearGradient id="readPanel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eff6ff" stop-opacity="0.90"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.82"/>
+    </linearGradient>
+    <linearGradient id="writePanel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0fdf4" stop-opacity="0.90"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.82"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#64748b" flood-opacity="0.16"/>
+    </filter>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#059669"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#ea580c"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { font: 700 30px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .panel-title { font: 700 18px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .panel-sub { font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #64748b; }
+      .node-title { font: 700 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #0f172a; }
+      .node-sub { font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #475569; }
+      .node-code { font: 600 11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #334155; }
+      .label { font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+      .small { font: 500 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #64748b; }
+      .tiny { font: 500 10px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #64748b; }
+      .panel { stroke-width: 1.5; stroke-dasharray: 8 7; rx: 22; ry: 22; }
+      .node { stroke-width: 1.4; rx: 15; ry: 15; filter: url(#shadow); }
+      .chip { rx: 9; ry: 9; }
+      .arrow-label { font: 600 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="1200" fill="url(#bg)"/>
+
+  <text class="title" x="900" y="48" text-anchor="middle">Mint 记忆机制全链路</text>
+  <text class="subtitle" x="900" y="76" text-anchor="middle">同步读取保证当前回答命中上下文；异步写回负责跨会话积累、更新、追溯与恢复</text>
+
+  <!-- Main panels -->
+  <rect class="panel" x="48" y="105" width="1704" height="398" fill="url(#readPanel)" stroke="#93c5fd"/>
+  <text class="panel-title" x="78" y="142">A · 读取路径：用户提问 → 记忆上下文 → AI 回答</text>
+  <text class="panel-sub" x="78" y="163">请求内同步完成；读取只访问本地 SQLite，不新增远程 LLM 调用</text>
+  <rect class="panel" x="48" y="530" width="1704" height="508" fill="url(#writePanel)" stroke="#86efac"/>
+  <text class="panel-title" x="78" y="567">B · 写入路径：回复完成 → 后台整理 → 结构化记忆写回</text>
+  <text class="panel-sub" x="78" y="588">与 SSE 主聊天解耦；任务持久化、可幂等、可恢复、有限次数退避重试</text>
+
+  <!-- Read path arrows, drawn before nodes -->
+  <line x1="285" y1="235" x2="350" y2="235" stroke="#2563eb" stroke-width="2.6" marker-end="url(#arrowBlue)"/>
+  <line x1="600" y1="235" x2="650" y2="235" stroke="#059669" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+  <path d="M 785 288 L 785 338" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <path d="M 985 338 L 985 288" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <line x1="920" y1="235" x2="1030" y2="235" stroke="#059669" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+  <line x1="1300" y1="235" x2="1380" y2="235" stroke="#2563eb" stroke-width="2.6" marker-end="url(#arrowBlue)"/>
+
+  <!-- Read path labels with background -->
+  <rect x="289" y="210" width="62" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="320" y="224" text-anchor="middle">当前 query</text>
+  <rect x="602" y="210" width="90" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="647" y="224" text-anchor="middle">memoryEnabled</text>
+  <rect x="805" y="300" width="164" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="887" y="314" text-anchor="middle">profile + relevant candidates</text>
+  <rect x="945" y="210" width="86" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="988" y="224" text-anchor="middle">active only</text>
+  <rect x="1304" y="210" width="74" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="1341" y="224" text-anchor="middle">messages</text>
+
+  <!-- Read path nodes -->
+  <g>
+    <rect class="node" x="80" y="188" width="205" height="94" fill="#fff7ed" stroke="#fb923c"/>
+    <circle cx="111" cy="219" r="15" fill="#fed7aa"/>
+    <circle cx="111" cy="215" r="5" fill="#c2410c"/>
+    <path d="M 101 231 Q 111 222 121 231" fill="none" stroke="#c2410c" stroke-width="2"/>
+    <text class="node-title" x="140" y="221">用户提问</text>
+    <text class="node-sub" x="140" y="243">当前会话 / 当前 query</text>
+    <text class="node-code" x="98" y="266">“我搬到上海了吗？”</text>
+  </g>
+
+  <g>
+    <rect class="node" x="350" y="188" width="250" height="94" fill="#eff6ff" stroke="#60a5fa"/>
+    <rect x="374" y="210" width="28" height="22" rx="4" fill="#bfdbfe" stroke="#2563eb"/>
+    <path d="M 381 216 h14 M 381 222 h10" stroke="#2563eb" stroke-width="2"/>
+    <text class="node-title" x="418" y="221">messageService</text>
+    <text class="node-sub" x="418" y="243">sendMessage()</text>
+    <text class="node-code" x="372" y="266">读取历史 + 准备 AI messages</text>
+  </g>
+
+  <g>
+    <rect class="node" x="650" y="188" width="270" height="94" fill="#ecfdf5" stroke="#34d399"/>
+    <path d="M 679 221 l12 -17 12 17 -12 17 z" fill="#a7f3d0" stroke="#059669" stroke-width="1.6"/>
+    <path d="M 687 221 h8 M 691 217 v8" stroke="#059669" stroke-width="1.8"/>
+    <text class="node-title" x="720" y="221">memoryService</text>
+    <text class="node-sub" x="720" y="243">buildMemoryContext(query)</text>
+    <text class="node-code" x="672" y="266">profile + query-aware retrieval</text>
+  </g>
+
+  <!-- Shared SQLite store -->
+  <g>
+    <path d="M 690 346 C 690 331 1005 331 1005 346 L 1005 422 C 1005 437 690 437 690 422 Z" fill="#f5f3ff" stroke="#8b5cf6" stroke-width="1.6" filter="url(#shadow)"/>
+    <ellipse cx="847.5" cy="346" rx="157.5" ry="15" fill="#ddd6fe" stroke="#8b5cf6" stroke-width="1.6"/>
+    <path d="M 705 365 H 990 M 705 385 H 990 M 705 405 H 990" stroke="#c4b5fd" stroke-width="1"/>
+    <text class="node-title" x="847" y="368" text-anchor="middle">SQLite · memories</text>
+    <text class="node-sub" x="847" y="389" text-anchor="middle">结构化事实 + 来源 + 置信度 + 重要性 + 状态/版本</text>
+    <text class="node-code" x="847" y="411" text-anchor="middle">active / superseded / deleted</text>
+  </g>
+
+  <g>
+    <rect class="node" x="1030" y="188" width="270" height="94" fill="#ecfdf5" stroke="#34d399"/>
+    <rect x="1054" y="210" width="31" height="25" rx="4" fill="#a7f3d0" stroke="#059669"/>
+    <path d="M 1061 218 h17 M 1061 224 h12" stroke="#059669" stroke-width="1.8"/>
+    <text class="node-title" x="1100" y="221">合并、去重、筛选</text>
+    <text class="node-sub" x="1100" y="243">只保留 active 记忆</text>
+    <text class="node-code" x="1052" y="266">profile 24 + relevant 8</text>
+  </g>
+
+  <g>
+    <rect class="node" x="1380" y="188" width="300" height="94" fill="#f0f9ff" stroke="#38bdf8"/>
+    <path d="M 1412 226 q14 -22 28 0 q14 22 28 0" fill="none" stroke="#0284c7" stroke-width="2.2"/>
+    <text class="node-title" x="1484" y="221">动态上下文注入</text>
+    <text class="node-sub" x="1484" y="243">insertMemoryContext()</text>
+    <text class="node-code" x="1402" y="266">&lt;user_memory&gt; … &lt;/user_memory&gt;</text>
+  </g>
+
+  <g>
+    <rect class="node" x="1380" y="338" width="300" height="94" fill="#fff7ed" stroke="#fb923c"/>
+    <path d="M 1410 376 l14 -14 14 14 -14 14 z M 1433 376 l14 -14 14 14 -14 14 z" fill="#fed7aa" stroke="#c2410c" stroke-width="1.4"/>
+    <text class="node-title" x="1496" y="370">AI Adapter / Chat</text>
+    <text class="node-sub" x="1496" y="392">streamChat() / reactChat()</text>
+    <text class="node-code" x="1400" y="415">SSE 流式回答 → fullContent</text>
+  </g>
+  <path d="M 1530 282 L 1530 338" fill="none" stroke="#2563eb" stroke-width="2.6" marker-end="url(#arrowBlue)"/>
+  <rect x="1542" y="294" width="95" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="1589" y="308" text-anchor="middle">注入 prompt</text>
+
+  <!-- Read path notes -->
+  <rect x="80" y="455" width="1600" height="24" rx="8" fill="#ffffff" opacity="0.82"/>
+  <text class="small" x="880" y="472" text-anchor="middle">检索实现：active semantic profile 按 importance DESC 限 24；query 检索匹配 content / memory_key / subject，按 importance DESC 限 8；首阶段不使用 embedding / 向量数据库</text>
+
+  <!-- Write path arrows, drawn before nodes -->
+  <path d="M 1530 432 L 1530 640" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowOrange)"/>
+  <line x1="1460" y1="686" x2="1370" y2="686" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowOrange)"/>
+  <line x1="1280" y1="686" x2="1190" y2="686" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowOrange)"/>
+  <line x1="1100" y1="686" x2="1010" y2="686" stroke="#64748b" stroke-width="2.0" stroke-dasharray="5 4" marker-end="url(#arrowGray)"/>
+  <line x1="920" y1="686" x2="830" y2="686" stroke="#64748b" stroke-width="2.0" stroke-dasharray="5 4" marker-end="url(#arrowGray)"/>
+  <line x1="740" y1="686" x2="650" y2="686" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+  <path d="M 560 732 L 560 820" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+  <line x1="650" y1="868" x2="740" y2="868" stroke="#059669" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+  <line x1="940" y1="868" x2="1030" y2="868" stroke="#059669" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+  <line x1="1230" y1="868" x2="1320" y2="868" stroke="#059669" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowGreen)"/>
+  <path d="M 1335 820 L 1335 520 L 1005 520 L 1005 437" fill="none" stroke="#059669" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowGreen)"/>
+
+  <!-- Write path labels -->
+  <rect x="1542" y="510" width="86" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="1585" y="524" text-anchor="middle">回复完成后</text>
+  <rect x="1400" y="662" width="70" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="1435" y="676" text-anchor="middle">入队</text>
+  <rect x="1018" y="662" width="82" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="1059" y="676" text-anchor="middle">claim / drain</text>
+  <rect x="661" y="845" width="82" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="702" y="859" text-anchor="middle">候选对账</text>
+  <rect x="1240" y="845" width="84" height="20" fill="#ffffff" opacity="0.95"/>
+  <text class="arrow-label" x="1282" y="859" text-anchor="middle">写回同一库</text>
+
+  <!-- Write path nodes: top row is right-to-left after reply -->
+  <g>
+    <rect class="node" x="1420" y="640" width="220" height="92" fill="#fff7ed" stroke="#fb923c"/>
+    <path d="M 1450 670 h28 l-14 22 h-28 z" fill="#fed7aa" stroke="#c2410c" stroke-width="1.4"/>
+    <text class="node-title" x="1504" y="675">回复持久化</text>
+    <text class="node-sub" x="1504" y="697">messageRepository</text>
+    <text class="node-code" x="1442" y="719">user + assistant messages</text>
+  </g>
+
+  <g>
+    <rect class="node" x="1190" y="640" width="180" height="92" fill="#fff7ed" stroke="#fb923c"/>
+    <path d="M 1218 677 q12 -20 24 0 q12 20 24 0" fill="none" stroke="#c2410c" stroke-width="2"/>
+    <text class="node-title" x="1270" y="675">价值判断</text>
+    <text class="node-sub" x="1270" y="697">isConversationValuable()</text>
+    <text class="node-code" x="1207" y="719">过滤寒暄 / 短消息</text>
+  </g>
+
+  <g>
+    <rect class="node" x="960" y="640" width="180" height="92" fill="#fff7ed" stroke="#fb923c"/>
+    <path d="M 990 676 h34 M 990 684 h22 M 990 692 h30" stroke="#c2410c" stroke-width="2"/>
+    <text class="node-title" x="1050" y="675">记忆任务入队</text>
+    <text class="node-sub" x="1050" y="697">enqueue(conversationId)</text>
+    <text class="node-code" x="977" y="719">同一会话唯一</text>
+  </g>
+
+  <g>
+    <rect class="node" x="730" y="640" width="180" height="92" fill="#f8fafc" stroke="#94a3b8"/>
+    <path d="M 760 674 h55 v28 h-55 z M 760 681 h55 M 760 688 h55" fill="#e2e8f0" stroke="#64748b" stroke-width="1.3"/>
+    <text class="node-title" x="820" y="675">memory_processing_jobs</text>
+    <text class="node-sub" x="820" y="697">pending → processing</text>
+    <text class="node-code" x="747" y="719">attempts / available_at</text>
+  </g>
+
+  <g>
+    <rect class="node" x="500" y="640" width="180" height="92" fill="#f8fafc" stroke="#94a3b8"/>
+    <path d="M 530 679 a13 13 0 1 1 2 16" fill="none" stroke="#64748b" stroke-width="2"/>
+    <path d="M 530 695 l-2 -9 l9 3" fill="none" stroke="#64748b" stroke-width="2"/>
+    <text class="node-title" x="590" y="675">后台 worker</text>
+    <text class="node-sub" x="590" y="697">claim / drain</text>
+    <text class="node-code" x="517" y="719">重启恢复 + 退避重试</text>
+  </g>
+
+  <g>
+    <rect class="node" x="270" y="640" width="180" height="92" fill="#fefce8" stroke="#facc15"/>
+    <path d="M 300 673 h32 l-16 25 h-32 z" fill="#fef08a" stroke="#ca8a04" stroke-width="1.3"/>
+    <text class="node-title" x="360" y="675">记忆提取</text>
+    <text class="node-sub" x="360" y="697">performExtraction()</text>
+    <text class="node-code" x="287" y="719">AIAdapter → JSON</text>
+  </g>
+
+  <g>
+    <rect class="node" x="470" y="820" width="180" height="92" fill="#f5f3ff" stroke="#a78bfa"/>
+    <path d="M 500 855 l12 -12 12 12 -12 12 z M 524 855 l12 -12 12 12 -12 12 z" fill="#ddd6fe" stroke="#7c3aed" stroke-width="1.3"/>
+    <text class="node-title" x="562" y="855">解析结构化操作</text>
+    <text class="node-sub" x="562" y="877">extractMemoryOperations()</text>
+    <text class="node-code" x="487" y="899">ADD / UPDATE / NOOP / DELETE</text>
+  </g>
+
+  <g>
+    <rect class="node" x="740" y="820" width="200" height="92" fill="#ecfdf5" stroke="#34d399"/>
+    <path d="M 773 853 h30 M 773 861 h23 M 773 869 h27" stroke="#059669" stroke-width="2"/>
+    <text class="node-title" x="838" y="855">候选记忆对账</text>
+    <text class="node-sub" x="838" y="877">findActiveByKey()</text>
+    <text class="node-code" x="757" y="899">memoryKey + subject</text>
+  </g>
+
+  <g>
+    <rect class="node" x="1030" y="820" width="200" height="92" fill="#ecfdf5" stroke="#34d399"/>
+    <path d="M 1062 859 h40 M 1062 867 h28" stroke="#059669" stroke-width="2"/>
+    <text class="node-title" x="1128" y="855">版本化写回</text>
+    <text class="node-sub" x="1128" y="877">applyMemoryOperations()</text>
+    <text class="node-code" x="1047" y="899">active ↔ superseded / deleted</text>
+  </g>
+
+  <g>
+    <rect class="node" x="1320" y="820" width="300" height="92" fill="#f5f3ff" stroke="#8b5cf6"/>
+    <path d="M 1350 855 c0 -10 42 -10 42 0 v30 c0 10 -42 10 -42 0 z" fill="#ddd6fe" stroke="#7c3aed" stroke-width="1.4"/>
+    <ellipse cx="1371" cy="855" rx="21" ry="7" fill="#c4b5fd" stroke="#7c3aed" stroke-width="1.4"/>
+    <text class="node-title" x="1478" y="855">同一 SQLite 记忆库</text>
+    <text class="node-sub" x="1478" y="877">写入后供下一次请求读取</text>
+    <text class="node-code" x="1360" y="899">source_conversation / source_message</text>
+  </g>
+
+  <!-- Shared-store feedback path -->
+  <rect x="1050" y="490" width="250" height="24" rx="8" fill="#ecfdf5" stroke="#86efac"/>
+  <text class="small" x="1175" y="507" text-anchor="middle">新事实进入下一个读取周期</text>
+
+  <!-- Manual management side path -->
+  <path d="M 95 955 L 95 1000 L 1650 1000 L 1650 912" fill="none" stroke="#64748b" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrowGray)"/>
+  <rect x="105" y="930" width="310" height="48" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <text class="node-title" x="260" y="951" text-anchor="middle">Settings / MemoriesPanel</text>
+  <text class="node-sub" x="260" y="968" text-anchor="middle">list · create · update · delete（兼容 CRUD）</text>
+  <rect x="550" y="956" width="430" height="36" rx="10" fill="#ffffff" opacity="0.9" stroke="#cbd5e1"/>
+  <text class="small" x="765" y="979" text-anchor="middle">手动管理与自动整理最终共用 memoryService / memoryRepository</text>
+
+  <!-- Failure / retry callout -->
+  <rect x="80" y="760" width="305" height="46" rx="12" fill="#fff1f2" stroke="#fda4af"/>
+  <text class="node-title" x="232" y="781" text-anchor="middle">失败不阻塞主聊天</text>
+  <text class="node-sub" x="232" y="798" text-anchor="middle">failed → pending（有限次数退避）→ failed</text>
+  <path d="M 500 686 C 430 750 385 700 385 784" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrowOrange)"/>
+
+  <!-- Legend -->
+  <rect x="80" y="1080" width="1640" height="76" rx="16" fill="#ffffff" fill-opacity="0.82" stroke="#cbd5e1"/>
+  <text class="node-title" x="108" y="1107">图例</text>
+  <line x1="170" y1="1103" x2="235" y2="1103" stroke="#2563eb" stroke-width="2.6" marker-end="url(#arrowBlue)"/>
+  <text class="small" x="245" y="1107">主请求 / 回答</text>
+  <line x1="370" y1="1103" x2="435" y2="1103" stroke="#059669" stroke-width="2.2" marker-end="url(#arrowGreen)"/>
+  <text class="small" x="445" y="1107">记忆读取</text>
+  <line x1="555" y1="1103" x2="620" y2="1103" stroke="#059669" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowGreen)"/>
+  <text class="small" x="630" y="1107">记忆写入</text>
+  <line x1="740" y1="1103" x2="805" y2="1103" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5" marker-end="url(#arrowOrange)"/>
+  <text class="small" x="815" y="1107">异步触发</text>
+  <line x1="925" y1="1103" x2="990" y2="1103" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrowPurple)"/>
+  <text class="small" x="1000" y="1107">解析 / 变换</text>
+  <line x1="1100" y1="1103" x2="1165" y2="1103" stroke="#64748b" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowGray)"/>
+  <text class="small" x="1175" y="1107">任务状态 / 恢复</text>
+  <text class="small" x="1480" y="1107" text-anchor="middle">持久化：SQLite · 可解释检索 · 无外部向量库</text>
+  <text class="tiny" x="900" y="1140" text-anchor="middle">关键源码：messageService.ts · memoryService.ts · memoryJobService.ts · memoryRepository.ts · memoryJobRepository.ts</text>
+</svg>

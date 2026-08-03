@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1220" viewBox="0 0 1920 1220" role="img" aria-labelledby="title desc">
+  <title id="title">Mint LLM Wiki 知识摄入与查询全链路</title>
+  <desc id="desc">展示 Mint LLM Wiki 从原始资料摄入、LLM 编译、文件系统落盘、数据库索引、关系图构建，到 wiki_search 查询、BM25 召回、页面过滤和上下文返回的完整流程。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#eef3fb"/>
+    </linearGradient>
+    <linearGradient id="llm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="store" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+    <linearGradient id="search" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#1e3a8a" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="purpleArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+    <style>
+      .title { font: 700 32px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .lane-title { font: 700 18px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .lane-note { font: 400 13px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .node-title { font: 700 17px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .node-title-light { font: 700 17px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #ffffff; }
+      .body { font: 400 14px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334155; }
+      .body-light { font: 400 14px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #e0e7ff; }
+      .mono { font: 500 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #475569; }
+      .label { font: 600 12px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #475569; }
+      .small { font: 400 12px Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1220" fill="url(#bg)"/>
+  <rect x="32" y="28" width="1856" height="1160" rx="26" fill="#ffffff" opacity="0.72"/>
+
+  <text x="70" y="78" class="title">Mint LLM Wiki：知识摄入与查询全链路</text>
+  <text x="70" y="108" class="subtitle">文件系统是事实源；LLM 负责知识编译，SQLite FTS5/BM25 与页面关系图提供检索和导航能力</text>
+
+  <rect x="64" y="142" width="1792" height="462" rx="20" fill="#f8fafc" stroke="#dbeafe" stroke-width="2"/>
+  <rect x="64" y="142" width="1792" height="52" rx="20" fill="#eff6ff"/>
+  <text x="92" y="175" class="lane-title">① 知识摄入链路（Write / Ingest）</text>
+  <text x="466" y="175" class="lane-note">原始资料 → LLM 编译 → Wiki 文件 → 派生索引</text>
+
+  <!-- ingestion nodes -->
+  <g filter="url(#shadow)">
+    <rect x="92" y="242" width="226" height="216" rx="16" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="344" y="242" width="226" height="216" rx="16" fill="#ecfeff" stroke="#0e7490" stroke-width="2"/>
+    <rect x="596" y="222" width="286" height="256" rx="16" fill="url(#llm)"/>
+    <rect x="908" y="242" width="250" height="216" rx="16" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+    <rect x="1184" y="222" width="286" height="256" rx="16" fill="url(#store)"/>
+    <rect x="1496" y="220" width="324" height="116" rx="16" fill="#ffffff" stroke="#0891b2" stroke-width="2"/>
+    <rect x="1496" y="356" width="324" height="122" rx="16" fill="#ffffff" stroke="#f59e0b" stroke-width="2"/>
+  </g>
+
+  <!-- source input -->
+  <circle cx="132" cy="282" r="20" fill="#e2e8f0"/>
+  <path d="M124 282h16M132 274v16" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+  <text x="165" y="288" class="node-title">资料输入</text>
+  <text x="116" y="329" class="body">上传 / URL / Chat</text>
+  <text x="116" y="356" class="body">TXT · MD · PDF · HTML</text>
+  <text x="116" y="398" class="mono">WikiIngestionJob</text>
+  <text x="116" y="426" class="small">校验格式、大小、路径</text>
+
+  <!-- archive -->
+  <circle cx="384" cy="282" r="20" fill="#cffafe"/>
+  <path d="M374 278h20v12h-20zM377 274h14v4h-14z" fill="none" stroke="#0e7490" stroke-width="2"/>
+  <text x="417" y="288" class="node-title">原始资料归档</text>
+  <text x="368" y="329" class="body">sources/</text>
+  <text x="368" y="356" class="body">不可变 Source 快照</text>
+  <text x="368" y="398" class="mono">hash + sourceType</text>
+  <text x="368" y="426" class="small">保留原文，便于追溯与版本化</text>
+
+  <!-- LLM compiler -->
+  <circle cx="637" cy="270" r="20" fill="#ddd6fe"/>
+  <path d="M627 270c0-6 4-10 10-10s10 4 10 10-4 10-10 10-10-4-10-10zM632 286h10" fill="none" stroke="#4c1d95" stroke-width="2"/>
+  <text x="670" y="276" class="node-title-light">LLM Wiki 编译器</text>
+  <text x="628" y="322" class="body-light">Schema + 已有页面索引</text>
+  <text x="628" y="350" class="body-light">主题拆分 · 分类 · 标签</text>
+  <text x="628" y="378" class="body-light">页面摘要 · Claims</text>
+  <text x="628" y="406" class="body-light">Relationships · 交叉链接</text>
+  <text x="628" y="446" class="mono" fill="#ddd6fe">compileSource()</text>
+
+  <!-- governance -->
+  <circle cx="948" cy="282" r="20" fill="#fed7aa"/>
+  <path d="M939 274h18v16h-18zM942 270h12v4h-12zM943 279h10M943 284h10" fill="none" stroke="#c2410c" stroke-width="2"/>
+  <text x="981" y="288" class="node-title">合并与治理</text>
+  <text x="934" y="329" class="body">标题去重 / 页面合并</text>
+  <text x="934" y="356" class="body">分类审计 / Schema 校验</text>
+  <text x="934" y="398" class="mono">claims + lifecycle</text>
+  <text x="934" y="426" class="small">冲突、版本、来源可追踪</text>
+
+  <!-- filesystem -->
+  <circle cx="1226" cy="270" r="20" fill="#99f6e4"/>
+  <path d="M1215 267h9l3 4h10v12h-22z" fill="none" stroke="#115e59" stroke-width="2"/>
+  <text x="1258" y="276" class="node-title-light">Wiki 文件系统</text>
+  <text x="1216" y="322" class="body-light">_schema.json</text>
+  <text x="1216" y="350" class="body-light">pages/分类/页面.md</text>
+  <text x="1216" y="378" class="body-light">_index.md · _manifest.json</text>
+  <text x="1216" y="406" class="body-light">Markdown 是事实源</text>
+  <text x="1216" y="446" class="mono" fill="#ccfbf1">writeWikiPages()</text>
+
+  <!-- derived indexes -->
+  <text x="1524" y="254" class="node-title">FTS5 / BM25 搜索索引</text>
+  <text x="1524" y="282" class="body">heading · title · body · tags</text>
+  <text x="1524" y="309" class="mono">wiki_search_documents_fts</text>
+  <text x="1524" y="389" class="node-title">页面关系与生命周期索引</text>
+  <text x="1524" y="417" class="body">nodes / semantic edges / references</text>
+  <text x="1524" y="445" class="body">sources · pages · claims · events</text>
+
+  <!-- ingestion arrows -->
+  <path d="M318 350H344" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="319" y="338" class="label">原文</text>
+  <path d="M570 350H596" stroke="#7c3aed" stroke-width="3" fill="none" marker-end="url(#purpleArrow)"/>
+  <text x="571" y="338" class="label">source</text>
+  <path d="M882 350H908" stroke="#7c3aed" stroke-width="3" fill="none" marker-end="url(#purpleArrow)"/>
+  <text x="883" y="338" class="label">compiled JSON</text>
+  <path d="M1158 350H1184" stroke="#f97316" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="1158" y="338" class="label">pages</text>
+  <path d="M1470 278H1496" stroke="#0e7490" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="1470" y="266" class="label">chunks + claims</text>
+  <path d="M1470 420H1496" stroke="#0e7490" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="1470" y="408" class="label">relations + lifecycle</text>
+
+  <!-- query lane -->
+  <rect x="64" y="640" width="1792" height="500" rx="20" fill="#f8fafc" stroke="#bfdbfe" stroke-width="2"/>
+  <rect x="64" y="640" width="1792" height="52" rx="20" fill="#eff6ff"/>
+  <text x="92" y="673" class="lane-title">② 知识查询链路（Read / Query）</text>
+  <text x="486" y="673" class="lane-note">问题搜索走 BM25；已知路径直接读取文件</text>
+
+  <g filter="url(#shadow)">
+    <rect x="92" y="758" width="228" height="202" rx="16" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="354" y="758" width="250" height="202" rx="16" fill="url(#search)"/>
+    <path d="M729 758l112 0 58 101-58 101-112 0-58-101z" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="956" y="758" width="268" height="202" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <rect x="1276" y="758" width="250" height="202" rx="16" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <rect x="1578" y="758" width="242" height="202" rx="16" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+    <rect x="956" y="1010" width="570" height="82" rx="16" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+  </g>
+
+  <!-- query input -->
+  <circle cx="132" cy="798" r="20" fill="#e2e8f0"/>
+  <path d="M127 793a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM133 804l7 7" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="165" y="804" class="node-title">用户 / Agent</text>
+  <text x="116" y="846" class="body">问题：</text>
+  <text x="116" y="874" class="body">“SSE 和 AVX 的区别？”</text>
+  <text x="116" y="916" class="mono">wiki_search(question)</text>
+
+  <!-- tool -->
+  <circle cx="394" cy="798" r="20" fill="#bfdbfe"/>
+  <path d="M384 798h20M394 788v20" stroke="#1e3a8a" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="426" y="804" class="node-title-light">wiki_search 工具</text>
+  <text x="382" y="846" class="body-light">question 模式</text>
+  <text x="382" y="874" class="body-light">maxResults / includeContent</text>
+  <text x="382" y="916" class="body-light">路径模式可直接读文件</text>
+
+  <!-- decision -->
+  <text x="741" y="847" class="node-title">已知路径？</text>
+  <text x="731" y="885" class="body">question / paths</text>
+
+  <!-- bm25 -->
+  <circle cx="994" cy="798" r="20" fill="#dbeafe"/>
+  <path d="M985 792h18M985 798h18M985 804h12" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round"/>
+  <text x="1026" y="804" class="node-title">关键词解析 + BM25</text>
+  <text x="980" y="846" class="body">提取最多 24 个关键词</text>
+  <text x="980" y="874" class="body">FTS5 OR 召回候选 chunks</text>
+  <text x="980" y="916" class="mono">title 8 · heading 6 · body 2</text>
+
+  <!-- rerank -->
+  <circle cx="1314" cy="798" r="20" fill="#ede9fe"/>
+  <path d="M1305 791h18v14h-18zM1308 787h12" fill="none" stroke="#6d28d9" stroke-width="2"/>
+  <text x="1346" y="804" class="node-title">过滤与二次排序</text>
+  <text x="1300" y="846" class="body">标题 / heading / 标签加分</text>
+  <text x="1300" y="874" class="body">claim / 生命周期加分</text>
+  <text x="1300" y="916" class="body">deleted / superseded 过滤</text>
+
+  <!-- dedup -->
+  <circle cx="1616" cy="798" r="20" fill="#bbf7d0"/>
+  <path d="M1607 793h18v12h-18zM1611 789h10" fill="none" stroke="#047857" stroke-width="2"/>
+  <text x="1648" y="804" class="node-title">页面去重与返回</text>
+  <text x="1602" y="846" class="body">同一 sourcePath 只保留一次</text>
+  <text x="1602" y="874" class="body">snippet 或完整页面</text>
+  <text x="1602" y="916" class="mono">refId / chunkId / citations</text>
+
+  <!-- context -->
+  <text x="982" y="1043" class="node-title">LLM 上下文</text>
+  <text x="1128" y="1043" class="body">页面证据 → Agent 回答 → 访问事件回写</text>
+
+  <!-- query arrows -->
+  <path d="M320 859H354" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blueArrow)"/>
+  <text x="322" y="847" class="label">query</text>
+  <path d="M604 859H671" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blueArrow)"/>
+  <text x="609" y="847" class="label">搜索请求</text>
+  <path d="M841 758C875 715 915 715 956 758" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="859" y="721" class="label">question</text>
+  <path d="M899 859H956" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blueArrow)"/>
+  <text x="901" y="847" class="label">是</text>
+  <path d="M841 960C875 1002 915 1002 956 960" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="853" y="1017" class="label">paths：直接读取文件</text>
+  <path d="M1224 859H1276" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#blueArrow)"/>
+  <text x="1226" y="847" class="label">候选</text>
+  <path d="M1526 859H1578" stroke="#7c3aed" stroke-width="3" fill="none" marker-end="url(#purpleArrow)"/>
+  <text x="1528" y="847" class="label">排序后</text>
+  <path d="M1698 960V1010" stroke="#059669" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <text x="1710" y="991" class="label">证据</text>
+
+  <!-- path direct read note -->
+  <rect x="354" y="1000" width="500" height="92" rx="14" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="378" y="1031" class="node-title">paths 模式</text>
+  <text x="378" y="1058" class="body">已知 pages/xxx.md 时跳过 BM25，按安全路径读取文件</text>
+  <text x="378" y="1081" class="small">适合沿 _index.md 或关联页面继续导航</text>
+
+  <!-- legend -->
+  <rect x="70" y="1155" width="1780" height="22" rx="11" fill="#f1f5f9"/>
+  <line x1="92" y1="1166" x2="130" y2="1166" stroke="#7c3aed" stroke-width="3" marker-end="url(#purpleArrow)"/>
+  <text x="140" y="1171" class="small">LLM 编译</text>
+  <line x1="252" y1="1166" x2="290" y2="1166" stroke="#2563eb" stroke-width="3" marker-end="url(#blueArrow)"/>
+  <text x="300" y="1171" class="small">查询 / 召回</text>
+  <line x1="430" y1="1166" x2="468" y2="1166" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="478" y="1171" class="small">文件 / 索引写入</text>
+  <rect x="640" y="1158" width="18" height="14" rx="4" fill="#0f766e"/>
+  <text x="668" y="1171" class="small">事实源</text>
+  <rect x="760" y="1158" width="18" height="14" rx="4" fill="#ffffff" stroke="#0891b2"/>
+  <text x="788" y="1171" class="small">派生索引</text>
+  <text x="1010" y="1171" class="small">核心原则：文件可读、索引可重建、查询可解释、路径可追溯</text>
+</svg>
