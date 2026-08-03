@@ -8,6 +8,18 @@ import type { Message, ReActStep as ReActStepData, ContentSegment } from '@/type
 import { buildPersistedA2uiMessages } from './a2uiProtocol';
 import A2uiSegment from './A2uiSegment';
 
+/** 过滤历史消息中同一 Wiki 文件产生的重复来源卡片。 */
+function uniqueSourceBlocks(blocks: Message['uiBlocks']): NonNullable<Message['uiBlocks']> {
+  const seenFiles = new Set<string>();
+  return (blocks || []).filter((block) => {
+    if (block.kind !== 'wiki_source_reference' || typeof block.data.file !== 'string') return true;
+    const file = block.data.file.trim();
+    if (!file || seenFiles.has(file)) return false;
+    seenFiles.add(file);
+    return true;
+  });
+}
+
 async function downloadImage(src: string, filename = 'image.png') {
   const electronApi = getElectronAPI();
   if (electronApi?.downloadFile) {
@@ -259,7 +271,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
     if (message.role !== 'assistant' || !message.uiBlocks?.length) return [];
     const segments: ContentSegment[] = [];
     let cursor = 0;
-    message.uiBlocks
+    uniqueSourceBlocks(message.uiBlocks)
       .slice()
       .sort((left, right) => left.blockIndex - right.blockIndex)
       .forEach((block) => {
