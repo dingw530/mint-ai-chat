@@ -74,7 +74,14 @@ export function buildMemoryContext(query?: string): string {
   return lines.join('\n');
 }
 
-interface MemoryOperation {
+export interface MemoryExtractionMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+
+export interface MemoryOperation {
   action: MemoryOperationAction;
   memoryKey?: string;
   subject?: string;
@@ -90,6 +97,73 @@ interface MemoryOperation {
   sourceMessageId?: string | null;
 }
 
+const MAX_MEMORY_CONTENT_LENGTH = 500;
+const MAX_MEMORY_KEY_LENGTH = 120;
+const MAX_MEMORY_SUBJECT_LENGTH = 120;
+const MAX_MEMORY_VALUE_LENGTH = 4000;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || value === null || typeof value === 'string';
+}
+
+function isFiniteScore(value: unknown): boolean {
+  return value === undefined || (
+    typeof value === 'number'
+    && Number.isFinite(value)
+    && value >= 0
+    && value <= 1
+  );
+}
+
+function isMemoryOperationAction(value: unknown): value is MemoryOperationAction {
+  return value === 'ADD' || value === 'UPDATE' || value === 'NOOP' || value === 'DELETE';
+}
+
+function normalizeOperation(value: unknown): MemoryOperation | null {
+  if (!isRecord(value) || !isMemoryOperationAction(value.action)) return null;
+  if (typeof value.memoryKey !== 'string' || value.memoryKey.trim().length === 0 || value.memoryKey.trim().length > MAX_MEMORY_KEY_LENGTH) return null;
+  if (value.subject !== undefined && (typeof value.subject !== 'string' || value.subject.trim().length === 0 || value.subject.trim().length > MAX_MEMORY_SUBJECT_LENGTH)) return null;
+  if (value.content !== undefined && (typeof value.content !== 'string' || value.content.trim().length > MAX_MEMORY_CONTENT_LENGTH)) return null;
+  if (value.category !== undefined && (typeof value.category !== 'string' || value.category.trim().length > MAX_MEMORY_KEY_LENGTH)) return null;
+  if (value.memoryType !== undefined && (typeof value.memoryType !== 'string' || value.memoryType.trim().length > MAX_MEMORY_KEY_LENGTH)) return null;
+  if (!isFiniteScore(value.confidence) || !isFiniteScore(value.importance)) return null;
+  if (!isNullableString(value.relationship) || !isNullableString(value.validFrom) || !isNullableString(value.validTo) || !isNullableString(value.sourceMessageId)) return null;
+
+  const operation: MemoryOperation = {
+    action: value.action,
+    memoryKey: typeof value.memoryKey === 'string' ? value.memoryKey : undefined,
+    subject: typeof value.subject === 'string' ? value.subject : undefined,
+    relationship: value.relationship,
+    value: value.value,
+    content: typeof value.content === 'string' ? value.content : undefined,
+    category: typeof value.category === 'string' ? value.category : undefined,
+    memoryType: typeof value.memoryType === 'string' ? value.memoryType : undefined,
+    confidence: typeof value.confidence === 'number' ? value.confidence : undefined,
+    importance: typeof value.importance === 'number' ? value.importance : undefined,
+    validFrom: value.validFrom,
+    validTo: value.validTo,
+    sourceMessageId: value.sourceMessageId,
+  };
+  if (operation.value !== undefined) {
+    let serializedValue: string | undefined;
+    try {
+      serializedValue = JSON.stringify(operation.value);
+    } catch {
+      return null;
+    }
+    if (!serializedValue || serializedValue.length > MAX_MEMORY_VALUE_LENGTH) return null;
+  }
+  const content = operation.content || (typeof operation.value === 'string' ? operation.value : '');
+  if ((operation.action === 'ADD' || operation.action === 'UPDATE') && (
+    content.trim().length === 0 || content.trim().length > MAX_MEMORY_CONTENT_LENGTH
+  )) return null;
+  return operation;
+}
+
 function clampScore(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
 }
@@ -98,42 +172,66 @@ function clampScore(value: unknown, fallback: number): number {
 export function applyMemoryOperations(
   operations: MemoryOperation[],
   sourceConversationId: string,
+  jobId: string | null = null,
 ): Memory[] {
-  const created: Memory[] = [];
-  for (const operation of operations) {
-    const action = operation.action;
-    const memoryKey = operation.memoryKey?.trim() || 'general';
-    const subject = operation.subject?.trim() || 'user';
-    const content = operation.content?.trim() || (typeof operation.value === 'string' ? operation.value.trim() : '');
-    if (!content || !['ADD', 'UPDATE', 'NOOP', 'DELETE'].includes(action)) continue;
+  return memoryRepo.withTransaction(() => {
+    const created: Memory[] = [];
+    for (const operation of operations) {
+      const action = operation.action;
+      const memoryKey = operation.memoryKey?.trim() || 'general';
+      const subject = operation.subject?.trim() || 'user';
+      const content = operation.content?.trim() || (typeof operation.value === 'string' ? operation.value.trim() : '');
+      if (!isMemoryOperationAction(action)) continue;
 
-    const candidates = memoryRepo.findActiveByKey(memoryKey, subject);
-    if (action === 'NOOP') continue;
-    if (action === 'DELETE') {
-      for (const candidate of candidates) memoryRepo.update(candidate.id, { status: 'deleted' });
-      continue;
-    }
-    if (action === 'UPDATE') {
+      const candidates = memoryRepo.findActiveByKey(memoryKey, subject);
+      const candidateIds = candidates.map((candidate) => candidate.id);
+      if (action === 'NOOP') {
+        memoryRepo.createEvent({ id: uuidv4(), jobId, conversationId: sourceConversationId, sourceMessageId: operation.sourceMessageId, action, memoryKey, subject, candidateIds, status: 'noop' });
+        continue;
+      }
+      if (action === 'DELETE') {
+        for (const candidate of candidates) memoryRepo.update(candidate.id, { status: 'deleted' });
+        memoryRepo.createEvent({ id: uuidv4(), jobId, conversationId: sourceConversationId, sourceMessageId: operation.sourceMessageId, action, memoryKey, subject, candidateIds, supersededIds: candidateIds, status: 'deleted' });
+        continue;
+      }
+      if (!content) continue;
       const same = candidates.find((candidate) => candidate.content === content);
-      if (same) continue;
-    }
+      if (same) {
+        memoryRepo.createEvent({ id: uuidv4(), jobId, conversationId: sourceConversationId, sourceMessageId: operation.sourceMessageId, action, memoryKey, subject, candidateIds, resultMemoryId: same.id, status: 'noop' });
+        continue;
+      }
 
-    const next = memoryRepo.create({
-      id: uuidv4(), content, category: operation.category || 'general', memoryKey,
-      value: operation.value ?? content, memoryType: operation.memoryType || 'semantic', subject,
-      relationship: operation.relationship || null, confidence: clampScore(operation.confidence, 0.8),
-      importance: clampScore(operation.importance, 0.6), validFrom: operation.validFrom || null,
-      validTo: operation.validTo || null,
-      supersedesId: action === 'UPDATE' ? candidates[0]?.id || null : null,
-      sourceMessageId: operation.sourceMessageId || null,
-      sourceConversationId,
-    });
-    if (action === 'UPDATE') {
-      for (const candidate of candidates) memoryRepo.supersede(candidate.id, next.id);
+      const next = memoryRepo.create({
+        id: uuidv4(), content, category: operation.category || 'general', memoryKey,
+        value: operation.value ?? content, memoryType: operation.memoryType || 'semantic', subject,
+        relationship: operation.relationship || null, confidence: clampScore(operation.confidence, 0.8),
+        importance: clampScore(operation.importance, 0.6), validFrom: operation.validFrom || null,
+        validTo: operation.validTo || null,
+        supersedesId: action === 'UPDATE' ? candidates[0]?.id || null : null,
+        sourceMessageId: operation.sourceMessageId || null,
+        sourceConversationId,
+      });
+      const supersededIds = action === 'UPDATE' ? candidateIds : [];
+      for (const candidate of candidates) {
+        if (action === 'UPDATE') memoryRepo.supersede(candidate.id, next.id);
+      }
+      memoryRepo.createEvent({ id: uuidv4(), jobId, conversationId: sourceConversationId, sourceMessageId: operation.sourceMessageId, action, memoryKey, subject, candidateIds, resultMemoryId: next.id, supersededIds, status: 'applied' });
+      created.push(next);
     }
-    created.push(next);
+    return created;
+  });
+}
+
+/** 记录不含原始错误正文的记忆处理失败摘要。 */
+export function recordMemoryProcessingFailure(conversationId: string, jobId: string, errorCode: string): void {
+  try {
+    memoryRepo.createEvent({
+      id: uuidv4(), jobId, conversationId, action: 'EXTRACTION', memoryKey: 'general', subject: 'user',
+      status: 'failed', errorCode: errorCode || 'unknown_error',
+    });
+  } catch {
+    // 失败审计不能反过来阻塞任务状态更新。
   }
-  return created;
 }
 
 // ── 价值判断（v1.5.1） ──
@@ -179,9 +277,9 @@ export function isConversationValuable(userContent: string): boolean {
 
 export async function performExtraction(
   settings: AiSettings,
-  userContent: string,
-  assistantContent: string,
-  conversationId: string
+  messages: MemoryExtractionMessage[],
+  conversationId: string,
+  jobId: string | null = null,
 ): Promise<boolean> {
   if (!settings.memoryEnabled) return true;
 
@@ -210,6 +308,9 @@ export async function performExtraction(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+  const transcript = messages.map((message) => (
+    `[${message.createdAt}] ${message.role} (${message.id})：${message.content}`
+  )).join('\n');
 
   try {
     const adapter = getAdapter(settings.apiType || 'openai-chat');
@@ -218,8 +319,7 @@ export async function performExtraction(
     const content = await adapter.call(
       [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-        { role: 'assistant', content: assistantContent },
+        { role: 'user', content: transcript },
       ],
       { modelId: settings.modelId },
       apiUrl,
@@ -231,24 +331,39 @@ export async function performExtraction(
 
     if (!content || !content.trim()) return true;
 
-    const operations = extractMemoryOperations(content);
-    if (operations.length > 0) {
-      applyMemoryOperations(operations, conversationId);
-    } else {
-      const entries = extractMemoriesFromResponse(content);
-      for (const entry of entries) {
-        if (!memoryRepo.findByContent(entry.content)) {
-          memoryRepo.create({ id: uuidv4(), content: entry.content, category: entry.category, sourceConversationId: conversationId });
-        }
+    const parsedOperations = parseMemoryOperations(content);
+    if (parsedOperations.isStructured) {
+      if (parsedOperations.rejected) {
+        memoryRepo.createEvent({
+          id: uuidv4(), jobId, conversationId, action: 'EXTRACTION', memoryKey: 'general', subject: 'user',
+          status: 'rejected', errorCode: 'memory_operation_schema_invalid',
+        });
+        return true;
       }
+      applyMemoryOperations(parsedOperations.operations, conversationId, jobId);
+    } else {
+      const sourceMessageId = messages.find((message) => message.role === 'user')?.id || null;
+      const legacyOperations = extractMemoriesFromResponse(content).map((entry) => normalizeOperation({
+        action: 'ADD', memoryKey: entry.category, subject: 'user', category: entry.category,
+        content: entry.content, sourceMessageId,
+      }));
+      if (legacyOperations.some((operation) => operation === null)) {
+        memoryRepo.createEvent({
+          id: uuidv4(), jobId, conversationId, action: 'EXTRACTION', memoryKey: 'general', subject: 'user',
+          status: 'rejected', errorCode: 'memory_operation_schema_invalid',
+        });
+        return true;
+      }
+      applyMemoryOperations(
+        legacyOperations.filter((operation): operation is MemoryOperation => operation !== null),
+        conversationId,
+        jobId,
+      );
     }
     return true;
   } catch (err) {
-    if ((err as Error).name === 'AbortError') {
-      console.error('[memory] Extraction timed out after 180s');
-    } else {
-      console.error('[memory] Extraction failed:', err);
-    }
+    const errorCode = err instanceof Error && err.name === 'AbortError' ? 'extraction_timeout' : 'extraction_failed';
+    console.error('[memory] extraction failed', { errorCode });
     return false;
   } finally {
     clearTimeout(timeout);
@@ -257,13 +372,32 @@ export async function performExtraction(
 
 /** 解析 LLM 返回的结构化记忆操作；格式不合法时安全返回空数组。 */
 export function extractMemoryOperations(text: string): MemoryOperation[] {
+  return parseMemoryOperations(text).operations;
+}
+
+interface ParsedMemoryOperations {
+  isStructured: boolean;
+  operations: MemoryOperation[];
+  rejected: boolean;
+}
+
+/** 解析并校验结构化操作；结构化响应一旦非法不得降级为写入。 */
+function parseMemoryOperations(text: string): ParsedMemoryOperations {
+  const normalized = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const isStructured = normalized.startsWith('{');
+  if (!isStructured) return { isStructured: false, operations: [], rejected: false };
   try {
-    const normalized = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    const parsed = JSON.parse(normalized) as { operations?: MemoryOperation[] };
-    if (!Array.isArray(parsed.operations)) return [];
-    return parsed.operations.filter((operation) => operation && typeof operation === 'object');
+    const parsed: unknown = JSON.parse(normalized);
+    if (!isRecord(parsed) || !Array.isArray(parsed.operations)) return { isStructured: true, operations: [], rejected: true };
+    const operations = parsed.operations.map(normalizeOperation);
+    if (operations.some((operation) => operation === null)) return { isStructured: true, operations: [], rejected: true };
+    return {
+      isStructured: true,
+      operations: operations.filter((operation): operation is MemoryOperation => operation !== null),
+      rejected: false,
+    };
   } catch {
-    return [];
+    return { isStructured: true, operations: [], rejected: true };
   }
 }
 

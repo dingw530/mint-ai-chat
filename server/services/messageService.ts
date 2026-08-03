@@ -289,7 +289,7 @@ export async function sendMessage(conversationId: string, content: string, sink:
       // 异步提取记忆（v1.5.1 增加价值判断预检查）
       if (settings.memoryEnabled) {
         if (memoryService.isConversationValuable(content)) {
-          enqueueMemoryProcessing(conversationId);
+          enqueueMemoryProcessing(conversationId, assistantMessageId);
         }
       }
     }

@@ -1,6 +1,37 @@
 import { getDb } from '../db.js';
 import type { MemoryRow, Memory, CreateMemoryParams, UpdateMemoryParams } from '../types.js';
 
+export interface MemoryEventInput {
+  id: string;
+  jobId?: string | null;
+  conversationId?: string | null;
+  sourceMessageId?: string | null;
+  action: string;
+  memoryKey: string;
+  subject: string;
+  candidateIds?: string[];
+  resultMemoryId?: string | null;
+  supersededIds?: string[];
+  status: 'applied' | 'noop' | 'deleted' | 'rejected' | 'failed';
+  errorCode?: string | null;
+}
+
+export interface MemoryEventRecord {
+  id: string;
+  jobId: string | null;
+  conversationId: string | null;
+  sourceMessageId: string | null;
+  action: string;
+  memoryKey: string;
+  subject: string;
+  candidateIds: string[];
+  resultMemoryId: string | null;
+  supersededIds: string[];
+  status: MemoryEventInput['status'];
+  errorCode: string | null;
+  createdAt: string;
+}
+
 function toCamelCase(row: MemoryRow): Memory {
   let value: unknown = null;
   if (row.value_json) {
@@ -133,6 +164,64 @@ export function update(id: string, params: UpdateMemoryParams): Memory | null {
 export function deleteById(id: string): { changes: number } {
   const db = getDb();
   return db.prepare('DELETE FROM memories WHERE id = ?').run(id);
+}
+
+/** 在单个 SQLite 事务中执行记忆状态和审计事件更新。 */
+export function withTransaction<T>(work: () => T): T {
+  const transaction = getDb().transaction(work);
+  return transaction();
+}
+
+/** 写入不包含记忆正文的操作摘要。 */
+export function createEvent(input: MemoryEventInput): void {
+  const now = new Date().toISOString();
+  getDb().prepare(`
+    INSERT INTO memory_events (
+      id, job_id, conversation_id, source_message_id, action, memory_key, subject,
+      candidate_ids_json, result_memory_id, superseded_ids_json, status, error_code, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    input.id, input.jobId || null, input.conversationId || null, input.sourceMessageId || null,
+    input.action, input.memoryKey, input.subject, JSON.stringify(input.candidateIds || []),
+    input.resultMemoryId || null, JSON.stringify(input.supersededIds || []), input.status,
+    input.errorCode || null, now,
+  );
+}
+
+/** 读取会话的记忆操作摘要，供审计和测试使用。 */
+export function findEventsByConversationId(conversationId: string): MemoryEventRecord[] {
+  const rows = getDb().prepare(
+    'SELECT * FROM memory_events WHERE conversation_id = ? ORDER BY created_at ASC',
+  ).all(conversationId) as Array<{
+    id: string;
+    job_id: string | null;
+    conversation_id: string | null;
+    source_message_id: string | null;
+    action: string;
+    memory_key: string;
+    subject: string;
+    candidate_ids_json: string;
+    result_memory_id: string | null;
+    superseded_ids_json: string;
+    status: MemoryEventInput['status'];
+    error_code: string | null;
+    created_at: string;
+  }>;
+  return rows.map((row) => ({
+    id: row.id,
+    jobId: row.job_id,
+    conversationId: row.conversation_id,
+    sourceMessageId: row.source_message_id,
+    action: row.action,
+    memoryKey: row.memory_key,
+    subject: row.subject,
+    candidateIds: JSON.parse(row.candidate_ids_json) as string[],
+    resultMemoryId: row.result_memory_id,
+    supersededIds: JSON.parse(row.superseded_ids_json) as string[],
+    status: row.status,
+    errorCode: row.error_code,
+    createdAt: row.created_at,
+  }));
 }
 
 /** 查找同一记忆键和主体下的当前有效事实。 */
