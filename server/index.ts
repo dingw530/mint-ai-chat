@@ -3,6 +3,7 @@ import app from './app.js';
 import { createLogger } from './utils/logger.js';
 import { listSkills } from './services/api/skillService.js';
 import { getAddressPort, getErrorMessage } from './utils/typeGuards.js';
+import { cleanupArtifacts } from './services/utils/toolResultArtifact.js';
 
 const log = createLogger('server');
 
@@ -22,6 +23,12 @@ listSkills().catch(err => log.error('技能扫描失败', { error: err.message }
  */
 export async function startServer(preferredPort?: number): Promise<number> {
   const desiredPort = preferredPort ?? parseInt(process.env.PORT || '3001', 10);
+
+  try {
+    await cleanupArtifacts({ mode: 'startup' });
+  } catch (error) {
+    log.warn('Artifact 启动清理失败，继续启动服务', { error: getErrorMessage(error) });
+  }
 
   return new Promise((resolve, reject) => {
     const server = app.listen(desiredPort, () => {
