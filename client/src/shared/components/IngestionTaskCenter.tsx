@@ -178,7 +178,7 @@ export default function IngestionTaskCenter({
           </div>
           <div className="ingestion-task-center-bulk">
             <label>
-              <input type="checkbox" checked={removableVisibleJobs.length > 0 && removableVisibleJobs.every((job) => selectedKeys.has(getJobKey(job, jobs.indexOf(job))))} onChange={toggleVisibleSelection} disabled={removableVisibleJobs.length === 0} />
+              <input type="checkbox" checked={removableVisibleJobs.length > 0 && removableVisibleJobs.every((job) => selectedKeys.has(getJobKey(job)))} onChange={toggleVisibleSelection} disabled={removableVisibleJobs.length === 0} />
               <span>选择终态任务</span>
             </label>
             <span>{selectedRemovableJobs.length > 0 ? `已选 ${selectedRemovableJobs.length} 个` : `显示 ${visibleJobs.length} 个`}</span>

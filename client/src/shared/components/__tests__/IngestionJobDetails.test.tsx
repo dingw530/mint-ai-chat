@@ -22,8 +22,13 @@ const job: UploadJob = {
   fileSize: 100,
   progress: 100,
   step: '完成',
+  createdAt: '2026-08-05T00:00:00.000Z',
+  updatedAt: '2026-08-05T00:00:01.000Z',
   result: {
     sourceFile: 'sources/notes.md',
+    format: 'markdown',
+    textLength: 30,
+    preview: '# Source',
     sourcePreviewKind: 'markdown',
     pages: [
       { filename: 'pages/topic/one.md', title: 'One', size: 10, summary: 'First page' },

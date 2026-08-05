@@ -58,6 +58,7 @@ export interface UploadJob {
     sourceUrls?: string[];
     sourcePreviewKind?: 'text' | 'markdown' | 'html' | 'unsupported';
     graphErrors?: string[];
+    failedItems?: Array<{ name: string; error: string }>;
   };
   error?: string;
   createdAt: string;
