@@ -657,6 +657,21 @@
     "async": false
   },
   {
+    "id": "wiki:removeJob",
+    "ipcChannel": "wiki:removeJob",
+    "preloadMethod": "removeWikiJob",
+    "method": "DELETE",
+    "httpPath": "/wiki/jobs/:jobId",
+    "args": [
+      {
+        "from": "path",
+        "name": "jobId"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
     "id": "graph:data",
     "ipcChannel": "graph:data",
     "preloadMethod": "getGraphData",

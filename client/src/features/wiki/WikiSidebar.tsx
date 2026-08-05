@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { listWiki, uploadWiki, getWikiJob, listWikiJobs } from '@/services/api';
 import type { WikiFileTreeNode } from '@/types';
 import type { UploadJob } from '@/services/api/wiki';
+import IngestionTaskCenter from '@/shared/components/IngestionTaskCenter';
 
 function FileIcon() {
   return (
@@ -34,16 +35,7 @@ function FolderIcon() {
   );
 }
 
-function Spinner() {
-  return <span className="wiki-spinner" />;
-}
-
-function CheckIcon() {
-  return <span className="wiki-check-icon">✓</span>;
-}
-
 export type WikiSortMode = 'modified-desc' | 'modified-asc' | 'name-asc' | 'name-desc';
-
 /**
  * 按指定方式递归排序 Wiki 树节点，保持目录层级不变。
  *
@@ -77,6 +69,7 @@ interface WikiSidebarProps {
   onFileSelect: (path: string | null) => void;
   viewMode: 'file' | 'graph' | 'heat';
   onViewModeChange: (mode: 'file' | 'graph' | 'heat') => void;
+  onOpenIngestionPage: (path: string) => void;
 }
 
 export default function WikiSidebar({
@@ -84,6 +77,7 @@ export default function WikiSidebar({
   onFileSelect,
   viewMode,
   onViewModeChange,
+  onOpenIngestionPage,
 }: WikiSidebarProps) {
   const [wikiTree, setWikiTree] = useState<WikiFileTreeNode[]>([]);
   const [wikiLoading, setWikiLoading] = useState(false);
@@ -92,6 +86,7 @@ export default function WikiSidebar({
   const [wikiExpandedDirs, setWikiExpandedDirs] = useState<Set<string>>(new Set());
   const [wikiDragOver, setWikiDragOver] = useState(false);
   const [uploadJobs, setUploadJobs] = useState<UploadJob[]>([]);
+  const [isTaskCenterOpen, setIsTaskCenterOpen] = useState(false);
   const pollingRefs = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,49 +245,12 @@ export default function WikiSidebar({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const clearCompletedJobs = () => {
-    setUploadJobs((prev) =>
-        prev.filter(
-        (j) => !j.isTerminal,
-      ),
-    );
-  };
-
   const isWikiUploading = uploadJobs.some(
     (j) => !j.isTerminal,
   );
 
-  const renderUploadJobItem = (job: UploadJob) => {
-    const isError = job.phase === 'error';
-    const isDone = job.phase === 'success';
-    const isActive = !job.isTerminal;
-    return (
-      <div
-        key={job.id || job.fileName + Math.random()}
-        className={`wiki-job-item ${isError ? 'error' : ''} ${isDone ? 'done' : ''}`}
-      >
-        <div className="wiki-job-header">
-          <span className="wiki-job-name">{job.fileName}</span>
-          <span className="wiki-job-size">{formatFileSize(job.fileSize)}</span>
-        </div>
-        <div className="wiki-job-progress-bar">
-          <div
-            className={`wiki-job-progress-fill ${isError ? 'error' : ''}`}
-            style={{ width: `${job.progress}%` }}
-          />
-        </div>
-        <div className="wiki-job-status-row">
-          {isDone && <CheckIcon />}
-          {isActive && <Spinner />}
-          {isError && <span className="wiki-job-error-icon">!</span>}
-          <span className={`wiki-job-status-text ${isError ? 'error' : ''}`}>
-            {isDone ? job.statusLabel : isError ? job.error || job.statusLabel : job.statusLabel || job.step}
-          </span>
-        </div>
-      </div>
-    );
-  };
-
+  const activeUploadCount = uploadJobs.filter((job) => !job.isTerminal).length;
+  const attentionUploadCount = uploadJobs.filter((job) => job.isTerminal && !job.isSuccessful).length;
   const renderWikiTreeNode = (node: WikiFileTreeNode, depth: number = 0) => {
     const isExpanded = wikiExpandedDirs.has(node.path);
     const isSelected = selectedFile === node.path;
@@ -467,19 +425,27 @@ export default function WikiSidebar({
         {!wikiLoading && !wikiError && sortWikiTree(wikiTree, wikiSortMode).map((node) => renderWikiTreeNode(node))}
         {wikiDragOver && <div className="wiki-drop-hint">释放以上传</div>}
       </div>
-      {uploadJobs.length > 0 && (
-        <div className="wiki-upload-section">
-          <div className="wiki-upload-section-header">
-            <span>上传（{uploadJobs.length}）</span>
-            {uploadJobs.some((j) => j.isTerminal) && (
-              <button className="wiki-upload-clear-btn" onClick={clearCompletedJobs}>
-                清除
-              </button>
-            )}
-          </div>
-          <div className="wiki-upload-list">{uploadJobs.map(renderUploadJobItem)}</div>
-        </div>
-      )}
+      <section className="wiki-task-entry" aria-label="摄入任务入口">
+        <button type="button" className="wiki-task-entry-button" aria-label="打开摄入任务中心" onClick={() => setIsTaskCenterOpen(true)}>
+          <span className="wiki-task-entry-status" aria-hidden="true"><i className={activeUploadCount > 0 ? 'is-active' : ''} /></span>
+          <span className="wiki-task-entry-copy">
+            <strong>摄入任务</strong>
+            <span>
+              {activeUploadCount > 0 ? `${activeUploadCount} 处理中` : '暂无处理中'}
+              {attentionUploadCount > 0 && ` · ${attentionUploadCount} 需处理`}
+            </span>
+          </span>
+          <span className="wiki-task-entry-count">{uploadJobs.length}</span>
+          <span className="wiki-task-entry-arrow" aria-hidden="true">›</span>
+        </button>
+      </section>
+      <IngestionTaskCenter
+        jobs={uploadJobs}
+        isOpen={isTaskCenterOpen}
+        onClose={() => setIsTaskCenterOpen(false)}
+        onJobsChange={setUploadJobs}
+        onOpenPage={onOpenIngestionPage}
+      />
     </div>
   );
 }

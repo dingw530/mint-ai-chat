@@ -49,6 +49,7 @@ describe('compileSource', () => {
 
     expect(result.pages).toHaveLength(1);
     expect(result.pages[0].filename).toBe('pages/concepts/Type-Safety.md');
+    expect(result.pages[0].summary).toBe('Use explicit boundaries.');
     expect(fs.readFileSync(path.join(wikiPath, result.pages[0].filename), 'utf8')).toContain('title: Type Safety');
     expect(fs.readFileSync(path.join(wikiPath, '_index.md'), 'utf8')).toContain('Type Safety');
   });

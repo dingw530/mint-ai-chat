@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWikiJob: (jobId) => ipcRenderer.invoke('wiki:getJob', jobId),
   retryWikiJob: (jobId) => ipcRenderer.invoke('wiki:retryJob', jobId),
   cancelWikiJob: (jobId) => ipcRenderer.invoke('wiki:cancelJob', jobId),
+  removeWikiJob: (jobId) => ipcRenderer.invoke('wiki:removeJob', jobId),
   getWikiSchema: () => ipcRenderer.invoke('wiki:schema'),
   addWikiCategory: (category) => ipcRenderer.invoke('wiki:addCategory', category),
   removeWikiCategory: (category) => ipcRenderer.invoke('wiki:removeCategory', category),

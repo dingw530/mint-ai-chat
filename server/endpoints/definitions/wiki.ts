@@ -110,4 +110,14 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     args: [{ from: 'path', name: 'jobId' }],
     result: 'job',
   },
+  {
+    id: 'wiki:removeJob',
+    method: 'DELETE',
+    path: '/jobs/:jobId',
+    preloadMethod: 'removeWikiJob',
+    service: (jobId: string) => wikiIngestionJobService.remove(jobId),
+    ipcServiceRef: { module: 'wikiIngestionJobService', method: 'remove' },
+    args: [{ from: 'path', name: 'jobId' }],
+    result: 'direct',
+  },
 ];

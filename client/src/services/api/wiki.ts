@@ -54,8 +54,11 @@ export interface UploadJob {
     textLength: number;
     pageCount?: number;
     preview: string;
-    pages?: { filename: string; title: string; size: number }[];
+    pages?: { filename: string; title: string; size: number; summary?: string }[];
+    sourceUrls?: string[];
+    sourcePreviewKind?: 'text' | 'markdown' | 'html' | 'unsupported';
     graphErrors?: string[];
+    failedItems?: Array<{ name: string; error: string }>;
   };
   error?: string;
   createdAt: string;
@@ -101,6 +104,11 @@ export async function cancelWikiJob(jobId: string): Promise<UploadJob> {
   if (isElectron()) return (await getElectronAPI()!.cancelWikiJob(jobId)).job;
   const result = await request<{ job: UploadJob }>(`/wiki/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
   return result.job;
+}
+
+export async function removeWikiJob(jobId: string): Promise<{ success: true; jobId: string }> {
+  if (isElectron()) return getElectronAPI()!.removeWikiJob(jobId);
+  return request<{ success: true; jobId: string }>(`/wiki/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
 }
 
 export interface UploadJobResponse {

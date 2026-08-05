@@ -16,6 +16,7 @@ export interface Relationship {
 export interface CompiledPage {
   filename: string;
   title: string;
+  summary?: string;
   tags: string[];
   created?: string;
   source?: string;
@@ -103,6 +104,7 @@ export interface ParsedWikiPage {
 export interface LooseWikiPage {
   filename: string;
   title: string;
+  summary?: string;
   tags: string[];
   created: string;
   source: string;
@@ -194,6 +196,7 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
     {
       "filename": "pages/分类/页面名.md",
       "title": "页面标题",
+      "summary": "一句话说明本页覆盖的核心主题",
       "tags": ["标签1"],
       "created": "YYYY-MM-DD",
       "source": "原始文件名",
@@ -243,7 +246,7 @@ export function tryParseLooseJson(text: string): LooseWikiParseResult | null {
 
   // 3. field-by-field extraction when content has unescaped quotes/newlines
   const pages: LooseWikiPage[] = [];
-  const pageRe = /\{\s*"filename"\s*:\s*"([^"]+)"\s*,\s*"title"\s*:\s*"([^"]+)"\s*,\s*"tags"\s*:\s*(\[[^\]]+\])\s*,/g;
+  const pageRe = /\{\s*"filename"\s*:\s*"([^"]+)"\s*,\s*"title"\s*:\s*"([^"]+)"\s*,\s*(?:"summary"\s*:\s*"[^"]*"\s*,\s*)?"tags"\s*:\s*(\[[^\]]+\])\s*,/g;
   let m: RegExpExecArray | null;
   while ((m = pageRe.exec(text)) !== null) {
     const filename = m[1];
@@ -280,13 +283,16 @@ export function tryParseLooseJson(text: string): LooseWikiParseResult | null {
     // extract optional created/source fields (appear after tags, before content)
     let created = '';
     let source = '';
+    let summary = '';
     const beforeContent = rest.slice(0, contentKeyMatch.index!);
     const createdMatch = beforeContent.match(/"created"\s*:\s*"([^"]+)"/);
     if (createdMatch) created = createdMatch[1];
     const sourceMatch = beforeContent.match(/"source"\s*:\s*"([^"]+)"/);
     if (sourceMatch) source = sourceMatch[1];
+    const summaryMatch = beforeContent.match(/"summary"\s*:\s*"([^"]+)"/);
+    if (summaryMatch) summary = summaryMatch[1];
 
-    pages.push({ filename, title, tags, created, source, content });
+    pages.push({ filename, title, summary, tags, created, source, content });
   }
 
   if (pages.length > 0) {
@@ -311,6 +317,22 @@ export function isSystemWikiPath(relativePath: string): boolean {
     || normalized === '_schema.json'
     || normalized === '_manifest.json'
     || baseName.startsWith('_');
+}
+
+/**
+ * 从页面正文提取确定性摘要，作为 AI 摘要缺失时的展示兜底。
+ *
+ * @param content 页面 Markdown 正文
+ * @returns 首个有效段落，找不到时返回空字符串
+ */
+export function getWikiPageSummary(content: string): string {
+  const paragraphs = content
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph && !/^#{1,6}\s+/.test(paragraph) && !/^```/.test(paragraph))
+    .map((paragraph) => paragraph.replace(/^\s*[-*+]\s+/, '').trim())
+    .filter(Boolean);
+  return paragraphs[0] || '';
 }
 
 /**
@@ -454,8 +476,8 @@ function sanitizeContentLinks(content: string, pathMap: Map<string, string>): st
 /**
  * Write compiled pages to disk, assembling YAML frontmatter from separate fields + markdown body.
  */
-export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filename: string; title: string; size: number }[] {
-  const results: { filename: string; title: string; size: number }[] = [];
+export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filename: string; title: string; size: number; summary: string }[] {
+  const results: { filename: string; title: string; size: number; summary: string }[] = [];
 
   // 第一遍：计算所有页面的 sanitized 路径，建立映射表
   const pathMap = new Map<string, string>();
@@ -509,6 +531,7 @@ export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filen
       filename: sanitizedPath, // return sanitized path
       title: page.title,
       size: stat.size,
+      summary: page.summary?.trim() || getWikiPageSummary(page.content) || '暂无摘要',
     });
   }
 

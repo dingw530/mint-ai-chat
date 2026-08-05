@@ -45,6 +45,7 @@ export {
   getWikiJob,
   retryWikiJob,
   cancelWikiJob,
+  removeWikiJob,
   getWikiSchema,
   addWikiCategory,
   removeWikiCategory,

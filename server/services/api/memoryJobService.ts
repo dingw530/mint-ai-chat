@@ -2,13 +2,15 @@ import * as messageRepo from '../../repositories/messageRepository.js';
 import * as memoryJobRepo from '../../repositories/memoryJobRepository.js';
 import * as settingsService from './settingsService.js';
 import * as memoryService from './memoryService.js';
+import type { Message } from '../../types.js';
+import type { MemoryExtractionMessage } from './memoryService.js';
 
 let scheduled = false;
 let running = false;
 
 /** 将会话加入持久化记忆处理队列，并触发当前进程的 worker。 */
-export function enqueueMemoryProcessing(conversationId: string): void {
-  memoryJobRepo.enqueue(conversationId);
+export function enqueueMemoryProcessing(conversationId: string, throughMessageId: string | null = null): void {
+  memoryJobRepo.enqueue(conversationId, throughMessageId);
   scheduleDrain();
 }
 
@@ -27,6 +29,31 @@ function scheduleDrain(): void {
   });
 }
 
+/** 截取任务请求时点之前的消息，避免新消息被旧任务误处理。 */
+function selectSnapshot(messages: Message[], throughMessageId: string | null): Message[] {
+  if (!throughMessageId) return messages;
+  const snapshotIndex = messages.findIndex((message) => message.id === throughMessageId);
+  return snapshotIndex >= 0 ? messages.slice(0, snapshotIndex + 1) : messages;
+}
+
+function isExtractionRole(role: string): role is MemoryExtractionMessage['role'] {
+  return role === 'user' || role === 'assistant';
+}
+
+/** 保留记忆提取所需的角色、正文、ID 和时间信息。 */
+function toExtractionMessages(messages: Message[]): MemoryExtractionMessage[] {
+  return messages
+    .flatMap((message) => {
+      if (!isExtractionRole(message.role)) return [];
+      return [{
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt,
+      }];
+    });
+}
+
 async function drain(): Promise<void> {
   if (running) return;
   running = true;
@@ -34,16 +61,21 @@ async function drain(): Promise<void> {
     let job = memoryJobRepo.claimNext();
     while (job) {
       try {
-        const messages = messageRepo.findByConversationId(job.conversationId);
-        const userContent = messages.filter((message) => message.role === 'user').map((message) => message.content).join('\n');
-        const assistantContent = messages.filter((message) => message.role === 'assistant').map((message) => message.content).join('\n');
-        if (userContent && assistantContent) {
-          const succeeded = await memoryService.performExtraction(settingsService.getAiSettings(), userContent, assistantContent, job.conversationId);
+        const messages = selectSnapshot(messageRepo.findByConversationId(job.conversationId), job.requestedThroughMessageId);
+        const extractionMessages = toExtractionMessages(messages);
+        if (extractionMessages.some((message) => message.role === 'user') && extractionMessages.some((message) => message.role === 'assistant')) {
+          const succeeded = await memoryService.performExtraction(
+            settingsService.getAiSettings(), extractionMessages, job.conversationId, job.id,
+          );
           if (!succeeded) throw new Error('记忆提取失败');
         }
-        memoryJobRepo.complete(job.id);
+        memoryJobRepo.complete(job.id, job.requestedThroughMessageId);
       } catch (error) {
-        memoryJobRepo.fail(job.id, error instanceof Error ? error.message : String(error));
+        const errorCode = error instanceof Error && error.message === '记忆提取失败'
+          ? 'extraction_failed'
+          : 'memory_processing_failed';
+        memoryService.recordMemoryProcessingFailure(job.conversationId, job.id, errorCode);
+        memoryJobRepo.fail(job.id, 'memory_processing_failed');
       }
       job = memoryJobRepo.claimNext();
     }

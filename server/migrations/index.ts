@@ -520,6 +520,45 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 24,
+    name: 'harden-memory-processing-and-audit',
+    up: (db) => {
+      const columns = [
+        ['requested_through_message_id', 'TEXT'],
+        ['processed_through_message_id', 'TEXT'],
+      ];
+      for (const [name, definition] of columns) {
+        try {
+          db.exec(`ALTER TABLE memory_processing_jobs ADD COLUMN ${name} ${definition}`);
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.includes('duplicate column')) throw error;
+        }
+      }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_events (
+          id TEXT PRIMARY KEY,
+          job_id TEXT,
+          conversation_id TEXT,
+          source_message_id TEXT,
+          action TEXT NOT NULL,
+          memory_key TEXT NOT NULL,
+          subject TEXT NOT NULL,
+          candidate_ids_json TEXT NOT NULL DEFAULT '[]',
+          result_memory_id TEXT,
+          superseded_ids_json TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL,
+          error_code TEXT,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_events_conversation
+          ON memory_events(conversation_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_memory_events_job
+          ON memory_events(job_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

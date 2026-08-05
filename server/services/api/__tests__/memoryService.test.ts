@@ -11,6 +11,8 @@ vi.mock('../../../repositories/memoryRepository.js', () => ({
   supersede: vi.fn(),
   update: vi.fn(),
   deleteById: vi.fn(),
+  withTransaction: vi.fn((work: () => unknown) => work()),
+  createEvent: vi.fn(),
 }));
 
 vi.mock('../../adapters/apiAdapter.js', () => ({
@@ -32,6 +34,8 @@ const SAMPLE_MEMORIES: Memory[] = [
 describe('memoryService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(memoryRepo.findActiveByKey).mockReturnValue([]);
+    vi.mocked(memoryRepo.withTransaction).mockImplementation((work) => work());
   });
 
   describe('listMemories', () => {
@@ -149,6 +153,17 @@ describe('memoryService', () => {
       expect(memoryService.extractMemoryOperations('not json')).toEqual([]);
     });
 
+    it('rejects invalid action, oversized content, and non-finite score', () => {
+      expect(memoryService.extractMemoryOperations('{"operations":[{"action":"UPSERT","content":"x"}]}')).toEqual([]);
+      expect(memoryService.extractMemoryOperations('{"operations":[{"action":"ADD","memoryKey":"   ","content":"x"}]}')).toEqual([]);
+      expect(memoryService.extractMemoryOperations(`{"operations":[{"action":"ADD","content":"${'x'.repeat(501)}"}]}`)).toEqual([]);
+      expect(memoryService.extractMemoryOperations('{"operations":[{"action":"ADD","content":"x","confidence":2}]}')).toEqual([]);
+    });
+
+    it('allows key-only DELETE and NOOP operations', () => {
+      expect(memoryService.extractMemoryOperations('{"operations":[{"action":"DELETE","memoryKey":"personal.name"},{"action":"NOOP","memoryKey":"personal.name"}]}')).toHaveLength(2);
+    });
+
     it('creates an updated fact and supersedes the active version', () => {
       vi.mocked(memoryRepo.findActiveByKey).mockReturnValue([SAMPLE_MEMORIES[0]]);
       vi.mocked(memoryRepo.create).mockReturnValue({ ...SAMPLE_MEMORIES[0], content: '用户住在上海' });
@@ -158,17 +173,34 @@ describe('memoryService', () => {
       expect(memoryRepo.create).toHaveBeenCalledWith(expect.objectContaining({ memoryKey: 'personal.location' }));
       expect(memoryRepo.supersede).toHaveBeenCalledWith('1', expect.any(String));
       expect(result).toHaveLength(1);
+      expect(memoryRepo.withTransaction).toHaveBeenCalledTimes(1);
+      expect(memoryRepo.createEvent).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'UPDATE', status: 'applied', resultMemoryId: expect.any(String),
+      }));
+      expect(memoryRepo.createEvent).not.toHaveBeenCalledWith(expect.objectContaining({ content: expect.any(String) }));
+    });
+
+    it('turns a duplicate ADD into an auditable NOOP', () => {
+      vi.mocked(memoryRepo.findActiveByKey).mockReturnValue([SAMPLE_MEMORIES[0]]);
+      const result = memoryService.applyMemoryOperations([
+        { action: 'ADD', memoryKey: 'personal.name', content: SAMPLE_MEMORIES[0].content },
+      ], 'c2', 'job-1');
+      expect(result).toEqual([]);
+      expect(memoryRepo.create).not.toHaveBeenCalled();
+      expect(memoryRepo.createEvent).toHaveBeenCalledWith(expect.objectContaining({
+        jobId: 'job-1', action: 'ADD', status: 'noop', resultMemoryId: '1',
+      }));
     });
   });
 
   describe('performExtraction', () => {
     it('returns early when memory disabled', async () => {
-      await memoryService.performExtraction({ memoryEnabled: false } as any, 'u', 'a', 'c1');
+      await memoryService.performExtraction({ memoryEnabled: false } as any, [], 'c1');
       expect(getAdapter).not.toHaveBeenCalled();
     });
 
     it('returns early when apiUrl missing', async () => {
-      await memoryService.performExtraction({ memoryEnabled: true, apiUrl: '', apiKey: '' } as any, 'u', 'a', 'c1');
+      await memoryService.performExtraction({ memoryEnabled: true, apiUrl: '', apiKey: '' } as any, [], 'c1');
       expect(getAdapter).not.toHaveBeenCalled();
     });
 
@@ -181,16 +213,22 @@ describe('memoryService', () => {
         parseChunk: vi.fn(),
       };
       vi.mocked(getAdapter).mockReturnValue(mockAdapter as any);
-      vi.mocked(memoryRepo.findByContent).mockReturnValue(null);
+      vi.mocked(memoryRepo.create).mockReturnValue({ ...SAMPLE_MEMORIES[0], id: 'created' });
 
       await memoryService.performExtraction(
         { memoryEnabled: true, apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat', modelId: 'gpt-4' } as any,
-        'user msg',
-        'assistant msg',
+        [
+          { id: 'u1', role: 'user', content: 'user msg', createdAt: '2026-08-03T00:00:00.000Z' },
+          { id: 'a1', role: 'assistant', content: 'assistant msg', createdAt: '2026-08-03T00:00:01.000Z' },
+        ],
         'conv-1',
       );
 
       expect(mockAdapter.call).toHaveBeenCalled();
+      const transcript = mockAdapter.call.mock.calls[0][0][1].content;
+      expect(transcript).toContain('(u1)');
+      expect(transcript).toContain('(a1)');
+      expect(transcript.indexOf('(u1)')).toBeLessThan(transcript.indexOf('(a1)'));
       expect(memoryRepo.create).toHaveBeenCalledTimes(2);
     });
 
@@ -206,8 +244,7 @@ describe('memoryService', () => {
 
       await memoryService.performExtraction(
         { memoryEnabled: true, apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat', modelId: 'gpt-4' } as any,
-        'user msg',
-        'assistant msg',
+        [{ id: 'u1', role: 'user', content: 'user msg', createdAt: '2026-08-03T00:00:00.000Z' }],
         'conv-1',
       );
 
@@ -215,29 +252,29 @@ describe('memoryService', () => {
       expect(mockAdapter.call).toHaveBeenCalled();
     });
 
-    it('skips duplicates', async () => {
+    it('does not fall back to legacy parsing after invalid structured JSON', async () => {
       const mockAdapter = {
-        call: vi.fn().mockResolvedValue('[personal] 测试信息\n'),
+        call: vi.fn().mockResolvedValue('{"operations":[{"action":"ADD","content":123}]}'),
         getUrl: vi.fn(),
         getHeaders: vi.fn(),
         buildRequest: vi.fn(),
         parseChunk: vi.fn(),
       };
       vi.mocked(getAdapter).mockReturnValue(mockAdapter as any);
-      vi.mocked(memoryRepo.findByContent).mockReturnValue({
-        id: 'existing', content: '测试信息', category: 'personal',
-        sourceConversationId: 'c0', createdAt: '', updatedAt: '',
-      });
 
       await memoryService.performExtraction(
         { memoryEnabled: true, apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat', modelId: 'gpt-4' } as any,
-        'user msg',
-        'assistant msg',
+        [
+          { id: 'u1', role: 'user', content: 'user msg', createdAt: '2026-08-03T00:00:00.000Z' },
+          { id: 'a1', role: 'assistant', content: 'assistant msg', createdAt: '2026-08-03T00:00:01.000Z' },
+        ],
         'conv-1',
       );
 
-      // Duplicate should not be created
       expect(memoryRepo.create).not.toHaveBeenCalled();
+      expect(memoryRepo.createEvent).toHaveBeenCalledWith(expect.objectContaining({
+        status: 'rejected', errorCode: 'memory_operation_schema_invalid',
+      }));
     });
   });
 });

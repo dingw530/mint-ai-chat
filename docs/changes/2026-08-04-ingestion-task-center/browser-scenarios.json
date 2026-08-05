@@ -1,0 +1,36 @@
+{
+  "scenarios": [
+    {
+      "id": "ingestion-task-center-management",
+      "acceptanceCriteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-006", "AC-007"],
+      "route": "/wiki",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [], "total": 0}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [{"id": "job-center-done", "status": "completed", "statusLabel": "已完成", "phase": "success", "isTerminal": true, "isSuccessful": true, "fileName": "完成.md", "fileSize": 100, "progress": 100, "step": "完成", "updatedAt": "2026-08-04T01:02:00.000Z", "result": {"sourceFile": "sources/完成.md", "sourcePreviewKind": "markdown", "pages": [{"filename": "pages/完成.md", "title": "完成页面", "size": 100, "summary": "完成页面摘要"}]}}, {"id": "job-center-failed", "status": "failed", "statusLabel": "处理失败", "phase": "error", "isTerminal": true, "isSuccessful": false, "fileName": "失败.md", "fileSize": 100, "progress": 100, "step": "处理失败", "updatedAt": "2026-08-04T01:03:00.000Z", "error": "解析失败"}], "total": 2}},
+          {"pattern": "**/api/wiki/read?path=*", "method": "GET", "body": {"content": "# 完成页面\n\n这是测试内容。", "path": "sources/完成.md", "name": "完成.md", "size": 28}},
+          {"pattern": "**/api/wiki/jobs/job-center-done", "method": "GET", "body": {"job": {"id": "job-center-done", "status": "completed", "statusLabel": "已完成", "phase": "success", "isTerminal": true, "isSuccessful": true, "fileName": "完成.md", "fileSize": 100, "progress": 100, "step": "完成", "sourceType": "upload", "result": {"sourceFile": "sources/完成.md", "sourcePreviewKind": "markdown", "pages": [{"filename": "pages/完成.md", "title": "完成页面", "size": 100, "summary": "完成页面摘要"}]}}}}
+        ]
+      },
+      "markers": ["知识库"],
+      "steps": [
+        {"action": "waitFor", "target": {"role": "button", "name": "打开摄入任务中心"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"role": "button", "name": "打开摄入任务中心"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "摄入任务中心"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "完成.md"},
+        {"action": "assertText", "text": "失败.md"},
+        {"action": "click", "target": {"role": "button", "name": "查看详情：完成.md"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "摄入任务详情"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "完成页面"},
+        {"action": "press", "target": {"role": "dialog", "name": "摄入任务详情"}, "key": "Escape"},
+        {"action": "assertText", "text": "完成.md"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/wiki/jobs", "status": 200},
+        {"method": "GET", "contains": "/api/wiki/jobs/job-center-done", "status": 200}
+      ]
+    }
+  ]
+}

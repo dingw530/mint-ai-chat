@@ -65,13 +65,17 @@ function createBlock(reference: A2UIReference, blockIndex: number, textOffset: n
 export class WikiSourceReferenceProvider implements A2UIProvider {
   readonly toolName = 'wiki_search';
   private readonly references = new Map<string, A2UIReference>();
+  private readonly referenceIdsByFile = new Map<string, string>();
+  private readonly emittedFiles = new Set<string>();
 
   handleToolResult(rawResult: unknown, nextReferenceIndex: number): A2UIProviderResult {
     const parsed = parseJson(rawResult);
     if (!isWikiPayload(parsed)) return { nextReferenceIndex };
 
     const enrichedResults = (parsed.results || []).map((result) => {
-      const refId = `C${nextReferenceIndex++}`;
+      const fileKey = result.file?.trim();
+      const existingRefId = fileKey ? this.referenceIdsByFile.get(fileKey) : undefined;
+      const refId = existingRefId || `C${nextReferenceIndex++}`;
       if (result.file && result.chunkId) {
         this.references.set(refId, {
           refId,
@@ -82,6 +86,7 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
           chunkId: result.chunkId,
           score: result.score,
         });
+        if (fileKey) this.referenceIdsByFile.set(fileKey, refId);
       }
       return { ...result, refId };
     });
@@ -93,11 +98,13 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
   }
 
   createEmission(reference: A2UIReference, blockIndex: number, textOffset: number): A2UIEmission | null {
+    if (this.emittedFiles.has(reference.file)) return null;
     const registration = a2uiRepository.findComponentRegistration('wiki_source_reference');
     if (!registration) {
       console.error('[a2ui] component registration unavailable', { kind: 'wiki_source_reference' });
       return null;
     }
+    this.emittedFiles.add(reference.file);
     const surfaceId = `answer-source-${randomUUID()}`;
     return {
       segmentId: `a2ui-segment-${randomUUID()}`,

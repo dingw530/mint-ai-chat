@@ -667,6 +667,11 @@ body::after {
   transition: width var(--transition-slow);
 }
 
+.ingestion-task-card-progress.error > span {
+  background: var(--error-text);
+  animation: none;
+}
+
 .ingestion-task-card-progress.active > span {
   background: linear-gradient(90deg, var(--accent), var(--secondary), var(--accent));
   background-size: 200% 100%;
@@ -691,26 +696,63 @@ body::after {
   }
 }
 
-.ingestion-task-card-step,
-.ingestion-task-card-result,
-.ingestion-task-card-error {
-  margin-top: 6px;
-  font-size: 12px;
+.ingestion-task-card-footer {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  margin-top: 7px;
 }
 
-.ingestion-task-card-error {
-  padding: 7px 9px;
-  border: 1px solid var(--error-border);
-  border-radius: var(--radius-md);
-  color: var(--error-text);
-  background: var(--error-bg);
-}
-
-.ingestion-task-card-result {
+.ingestion-task-card-context {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
   overflow: hidden;
   color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.ingestion-task-card-result,
+.ingestion-task-card-error {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ingestion-task-card-error {
+  color: var(--error-text);
+}
+
+.ingestion-task-card-error::before {
+  content: '•';
+  margin-right: 5px;
+  color: var(--error-text);
+}
+
+.ingestion-task-card-detail {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ingestion-task-card-detail:hover {
+  border-color: var(--accent);
+  color: var(--text-inverse);
+  background: var(--accent);
 }
 
 @keyframes ingestionPanelIn {
@@ -3577,3 +3619,195 @@ body::after {
 
 
 /* === Extracted to separate CSS file (see styles/) === */
+.ingestion-task-center-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--text-primary) 24%, transparent);
+  backdrop-filter: blur(4px);
+  animation: ingestionDetailsFadeIn var(--transition-base);
+}
+
+.ingestion-task-center-drawer {
+  position: relative;
+  z-index: 71;
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 24px));
+  height: calc(100% - 24px);
+  margin: 12px 12px 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(155deg, color-mix(in srgb, var(--bg-primary) 97%, var(--accent) 3%), var(--bg-primary) 38%);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--text-primary) 22%, transparent), var(--shadow-xl);
+  animation: ingestionDetailsSlideIn var(--transition-slow);
+}
+
+.ingestion-task-center-drawer.is-obscured { pointer-events: none; }
+.ingestion-task-center-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); padding: 30px 32px 24px; border-bottom: 1px solid var(--border-subtle); }
+.ingestion-task-center-kicker { display: block; color: var(--accent); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.16em; }
+.ingestion-task-center-header h2 { margin: 9px 0 6px; color: var(--text-primary); font-family: var(--font-display); font-size: 1.7rem; letter-spacing: -0.04em; }
+.ingestion-task-center-header p { margin: 0; color: var(--text-tertiary); font-size: 0.76rem; }
+.ingestion-task-center-close { flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid var(--border-default); border-radius: var(--radius-full); color: var(--text-secondary); background: var(--bg-primary); font-size: 1.35rem; line-height: 1; cursor: pointer; transition: transform var(--transition-fast), background var(--transition-fast), color var(--transition-fast); }
+.ingestion-task-center-close:hover { transform: rotate(90deg); color: var(--accent); background: var(--accent-subtle); }
+.ingestion-task-center-toolbar { display: grid; gap: 14px; padding: 18px 32px 14px; border-bottom: 1px solid var(--border-subtle); }
+.ingestion-task-center-search { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-tertiary); background: var(--bg-tertiary); }
+.ingestion-task-center-search:focus-within { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-subtle); }
+.ingestion-task-center-search input { width: 100%; border: 0; outline: 0; color: var(--text-primary); background: transparent; font: inherit; font-size: 0.78rem; }
+.ingestion-task-center-search input::placeholder { color: var(--text-tertiary); }
+.ingestion-task-center-tabs { display: flex; gap: 6px; overflow-x: auto; }
+.ingestion-task-center-tab { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid transparent; border-radius: var(--radius-full); color: var(--text-tertiary); background: transparent; font-size: 0.7rem; white-space: nowrap; cursor: pointer; }
+.ingestion-task-center-tab b { min-width: 15px; color: inherit; font-size: 0.63rem; font-variant-numeric: tabular-nums; }
+.ingestion-task-center-tab:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.ingestion-task-center-tab.active { border-color: var(--accent-border); color: var(--accent); background: var(--accent-subtle); font-weight: 700; }
+.ingestion-task-center-bulk { display: flex; align-items: center; gap: 12px; padding: 13px 32px; color: var(--text-tertiary); font-size: 0.7rem; }
+.ingestion-task-center-bulk label { display: inline-flex; align-items: center; gap: 7px; color: var(--text-secondary); }
+.ingestion-task-center-bulk input, .ingestion-task-center-check input { accent-color: var(--accent); }
+.ingestion-task-center-bulk > span { margin-right: auto; font-variant-numeric: tabular-nums; }
+.ingestion-task-center-bulk button, .ingestion-task-center-item-actions button { border: 1px solid var(--accent-border); border-radius: var(--radius-sm); padding: 6px 9px; color: var(--accent); background: var(--accent-subtle); font: inherit; font-size: 0.67rem; font-weight: 700; cursor: pointer; }
+.ingestion-task-center-bulk button:hover, .ingestion-task-center-item-actions button:hover { color: var(--text-inverse); background: var(--accent); }
+.ingestion-task-center-bulk button.quiet { border-color: var(--border-default); color: var(--text-tertiary); background: transparent; }
+.ingestion-task-center-bulk button.quiet:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.ingestion-task-center-error { margin: 0 32px 12px; padding: 9px 11px; border: 1px solid var(--error-border); border-radius: var(--radius-md); color: var(--error-text); background: var(--error-bg); font-size: 0.72rem; }
+.ingestion-task-center-list { min-height: 0; overflow-y: auto; padding: 0 32px 32px; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.ingestion-task-center-item { margin-bottom: 10px; padding: 15px 16px 13px; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--bg-primary) 75%, var(--bg-tertiary) 25%); transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast); }
+.ingestion-task-center-item:hover { border-color: var(--accent-border); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+.ingestion-task-center-item.error { border-color: var(--error-border); }
+.ingestion-task-center-item.cancelled { border-color: var(--border-default); }
+.ingestion-task-center-item-top { display: flex; align-items: flex-start; gap: 10px; }
+.ingestion-task-center-check { display: inline-flex; align-items: center; gap: 9px; padding-top: 4px; cursor: pointer; }
+.ingestion-task-center-check input:disabled { cursor: default; }
+.ingestion-task-center-dot { display: block; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--accent); box-shadow: 0 0 0 4px var(--accent-subtle); }
+.ingestion-task-center-dot.success { background: var(--secondary); box-shadow: 0 0 0 4px var(--secondary-subtle); }
+.ingestion-task-center-dot.error { background: var(--error-text); box-shadow: 0 0 0 4px var(--error-bg); }
+.ingestion-task-center-dot.cancelled { background: var(--text-tertiary); box-shadow: 0 0 0 4px var(--bg-tertiary); }
+.ingestion-task-center-item-main { min-width: 0; display: grid; flex: 1; gap: 5px; }
+.ingestion-task-center-item-main strong { overflow: hidden; color: var(--text-primary); font-family: var(--font-display); font-size: 0.87rem; text-overflow: ellipsis; white-space: nowrap; }
+.ingestion-task-center-item-main span { color: var(--text-tertiary); font-size: 0.7rem; }
+.ingestion-task-center-percent { flex: 0 0 auto; padding-top: 2px; color: var(--accent); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; }
+.ingestion-task-center-item.error .ingestion-task-center-percent { color: var(--error-text); }
+.ingestion-task-center-progress { height: 4px; margin: 13px 0 9px 29px; overflow: hidden; border-radius: var(--radius-full); background: var(--border-subtle); }
+.ingestion-task-center-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width var(--transition-base); }
+.ingestion-task-center-progress.success > span { background: var(--secondary); }
+.ingestion-task-center-progress.error > span { background: var(--error-text); }
+.ingestion-task-center-progress.cancelled > span { background: var(--text-tertiary); }
+.ingestion-task-center-item-error { margin: 0 0 8px 29px; color: var(--error-text); font-size: 0.7rem; line-height: 1.45; overflow-wrap: anywhere; }
+.ingestion-task-center-item-actions { display: flex; justify-content: flex-end; gap: 7px; margin-left: 29px; }
+.ingestion-task-center-item-actions button.danger { border-color: var(--error-border); color: var(--error-text); background: var(--error-bg); }
+.ingestion-task-center-item-actions button.danger:hover { color: var(--text-inverse); background: var(--error-text); }
+.ingestion-task-center-item-actions button:disabled, .ingestion-task-center-bulk button:disabled { opacity: 0.5; cursor: wait; }
+.ingestion-task-center-empty { display: grid; justify-items: center; gap: 7px; padding: 56px 20px; border: 1px dashed var(--border-default); border-radius: var(--radius-lg); color: var(--text-tertiary); text-align: center; }
+.ingestion-task-center-empty strong { color: var(--text-secondary); font-family: var(--font-display); font-size: 0.9rem; }
+.ingestion-task-center-empty span { font-size: 0.72rem; }
+
+.ingestion-details-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: auto;
+  display: flex;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--text-primary) 30%, transparent);
+  backdrop-filter: blur(6px);
+  animation: ingestionDetailsFadeIn var(--transition-base);
+}
+
+.ingestion-details-drawer {
+  width: min(640px, calc(100vw - 20px));
+  height: calc(100% - 20px);
+  margin: 10px 10px 10px 0;
+  overflow: auto;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--bg-primary) 97%, var(--accent) 3%), var(--bg-primary) 34%);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--text-primary) 20%, transparent), var(--shadow-xl);
+  border-left: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  animation: ingestionDetailsSlideIn var(--transition-slow);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.ingestion-details-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 28px 30px 24px;
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ingestion-details-heading { min-width: 0; }
+.ingestion-details-header h2 { max-width: 520px; margin: 9px 0 14px; font-family: var(--font-display); font-size: clamp(1.35rem, 2.8vw, 1.8rem); line-height: 1.15; letter-spacing: -0.035em; overflow-wrap: anywhere; }
+.ingestion-details-eyebrow, .ingestion-details-section-kicker { display: flex; align-items: center; gap: 8px; color: var(--accent); font-size: 0.64rem; font-weight: 700; letter-spacing: 0.14em; line-height: 1.2; }
+.ingestion-details-eyebrow i, .ingestion-details-status i { display: inline-block; width: 7px; height: 7px; border-radius: var(--radius-full); background: currentColor; box-shadow: 0 0 0 4px var(--accent-subtle); }
+.ingestion-details-header-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; color: var(--text-tertiary); font-size: 0.73rem; }
+.ingestion-details-status { display: inline-flex; align-items: center; gap: 7px; color: var(--accent); font-weight: 700; }
+.ingestion-details-status.is-warning { color: var(--error-text); }
+.ingestion-details-status.is-warning i { box-shadow: 0 0 0 4px var(--error-bg); }
+.ingestion-details-close { flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid var(--border-default); border-radius: var(--radius-full); background: color-mix(in srgb, var(--bg-primary) 80%, transparent); color: var(--text-secondary); font-size: 1.35rem; line-height: 1; cursor: pointer; transition: transform var(--transition-fast), background var(--transition-fast), color var(--transition-fast); }
+.ingestion-details-close:hover { transform: rotate(90deg); background: var(--accent-subtle); color: var(--accent); }
+.ingestion-details-body { padding: 0 30px 36px; }
+.ingestion-details-section { padding: 26px 0; border-bottom: 1px solid var(--border-subtle); animation: ingestionDetailsSectionIn var(--transition-slow) both; }
+.ingestion-details-section:nth-child(2) { animation-delay: 70ms; }
+.ingestion-details-section:nth-child(3) { animation-delay: 140ms; }
+.ingestion-details-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: 15px; }
+.ingestion-details-section-heading h3 { margin: 7px 0 0; color: var(--text-primary); font-family: var(--font-display); font-size: 1rem; letter-spacing: -0.02em; }
+.ingestion-details-kind, .ingestion-details-count { flex: 0 0 auto; padding: 5px 8px; border: 1px solid var(--accent-border); border-radius: var(--radius-full); color: var(--accent); background: var(--accent-subtle); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; }
+.ingestion-details-count { border-color: var(--border-default); color: var(--text-tertiary); background: var(--bg-tertiary); }
+.ingestion-details-section p { margin: 0; color: var(--text-secondary); line-height: 1.55; }
+.ingestion-details-pages { display: grid; gap: 10px; }
+.ingestion-details-page { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: start; gap: 13px; padding: 16px 15px; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--bg-primary) 75%, var(--bg-tertiary) 25%); transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast); }
+.ingestion-details-page:hover { transform: translateY(-2px); border-color: var(--accent-border); box-shadow: var(--shadow-md); }
+.ingestion-details-page-index { padding-top: 2px; color: var(--accent); font-family: var(--font-display); font-size: 0.72rem; font-weight: 700; }
+.ingestion-details-page-main { min-width: 0; display: grid; gap: 4px; }
+.ingestion-details-page-main strong { color: var(--text-primary); font-family: var(--font-display); font-size: 0.92rem; line-height: 1.35; overflow-wrap: anywhere; }
+.ingestion-details-page-main code { color: var(--text-tertiary); font-size: 0.68rem; line-height: 1.35; overflow-wrap: anywhere; }
+.ingestion-details-page-main p { color: var(--text-secondary); font-size: 0.78rem; }
+.ingestion-details-page-main p.ingestion-details-muted { color: var(--text-tertiary); }
+.ingestion-details-page-action { display: flex; min-width: 92px; flex-direction: column; align-items: flex-end; gap: 13px; }
+.ingestion-details-page-action > span { color: var(--text-tertiary); font-size: 0.55rem; font-weight: 700; letter-spacing: 0.12em; }
+.ingestion-details-link, .ingestion-details-secondary, .ingestion-details-preview-tabs button { border: 0; color: var(--accent); background: transparent; cursor: pointer; white-space: nowrap; }
+.ingestion-details-link { padding: 0; font-size: 0.72rem; font-weight: 700; }
+.ingestion-details-link::after { content: ' ↗'; display: inline-block; transition: transform var(--transition-fast); }
+.ingestion-details-link:hover::after { transform: translate(2px, -2px); }
+.ingestion-details-secondary { justify-self: start; padding: 7px 0 0; font-size: 0.75rem; font-weight: 700; }
+.ingestion-details-empty { padding: 18px; border: 1px dashed var(--border-default); border-radius: var(--radius-lg); color: var(--text-tertiary) !important; text-align: center; }
+.ingestion-details-muted { color: var(--text-tertiary) !important; }
+.ingestion-details-error { color: var(--error-text) !important; }
+.ingestion-details-warning { color: var(--error-text); }
+.ingestion-details-warning .ingestion-details-section-kicker { color: var(--error-text); }
+.ingestion-details-warning .ingestion-details-section-kicker::before { content: '⚠'; font-size: 0.8rem; }
+.ingestion-details-warning ul { margin: 0; padding: 13px 16px 13px 32px; display: grid; gap: 8px; border: 1px solid var(--error-border); border-radius: var(--radius-lg); background: var(--error-bg); font-size: 0.78rem; }
+.ingestion-details-source-url { display: block; margin-top: 12px; color: var(--accent); font-size: 0.74rem; overflow-wrap: anywhere; }
+.ingestion-details-preview { overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--bg-tertiary); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bg-primary) 70%, transparent); }
+.ingestion-details-preview-tabs { display: inline-flex; gap: 3px; margin: 10px; padding: 3px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: color-mix(in srgb, var(--bg-primary) 82%, var(--bg-tertiary) 18%); }
+.ingestion-details-preview-tabs button { padding: 6px 10px; border-radius: var(--radius-sm); color: var(--text-tertiary); font-size: 0.68rem; font-weight: 700; transition: background var(--transition-fast), color var(--transition-fast); }
+.ingestion-details-preview-tabs button.active { color: var(--text-primary); background: var(--bg-primary); box-shadow: var(--shadow-sm); }
+.ingestion-details-preview pre { max-height: 260px; overflow: auto; margin: 0; padding: 15px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); font: inherit; font-size: 0.74rem; line-height: 1.7; }
+.ingestion-details-preview .markdown-body { max-height: 260px; overflow: auto; padding: 15px; font-size: 0.8rem; }
+@keyframes ingestionDetailsFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ingestionDetailsSlideIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes ingestionDetailsSectionIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 720px) {
+  .ingestion-task-center-drawer { width: 100vw; height: 100%; margin: 0; border-radius: 0; }
+  .ingestion-task-center-header, .ingestion-task-center-toolbar { padding-left: 20px; padding-right: 20px; }
+  .ingestion-task-center-bulk { padding-left: 20px; padding-right: 20px; gap: 7px; }
+  .ingestion-task-center-bulk > span { display: none; }
+  .ingestion-task-center-list { padding-left: 20px; padding-right: 20px; }
+  .ingestion-details-drawer { width: 100vw; height: 100%; margin: 0; border-radius: 0; }
+  .ingestion-details-header, .ingestion-details-body { padding-left: 20px; padding-right: 20px; }
+  .ingestion-details-page { grid-template-columns: 24px minmax(0, 1fr); }
+  .ingestion-details-page-action { grid-column: 2; align-items: flex-start; flex-direction: row; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ingestion-details-overlay, .ingestion-details-drawer, .ingestion-details-section { animation: none; }
+  .ingestion-details-page, .ingestion-details-close, .ingestion-details-link::after { transition: none; }
+}
+.ingestion-task-card-result { margin-top: var(--space-2); color: var(--text-secondary); font-size: 0.76rem; }

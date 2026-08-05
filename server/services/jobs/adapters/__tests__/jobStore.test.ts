@@ -79,4 +79,15 @@ describe('jobStore', () => {
     expect(jobStore.recoverRunning()).toBeGreaterThanOrEqual(1);
     expect(jobStore.getJob(id)?.status).toBe('queued');
   });
+
+  it('removes terminal jobs and keeps active jobs', () => {
+    const completedId = jobStore.createJob('completed.md', 1);
+    jobStore.updateJob(completedId, { status: 'completed', progress: 100, step: '完成' });
+    expect(jobStore.removeJob(completedId)).toBe(true);
+    expect(jobStore.getJob(completedId)).toBeUndefined();
+
+    const activeId = jobStore.createJob('active.md', 1, { sourceType: 'upload' });
+    expect(jobStore.removeJob(activeId)).toBe(false);
+    expect(jobStore.getJob(activeId)).toBeDefined();
+  });
 });
