@@ -8,7 +8,7 @@ export interface IngestionTaskCardModel {
   progress: number;
   step: string;
   fileCount: number;
-  result: { sourceFile?: string; error?: string } | null;
+  result: { sourceFile?: string; error?: string; pageCount?: number; hasWarnings?: boolean } | null;
 }
 
 export type A2uiEnvelope =
@@ -31,7 +31,11 @@ export function toIngestionTaskCardModel(job: WikiJob): IngestionTaskCardModel {
     progress: job.progress,
     step: job.step,
     fileCount: job.fileCount || 1,
-    result: job.error ? { error: job.error } : job.result ? { sourceFile: job.result.sourceFile } : null,
+    result: job.error ? { error: job.error } : job.result ? {
+      sourceFile: job.result.sourceFile,
+      pageCount: job.result.pages?.length || 0,
+      hasWarnings: Boolean(job.result.graphErrors?.length || job.result.failedItems?.length),
+    } : null,
   };
 }
 

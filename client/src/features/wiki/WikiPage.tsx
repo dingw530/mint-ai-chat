@@ -41,7 +41,7 @@ export default function WikiPage() {
     <>
       <aside className="sidebar sidebar--wiki" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
         <SidebarHeader onOpenSettings={onOpenSettings} />
-        <WikiSidebar selectedFile={selectedFile} onFileSelect={handleFileSelect} viewMode={viewMode} onViewModeChange={setViewMode} />
+        <WikiSidebar selectedFile={selectedFile} onFileSelect={handleFileSelect} viewMode={viewMode} onViewModeChange={setViewMode} onOpenIngestionPage={handleFileSelect} />
         <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
       </aside>
       <WikiPanel

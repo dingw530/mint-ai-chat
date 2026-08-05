@@ -25,6 +25,20 @@ import { publishJobEvent, subscribeJobEvents, type JobEventListener } from '../j
 
 class CancelledJobError extends Error {}
 
+/**
+ * 将输入文件名映射为任务详情可用的原文预览类型。
+ *
+ * @param fileName 原始文件名
+ * @returns 详情抽屉支持的预览类型
+ */
+function getSourcePreviewKind(fileName: string): WikiJobResult['sourcePreviewKind'] {
+  const extension = path.extname(fileName).toLowerCase();
+  if (extension === '.txt') return 'text';
+  if (extension === '.md') return 'markdown';
+  if (extension === '.html' || extension === '.htm') return 'html';
+  return 'unsupported';
+}
+
 export interface WikiIngestionJobDependencies {
   getAiSettings: typeof settingsService.getAiSettings;
   parseFile: typeof parseFile;
@@ -336,6 +350,12 @@ export class WikiIngestionJobService {
         preview: sourceText.slice(0, 500),
         pages: successfulResults.flatMap((item) => item.pages || []),
         graphErrors: successfulResults.flatMap((item) => item.graphErrors || []),
+        sourceUrls: input.urls?.length ? input.urls : undefined,
+        sourcePreviewKind: input.source?.trim()
+          ? 'markdown'
+          : archivedFiles[0]
+            ? getSourcePreviewKind(archivedFiles[0].name)
+            : 'unsupported',
         ...(failedItems.length ? { failedItems } : {}),
       };
       this.updateJob(jobId, {
@@ -387,6 +407,7 @@ export class WikiIngestionJobService {
         preview,
         pages: compiled.pages.length > 0 ? compiled.pages : undefined,
         graphErrors: compiled.graphErrors,
+        sourcePreviewKind: getSourcePreviewKind(input.name),
       };
       const hasGraphWarnings = Boolean(compiled.graphErrors && compiled.graphErrors.length > 0);
       this.updateJob(jobId, {
@@ -457,6 +478,15 @@ export class WikiIngestionJobService {
     if (!updated) throw new WikiUploadValidationError('任务不存在或已过期');
     this.dependencies.queue.enqueue(jobId);
     return updated;
+  }
+
+  /** 移除终态任务记录；不会删除来源文件或已生成的 Wiki 页面。 */
+  remove(jobId: string): { success: true; jobId: string } {
+    const job = this.getStatus(jobId);
+    if (!job) throw new WikiUploadValidationError('任务不存在或已过期');
+    if (!job.isTerminal) throw new WikiUploadValidationError('处理中任务不能移除');
+    if (!this.dependencies.store.remove(jobId)) throw new WikiUploadValidationError('任务移除失败');
+    return { success: true, jobId };
   }
 
   private markError(jobId: string, error: unknown): void {

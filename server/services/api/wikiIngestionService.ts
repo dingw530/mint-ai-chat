@@ -7,6 +7,7 @@ import { createLogger } from '../../utils/logger.js';
 import { archiveWikiRawFile, saveWikiSourceText } from './wikiFileService.js';
 import { registerCompiledKnowledge } from './wikiKnowledgeLifecycleService.js';
 import { rebuildWikiSearchIndex } from './wikiSearchService.js';
+import type { WikiPageSummary } from './wikiIngestionTypes.js';
 
 export { archiveWikiRawFile, buildWikiSourceText } from './wikiFileService.js';
 export type { WikiSourceSegment } from './wikiIngestionTypes.js';
@@ -40,7 +41,7 @@ export interface WikiIngestionRequest {
 export interface WikiIngestionResult {
   sourceFile: string;
   archivedFiles: string[];
-  pages: { filename: string; title: string; size: number }[];
+  pages: WikiPageSummary[];
   summary: string;
   manifestId: string;
   graphErrors?: string[];

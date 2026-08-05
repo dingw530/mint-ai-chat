@@ -1,0 +1,77 @@
+{
+  "scenarios": [
+    {
+      "id": "ingestion-result-details-chat",
+      "acceptanceCriteria": ["AC-001", "AC-003", "AC-004", "AC-005", "AC-007", "AC-008", "AC-009", "AC-010"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"showReactSteps": true, "routingMode": "manual"}},
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": [{"id": "conv-ingest", "title": "摄入结果测试", "type": "chat", "createdAt": "2026-08-04T00:00:00.000Z", "updatedAt": "2026-08-04T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}},
+          {"pattern": "**/api/conversations/conv-ingest/messages", "method": "GET", "body": {"messages": []}},
+          {"pattern": "**/api/conversations/conv-ingest/ingestion-events", "method": "GET", "contentType": "text/event-stream", "body": "data: {\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"ingestion-task-job-result\",\"catalogId\":\"mint\"}}\n\ndata: {\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"ingestion-task-job-result\",\"components\":[{\"id\":\"root\",\"component\":\"IngestionTaskCard\",\"data\":{\"path\":\"/job\"}}]}}\n\ndata: {\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"ingestion-task-job-result\",\"path\":\"/job\",\"value\":{\"jobId\":\"job-result\",\"title\":\"产品说明.md\",\"status\":\"completed\",\"statusLabel\":\"已完成\",\"progress\":100,\"step\":\"完成\",\"fileCount\":1,\"result\":{\"sourceFile\":\"sources/product.md\",\"sourcePreviewKind\":\"markdown\",\"pageCount\":1,\"hasWarnings\":false}}}}\n\n"},
+          {"pattern": "**/api/wiki/jobs/job-result", "method": "GET", "body": {"job": {"id": "job-result", "status": "completed", "statusLabel": "已完成", "phase": "success", "isTerminal": true, "isSuccessful": true, "fileName": "产品说明.md", "fileSize": 1024, "progress": 100, "step": "完成", "sourceType": "chat", "fileCount": 1, "result": {"sourceFile": "sources/product.md", "sourcePreviewKind": "markdown", "pages": [{"filename": "pages/产品/核心流程.md", "title": "核心流程", "size": 420, "summary": "说明产品的主要使用流程"}]}}}},
+          {"pattern": "**/api/wiki/read?path=sources%2Fproduct.md", "method": "GET", "body": {"content": "# 产品说明\n\n用户通过摄入任务整理产品资料。", "path": "sources/product.md", "name": "product.md", "size": 42}},
+          {"pattern": "**/api/wiki/read?path=pages%2F*", "method": "GET", "body": {"content": "---\ntitle: 核心流程\n---\n\n产品的主要使用流程。", "path": "pages/产品/核心流程.md", "name": "核心流程.md", "size": 54}},
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [], "total": 0}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [], "total": 0}}
+        ]
+      },
+      "markers": ["输入消息"],
+      "steps": [
+        {"action": "waitFor", "target": {"role": "button", "name": "查看详情"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"role": "button", "name": "查看详情"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "摄入任务详情"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "核心流程"},
+        {"action": "assertText", "text": "说明产品的主要使用流程"},
+        {"action": "assertText", "text": "原始内容"},
+        {"action": "click", "target": {"role": "button", "name": "查看生成页面"}},
+        {"action": "waitFor", "target": {"role": "heading", "name": "核心流程"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "产品的主要使用流程"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/wiki/jobs/job-result", "status": 200},
+        {"method": "GET", "contains": "/api/wiki/read", "status": 200}
+      ]
+    },
+    {
+      "id": "ingestion-result-details-wiki-upload",
+      "acceptanceCriteria": ["AC-002", "AC-003", "AC-006", "AC-007", "AC-010"],
+      "route": "/wiki",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [], "total": 0}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [{"id": "job-upload-result", "status": "partial_failed", "statusLabel": "部分失败", "phase": "error", "isTerminal": true, "isSuccessful": false, "fileName": "资料.html", "fileSize": 2048, "progress": 100, "step": "部分完成", "sourceType": "upload", "fileCount": 2, "result": {"sourceFile": "sources/资料.html", "sourcePreviewKind": "html", "pages": [{"filename": "pages/知识/整理结果.md", "title": "整理结果", "size": 300, "summary": "保留成功输入的核心知识"}], "graphErrors": ["部分关系未建立"], "failedItems": [{"name": "附录.html", "error": "内容为空"}]}, "error": null}], "total": 1}},
+          {"pattern": "**/api/wiki/jobs/job-upload-result", "method": "GET", "body": {"job": {"id": "job-upload-result", "status": "partial_failed", "statusLabel": "部分失败", "phase": "error", "isTerminal": true, "isSuccessful": false, "fileName": "资料.html", "fileSize": 2048, "progress": 100, "step": "部分完成", "sourceType": "upload", "fileCount": 2, "result": {"sourceFile": "sources/资料.html", "sourcePreviewKind": "html", "pages": [{"filename": "pages/知识/整理结果.md", "title": "整理结果", "size": 300, "summary": "保留成功输入的核心知识"}], "graphErrors": ["部分关系未建立"], "failedItems": [{"name": "附录.html", "error": "内容为空"}]}}}},
+          {"pattern": "**/api/wiki/read?path=sources%2F*", "method": "GET", "body": {"content": "<html><body><h1>资料</h1><p>原始 HTML 内容。</p></body></html>", "path": "sources/资料.html", "name": "资料.html", "size": 61}},
+          {"pattern": "**/api/wiki/read?path=pages%2F*", "method": "GET", "body": {"content": "---\ntitle: 整理结果\n---\n\n保留成功输入的核心知识。", "path": "pages/知识/整理结果.md", "name": "整理结果.md", "size": 50}}
+        ]
+      },
+      "markers": ["知识库"],
+      "steps": [
+        {"action": "waitFor", "target": {"role": "button", "name": "打开摄入任务中心"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"role": "button", "name": "打开摄入任务中心"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "摄入任务中心"}, "timeoutMs": 10000},
+        {"action": "waitFor", "target": {"role": "button", "name": "查看详情：资料.html"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"role": "button", "name": "查看详情：资料.html"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "摄入任务详情"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "部分失败"},
+        {"action": "assertText", "text": "部分关系未建立"},
+        {"action": "assertText", "text": "附录.html"},
+        {"action": "click", "target": {"role": "button", "name": "渲染预览"}},
+        {"action": "assertText", "text": "原始 HTML 内容。"},
+        {"action": "click", "target": {"role": "button", "name": "查看生成页面"}},
+        {"action": "waitFor", "target": {"role": "heading", "name": "整理结果"}, "timeoutMs": 10000}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/wiki/jobs", "status": 200},
+        {"method": "GET", "contains": "/api/wiki/read", "status": 200}
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { getAdapter } from '../adapters/apiAdapter.js';
 import type { CompiledPage, Relationship, WikiCategory } from './wikiShared.js';
 import {
   INGEST_SYSTEM_PROMPT as SHARED_PROMPT,
+  getWikiPageSummary,
   tryParseLooseJson,
   writeWikiPages,
   updateIndexMd,
@@ -17,7 +18,7 @@ import {
 import type { AiSettings } from '../../types.js';
 
 export interface CompileResult {
-  pages: { filename: string; title: string; size: number }[];
+  pages: { filename: string; title: string; size: number; summary: string }[];
   compiledPages: CompiledPage[]; // 完整页面数据（含 tags/content），供图构建使用
   relationships: Relationship[]; // AI 输出的页面间语义关系
   claims: WikiCompiledClaim[]; // AI 输出的可追溯事实，旧模型缺失时由摄入层生成 fallback
@@ -529,7 +530,10 @@ export async function compileSource(
   // 页面合并：对每个页面检查磁盘是否已有同名文件，若有则 LLM 合并
   const mergedPages: CompiledPage[] = [];
   for (const page of compiled.pages) {
-    const merged = await mergePageIfExists(page, wikiPath, settings);
+    const merged = await mergePageIfExists({
+      ...page,
+      summary: page.summary?.trim() || getWikiPageSummary(page.content) || undefined,
+    }, wikiPath, settings);
     mergedPages.push(merged);
   }
 

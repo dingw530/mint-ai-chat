@@ -413,6 +413,7 @@ export interface ElectronAPI {
   getWikiJob: (jobId: string) => Promise<{ job: UploadJob }>;
   retryWikiJob: (jobId: string) => Promise<{ job: UploadJob }>;
   cancelWikiJob: (jobId: string) => Promise<{ job: UploadJob }>;
+  removeWikiJob: (jobId: string) => Promise<{ success: true; jobId: string }>;
   getWikiSchema: () => Promise<{ categories: WikiCategory[] }>;
   addWikiCategory: (category: string) => Promise<{ categories: WikiCategory[] }>;
   removeWikiCategory: (category: string) => Promise<{ categories: WikiCategory[] }>;

@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from 'react';
 import { A2uiSurface, createComponentImplementation } from '@a2ui/react/v0_9';
 import { Catalog } from '@a2ui/web_core/v0_9';
 import { DynamicValueSchema } from '@a2ui/web_core/v0_9';
 import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
 import { BASE_URL, getElectronAPI, isElectron } from '@/services/api/_base';
+import { getWikiJob } from '@/services/api';
+import type { UploadJob } from '@/services/api/wiki';
+import IngestionJobDetails from '@/shared/components/IngestionJobDetails';
 import {
   createA2uiProcessor,
   createMintComponentApi,
@@ -19,7 +23,7 @@ interface IngestionTaskModel {
   progress: number;
   step: string;
   fileCount: number;
-  result: { sourceFile?: string; error?: string } | null;
+  result: { sourceFile?: string; error?: string; pageCount?: number; hasWarnings?: boolean } | null;
 }
 
 function isIngestionTaskModel(value: unknown): value is IngestionTaskModel {
@@ -43,6 +47,10 @@ function getStatusTone(status: string): 'active' | 'success' | 'error' | 'cancel
   return 'active';
 }
 
+function requestIngestionDetails(jobId: string): void {
+  window.dispatchEvent(new CustomEvent('mint:open-ingestion-detail', { detail: { jobId } }));
+}
+
 const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({ props }) => {
   const model = isIngestionTaskModel(props.data) ? props.data : undefined;
   if (!model) return null;
@@ -60,7 +68,13 @@ const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({
       <div className={`ingestion-task-card-progress ${tone}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
         <span style={{ '--task-progress': `${progress}%` } as CSSProperties} />
       </div>
-      {model.result?.error && <div className="ingestion-task-card-error">{model.result.error}</div>}
+      <div className="ingestion-task-card-footer">
+        <div className="ingestion-task-card-context">
+          {model.result?.pageCount !== undefined && <span className="ingestion-task-card-result">已生成 {model.result.pageCount} 篇页面{model.result.hasWarnings ? ' · 有待检查项' : ''}</span>}
+          {model.result?.error && <span className="ingestion-task-card-error" title={model.result.error}>{model.result.error}</span>}
+        </div>
+        <button type="button" className="ingestion-task-card-detail" aria-label="查看详情" onClick={() => requestIngestionDetails(model.jobId)}>详情</button>
+      </div>
     </article>
   );
 });
@@ -106,10 +120,12 @@ export const mintCatalog = new Catalog('mint', [ingestionTaskCard, sourceReferen
 
 /** 将浏览器 SSE 和 Electron IPC 产生的官方 JSONL 消息交给同一个 renderer。 */
 export default function IngestionTaskCards({ conversationId }: { conversationId: string | null }) {
+  const navigate = useNavigate();
   const processor = useMemo(() => createA2uiProcessor(mintCatalog), []);
   const [, renderVersion] = useReducer((version: number) => version + 1, 0);
   const processorRef = useRef(processor);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [detailJob, setDetailJob] = useState<UploadJob | null>(null);
   const previousActiveCount = useRef(0);
   processorRef.current = processor;
 
@@ -182,13 +198,29 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
   const hasActiveTasks = activeCount > 0;
 
   useEffect(() => {
-    if (!hasActiveTasks) {
-      setIsExpanded(false);
-    } else if (previousActiveCount.current === 0) {
+    if (hasActiveTasks && previousActiveCount.current === 0) {
       setIsExpanded(true);
     }
     previousActiveCount.current = activeCount;
   }, [activeCount, hasActiveTasks]);
+
+  const openDetails = useCallback(async (jobId: string): Promise<void> => {
+    try {
+      setDetailJob(await getWikiJob(jobId));
+    } catch (error) {
+      console.warn('Failed to load ingestion task details', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleDetailRequest = (event: Event): void => {
+      if (!(event instanceof CustomEvent) || !event.detail || typeof event.detail !== 'object') return;
+      const detail = event.detail as { jobId?: unknown };
+      if (typeof detail.jobId === 'string') void openDetails(detail.jobId);
+    };
+    window.addEventListener('mint:open-ingestion-detail', handleDetailRequest);
+    return () => window.removeEventListener('mint:open-ingestion-detail', handleDetailRequest);
+  }, [openDetails]);
 
   if (!conversationId || surfaces.length === 0) return null;
 
@@ -221,6 +253,13 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
           </div>
         </div>
       </div>
+      {detailJob && (
+        <IngestionJobDetails
+          job={detailJob}
+          onClose={() => setDetailJob(null)}
+          onOpenPage={(path) => navigate(`/wiki?path=${encodeURIComponent(path)}`)}
+        />
+      )}
     </section>
   );
 }

@@ -32,6 +32,7 @@ export interface WikiPageSummary {
   filename: string;
   title: string;
   size: number;
+  summary?: string;
 }
 
 export interface WikiJobResult {
@@ -41,6 +42,8 @@ export interface WikiJobResult {
   pageCount?: number;
   preview: string;
   pages?: WikiPageSummary[];
+  sourceUrls?: string[];
+  sourcePreviewKind?: 'text' | 'markdown' | 'html' | 'unsupported';
   graphErrors?: string[];
   failedItems?: Array<{ name: string; error: string }>;
 }

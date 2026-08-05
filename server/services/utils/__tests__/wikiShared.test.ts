@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CompiledPage } from '../wikiShared.js';
 import {
   normalizeWikiSchema,
+  getWikiPageSummary,
   tryParseLooseJson,
   writeWikiPages,
   updateIndexMd,
@@ -18,6 +19,17 @@ describe('normalizeWikiSchema', () => {
       { name: '实践', description: '', include: [], exclude: [] },
       { name: '概念', description: '术语', include: ['定义'], exclude: [] },
     ]);
+  });
+});
+
+describe('getWikiPageSummary', () => {
+  it('提取首个有效段落并跳过标题', () => {
+    expect(getWikiPageSummary('# Title\n\nFirst paragraph\n\nSecond paragraph')).toBe('First paragraph');
+    expect(getWikiPageSummary('## Title\n\n- First item')).toBe('First item');
+  });
+
+  it('没有正文时返回空字符串', () => {
+    expect(getWikiPageSummary('  \n\n```\ncode\n```')).toBe('');
   });
 });
 
@@ -131,6 +143,7 @@ describe('writeWikiPages', () => {
 
     const results = writeWikiPages(tmpDir, pages);
     expect(results).toHaveLength(1);
+    expect(results[0].summary).toBe('Paragraph 1');
 
     const filePath = path.join(tmpDir, 'pages/test/page.md');
     expect(fs.existsSync(filePath)).toBe(true);

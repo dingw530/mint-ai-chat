@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { defaultSchema } from 'hast-util-sanitize';
 import CodeBlock from './CodeBlock';
@@ -71,7 +72,7 @@ export default function MarkdownRenderer({ content, linkTarget = '_blank', onLin
     return (
       <div className="markdown-body">
         <ReactMarkdown
-          rehypePlugins={[rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
+          rehypePlugins={[rehypeRaw, rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
           remarkPlugins={[remarkGfm]}
           urlTransform={(url) => url.startsWith('mint-wiki:') ? url : defaultUrlTransform(url)}
           components={components}

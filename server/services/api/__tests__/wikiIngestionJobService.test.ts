@@ -235,4 +235,21 @@ describe('wikiIngestionJobService', () => {
     expect(service.cancel('job-1').status).toBe('cancelled');
     expect(() => service.retry('job-1')).toThrow('当前任务状态不支持重试');
   });
+
+  it('removes terminal jobs but rejects active jobs', () => {
+    let current = { id: 'job-1', status: 'completed', fileName: 'notes.md', fileSize: 1, progress: 100, step: '完成', createdAt: '', updatedAt: '', isTerminal: true, isSuccessful: true } as WikiJob;
+    const remove = vi.fn(() => true);
+    const store = {
+      get: vi.fn(() => current),
+      remove,
+      recoverRunning: vi.fn(() => 0),
+      claimNext: vi.fn(() => undefined),
+    } as unknown as JobStore;
+    const service = createWikiIngestionJobService({ store });
+
+    expect(service.remove('job-1')).toEqual({ success: true, jobId: 'job-1' });
+    expect(remove).toHaveBeenCalledWith('job-1');
+    current = { ...current, status: 'compiling', isTerminal: false };
+    expect(() => service.remove('job-1')).toThrow('处理中任务不能移除');
+  });
 });
