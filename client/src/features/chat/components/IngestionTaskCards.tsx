@@ -51,6 +51,11 @@ function requestIngestionDetails(jobId: string): void {
   window.dispatchEvent(new CustomEvent('mint:open-ingestion-detail', { detail: { jobId } }));
 }
 
+/** 请求应用打开指定的 Wiki 文档。 */
+function requestWikiPage(filePath: string): void {
+  window.dispatchEvent(new CustomEvent('mint:open-wiki-page', { detail: { filePath } }));
+}
+
 const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({ props }) => {
   const model = isIngestionTaskModel(props.data) ? props.data : undefined;
   if (!model) return null;
@@ -107,13 +112,18 @@ const sourceReferenceCardApi = createMintComponentApi(
 const sourceReferenceCard = createComponentImplementation(sourceReferenceCardApi, ({ props }) => {
   const model = isSourceReferenceModel(props.data) ? props.data : undefined;
   if (!model) return null;
-    return (
-      <article className="source-reference-card">
+  return (
+    <button
+      type="button"
+      className="source-reference-card"
+      aria-label={`打开知识库文档：${model.title}`}
+      onClick={() => requestWikiPage(model.file)}
+    >
       <span className="source-reference-card-label">[{model.refId}]</span>
       <strong className="source-reference-card-title">{model.title}</strong>
       <span className="source-reference-card-file">{model.file}</span>
-      </article>
-    );
+    </button>
+  );
 });
 
 export const mintCatalog = new Catalog('mint', [ingestionTaskCard, sourceReferenceCard]);

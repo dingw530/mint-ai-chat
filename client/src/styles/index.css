@@ -1080,9 +1080,23 @@ body::after {
   max-width: 100%;
   padding: 3px 0 3px 9px;
   border-left: 2px solid var(--accent);
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
   color: var(--text-secondary);
   font-size: 12px;
+  font-family: inherit;
   line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.source-reference-card:hover,
+.source-reference-card:focus-visible {
+  background: var(--accent-subtle);
+  outline: none;
 }
 
 .source-reference-card-label {
