@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "Mint agent-eval isolated Wiki fixture",
+  "sourcesDir": "sources",
+  "pagesDir": "pages",
+  "categories": [
+    {
+      "name": "eval",
+      "description": "Evaluation corpus",
+      "include": [],
+      "exclude": []
+    }
+  ],
+  "tags": [],
+  "pageTemplate": {
+    "required_frontmatter": [
+      "title",
+      "created",
+      "source"
+    ]
+  }
+}
