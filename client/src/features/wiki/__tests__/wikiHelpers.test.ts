@@ -11,6 +11,7 @@ describe('Wiki link and document helpers', () => {
     expect(isExternalWikiLink('pages/next')).toBe(false);
     expect(resolveWikiLinkPath('pages/topic/current.md', 'next')).toBe('pages/topic/next.md');
     expect(resolveWikiLinkPath('pages/topic/current.md', '../other')).toBe('pages/other.md');
+    expect(resolveWikiLinkPath('pages/topic/current.md', 'mint-wiki://open?path=pages%2Fother%2F目标.md')).toBe('pages/other/目标.md');
     expect(resolveWikiLinkPath('pages/topic/current.md', '/sources/raw.txt')).toBe('sources/raw.txt');
     expect(resolveWikiLinkPath('pages/topic/current.md', '#section')).toBeNull();
     expect(resolveWikiLinkPath('pages/topic/current.md', 'https://example.com')).toBeNull();

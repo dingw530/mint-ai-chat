@@ -15,6 +15,7 @@ export interface Message {
   conversationId: string;
   role: string;
   content: string;
+  runId?: string;
   reasoning?: string | null;
   imageData?: string | null;
   createdAt: string;

@@ -201,9 +201,10 @@ export async function sendMessage(conversationId: string, content: string, sink:
     systemExtras.push([
       `⚠️ Wiki 知识库使用规则（必须遵守）：知识库根目录: ${settings.wikiPath}`,
       '',
-      '【禁止操作】',
+      '【访问与清理规则】',
       '- 严禁使用 bash 工具读取、搜索或列出 Wiki 目录下的任何文件。bash 的读文件操作（cat/ls/grep/cd 等）已被系统拦截，执行会直接报错。',
       '- 不要尝试 cd 到 Wiki 目录，不要用 cat 打开 .md 文件，不要用 grep 搜索关键词。所有 Wiki 文件访问必须使用 wiki_search 工具。',
+      '- 处理 wiki lint 时，如果 lint 已明确确认某个知识库文件需要清理，可以使用 bash 删除该文件；仅限 Wiki 根目录内、已确认的目标文件，不得删除其他路径或整个知识库目录。',
       '',
       '【wiki_search 工具使用指南】',
       '- 该工具返回的是文件的**完整内容**（单文件可达数万字），不存在截断问题。',

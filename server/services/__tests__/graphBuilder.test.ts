@@ -49,6 +49,14 @@ describe('graphBuilder', () => {
       const links = extractWikiLinks('[P](pages/cat/page%20name.md)');
       expect(links[0]).toBe('pages/cat/page-name.md');
     });
+
+    it('handles mint-wiki links independently of the source directory', () => {
+      const links = extractWikiLinks(
+        '[目标](mint-wiki://open?path=pages%2F概念%2F目标.md)',
+        'pages/方法论/入口.md',
+      );
+      expect(links).toEqual(['pages/概念/目标.md']);
+    });
   });
 
   describe('buildGraphFromPages', () => {

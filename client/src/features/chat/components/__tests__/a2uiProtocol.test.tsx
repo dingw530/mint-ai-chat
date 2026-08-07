@@ -52,6 +52,36 @@ describe('official A2UI v0.9 ingestion protocol', () => {
     container.remove();
   });
 
+  it('requests the matching wiki document when a source reference is clicked', async () => {
+    const requests: Array<{ filePath: string }> = [];
+    const handleRequest = (event: Event): void => {
+      if (event instanceof CustomEvent && event.detail && typeof event.detail.filePath === 'string') {
+        requests.push({ filePath: event.detail.filePath });
+      }
+    };
+    window.addEventListener('mint:open-wiki-page', handleRequest);
+
+    const processor = createA2uiProcessor(mintCatalog);
+    processor.processMessages([
+      { version: 'v0.9', createSurface: { surfaceId: 'source-2', catalogId: 'mint' } },
+      { version: 'v0.9', updateComponents: { surfaceId: 'source-2', components: [{ id: 'root', component: 'SourceReferenceCard', data: { path: '/source' } }] } },
+      { version: 'v0.9', updateDataModel: { surfaceId: 'source-2', path: '/source', value: { refId: 'C2', title: '目标文档', file: 'pages/target.md', heading: '', snippet: 'fact', chunkId: 'target#0' } } },
+    ]);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<A2uiSurface surface={processor.model.getSurface('source-2')!} />));
+
+    const card = container.querySelector<HTMLButtonElement>('.source-reference-card');
+    expect(card).not.toBeNull();
+    await act(async () => card?.click());
+    expect(requests).toEqual([{ filePath: 'pages/target.md' }]);
+
+    await act(async () => root.unmount());
+    container.remove();
+    window.removeEventListener('mint:open-wiki-page', handleRequest);
+  });
+
   it('rejects the old flat custom envelope and accepts official messages', () => {
     expect(parseA2uiMessage(JSON.stringify({ type: 'createSurface', surfaceId: 'surface-1', catalogId: 'mint' }))).toBeNull();
     expect(parseA2uiMessage(JSON.stringify({

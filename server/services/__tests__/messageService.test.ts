@@ -97,6 +97,24 @@ describe('messageService', () => {
       expect(streamChat).toHaveBeenCalledWith(expect.any(Array), expect.any(Object), expect.any(Object), 'general', 'conv-1');
     });
 
+    it('adds scoped Bash cleanup guidance for Wiki lint handling', async () => {
+      vi.mocked(settingsService.getAiSettings).mockReturnValue({
+        apiUrl: 'https://api.test.com', apiKey: 'sk-key', modelId: 'gpt-4',
+        apiType: 'openai-chat', systemPrompt: '', thinkingMode: false,
+        memoryEnabled: false, reactMaxIterations: 5, toolMaxRetries: 3,
+        showReactSteps: true, maxContextRounds: 10, wikiPath: '/tmp/wiki', wikiMaxFileSize: 10485760,
+      });
+      const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+      await sendMessage('conv-1', '处理 Wiki lint', sink);
+
+      const sentMessages = vi.mocked(streamChat).mock.calls[0][0];
+      const systemContent = sentMessages.find(message => message.role === 'system')?.content || '';
+      expect(systemContent).toContain('处理 wiki lint 时');
+      expect(systemContent).toContain('可以使用 bash 删除该文件');
+      expect(systemContent).toContain('不得删除其他路径或整个知识库目录');
+    });
+
     it('does not re-save user message on regenerate', async () => {
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
       await sendMessage('conv-1', 'hello', sink, undefined, true);

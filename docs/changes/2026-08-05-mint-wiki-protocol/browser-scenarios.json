@@ -1,0 +1,60 @@
+{
+  "scenarios": [
+    {
+      "id": "mint-wiki-protocol-chat-navigation",
+      "acceptanceCriteria": ["AC-001", "AC-002", "AC-004"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"showReactSteps": true, "routingMode": "manual"}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": [{"id": "conv-mint-link", "title": "Wiki 协议测试", "type": "chat", "createdAt": "2026-08-05T00:00:00.000Z", "updatedAt": "2026-08-05T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}},
+          {"pattern": "**/api/conversations/conv-mint-link/messages", "method": "GET", "body": {"messages": [{"id": "assistant-mint-link", "conversationId": "conv-mint-link", "role": "assistant", "content": "[打开目标页面](mint-wiki://open?path=pages%2F概念%2F目标.md)", "createdAt": "2026-08-05T00:00:00.000Z"}]}},
+          {"pattern": "**/api/conversations/conv-mint-link/ingestion-events", "method": "GET", "contentType": "text/event-stream", "body": ""},
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [], "total": 0}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [], "total": 0}},
+          {"pattern": "**/api/wiki/read?path=*", "method": "GET", "body": {"content": "---\ntitle: 目标页面\n---\n\nChat 协议导航成功。", "path": "pages/概念/目标.md", "name": "目标.md", "size": 58}}
+        ]
+      },
+      "markers": ["输入消息"],
+      "steps": [
+        {"action": "waitFor", "target": {"role": "heading", "name": "Wiki 协议测试"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"text": "打开目标页面"}},
+        {"action": "waitFor", "target": {"role": "heading", "name": "目标页面"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "Chat 协议导航成功。"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/wiki/read", "status": 200}
+      ]
+    },
+    {
+      "id": "mint-wiki-protocol-wiki-navigation",
+      "acceptanceCriteria": ["AC-003", "AC-004", "AC-007"],
+      "route": "/wiki?path=pages%2F方法论%2F入口.md",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [], "total": 0}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [], "total": 0}},
+          {"pattern": "**/api/wiki/read?path=*", "method": "GET", "responses": [
+            {"content": "---\ntitle: 入口\n---\n\n[打开概念页面](mint-wiki://open?path=pages%2F概念%2F目标.md)", "path": "pages/方法论/入口.md", "name": "入口.md", "size": 92},
+            {"content": "---\ntitle: 目标页面\n---\n\n协议导航成功。", "path": "pages/概念/目标.md", "name": "目标.md", "size": 52}
+          ]}
+        ]
+      },
+      "markers": ["知识库"],
+      "steps": [
+        {"action": "waitFor", "target": {"role": "heading", "name": "入口"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"text": "打开概念页面"}},
+        {"action": "waitFor", "target": {"role": "heading", "name": "目标页面"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "协议导航成功。"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/wiki/read", "status": 200}
+      ]
+    }
+  ]
+}

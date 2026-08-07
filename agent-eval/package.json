@@ -6,7 +6,13 @@
   "scripts": {
     "build": "node ../scripts/with-node-version.cjs tsc -p tsconfig.json",
     "test": "node ../scripts/with-node-version.cjs vitest run --config vitest.config.ts",
-    "viewer": "node ../scripts/with-node-version.cjs tsx src/serveViewer.ts"
+    "viewer": "node ../scripts/with-node-version.cjs tsx src/serveViewer.ts",
+    "eval:list": "node ../scripts/with-node-version.cjs tsx src/cli.ts list",
+    "eval:prepare": "node ../scripts/with-node-version.cjs tsx src/cli.ts prepare",
+    "eval:wiki-rag:dry": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --dry-run",
+    "eval:wiki-rag:ingest": "node ../scripts/with-node-version.cjs tsx src/cli.ts ingest --clean",
+    "eval:wiki-rag:live": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live --runs 1",
+    "eval:wiki-rag": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live --runs 1"
   },
   "dependencies": {
     "mint-server": "1.0.0"

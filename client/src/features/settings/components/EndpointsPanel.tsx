@@ -223,7 +223,7 @@ export default function EndpointsPanel({ onToast }: EndpointsPanelProps) {
       )}
 
       {editingId && (
-        <div className="modal-overlay" onClick={closeForm}>
+        <div className="modal-overlay">
           <div className="tool-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tool-modal-header">
               <h3>{editingId === '__new__' ? '新增端点' : '编辑端点'}</h3>

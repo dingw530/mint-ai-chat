@@ -1,0 +1,22 @@
+{
+  "name": "wiki-rag",
+  "version": "1.0.0",
+  "sourceType": "raw-source-documents",
+  "files": [
+    { "path": "2026-07-10-2026-06-23-置身钉内.txt", "format": "txt", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-10-万字干货-harness-engineering如何工程化落地.md", "format": "md", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-14-蚂蚁阿福-从-0-到生产的医疗-agent-工程化落地.md", "format": "md", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-15-别再把-agent-做成聊天框-企业级-ai-的第一性架构.html", "format": "html", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-22-rag-万字长文-从入门到精通.md", "format": "md", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-24-llm-wiki-v2-构建个人知识库的模式-增强版.md", "format": "md", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-24-分解一座冰山-后端系统-ai-知识库体系-建设实践-长文干货.md", "format": "md", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-26-harness-engineering-v260411-zh.pdf", "format": "pdf", "role": "ingestion-format-coverage" },
+    { "path": "2026-07-28-2026-目标管理指南-smart-原则详解与实战案例-附-boardmix-可视化模板.md", "format": "md", "role": "retrieval-and-ingestion" },
+    { "path": "2026-07-28-loop-engineering-coding-实践-以一个跑了126.md", "format": "md", "role": "retrieval-and-ingestion" }
+  ],
+  "excluded": [
+    "2026-07-21-王丁-前端开发工程师简历.md",
+    "2026-07-28-王丁-前端开发工程师简历.md",
+    "2026-07-28-王丁-前端开发工程师-4.pdf"
+  ]
+}

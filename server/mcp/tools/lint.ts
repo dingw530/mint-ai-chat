@@ -3,6 +3,7 @@ import * as path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { WikiServiceContext } from '../index.js';
 import { parseWikiFrontmatter, parseWikiPage, readWikiManifest } from '../../services/utils/wikiShared.js';
+import { getWikiPathCandidates, resolveWikiMarkdownLink } from '../../services/utils/wikiLinkProtocol.js';
 
 interface LintIssue {
   type:
@@ -195,16 +196,9 @@ export function registerLintTool(server: McpServer, ctx: WikiServiceContext): vo
           let match: RegExpExecArray | null;
           while ((match = linkRegex.exec(content)) !== null) {
             const rawTarget = match[2];
-            const stripped = rawTarget.replace(/\.md$/, '');
-            if (stripped.startsWith('http') || stripped.startsWith('#') || stripped.startsWith('/')) continue;
-
-            const fileDir = path.dirname(normalizedRelPath);
-            let resolved = path.join(fileDir, stripped);
-            resolved = path.normalize(resolved).replace(/\\/g, '/');
-
-            if (!resolved.startsWith('pages/')) continue;
-            linksToVerify.push({ source: normalizedRelPath, target: resolved });
-            inboundTargets.add(`${resolved}.md`);
+            const resolved = resolveWikiMarkdownLink(normalizedRelPath, rawTarget);
+            if (!resolved || !resolved.path.startsWith('pages/')) continue;
+            linksToVerify.push({ source: normalizedRelPath, target: resolved.path });
           }
 
           // Manifest 一致性检查
@@ -251,18 +245,21 @@ export function registerLintTool(server: McpServer, ctx: WikiServiceContext): vo
         const seen = new Set<string>();
         const uniquePaths: string[] = [];
         for (const link of linksToVerify) {
-          const fullPath = link.target + '.md';
-          if (!seen.has(fullPath)) {
-            seen.add(fullPath);
-            uniquePaths.push(fullPath);
+          if (!seen.has(link.target)) {
+            seen.add(link.target);
+            uniquePaths.push(link.target);
           }
         }
 
         for (const candidatePath of uniquePaths) {
-          const resolved = path.resolve(ctx.wikiPath, candidatePath);
-          if (!fs.existsSync(resolved)) {
+          const existingPath = getWikiPathCandidates(candidatePath).find(candidate =>
+            fs.existsSync(path.resolve(ctx.wikiPath, candidate)),
+          );
+          if (existingPath) {
+            inboundTargets.add(existingPath);
+          } else {
             linksToVerify
-              .filter(l => l.target + '.md' === candidatePath)
+              .filter(l => l.target === candidatePath)
               .forEach(l => {
                 issues.push({
                   type: 'broken_link',

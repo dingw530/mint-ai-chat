@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { normalizeWikiCategories } from './utils/wikiShared.js';
 import type { CompiledPage, Relationship } from './utils/wikiShared.js';
+import { resolveWikiMarkdownLink } from './utils/wikiLinkProtocol.js';
 import { getGraphRelationPriority, normalizeGraphRelation } from '../utils/graphOntology.js';
 
 // ── Types ──
@@ -88,30 +89,17 @@ function selectPrimaryRelationships(relationships: Relationship[]): PrimaryRelat
 
 // ── Markdown Link Extraction ──
 
-export function extractWikiLinks(content: string): string[] {
-  const linkRe = /\[([^\]]*)\]\(([^)]+\.md)\)/g;
+export function extractWikiLinks(content: string, sourcePath = 'pages/index.md'): string[] {
+  const linkRe = /\[([^\]]*)\]\(([^)]+)\)/g;
   const links: string[] = [];
   let match: RegExpExecArray | null;
   while ((match = linkRe.exec(content)) !== null) {
-    let target = match[2].trim();
-    try {
-      target = decodeURIComponent(target);
-    } catch {
-      // 保留原始链接，后续按普通未解析链接处理。
-    }
-    const pathParts = target.split('/');
-    if (pathParts.length > 1) {
-      const filename = pathParts.pop()!;
-      pathParts.push(filename.replace(/[\s]+/g, '-'));
-      target = pathParts.join('/');
-    }
-    if (
-      target.startsWith('pages/') ||
-      target.startsWith('../pages/') ||
-      target.startsWith('/pages/')
-    ) {
-      links.push(target.replace(/^(?:\.\.\/|\/)+/, ''));
-    }
+    const target = resolveWikiMarkdownLink(sourcePath, match[2]);
+    if (!target?.path.startsWith('pages/')) continue;
+    const pathParts = target.path.split('/');
+    const filename = pathParts.pop() || '';
+    pathParts.push(filename.replace(/[\s]+/g, '-'));
+    links.push(pathParts.join('/'));
   }
   return links;
 }
@@ -243,7 +231,7 @@ export function buildGraphFromPages(
     }
 
     for (const page of pages) {
-      const links = extractWikiLinks(page.content);
+      const links = extractWikiLinks(page.content, page.filename);
       for (const linkTarget of links) {
         const targetTitle = pageFilenameToTitle.get(linkTarget);
         if (!targetTitle) continue;
@@ -292,7 +280,7 @@ export function buildGraphFromPages(
       // Also check for cross-batch references (links to pages outside current batch)
       // Extract links and try to find them in existing nodes
       if (wikiPath) {
-        const crossLinks = extractWikiLinks(page.content);
+        const crossLinks = extractWikiLinks(page.content, page.filename);
         for (const linkTarget of crossLinks) {
           // If not in current batch, look up by source_file
           if (pageFilenameToTitle.has(linkTarget)) continue;

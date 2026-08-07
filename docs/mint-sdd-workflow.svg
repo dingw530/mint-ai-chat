@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Mint 的 SDD 开发闭环</title>
+  <desc id="desc">从问题与目标出发，经过产品规格、设计文档、执行计划、代码实现和 Harness 验证，最终交付或带着结构化证据反馈修复，形成可验证、可追溯的开发闭环。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5F5F5"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <linearGradient id="spec" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F2FAF7"/>
+      <stop offset="100%" stop-color="#E7F4EF"/>
+    </linearGradient>
+    <linearGradient id="verify" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F2F7FB"/>
+      <stop offset="100%" stop-color="#E7F0F7"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.24"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#000000" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arrow-teal" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#2AA87D"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#5B8FB9"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#D8BC74"/>
+    </marker>
+    <style>
+      .font { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 42px; font-weight: 750; letter-spacing: 0.5px; fill: #1C1C1C; }
+      .subtitle { font-size: 19px; fill: #5E5E5E; letter-spacing: 0.2px; }
+      .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 2px; fill: #2AA87D; }
+      .step { font-size: 13px; font-weight: 700; letter-spacing: 1px; fill: #6A7F8E; }
+      .card-title { font-size: 23px; font-weight: 720; fill: #1C1C1C; }
+      .card-sub { font-size: 15px; fill: #5E5E5E; }
+      .small { font-size: 13px; fill: #5E5E5E; }
+      .tiny { font-size: 12px; fill: #7C8A92; }
+      .doc-title { font-size: 15px; font-weight: 700; fill: #1C1C1C; }
+      .doc-sub { font-size: 12px; fill: #4C9279; }
+      .chip { font-size: 13px; font-weight: 650; fill: #1C1C1C; }
+      .label { font-size: 14px; font-weight: 700; fill: #1C1C1C; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+
+  <!-- subtle grid -->
+  <g opacity="0.48" stroke="#DCE6E2" stroke-width="1">
+    <path d="M0 150H1600 M0 350H1600 M0 550H1600 M0 750H1600 M0 950H1600"/>
+    <path d="M100 0V1000 M300 0V1000 M500 0V1000 M700 0V1000 M900 0V1000 M1100 0V1000 M1300 0V1000 M1500 0V1000"/>
+  </g>
+
+  <!-- header -->
+  <g class="font">
+    <rect x="72" y="57" width="65" height="25" rx="12.5" fill="#E5F4EE" stroke="#2AA87D"/>
+    <text x="104" y="75" text-anchor="middle" class="eyebrow">MINT</text>
+    <text x="72" y="133" class="title">Mint 的 SDD 开发闭环</text>
+    <text x="72" y="169" class="subtitle">把产品想法变成可验证、可追溯、可持续迭代的交付结果</text>
+    <rect x="1188" y="66" width="340" height="86" rx="18" fill="#FFFFFF" stroke="#D8E6E0"/>
+    <text x="1214" y="97" class="eyebrow" fill="#D8BC74">CORE IDEA</text>
+    <text x="1214" y="127" class="label">先定义“完成”，再开始实现</text>
+    <text x="1214" y="147" class="tiny">规格是协作协议，证据是交付凭证</text>
+  </g>
+
+  <!-- main flow connectors behind cards -->
+  <g fill="none" stroke="#2AA87D" stroke-width="3" marker-end="url(#arrow-teal)" opacity="0.92">
+    <path d="M270 358H326"/>
+    <path d="M806 358H864"/>
+    <path d="M1094 358H1150"/>
+    <path d="M1380 358H1436"/>
+  </g>
+  <g class="font">
+    <text x="298" y="343" text-anchor="middle" class="tiny">澄清</text>
+    <text x="835" y="343" text-anchor="middle" class="tiny">落地</text>
+    <text x="1122" y="343" text-anchor="middle" class="tiny">检查</text>
+    <text x="1408" y="343" text-anchor="middle" class="tiny">通过</text>
+  </g>
+
+  <!-- card 01 -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="72" y="245" width="198" height="226" rx="22" fill="#FFFFFF" stroke="#BCD4CC" stroke-width="1.5"/>
+    <circle cx="111" cy="288" r="23" fill="#DFF2EA"/>
+    <text x="111" y="294" text-anchor="middle" font-size="18" font-weight="700" fill="#2AA87D">01</text>
+    <text x="100" y="344" class="card-title">问题 / 目标</text>
+    <text x="100" y="376" class="card-sub">为什么做？</text>
+    <path d="M100 400H242" stroke="#DCE6E2"/>
+    <text x="100" y="429" class="small">用户价值</text>
+    <text x="100" y="450" class="small">范围与边界</text>
+  </g>
+
+  <!-- spec package -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="326" y="205" width="480" height="306" rx="24" fill="url(#spec)" stroke="#2AA87D" stroke-width="1.5"/>
+    <text x="355" y="247" class="step">02  SPECIFICATION LAYER</text>
+    <text x="355" y="281" class="card-title">SDD 变更包</text>
+    <text x="355" y="306" class="card-sub">一个变更，一个可追溯的事实源</text>
+    <rect x="355" y="330" width="194" height="66" rx="13" fill="#FFFFFF" stroke="#A7D5C6"/>
+    <text x="374" y="357" class="doc-title">Product Spec</text>
+    <text x="374" y="379" class="doc-sub">目标 · 用户故事 · AC</text>
+    <rect x="563" y="330" width="194" height="66" rx="13" fill="#FFFFFF" stroke="#A7D5C6"/>
+    <text x="582" y="357" class="doc-title">Design Doc</text>
+    <text x="582" y="379" class="doc-sub">架构 · 数据流 · DS</text>
+    <rect x="355" y="410" width="194" height="66" rx="13" fill="#FFFFFF" stroke="#A7D5C6"/>
+    <text x="374" y="437" class="doc-title">Exec Plan</text>
+    <text x="374" y="459" class="doc-sub">任务拆解 · TP · 顺序</text>
+    <rect x="563" y="410" width="194" height="66" rx="13" fill="#FFFFFF" stroke="#A7D5C6"/>
+    <text x="582" y="437" class="doc-title">Traceability</text>
+    <text x="582" y="459" class="doc-sub">状态 · 产出 · 风险 · 证据</text>
+  </g>
+
+  <!-- implementation card -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="864" y="245" width="230" height="226" rx="22" fill="#FFFFFF" stroke="#C1D4E2" stroke-width="1.5"/>
+    <circle cx="905" cy="288" r="23" fill="#E3EEF6"/>
+    <text x="905" y="294" text-anchor="middle" font-size="18" font-weight="700" fill="#5B8FB9">03</text>
+    <text x="892" y="344" class="card-title">实现</text>
+    <text x="892" y="376" class="card-sub">按 TP 小步交付</text>
+    <path d="M892 400H1066" stroke="#DCE6E2"/>
+    <text x="892" y="429" class="small">代码 · 测试 · 迁移</text>
+    <text x="892" y="450" class="small">受控范围内修改</text>
+  </g>
+
+  <!-- harness card -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="1150" y="205" width="230" height="306" rx="24" fill="url(#verify)" stroke="#5B8FB9" stroke-width="1.5"/>
+    <text x="1178" y="247" class="step" fill="#5B8FB9">04  HARNESS</text>
+    <text x="1178" y="281" class="card-title">验证</text>
+    <text x="1178" y="306" class="card-sub">AC → 可运行检查</text>
+    <g>
+      <rect x="1178" y="331" width="174" height="31" rx="9" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <circle cx="1195" cy="346.5" r="5" fill="#2AA87D"/>
+      <text x="1210" y="351" class="chip">Unit / API</text>
+      <rect x="1178" y="371" width="174" height="31" rx="9" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <circle cx="1195" cy="386.5" r="5" fill="#2AA87D"/>
+      <text x="1210" y="391" class="chip">Browser AC</text>
+      <rect x="1178" y="411" width="174" height="31" rx="9" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <circle cx="1195" cy="426.5" r="5" fill="#2AA87D"/>
+      <text x="1210" y="431" class="chip">Coverage</text>
+      <rect x="1178" y="451" width="174" height="31" rx="9" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <circle cx="1195" cy="466.5" r="5" fill="#2AA87D"/>
+      <text x="1210" y="471" class="chip">Boundary</text>
+    </g>
+  </g>
+
+  <!-- delivery card -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="1436" y="245" width="92" height="226" rx="22" fill="#FFFFFF" stroke="#A9C5D8" stroke-width="1.5"/>
+    <circle cx="1482" cy="288" r="23" fill="#E3EEF6"/>
+    <text x="1482" y="294" text-anchor="middle" font-size="18" font-weight="700" fill="#5B8FB9">05</text>
+    <text x="1482" y="348" text-anchor="middle" class="card-title" font-size="19">交付</text>
+    <text x="1482" y="377" text-anchor="middle" class="card-sub" font-size="14">归档</text>
+    <path d="M1454 400H1510" stroke="#DCE6E2"/>
+    <text x="1482" y="430" text-anchor="middle" class="tiny">可回放</text>
+    <text x="1482" y="450" text-anchor="middle" class="tiny">可复盘</text>
+  </g>
+
+  <!-- evidence feedback loop -->
+  <g class="font">
+    <rect x="72" y="576" width="1456" height="220" rx="26" fill="#FFFFFF" stroke="#D8E6E0" stroke-width="1.5"/>
+    <text x="105" y="618" class="step">FEEDBACK LOOP</text>
+    <text x="105" y="653" class="card-title">失败不是终点，而是下一轮输入</text>
+    <text x="105" y="681" class="card-sub">Harness 保留结构化证据，帮助快速定位“规格偏差”还是“实现缺陷”</text>
+
+    <!-- loop steps -->
+    <g filter="url(#soft)">
+      <rect x="105" y="714" width="216" height="52" rx="14" fill="#FFF7F2" stroke="#E8CFC4"/>
+      <text x="213" y="746" text-anchor="middle" class="label">检查失败 / 偏差</text>
+      <rect x="371" y="714" width="216" height="52" rx="14" fill="#F7FAFC" stroke="#C8DCE8"/>
+      <text x="479" y="746" text-anchor="middle" class="label">结构化证据</text>
+      <rect x="637" y="714" width="216" height="52" rx="14" fill="#F7FAFC" stroke="#C8DCE8"/>
+      <text x="745" y="746" text-anchor="middle" class="label">定位根因</text>
+      <rect x="903" y="714" width="216" height="52" rx="14" fill="#F2FAF7" stroke="#BBDCCF"/>
+      <text x="1011" y="746" text-anchor="middle" class="label">修复 / 补充规格</text>
+      <rect x="1169" y="714" width="216" height="52" rx="14" fill="#F2FAF7" stroke="#BBDCCF"/>
+      <text x="1277" y="746" text-anchor="middle" class="label">重新验证</text>
+    </g>
+    <g fill="none" stroke="#5B8FB9" stroke-width="2.5" marker-end="url(#arrow-purple)">
+      <path d="M321 740H362"/>
+      <path d="M587 740H628"/>
+      <path d="M853 740H894"/>
+      <path d="M1119 740H1160"/>
+    </g>
+    <path d="M1277 703 C1277 650 1095 626 942 626 C800 626 720 572 720 522" fill="none" stroke="#5B8FB9" stroke-width="2.5" stroke-dasharray="8 8" marker-end="url(#arrow-purple)"/>
+    <text x="975" y="616" class="tiny" fill="#5B8FB9">回到规格或实现，直到满足 AC</text>
+    <path d="M1265 511V566" fill="none" stroke="#D8BC74" stroke-width="2.5" stroke-dasharray="6 7" marker-end="url(#arrow-amber)"/>
+    <text x="1280" y="551" class="tiny" fill="#A4884E">writeback</text>
+  </g>
+
+  <!-- principles -->
+  <g class="font">
+    <text x="72" y="858" class="step">WHY IT WORKS</text>
+    <g filter="url(#soft)">
+      <rect x="72" y="882" width="460" height="66" rx="18" fill="#FFFFFF" stroke="#D8E6E0"/>
+      <circle cx="104" cy="915" r="13" fill="#DFF2EA"/>
+      <text x="104" y="920" text-anchor="middle" font-size="15" font-weight="700" fill="#2AA87D">✓</text>
+      <text x="131" y="911" class="label">验收标准前置</text>
+      <text x="131" y="933" class="tiny">先说清“什么算完成”</text>
+      <rect x="570" y="882" width="460" height="66" rx="18" fill="#FFFFFF" stroke="#D8E6E0"/>
+      <circle cx="602" cy="915" r="13" fill="#E3EEF6"/>
+      <text x="602" y="920" text-anchor="middle" font-size="15" font-weight="700" fill="#5B8FB9">↗</text>
+      <text x="629" y="911" class="label">追溯贯穿全程</text>
+      <text x="629" y="933" class="tiny">目标 → 设计 → 任务 → 证据</text>
+      <rect x="1068" y="882" width="460" height="66" rx="18" fill="#FFFFFF" stroke="#D8E6E0"/>
+      <circle cx="1100" cy="915" r="13" fill="#FFF6DF"/>
+      <text x="1100" y="920" text-anchor="middle" font-size="15" font-weight="700" fill="#A4884E">◌</text>
+      <text x="1127" y="911" class="label">证据驱动交付</text>
+      <text x="1127" y="933" class="tiny">结果可验证、过程可回放</text>
+    </g>
+  </g>
+</svg>

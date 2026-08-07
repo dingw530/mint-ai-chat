@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Mint 产品路线图</title>
+  <desc id="desc">基于 docs/changes 变更记录，从 2026 年 4 月至 8 月，展示 Mint 从 AI Chat、Agent 运行时、LLM Wiki、知识系统深化到产品化交付的能力演进，并标注仍处于规划或草稿状态的方向。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5F5F5"/>
+      <stop offset="100%" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <linearGradient id="phase-mint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F1FAF6"/>
+      <stop offset="100%" stop-color="#E5F3ED"/>
+    </linearGradient>
+    <linearGradient id="phase-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F2F7FB"/>
+      <stop offset="100%" stop-color="#E7F0F7"/>
+    </linearGradient>
+    <linearGradient id="phase-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFDF6"/>
+      <stop offset="100%" stop-color="#FBF3DE"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#20352D" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#2AA87D"/>
+    </marker>
+    <style>
+      .font { font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 44px; font-weight: 760; fill: #1C1C1C; letter-spacing: 0.3px; }
+      .subtitle { font-size: 19px; fill: #5E5E5E; }
+      .eyebrow { font-size: 12px; font-weight: 750; letter-spacing: 2px; fill: #2AA87D; }
+      .date { font-size: 14px; font-weight: 750; letter-spacing: 0.5px; fill: #5E5E5E; }
+      .phase-title { font-size: 25px; font-weight: 750; fill: #1C1C1C; }
+      .phase-sub { font-size: 14px; fill: #5E5E5E; }
+      .item { font-size: 14px; font-weight: 650; fill: #1C1C1C; }
+      .item-sub { font-size: 12px; fill: #6D7C82; }
+      .count { font-size: 12px; font-weight: 750; letter-spacing: 0.5px; fill: #6A7F8E; }
+      .bottom-title { font-size: 21px; font-weight: 750; fill: #1C1C1C; }
+      .bottom-text { font-size: 14px; fill: #5E5E5E; }
+      .chip { font-size: 13px; font-weight: 650; fill: #1C1C1C; }
+      .legend { font-size: 12px; fill: #6D7C82; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1120" fill="url(#bg)"/>
+  <g opacity="0.42" stroke="#DCE6E2" stroke-width="1">
+    <path d="M0 190H1800 M0 390H1800 M0 590H1800 M0 790H1800 M0 990H1800"/>
+    <path d="M100 0V1120 M400 0V1120 M700 0V1120 M1000 0V1120 M1300 0V1120 M1600 0V1120"/>
+  </g>
+
+  <!-- header -->
+  <g class="font">
+    <rect x="90" y="54" width="68" height="26" rx="13" fill="#E5F4EE" stroke="#2AA87D"/>
+    <text x="124" y="73" text-anchor="middle" class="eyebrow">MINT</text>
+    <text x="90" y="135" class="title">Mint 产品路线图</text>
+    <text x="90" y="171" class="subtitle">基于 docs/changes 记录聚合：从 AI Chat 到本地优先的知识工作台</text>
+    <rect x="1335" y="55" width="375" height="92" rx="18" fill="#FFFFFF" stroke="#D8E6E0"/>
+    <text x="1363" y="86" class="eyebrow">ROADMAP SCOPE</text>
+    <text x="1363" y="115" class="item">2026-04-27 → 2026-08-05</text>
+    <text x="1363" y="136" class="legend">已完成能力 · 进行中的演进 · 规划/草稿方向</text>
+  </g>
+
+  <!-- timeline rail -->
+  <g>
+    <path d="M145 224H1655" stroke="#B7D8CC" stroke-width="4" marker-end="url(#arrow)"/>
+    <circle cx="145" cy="224" r="10" fill="#2AA87D"/>
+    <circle cx="520" cy="224" r="10" fill="#2AA87D"/>
+    <circle cx="895" cy="224" r="10" fill="#2AA87D"/>
+    <circle cx="1270" cy="224" r="10" fill="#2AA87D"/>
+    <circle cx="1645" cy="224" r="10" fill="#D8BC74"/>
+  </g>
+
+  <!-- phase 1 -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="90" y="260" width="300" height="560" rx="24" fill="url(#phase-blue)" stroke="#C1D4E2" stroke-width="1.5"/>
+    <rect x="114" y="285" width="112" height="28" rx="14" fill="#E3EEF6"/>
+    <text x="170" y="304" text-anchor="middle" class="date">04/27 — 05/05</text>
+    <text x="114" y="355" class="phase-title">从 Chat 到 Agent</text>
+    <text x="114" y="381" class="phase-sub">先让 AI 能理解、思考并持续对话</text>
+    <path d="M114 403H366" stroke="#C9DDE8"/>
+    <text x="114" y="430" class="count">基础能力 · 8 项变更</text>
+    <g>
+      <rect x="114" y="452" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <text x="132" y="480" class="item">AI Chat + 流式响应</text>
+      <rect x="114" y="509" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <text x="132" y="537" class="item">System Prompt / Thinking</text>
+      <rect x="114" y="566" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <text x="132" y="594" class="item">Markdown 与 UX 基础</text>
+      <rect x="114" y="623" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <text x="132" y="651" class="item">MCP Agent</text>
+      <rect x="114" y="680" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <text x="132" y="708" class="item">Memory 记忆机制</text>
+      <rect x="114" y="737" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#D4E1EA"/>
+      <text x="132" y="765" class="item">Intelligent Routing</text>
+    </g>
+  </g>
+
+  <!-- phase 2 -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="465" y="260" width="300" height="560" rx="24" fill="url(#phase-mint)" stroke="#A7D5C6" stroke-width="1.5"/>
+    <rect x="489" y="285" width="112" height="28" rx="14" fill="#DFF2EA"/>
+    <text x="545" y="304" text-anchor="middle" class="date">05/10 — 06/11</text>
+    <text x="489" y="355" class="phase-title">运行时与编排底座</text>
+    <text x="489" y="381" class="phase-sub">让 Agent 能规划、调用工具并稳定运行</text>
+    <path d="M489 403H741" stroke="#BBDCCF"/>
+    <text x="489" y="430" class="count">平台能力 · 9 项变更</text>
+    <g>
+      <rect x="489" y="452" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="507" y="480" class="item">Docker + Electron 双架构</text>
+      <rect x="489" y="509" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="507" y="537" class="item">ReAct 推理与编排 Agent</text>
+      <rect x="489" y="566" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="507" y="594" class="item">多模型端点与实时切换</text>
+      <rect x="489" y="623" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="507" y="651" class="item">图片生成与 Image Chat</text>
+      <rect x="489" y="680" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="507" y="708" class="item">Server 架构收敛</text>
+      <rect x="489" y="737" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="507" y="765" class="item">In-Process + Subagent Tool</text>
+    </g>
+  </g>
+
+  <!-- phase 3 -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="840" y="260" width="300" height="560" rx="24" fill="url(#phase-gold)" stroke="#E6D5A8" stroke-width="1.5"/>
+    <rect x="864" y="285" width="112" height="28" rx="14" fill="#FFF6DF"/>
+    <text x="920" y="304" text-anchor="middle" class="date">06/18 — 07/03</text>
+    <text x="864" y="355" class="phase-title">LLM Wiki 成型</text>
+    <text x="864" y="381" class="phase-sub">从对话助手走向个人知识系统</text>
+    <path d="M864 403H1116" stroke="#E6D5A8"/>
+    <text x="864" y="430" class="count">知识底座 · 10 项变更</text>
+    <g>
+      <rect x="864" y="452" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#E6D5A8"/>
+      <text x="882" y="480" class="item">Context Window</text>
+      <rect x="864" y="509" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#E6D5A8"/>
+      <text x="882" y="537" class="item">LLM Wiki 知识库</text>
+      <rect x="864" y="566" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#E6D5A8"/>
+      <text x="882" y="594" class="item">文件解析与 URL 摄入</text>
+      <rect x="864" y="623" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#E6D5A8"/>
+      <text x="882" y="651" class="item">Wiki Lint 与核心增强</text>
+      <rect x="864" y="680" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#E6D5A8"/>
+      <text x="882" y="708" class="item">Tool Call 限制优化</text>
+      <rect x="864" y="737" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#E6D5A8"/>
+      <text x="882" y="765" class="item">知识图谱 MVP</text>
+    </g>
+  </g>
+
+  <!-- phase 4 -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="1215" y="260" width="300" height="560" rx="24" fill="url(#phase-mint)" stroke="#A7D5C6" stroke-width="1.5"/>
+    <rect x="1239" y="285" width="112" height="28" rx="14" fill="#DFF2EA"/>
+    <text x="1295" y="304" text-anchor="middle" class="date">07/08 — 07/24</text>
+    <text x="1239" y="355" class="phase-title">知识系统深化</text>
+    <text x="1239" y="381" class="phase-sub">让知识可连接、可追踪、可维护</text>
+    <path d="M1239 403H1491" stroke="#BBDCCF"/>
+    <text x="1239" y="430" class="count">系统深化 · 20+ 项变更</text>
+    <g>
+      <rect x="1239" y="452" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="1257" y="480" class="item">图谱自动建边与语义审查</text>
+      <rect x="1239" y="509" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="1257" y="537" class="item">摄入质量 / Schema / 异步作业</text>
+      <rect x="1239" y="566" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="1257" y="594" class="item">ReAct 事件与状态模型</text>
+      <rect x="1239" y="623" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="1257" y="651" class="item">对话轨迹 / 决策轨迹 / 摘要</text>
+      <rect x="1239" y="680" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="1257" y="708" class="item">上下文工程与记忆优化</text>
+      <rect x="1239" y="737" width="252" height="45" rx="12" fill="#FFFFFF" stroke="#BBDCCF"/>
+      <text x="1257" y="765" class="item">安全发现 · Harness · 生命周期</text>
+    </g>
+  </g>
+
+  <!-- phase 5 -->
+  <g class="font" filter="url(#shadow)">
+    <rect x="1590" y="260" width="120" height="560" rx="24" fill="url(#phase-blue)" stroke="#D8BC74" stroke-width="1.5"/>
+    <rect x="1610" y="285" width="80" height="28" rx="14" fill="#FFF6DF"/>
+    <text x="1650" y="304" text-anchor="middle" class="date">07/25+</text>
+    <text x="1650" y="355" text-anchor="middle" class="phase-title" font-size="21">产品化</text>
+    <text x="1650" y="382" text-anchor="middle" class="phase-sub">交付</text>
+    <path d="M1613 403H1687" stroke="#D9E3EA"/>
+    <text x="1650" y="430" text-anchor="middle" class="count">持续演进</text>
+    <g>
+      <rect x="1610" y="452" width="80" height="64" rx="12" fill="#FFFFFF" stroke="#C8DCE8"/>
+      <text x="1650" y="479" text-anchor="middle" class="item" font-size="13">Search</text>
+      <text x="1650" y="500" text-anchor="middle" class="item" font-size="13">+ Eval</text>
+      <rect x="1610" y="528" width="80" height="64" rx="12" fill="#FFFFFF" stroke="#C8DCE8"/>
+      <text x="1650" y="555" text-anchor="middle" class="item" font-size="13">A2UI</text>
+      <text x="1650" y="576" text-anchor="middle" class="item" font-size="13">+ Status</text>
+      <rect x="1610" y="604" width="80" height="64" rx="12" fill="#FFFFFF" stroke="#C8DCE8"/>
+      <text x="1650" y="631" text-anchor="middle" class="item" font-size="13">Artifact</text>
+      <text x="1650" y="652" text-anchor="middle" class="item" font-size="13">+ Memory</text>
+      <rect x="1610" y="680" width="80" height="64" rx="12" fill="#FFFFFF" stroke="#C8DCE8"/>
+      <text x="1650" y="707" text-anchor="middle" class="item" font-size="13">Ingestion</text>
+      <text x="1650" y="728" text-anchor="middle" class="item" font-size="13">+ Protocol</text>
+    </g>
+  </g>
+
+  <!-- roadmap interpretation -->
+  <g class="font">
+    <rect x="90" y="875" width="1620" height="190" rx="24" fill="#FFFFFF" stroke="#D8E6E0" stroke-width="1.5"/>
+    <text x="122" y="918" class="eyebrow">ROADMAP READING</text>
+    <text x="122" y="952" class="bottom-title">主线：从“能对话”走向“能积累、能推理、能交付”</text>
+    <text x="122" y="980" class="bottom-text">路线的中心不是单点功能，而是把对话、知识、Agent 和工程验证逐步连接成一个本地优先的 AI 工作台。</text>
+    <path d="M122 1017H1572" stroke="#B7D8CC" stroke-width="3" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="122" y="1000" width="170" height="34" rx="17" fill="#E3EEF6"/>
+      <text x="207" y="1022" text-anchor="middle" class="chip">AI Chat</text>
+      <rect x="409" y="1000" width="170" height="34" rx="17" fill="#DFF2EA"/>
+      <text x="494" y="1022" text-anchor="middle" class="chip">Agent Runtime</text>
+      <rect x="696" y="1000" width="170" height="34" rx="17" fill="#FFF6DF"/>
+      <text x="781" y="1022" text-anchor="middle" class="chip">LLM Wiki</text>
+      <rect x="983" y="1000" width="170" height="34" rx="17" fill="#DFF2EA"/>
+      <text x="1068" y="1022" text-anchor="middle" class="chip">Knowledge Graph</text>
+      <rect x="1270" y="1000" width="170" height="34" rx="17" fill="#E3EEF6"/>
+      <text x="1355" y="1022" text-anchor="middle" class="chip">Memory + Context</text>
+      <rect x="1490" y="1000" width="170" height="34" rx="17" fill="#FFF6DF"/>
+      <text x="1575" y="1022" text-anchor="middle" class="chip">Verified Delivery</text>
+    </g>
+  </g>
+
+  <!-- footer -->
+  <text x="90" y="1098" class="font legend">注：路线图按 docs/changes 中的变更主题聚合；“规划/草稿”方向以产品规格与索引状态为准，不代表已承诺交付日期。</text>
+</svg>

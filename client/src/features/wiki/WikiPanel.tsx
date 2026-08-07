@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, useEffect, useRef, type KeyboardEvent, type M
 import { isElectron } from '@/services/api/_base';
 import { openWikiInObsidian, readWiki } from '@/services/api';
 import MarkdownRenderer from '@/shared/components/MarkdownRenderer';
+import { parseMintWikiLink } from '@/shared/utils/wikiLinks';
 const WikiGraphPanel = lazy(() => import('./WikiGraphPanel'));
 const WikiHeatPanel = lazy(() => import('./WikiHeatPanel'));
 
@@ -28,6 +29,8 @@ export function isExternalWikiLink(href: string): boolean {
 export function resolveWikiLinkPath(currentPath: string, href: string): string | null {
   const trimmedHref = href.trim();
   if (!trimmedHref || trimmedHref.startsWith('#')) return null;
+  const protocolPath = parseMintWikiLink(trimmedHref);
+  if (protocolPath) return protocolPath;
   if (isExternalWikiLink(trimmedHref)) return null;
 
   const [pathPart] = trimmedHref.split(/[?#]/, 1);
