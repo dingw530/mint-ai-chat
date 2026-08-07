@@ -18,9 +18,11 @@ export class A2UIComposer {
   private readonly providers: A2UIProvider[];
   private readonly blocks: PersistedUiBlock[] = [];
   private readonly pendingEmissions: A2UIEmission[] = [];
+  private readonly displayReferenceIds = new Map<string, string>();
   private pendingAnswer = '';
   private answerTextLength = 0;
   private nextReferenceIndex = 1;
+  private nextDisplayReferenceIndex = 1;
 
   constructor(providers: A2UIProvider[] = [new WikiSourceReferenceProvider()]) {
     this.providers = [...providers];
@@ -43,11 +45,22 @@ export class A2UIComposer {
   /** 移除未被编译为组件的引用标记，防止前端显示孤立标记。 */
   sanitizeContent(content: string): string {
     return content
-      .replace(/\[C(\d+)\]|\[C\d*\]?/g, (marker, digits: string | undefined) => (
-        digits && this.findReference(`C${digits}`) ? marker : ''
+      .replace(/\[C(\d+)\]|\[C\d*\]?/g, (_marker, digits: string | undefined) => (
+        digits && this.findReference(`C${digits}`)
+          ? `[${this.getDisplayReferenceId(`C${digits}`)}]`
+          : ''
       ))
       .replace(/[ \t]{2,}/g, ' ')
       .trim();
+  }
+
+  /** 按引用在最终回答中的首次出现顺序分配展示用编号。 */
+  private getDisplayReferenceId(originalRefId: string): string {
+    const existing = this.displayReferenceIds.get(originalRefId);
+    if (existing) return existing;
+    const displayRefId = `C${this.nextDisplayReferenceIndex++}`;
+    this.displayReferenceIds.set(originalRefId, displayRefId);
+    return displayRefId;
   }
 
   private handleToolResult(toolName: string, rawResult: unknown): A2UIHandleResult {
@@ -80,10 +93,12 @@ export class A2UIComposer {
       }
       const resolved = this.findReference(marker.refId);
       if (resolved) {
-        this.pushTextOutput(outputs, `[${marker.refId}]`);
-        this.answerTextLength += marker.end - marker.start;
+        const displayRefId = this.getDisplayReferenceId(marker.refId);
+        const displayMarker = `[${displayRefId}]`;
+        this.pushTextOutput(outputs, displayMarker);
+        this.answerTextLength += displayMarker.length;
         const emission = resolved.provider.createEmission(
-          resolved.reference,
+          { ...resolved.reference, refId: displayRefId },
           this.blocks.length + this.pendingEmissions.length,
           this.answerTextLength,
         );

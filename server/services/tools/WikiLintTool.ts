@@ -5,6 +5,7 @@ import { BaseTool } from './BaseTool.js';
 import type { ToolContext } from './BaseTool.js';
 import { getWikiPath } from '../utils/pathSecurity.js';
 import { parseWikiFrontmatter, parseWikiPage, readWikiManifest } from '../utils/wikiShared.js';
+import { getWikiPathCandidates, resolveWikiMarkdownLink } from '../utils/wikiLinkProtocol.js';
 import { WikiSearchTool } from './WikiSearchTool.js';
 
 const WikiLintInputSchema = z.object({});
@@ -166,19 +167,10 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
         let match: RegExpExecArray | null;
         while ((match = linkRegex.exec(content)) !== null) {
           const rawTarget = match[2];
-          const stripped = rawTarget.replace(/\.md$/, '');
-          // 只处理内部相对链接
-          if (stripped.startsWith('http') || stripped.startsWith('#') || stripped.startsWith('/')) continue;
+          const resolved = resolveWikiMarkdownLink(relPath, rawTarget);
+          if (!resolved || !resolved.path.startsWith('pages/')) continue;
 
-          const fileDir = path.dirname(relPath);
-          let resolved = path.join(fileDir, stripped);
-          resolved = path.normalize(resolved).replace(/\\/g, '/');
-
-          // 检查目标是否在 pages/ 中
-          if (!resolved.startsWith('pages/')) continue;
-
-          linksToVerify.push({ source: relPath, target: resolved });
-          inboundTargets.add(`${resolved}.md`);
+          linksToVerify.push({ source: relPath, target: resolved.path });
         }
 
         const page = parseWikiPage(relPath, content);
@@ -223,11 +215,16 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
       // 去重，只验证每个目标文件一次
       const seen = new Set<string>();
       const uniquePaths: string[] = [];
+      const candidatePathsByTarget = new Map<string, string[]>();
       for (const link of linksToVerify) {
-        const fullPath = link.target + '.md';
-        if (!seen.has(fullPath)) {
-          seen.add(fullPath);
-          uniquePaths.push(fullPath);
+        if (candidatePathsByTarget.has(link.target)) continue;
+        const candidates = getWikiPathCandidates(link.target);
+        candidatePathsByTarget.set(link.target, candidates);
+        for (const candidate of candidates) {
+          if (!seen.has(candidate)) {
+            seen.add(candidate);
+            uniquePaths.push(candidate);
+          }
         }
       }
 
@@ -238,20 +235,21 @@ export class WikiLintTool extends BaseTool<WikiLintInput, WikiLintOutput> {
       );
 
       // 收集不存在的文件路径
-      const nonExistent = new Set<string>();
+      const existingPaths = new Set<string>();
       for (const r of verifyResult.results) {
-        if (r.content.startsWith('[文件不存在')) {
-          nonExistent.add(r.file);
-        }
+        if (!r.content.startsWith('[文件不存在')) existingPaths.add(r.file);
       }
 
       // 原路映射回所有引用关系
       for (const link of linksToVerify) {
-        if (nonExistent.has(link.target + '.md')) {
+        const existingPath = candidatePathsByTarget.get(link.target)?.find(candidate => existingPaths.has(candidate));
+        if (existingPath) {
+          inboundTargets.add(existingPath);
+        } else {
           issues.push({
             type: 'broken_link',
             file: link.source,
-            description: `断裂链接: "${link.target}.md" 目标页面不存在`,
+            description: `断裂链接: "${link.target}" 目标页面不存在`,
           });
         }
       }

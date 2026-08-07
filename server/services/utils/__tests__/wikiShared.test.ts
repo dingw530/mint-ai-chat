@@ -172,4 +172,18 @@ describe('writeWikiPages', () => {
     const indexContent = fs.readFileSync(path.join(tmpDir, '_index.md'), 'utf-8');
     expect(indexContent).toContain('[Nested Page](pages/topic/sub/page.md)');
   });
+
+  it('规范化协议链接中被替换空格的页面路径', () => {
+    const pages: CompiledPage[] = [{
+      filename: 'pages/topic/target page.md',
+      title: 'Target Page',
+      tags: [],
+      content: '[Target](mint-wiki://open?path=pages%2Ftopic%2Ftarget%20page.md)',
+    }];
+
+    writeWikiPages(tmpDir, pages);
+
+    const content = fs.readFileSync(path.join(tmpDir, 'pages/topic/target-page.md'), 'utf-8');
+    expect(content).toContain('mint-wiki://open?path=pages%2Ftopic%2Ftarget-page.md');
+  });
 });

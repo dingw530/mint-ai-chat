@@ -291,6 +291,35 @@ describe('WikiLintTool', () => {
     expect(result.issues.some(i => i.type === 'broken_link')).toBe(true);
   });
 
+  it('should accept links to filenames sanitized with hyphens', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/source.md'), '# Source\n[Target](pages/topic/Target Page.md)');
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/Target-Page.md'), '# Target');
+
+    const result = await tool.execute({}, ctx);
+    expect(result.issues.some(i => i.type === 'broken_link')).toBe(false);
+  });
+
+  it('should not append a duplicate markdown extension to broken link messages', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/a.md'), '# A\n[link to B](./missing.md)');
+
+    const result = await tool.execute({}, ctx);
+    const broken = result.issues.find(i => i.type === 'broken_link');
+    expect(broken?.description).toContain('missing.md');
+    expect(broken?.description).not.toContain('missing.md.md');
+  });
+
+  it('should resolve pages-prefixed links from the wiki root', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages/topic'), { recursive: true });
+    fs.mkdirSync(path.join(tmpDir, 'pages/概念'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'pages/topic/a.md'), '# A\n[目标](mint-wiki://open?path=pages%2F概念%2Fb.md)');
+    fs.writeFileSync(path.join(tmpDir, 'pages/概念/b.md'), '# B');
+
+    const result = await tool.execute({}, ctx);
+    expect(result.issues.some(i => i.type === 'broken_link')).toBe(false);
+  });
+
   it('should detect missing frontmatter', async () => {
     fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'pages/nofm.md'), 'No frontmatter here.');

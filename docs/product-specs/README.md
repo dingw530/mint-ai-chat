@@ -38,3 +38,4 @@
 | [Agent 状态栏](<../changes/2026-07-27-agent-status-bar/product-spec.md>) | 2026-07-27 | 已完成 |
 | [Context Artifact 生命周期第一阶段](<../changes/2026-08-03-context-artifact-lifecycle/product-spec.md>) | 2026-08-03 | 已完成 |
 | [摄入任务中心](<../changes/2026-08-04-ingestion-task-center/product-spec.md>) | 2026-08-04 | 已完成 |
+| [Mint Wiki 统一链接协议](<../changes/2026-08-05-mint-wiki-protocol/product-spec.md>) | 2026-08-05 | 已完成 |

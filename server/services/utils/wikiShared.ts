@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { isPathSafe } from './pathSecurity.js';
+import { createMintWikiLink, parseMintWikiLink, sanitizeWikiFilenamePath } from './wikiLinkProtocol.js';
 
 // ── Types ──
 
@@ -140,12 +141,12 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
 5. 内容用 Markdown 编写，结构清晰
 6. 文件名为 pages/分类/页面名.md，分类必须填写且不能为空。禁止将页面直接放在 pages/ 根目录下。
 7. 页面分类必须从当前 Schema 提供的分类定义中选择，必须按页面自身主题判断，不得默认全部使用同一个分类
-8. 页面之间使用相对路径交叉链接
+8. 页面之间使用 Mint Wiki 协议链接交叉引用
 9. 每个页面正文末尾必须添加「关联页面」段落，引用已有知识库中相关的页面。格式：
 
 ## 关联页面
-- [已有页面标题](pages/分类/已有页面标题.md)
-- 引用已有页面时必须使用 pages/ 下的相对路径
+- [已有页面标题](mint-wiki://open?path=pages%2F分类%2F已有页面标题.md)
+- 引用已有页面时必须使用 mint-wiki://open?path=，path 为 Wiki 根目录下的 URL 编码相对路径
 
 输出前自检：长文是否已按独立主题拆成多页；每页分类是否符合当前 Schema 中的定义；如果所有页面都落入同一分类，必须重新检查是否遗漏了其他主题。
 
@@ -446,22 +447,20 @@ export function appendWikiManifestEntry(wikiPath: string, entry: WikiManifestEnt
 
 // ── Write pages ──
 
-/** Replace whitespace in filename portion of a wiki path with hyphens. */
-function sanitizeWikiFilename(pagePath: string): string {
-  const parts = pagePath.split('/');
-  if (parts.length > 2) {
-    const filename = parts.pop()!;
-    parts.push(filename.replace(/[\s]+/g, '-'));
-  }
-  return parts.join('/');
-}
-
 /**
  * 将页面正文中指向未 sanitized 路径的 Markdown 链接替换为 sanitized 后的路径。
  * 解决 AI 生成带空格的链接（如 [xxx](pages/分类/页面 名.md)）无法映射到实际文件的问题。
  */
 function sanitizeContentLinks(content: string, pathMap: Map<string, string>): string {
   return content.replace(/\]\(([^)]+)\)/g, (full, href: string) => {
+    const protocolTarget = parseMintWikiLink(href);
+    if (protocolTarget) {
+      const mappedProtocolPath = pathMap.get(protocolTarget.path);
+      if (!mappedProtocolPath) return full;
+      const mappedProtocol = createMintWikiLink(mappedProtocolPath, protocolTarget.fragment);
+      return mappedProtocol ? `](${mappedProtocol})` : full;
+    }
+
     let decoded = href;
     try {
       decoded = decodeURIComponent(href);
@@ -486,7 +485,7 @@ export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filen
     if (!isPathSafe(wikiPath, pagePath)) {
       throw new Error(`路径穿越被拒绝: ${pagePath}`);
     }
-    const sanitized = sanitizeWikiFilename(pagePath);
+    const sanitized = sanitizeWikiFilenamePath(pagePath);
     pathMap.set(pagePath, sanitized);
     // 也注册去掉 .md 后的形式（AI 可能只引用目录+文件名，不带扩展名）
     if (pagePath.endsWith('.md')) {
@@ -497,7 +496,7 @@ export function writeWikiPages(wikiPath: string, pages: CompiledPage[]): { filen
   // 第二遍：修正交叉链接后写入
   for (const page of pages) {
     const pagePath = page.filename.startsWith('pages/') ? page.filename : `pages/${page.filename}`;
-    const sanitizedPath = pathMap.get(pagePath) || sanitizeWikiFilename(pagePath);
+    const sanitizedPath = pathMap.get(pagePath) || sanitizeWikiFilenamePath(pagePath);
     page.filename = sanitizedPath;
 
     // 修正正文中因 sanitize 导致的交叉链接失效（空格被替换为 -）
