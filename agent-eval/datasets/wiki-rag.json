@@ -1,0 +1,252 @@
+{
+  "name": "wiki-rag",
+  "version": "1.0.0",
+  "metadata": {
+    "corpusDir": "wiki-rag/raw",
+    "sourceMode": "raw-sources",
+    "description": "Mint Wiki/RAG question-level evaluation set built from ten fixed source documents."
+  },
+  "cases": [
+    {
+      "id": "rag-001",
+      "input": "RAG 为什么能缓解企业内部知识问答中的幻觉问题？",
+      "tags": ["wiki", "retrieval", "citation"],
+      "expected": {
+        "mustContainAny": [["检索", "外部知识"], ["幻觉", "错误"]],
+        "mustUseTools": ["wiki_search"],
+        "mustNotUseTools": ["bash"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-22-rag"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "rag-002",
+      "input": "RAG 的典型流水线包含哪些关键步骤？",
+      "tags": ["wiki", "retrieval", "citation"],
+      "expected": {
+        "mustContainAny": [["切分", "chunk"], ["embedding", "向量"], ["检索"], ["生成"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-22-rag"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "rag-003",
+      "input": "为什么 RAG 需要对知识进行 Chunking？",
+      "tags": ["wiki", "retrieval", "citation"],
+      "expected": {
+        "mustContainAny": [["上下文", "窗口"], ["粒度", "检索"], ["切块", "chunk"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-22-rag"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "rag-004",
+      "input": "BM25 和向量检索在 RAG 中如何互补？",
+      "tags": ["wiki", "retrieval", "citation"],
+      "expected": {
+        "mustContainAny": [["BM25"], ["向量", "ANN"], ["关键词", "语义"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-22-rag"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "wiki-001",
+      "input": "LLM Wiki v2 为什么强调 memory lifecycle？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["生命周期", "lifecycle"], ["记忆", "memory"], ["更新", "删除"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-24-llm-wiki-v2"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "wiki-002",
+      "input": "LLM Wiki v2 如何看待从扁平页面走向知识图谱？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["知识图谱", "knowledge graph"], ["关系", "实体"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-24-llm-wiki-v2"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "wiki-003",
+      "input": "LLM Wiki v2 的 quality 和 self-correction 如何实现知识质量控制？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["质量", "校验"], ["纠错", "修正"], ["反馈"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-24-llm-wiki-v2"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "system-001",
+      "input": "后端系统的 AI 知识库为什么要划分业务层、架构层、系统层和基建层？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["业务层", "业务"], ["架构层", "架构"], ["系统层", "系统"], ["基建层", "基建"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-24-分解一座冰山"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "system-002",
+      "input": "service-knowledge-generate 主要解决什么问题？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["service-knowledge-generate"], ["知识生成", "知识库"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-24-分解一座冰山"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "harness-001",
+      "input": "Harness Engineering 的核心思想是什么？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["反馈闭环", "反馈"], ["工程"], ["验证", "测试"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-10-万字干货-harness"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "harness-002",
+      "input": "为什么 Harness Engineering 需要把测试、检查和修复组成闭环？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["测试", "检查"], ["修复", "反馈"], ["闭环"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-10-万字干货-harness"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "loop-001",
+      "input": "Loop Engineering Coding 的案例连续运行了多长时间？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["126", "一百二十六"], ["小时"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-28-loop-engineering"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "loop-002",
+      "input": "长时间运行的 Loop Engineering 实践中，为什么需要持续验证和观察？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["验证", "检查"], ["观察", "反馈"], ["风险", "失败"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-28-loop-engineering"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "agent-001",
+      "input": "为什么企业 Agent 的架构中心应该是业务执行链，而不是聊天框？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["工作流", "流程"], ["任务", "执行"], ["Agent", "智能体"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-15-别再把-agent"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "agent-002",
+      "input": "企业级 Agent 架构除了对话，还需要关注哪些能力？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["工具", "调用"], ["流程", "工作流"], ["权限", "安全"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-15-别再把-agent"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "medical-001",
+      "input": "蚂蚁阿福的医疗 Agent 从 0 到生产主要面临哪些工程化问题？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["医疗"], ["安全", "合规"], ["Agent", "智能体"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-14-蚂蚁阿福"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "smart-001",
+      "input": "SMART 原则的五个核心要素分别是什么？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["具体", "明确"], ["可衡量", "衡量"], ["可实现", "实现"], ["相关", "关联"], ["时间", "期限"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-28-2026-目标管理指南-smart"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "life-001",
+      "input": "《置身钉内》中钉钉的动物园形象是什么动物？",
+      "tags": ["wiki", "citation"],
+      "expected": {
+        "mustContainAny": [["雨燕"], ["钉钉"]],
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "requiredSourceFiles": ["2026-07-10-2026-06-23-置身钉内"],
+        "minCitations": 1
+      }
+    },
+    {
+      "id": "abstain-001",
+      "input": "这批 Wiki 资料中有没有关于量子计算芯片流片成本的具体统计？",
+      "tags": ["wiki", "abstention"],
+      "expected": {
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "mustAbstain": true,
+        "abstainMarkers": ["没有足够信息", "未找到", "没有相关", "无法回答"],
+        "mustNotContain": ["量子芯片流片成本是", "具体成本为"]
+      }
+    },
+    {
+      "id": "abstain-002",
+      "input": "这批 Wiki 资料是否定义了 Mint 的云端多人协作权限模型？",
+      "tags": ["wiki", "abstention"],
+      "expected": {
+        "mustUseTools": ["wiki_search"],
+        "maxToolCalls": 3,
+        "mustAbstain": true,
+        "abstainMarkers": ["没有足够信息", "未找到", "没有相关", "无法回答"],
+        "mustNotContain": ["Mint 支持管理员", "多人权限包括"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "eval-01",
+      "sourceFile": "sources/2026-07-10-2026-06-23-置身钉内.txt",
+      "archivedFiles": [
+        "sources/2026-07-10-2026-06-23-置身钉内.txt"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-10-2026-06-23-置身钉内.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-02",
+      "sourceFile": "sources/2026-07-10-万字干货-harness-engineering如何工程化落地.md",
+      "archivedFiles": [
+        "sources/2026-07-10-万字干货-harness-engineering如何工程化落地.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-10-万字干货-harness-engineering如何工程化落地.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-03",
+      "sourceFile": "sources/2026-07-14-蚂蚁阿福-从-0-到生产的医疗-agent-工程化落地.md",
+      "archivedFiles": [
+        "sources/2026-07-14-蚂蚁阿福-从-0-到生产的医疗-agent-工程化落地.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-14-蚂蚁阿福-从-0-到生产的医疗-agent-工程化落地.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-04",
+      "sourceFile": "sources/2026-07-15-别再把-agent-做成聊天框-企业级-ai-的第一性架构.html",
+      "archivedFiles": [
+        "sources/2026-07-15-别再把-agent-做成聊天框-企业级-ai-的第一性架构.html"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-15-别再把-agent-做成聊天框-企业级-ai-的第一性架构.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-05",
+      "sourceFile": "sources/2026-07-22-rag-万字长文-从入门到精通.md",
+      "archivedFiles": [
+        "sources/2026-07-22-rag-万字长文-从入门到精通.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-22-rag-万字长文-从入门到精通.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-06",
+      "sourceFile": "sources/2026-07-24-分解一座冰山-后端系统-ai-知识库体系-建设实践-长文干货.md",
+      "archivedFiles": [
+        "sources/2026-07-24-分解一座冰山-后端系统-ai-知识库体系-建设实践-长文干货.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-24-分解一座冰山-后端系统-ai-知识库体系-建设实践-长文干货.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-07",
+      "sourceFile": "sources/2026-07-24-llm-wiki-v2-构建个人知识库的模式-增强版.md",
+      "archivedFiles": [
+        "sources/2026-07-24-llm-wiki-v2-构建个人知识库的模式-增强版.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-24-llm-wiki-v2-构建个人知识库的模式-增强版.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-08",
+      "sourceFile": "sources/2026-07-26-harness-engineering-v260411-zh.pdf",
+      "archivedFiles": [
+        "sources/2026-07-26-harness-engineering-v260411-zh.pdf"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-26-harness-engineering-v260411-zh.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-09",
+      "sourceFile": "sources/2026-07-28-2026-目标管理指南-smart-原则详解与实战案例-附-boardmix-可视化模板.md",
+      "archivedFiles": [
+        "sources/2026-07-28-2026-目标管理指南-smart-原则详解与实战案例-附-boardmix-可视化模板.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-28-2026-目标管理指南-smart-原则详解与实战案例-附-boardmix-可视化模板.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    },
+    {
+      "id": "eval-10",
+      "sourceFile": "sources/2026-07-28-loop-engineering-coding-实践-以一个跑了126.md",
+      "archivedFiles": [
+        "sources/2026-07-28-loop-engineering-coding-实践-以一个跑了126.md"
+      ],
+      "pageFiles": [
+        "pages/eval/2026-07-28-loop-engineering-coding-实践-以一个跑了126.md"
+      ],
+      "summary": "Prepared evaluation source",
+      "createdAt": "eval"
+    }
+  ]
+}
