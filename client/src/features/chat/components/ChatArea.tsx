@@ -50,6 +50,7 @@ export default function ChatArea({
     autoRoutedAgent,
     setAutoRoutedAgent,
     reactSteps,
+    reactRunId,
     decisionTrace,
     agentRunStatus,
     setAgentRunStatus,
@@ -115,6 +116,7 @@ export default function ChatArea({
       streamingId={streamingId}
       messagesEndRef={messagesEndRef}
       reactSteps={reactSteps}
+      reactRunId={reactRunId}
       decisionTrace={decisionTrace}
       agentRunStatus={agentRunStatus}
       showReactSteps={showReactSteps}

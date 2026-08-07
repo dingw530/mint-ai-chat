@@ -39,7 +39,12 @@ export function createChatStreamCallbacks({
   dispatchReactEvent,
 }: StreamCallbackOptions): SendCallbacks {
   return {
-    onRunStarted: (data) => dispatchReactEvent({ type: 'run_started', ...data }),
+    onRunStarted: (data) => {
+      dispatchReactEvent({ type: 'run_started', ...data });
+      const runId = data.runId;
+      if (typeof runId !== 'string' || !runId) return;
+      updateTempMessage(tempId, (message) => ({ ...message, runId }));
+    },
     onRoundStarted: (data) => dispatchReactEvent({ type: 'round_started', ...data }),
     onAgentStatus: (data) => {
       const status = parseAgentRunStatusData(data);

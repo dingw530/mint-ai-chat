@@ -23,6 +23,7 @@ export interface ChatAreaViewProps {
   streamingId: string | null;
   messagesEndRef: RefObject<HTMLDivElement | null>;
   reactSteps: ReActStep[];
+  reactRunId: string | null;
   decisionTrace: DecisionTraceItem[];
   agentRunStatus: AgentRunStatusData | null;
   showReactSteps: boolean;
@@ -57,6 +58,7 @@ export default function ChatAreaView({
   streamingId,
   messagesEndRef,
   reactSteps,
+  reactRunId,
   decisionTrace,
   agentRunStatus,
   showReactSteps,
@@ -99,6 +101,7 @@ export default function ChatAreaView({
             scrollRef={messagesEndRef}
             onRegenerate={onRegenerate}
             reactSteps={reactSteps}
+            reactRunId={reactRunId}
             showReactSteps={showReactSteps}
             onLinkClick={onLinkClick}
             onToolApproval={onToolApproval}

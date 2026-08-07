@@ -2630,6 +2630,11 @@ body::after {
   color: var(--text-primary);
 }
 
+/* 流式阶段先保留文本，结束后再交给 Markdown parser 完整渲染。 */
+.markdown-body-streaming {
+  overflow-wrap: anywhere;
+}
+
 .markdown-body > *:first-child {
   margin-top: 0;
 }

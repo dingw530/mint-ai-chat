@@ -72,10 +72,13 @@ describe('reactChat', () => {
   });
 
   it('returns content when no tool calls', async () => {
-    vi.mocked(toolLoopEngine.executeRound).mockResolvedValue({
-      content: 'final answer',
-      reasoning: 'some reasoning',
-      toolCalls: null,
+    vi.mocked(toolLoopEngine.executeRound).mockImplementationOnce(async ({ emitEvent }) => {
+      emitEvent?.({ type: 'thought', content: 'final answer' });
+      return {
+        content: 'final answer',
+        reasoning: 'some reasoning',
+        toolCalls: null,
+      };
     });
     const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
     const result = await reactChat(
@@ -94,7 +97,8 @@ describe('reactChat', () => {
     expect(result.content).toBe('final answer');
     expect(result.reasoning).toBe('some reasoning');
     const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
-    expect(events.some((event) => event.type === 'answer' && event.content === 'final answer')).toBe(true);
+    expect(events.filter((event) => event.type === 'answer' && event.content === 'final answer')).toHaveLength(1);
+    expect(events.some((event) => event.type === 'thought' && event.content === 'final answer')).toBe(false);
   });
 
   it('preserves tool call order while correlating same-name calls by callId', async () => {

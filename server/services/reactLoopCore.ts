@@ -413,8 +413,8 @@ export async function reactChat(
 
     // 检测到重复调用后，将下一次模型请求标记为最终回答，避免继续消耗工具轮次。
     const isLast = state.forceFinalAnswer || iteration === maxIterations - 1;
-    // 工具结果之后的模型轮次就是面向用户的回答轮，应实时走 Composer；
-    // 首轮无工具调用的直接回答仍由 executeRound 完成后兜底处理。
+    // 模型的 content 统一作为回答流输出；reasoning 仍作为思考事件输出。
+    // 这样首轮无工具调用时也能保留回答的增量输出，避免 thought/answer 重复发送正文。
     const isAnswerRound = isLast || state.toolCount > 0;
     const label = isAnswerRound ? 'react-answer' : 'react-thought';
     currentMessages = [
@@ -442,6 +442,11 @@ export async function reactChat(
           label,
           emitEvent: (event: ReactEventPayload) => {
             if (event.type === 'answer' && event.content) {
+              answerStreamedThisRound = true;
+              emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
+              return;
+            }
+            if (event.type === 'thought' && event.content) {
               answerStreamedThisRound = true;
               emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
               return;

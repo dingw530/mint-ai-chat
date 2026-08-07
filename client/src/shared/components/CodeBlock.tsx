@@ -20,14 +20,6 @@ export default function CodeBlock({ children, className }: CodeBlockProps) {
   const hasLangClass = className && (className.includes('language-') || className.includes('hljs'));
   const isBlock = hasLangClass || codeText.includes('\n');
 
-  if (!isBlock) {
-    return <code className="inline-code">{children}</code>;
-  }
-
-  const lang = className
-    ? className.replace('language-', '').split(' ')[0]
-    : '';
-
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(codeText);
@@ -44,6 +36,14 @@ export default function CodeBlock({ children, className }: CodeBlockProps) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [codeText]);
+
+  if (!isBlock) {
+    return <code className="inline-code">{children}</code>;
+  }
+
+  const lang = className
+    ? className.replace('language-', '').split(' ')[0]
+    : '';
 
   return (
     <div className="code-block">

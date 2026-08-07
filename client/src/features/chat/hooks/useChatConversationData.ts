@@ -28,6 +28,7 @@ export default function useChatConversationData({
   const [activeAgent, setActiveAgent] = useState('general');
   const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
   const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
+  const [reactRunId, setReactRunId] = useState<string | null>(null);
   const [decisionTrace, setDecisionTrace] = useState<DecisionTraceItem[]>([]);
   const [agentRunStatus, setAgentRunStatus] = useState<AgentRunStatusData | null>(null);
   const [showReactSteps, setShowReactSteps] = useState(true);
@@ -38,12 +39,14 @@ export default function useChatConversationData({
     const next = reduceReactEvent(reactEventStateRef.current, event);
     reactEventStateRef.current = next;
     setReactSteps(next.steps);
+    setReactRunId(next.runId);
     setDecisionTrace(next.decisionTrace);
   }, []);
 
   const resetReactEvents = useCallback(() => {
     reactEventStateRef.current = createInitialReactEventState();
     setReactSteps([]);
+    setReactRunId(null);
     setDecisionTrace([]);
     setAgentRunStatus(null);
   }, []);
@@ -102,6 +105,7 @@ export default function useChatConversationData({
     autoRoutedAgent,
     setAutoRoutedAgent,
     reactSteps,
+    reactRunId,
     decisionTrace,
     agentRunStatus,
     setAgentRunStatus,

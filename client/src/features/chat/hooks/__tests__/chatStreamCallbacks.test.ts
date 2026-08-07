@@ -31,6 +31,17 @@ describe('createChatStreamCallbacks', () => {
       .toBeLessThan(onCompleted.mock.invocationCallOrder[0]);
   });
 
+  it('associates the current run with the temporary assistant message', () => {
+    const options = createOptions();
+    const callbacks = createChatStreamCallbacks(options);
+
+    callbacks.onRunStarted?.({ type: 'run_started', runId: 'run-1' });
+
+    expect(options.updateTempMessage).toHaveBeenCalledWith('assistant-1', expect.any(Function));
+    const update = options.updateTempMessage.mock.calls[0][1] as (message: { content: string }) => { runId?: string };
+    expect(update({ content: '' })).toEqual({ content: '', runId: 'run-1' });
+  });
+
   it('flushes text before inserting an A2UI segment', () => {
     const options = createOptions();
     const callbacks = createChatStreamCallbacks(options);

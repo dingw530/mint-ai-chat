@@ -169,11 +169,17 @@ interface MessageListProps {
   onRegenerate?: () => void;
   reactSteps?: ReActStepData[];
   showReactSteps?: boolean;
+  reactRunId?: string | null;
   onLinkClick?: MarkdownRendererProps['onLinkClick'];
   onToolApproval?: (approvalId: string, action: 'approve' | 'deny') => void;
 }
 
-export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, showReactSteps = true, onLinkClick, onToolApproval }: MessageListProps) {
+/** 判断消息是否属于当前正在展示的 ReAct 运行。 */
+export function matchesReactRun(message: Message, reactRunId: string | null | undefined): boolean {
+  return Boolean(reactRunId && message.runId === reactRunId);
+}
+
+export default function MessageList({ messages, streamingId, scrollRef, containerRef, onRegenerate, reactSteps, reactRunId, showReactSteps = true, onLinkClick, onToolApproval }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
@@ -187,7 +193,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
     );
   }
 
-  function renderSegments(segments: ContentSegment[]) {
+  function renderSegments(segments: ContentSegment[], isStreaming: boolean) {
     return (
       <div className="content-segments">
         {segments.map((seg, i) => {
@@ -253,7 +259,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
           if (seg.type === 'text') {
             return (
               <div key={i} className="text-segment">
-                <MarkdownRenderer content={seg.content} onLinkClick={onLinkClick} />
+                <MarkdownRenderer content={seg.content} onLinkClick={onLinkClick} isStreaming={isStreaming} />
               </div>
             );
           }
@@ -312,7 +318,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
               </div>
               {msg.role === 'assistant' && hasSegments ? (
                 <>
-                  {renderSegments(displaySegments)}
+                  {renderSegments(displaySegments, isStreaming)}
                 </>
               ) : (
                 <>
@@ -322,7 +328,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                       <div className="reasoning-content">{msg.reasoning}</div>
                     </details>
                   )}
-                  {showReactSteps && msg.role === 'assistant' && reactSteps && reactSteps.length > 0 ? (
+                  {showReactSteps && msg.role === 'assistant' && matchesReactRun(msg, reactRunId) && reactSteps && reactSteps.length > 0 ? (
                     <div className="react-steps-container">
                       {reactSteps.map((step, i) => (
                         <ReActStep key={i} step={step} isLast={isStreaming && i === reactSteps.length - 1} />
@@ -330,7 +336,7 @@ export default function MessageList({ messages, streamingId, scrollRef, containe
                     </div>
                   ) : null}
                   {msg.role === 'assistant'
-                    ? <MarkdownRenderer content={msg.content} onLinkClick={onLinkClick} />
+                    ? <MarkdownRenderer content={msg.content} onLinkClick={onLinkClick} isStreaming={isStreaming} />
                     : <span>{msg.content}</span>}
                 </>
               )}
