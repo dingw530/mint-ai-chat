@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Mint 长 Markdown 流式渲染优化</title>
+  <desc id="desc">展示 Mint 从 SSE 或 Electron IPC 收到 token，经 requestAnimationFrame 合并，再按 Markdown block 增量解析、复用稳定 block，并在流结束后执行代码高亮的过程。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
+    </linearGradient>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title { font: 700 30px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 15px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #475569; }
+      .lane-title { font: 700 16px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .lane-sub { font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .node-title { font: 700 14px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .node-sub { font: 500 12px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #475569; }
+      .note { font: 600 12px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334155; }
+      .small { font: 500 11px system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .lane { rx: 18; ry: 18; stroke-width: 1.5; }
+      .node { rx: 12; ry: 12; stroke-width: 1.5; }
+      .pill { rx: 14; ry: 14; }
+      .dash { stroke-dasharray: 7 7; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="980" fill="url(#bg)"/>
+
+  <text class="title" x="800" y="52" text-anchor="middle">Mint 长 Markdown 流式渲染优化</text>
+  <text class="subtitle" x="800" y="80" text-anchor="middle">rAF 合并 UI 更新，Markdown block 增量复用；只有当前 pending block 重新解析</text>
+
+  <!-- Swim lanes -->
+  <rect class="lane" x="48" y="112" width="1504" height="166" fill="#eff6ff" stroke="#93c5fd"/>
+  <rect class="lane" x="48" y="302" width="1504" height="178" fill="#f5f3ff" stroke="#c4b5fd"/>
+  <rect class="lane" x="48" y="504" width="1504" height="232" fill="#ecfdf5" stroke="#86efac"/>
+  <rect class="lane" x="48" y="760" width="1504" height="166" fill="#fff7ed" stroke="#fdba74"/>
+
+  <!-- Lane labels -->
+  <g transform="translate(72,140)">
+    <text class="lane-title">1 · token 到达</text>
+    <text class="lane-sub" y="23">SSE / Electron IPC</text>
+  </g>
+  <g transform="translate(72,330)">
+    <text class="lane-title">2 · React 帧调度</text>
+    <text class="lane-sub" y="23">requestAnimationFrame ≈ 16ms</text>
+  </g>
+  <g transform="translate(72,532)">
+    <text class="lane-title">3 · Markdown 增量渲染</text>
+    <text class="lane-sub" y="23">stable blocks 复用 / pending block 自适应解析</text>
+  </g>
+  <g transform="translate(72,788)">
+    <text class="lane-title">4 · 流结束</text>
+    <text class="lane-sub" y="23">最终质量渲染</text>
+  </g>
+
+  <!-- Token lane -->
+  <g transform="translate(310,145)">
+    <rect class="node" x="0" y="0" width="182" height="64" fill="#ffffff" stroke="#60a5fa"/>
+    <text class="node-title" x="91" y="25" text-anchor="middle">SSE / IPC chunk</text>
+    <text class="node-sub" x="91" y="46" text-anchor="middle">onChunk(content)</text>
+  </g>
+  <line x1="492" y1="177" x2="590" y2="177" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <g transform="translate(600,145)">
+    <rect class="node" x="0" y="0" width="236" height="64" fill="#ffffff" stroke="#60a5fa"/>
+    <text class="node-title" x="118" y="25" text-anchor="middle">streamBufferRef</text>
+    <text class="node-sub" x="118" y="46" text-anchor="middle">content += token（不改 DOM）</text>
+  </g>
+  <line x1="836" y1="177" x2="934" y2="177" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <g transform="translate(944,145)">
+    <rect class="pill" x="0" y="0" width="236" height="64" fill="#dbeafe" stroke="#60a5fa"/>
+    <text class="node-title" x="118" y="25" text-anchor="middle">多个 token 聚合</text>
+    <text class="node-sub" x="118" y="46" text-anchor="middle">等待下一帧</text>
+  </g>
+  <path d="M 1180 177 C 1260 177, 1260 232, 1160 232" fill="none" stroke="#64748b" stroke-width="1.8" class="dash" marker-end="url(#arrowGray)"/>
+  <text class="small" x="1268" y="170">网络事件可高频到达</text>
+  <text class="small" x="1268" y="188">但不直接触发 Markdown 解析</text>
+
+  <!-- rAF lane -->
+  <g transform="translate(310,338)">
+    <rect class="node" x="0" y="0" width="220" height="70" fill="#ffffff" stroke="#a78bfa"/>
+    <text class="node-title" x="110" y="27" text-anchor="middle">requestAnimationFrame</text>
+    <text class="node-sub" x="110" y="49" text-anchor="middle">每帧最多一次 flush</text>
+  </g>
+  <line x1="530" y1="373" x2="630" y2="373" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <g transform="translate(640,338)">
+    <rect class="node" x="0" y="0" width="220" height="70" fill="#ffffff" stroke="#a78bfa"/>
+    <text class="node-title" x="110" y="27" text-anchor="middle">flushStream()</text>
+    <text class="node-sub" x="110" y="49" text-anchor="middle">合并后 setMessages</text>
+  </g>
+  <line x1="860" y1="373" x2="960" y2="373" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+  <g transform="translate(970,338)">
+    <rect class="pill" x="0" y="0" width="220" height="70" fill="#ede9fe" stroke="#a78bfa"/>
+    <text class="node-title" x="110" y="27" text-anchor="middle">React 更新一次</text>
+    <text class="node-sub" x="110" y="49" text-anchor="middle">进入 MarkdownRenderer</text>
+  </g>
+  <path d="M 1190 373 C 1300 373, 1300 438, 1190 438" fill="none" stroke="#7c3aed" stroke-width="2" class="dash" marker-end="url(#arrowPurple)"/>
+  <text class="small" x="1260" y="364">rAF 解决的是</text>
+  <text class="small" x="1260" y="382">React 更新频率</text>
+
+  <!-- Markdown lane -->
+  <g transform="translate(300,568)">
+    <rect class="node" x="0" y="0" width="210" height="74" fill="#ffffff" stroke="#4ade80"/>
+    <text class="node-title" x="105" y="27" text-anchor="middle">splitMarkdownBlocks</text>
+    <text class="node-sub" x="105" y="49" text-anchor="middle">按空行 / fence 切块</text>
+  </g>
+  <line x1="510" y1="605" x2="600" y2="605" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <g transform="translate(610,552)">
+    <rect class="node" x="0" y="0" width="280" height="106" fill="#dcfce7" stroke="#4ade80"/>
+    <text class="node-title" x="140" y="27" text-anchor="middle">稳定 block</text>
+    <text class="node-sub" x="140" y="50" text-anchor="middle">key + memo</text>
+    <text class="node-sub" x="140" y="72" text-anchor="middle">复用已有 React 子树</text>
+    <text class="small" x="140" y="92" text-anchor="middle">不重新解析 / 不重建 DOM</text>
+  </g>
+  <line x1="510" y1="670" x2="600" y2="670" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <g transform="translate(610,670)">
+    <rect class="node" x="0" y="0" width="280" height="52" fill="#ffffff" stroke="#4ade80"/>
+    <text class="node-title" x="140" y="22" text-anchor="middle">当前 pending block</text>
+    <text class="node-sub" x="140" y="42" text-anchor="middle">只有它随着内容变化</text>
+  </g>
+  <line x1="890" y1="696" x2="980" y2="696" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+  <g transform="translate(990,552)">
+    <rect class="node" x="0" y="0" width="380" height="170" fill="#ffffff" stroke="#4ade80"/>
+    <text class="node-title" x="190" y="28" text-anchor="middle">自适应 Markdown 调度</text>
+    <line x1="28" y1="50" x2="352" y2="50" stroke="#bbf7d0"/>
+    <text class="note" x="34" y="77">≤ 2,000 字符</text>
+    <text class="small" x="210" y="77">跟随 rAF，立即解析</text>
+    <text class="note" x="34" y="105">2,000～8,000</text>
+    <text class="small" x="210" y="105">约 60ms 节流</text>
+    <text class="note" x="34" y="133">&gt; 8,000 字符</text>
+    <text class="small" x="210" y="133">约 120ms 节流</text>
+    <text class="small" x="190" y="158" text-anchor="middle">流式阶段跳过 syntax highlight</text>
+  </g>
+
+  <!-- Final lane -->
+  <g transform="translate(300,814)">
+    <rect class="node" x="0" y="0" width="210" height="64" fill="#ffffff" stroke="#fb923c"/>
+    <text class="node-title" x="105" y="26" text-anchor="middle">stream done</text>
+    <text class="node-sub" x="105" y="47" text-anchor="middle">isStreaming = false</text>
+  </g>
+  <line x1="510" y1="846" x2="620" y2="846" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrowGray)"/>
+  <g transform="translate(630,814)">
+    <rect class="node" x="0" y="0" width="270" height="64" fill="#ffedd5" stroke="#fb923c"/>
+    <text class="node-title" x="135" y="26" text-anchor="middle">完整 Markdown 解析</text>
+    <text class="node-sub" x="135" y="47" text-anchor="middle">rehypeHighlight 开启</text>
+  </g>
+  <line x1="900" y1="846" x2="1010" y2="846" stroke="#ea580c" stroke-width="2.5" marker-end="url(#arrowGray)"/>
+  <g transform="translate(1020,814)">
+    <rect class="pill" x="0" y="0" width="350" height="64" fill="#fff7ed" stroke="#fb923c"/>
+    <text class="node-title" x="175" y="26" text-anchor="middle">最终 DOM + 代码高亮</text>
+    <text class="node-sub" x="175" y="47" text-anchor="middle">一次性完成质量渲染</text>
+  </g>
+
+  <!-- Cross-lane explanatory arrows -->
+  <path d="M 1100 408 C 1100 465, 1160 500, 1160 548" fill="none" stroke="#64748b" stroke-width="1.8" class="dash" marker-end="url(#arrowGray)"/>
+  <text class="small" x="1175" y="485">不是每个 token 都解析</text>
+  <path d="M 1370 722 C 1420 746, 1420 790, 1370 814" fill="none" stroke="#ea580c" stroke-width="2" marker-end="url(#arrowGray)"/>
+
+  <!-- Legend -->
+  <g transform="translate(72,948)">
+    <line x1="0" y1="0" x2="34" y2="0" stroke="#2563eb" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+    <text class="small" x="46" y="4">数据流</text>
+    <line x1="130" y1="0" x2="164" y2="0" stroke="#16a34a" stroke-width="2.5" marker-end="url(#arrowGreen)"/>
+    <text class="small" x="176" y="4">渲染路径</text>
+    <line x1="270" y1="0" x2="304" y2="0" stroke="#64748b" stroke-width="1.8" stroke-dasharray="7 7" marker-end="url(#arrowGray)"/>
+    <text class="small" x="316" y="4">复用 / 控制关系</text>
+    <text class="small" x="760" y="4">关键原则：rAF 合并更新，block memo 控制 DOM 复用，自适应调度控制解析成本</text>
+  </g>
+</svg>
