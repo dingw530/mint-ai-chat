@@ -101,6 +101,10 @@ export interface SettingsInput {
   maxContextRounds?: number;
   wikiPath?: string;
   wikiMaxFileSize?: number;
+  wikiSearchMode?: 'keyword' | 'hybrid';
+  embeddingApiUrl?: string;
+  embeddingModel?: string;
+  embeddingDimensions?: number;
 }
 
 // AI 代理内部使用的设置（apiKey 已解密）
@@ -118,6 +122,10 @@ export interface AiSettings {
   maxContextRounds: number;
   wikiPath: string;
   wikiMaxFileSize: number;
+  wikiSearchMode: 'keyword' | 'hybrid';
+  embeddingApiUrl: string;
+  embeddingModel: string;
+  embeddingDimensions: number;
 }
 
 // 返回给前端的设置（apiKey 脱敏显示）
@@ -137,6 +145,10 @@ export interface VisibleSettings {
   activeEndpointName: string | null;
   wikiPath: string;
   wikiMaxFileSize: number;
+  wikiSearchMode: 'keyword' | 'hybrid';
+  embeddingApiUrl: string;
+  embeddingModel: string;
+  embeddingDimensions: number;
 }
 
 // ── Tool call 类型（兼容 OpenAI function calling 格式） ──

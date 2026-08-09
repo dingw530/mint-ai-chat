@@ -17,6 +17,10 @@ function toSettingsInput(data: Record<string, unknown>): SettingsInput {
     showReactSteps: typeof data.showReactSteps === 'boolean' ? data.showReactSteps : undefined,
     wikiPath: typeof data.wikiPath === 'string' ? data.wikiPath : undefined,
     wikiMaxFileSize: typeof data.wikiMaxFileSize === 'number' ? data.wikiMaxFileSize : undefined,
+    wikiSearchMode: data.wikiSearchMode === 'hybrid' || data.wikiSearchMode === 'keyword' ? data.wikiSearchMode : undefined,
+    embeddingApiUrl: typeof data.embeddingApiUrl === 'string' ? data.embeddingApiUrl : undefined,
+    embeddingModel: typeof data.embeddingModel === 'string' ? data.embeddingModel : undefined,
+    embeddingDimensions: typeof data.embeddingDimensions === 'number' ? data.embeddingDimensions : undefined,
   };
 }
 
@@ -31,6 +35,19 @@ function saveSettings(data: Record<string, unknown>) {
     new URL(apiUrl as string);
   } catch {
     throw httpError(400, 'apiUrl must be a valid URL');
+  }
+  if (data.wikiSearchMode !== undefined && data.wikiSearchMode !== 'keyword' && data.wikiSearchMode !== 'hybrid') {
+    throw httpError(400, 'wikiSearchMode must be keyword or hybrid');
+  }
+  if (data.embeddingDimensions !== undefined && data.embeddingDimensions !== 1024) {
+    throw httpError(400, 'embeddingDimensions must be 1024');
+  }
+  if (data.embeddingApiUrl !== undefined) {
+    try {
+      new URL(data.embeddingApiUrl as string);
+    } catch {
+      throw httpError(400, 'embeddingApiUrl must be a valid URL');
+    }
   }
   settingsService.save(toSettingsInput(data));
   return { success: true };

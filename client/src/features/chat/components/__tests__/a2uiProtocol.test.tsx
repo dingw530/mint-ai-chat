@@ -40,7 +40,7 @@ describe('official A2UI v0.9 ingestion protocol', () => {
     processor.processMessages([
       { version: 'v0.9', createSurface: { surfaceId: 'source-1', catalogId: 'mint' } },
       { version: 'v0.9', updateComponents: { surfaceId: 'source-1', components: [{ id: 'root', component: 'SourceReferenceCard', data: { path: '/source' } }] } },
-      { version: 'v0.9', updateDataModel: { surfaceId: 'source-1', path: '/source', value: { refId: 'C1', title: 'Architecture', file: 'pages/a.md', heading: '', snippet: 'fact', chunkId: 'a#0' } } },
+      { version: 'v0.9', updateDataModel: { surfaceId: 'source-1', path: '/source', value: { refId: 'C1', title: 'Architecture', file: 'pages/a.md', heading: '索引设计', snippet: 'fact', chunkId: 'a#0', matchTypes: ['keyword', 'vector'] } } },
     ]);
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -48,6 +48,9 @@ describe('official A2UI v0.9 ingestion protocol', () => {
     await act(async () => root.render(<A2uiSurface surface={processor.model.getSurface('source-1')!} />));
     expect(container.querySelector('.source-reference-card')).not.toBeNull();
     expect(container.textContent).toContain('Architecture');
+    expect(container.textContent).toContain('索引设计');
+    expect(container.textContent).toContain('关键词');
+    expect(container.textContent).toContain('语义');
     await act(async () => root.unmount());
     container.remove();
   });

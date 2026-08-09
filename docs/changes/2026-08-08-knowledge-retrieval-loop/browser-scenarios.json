@@ -1,0 +1,57 @@
+{
+  "scenarios": [
+    {
+      "id": "chat-a2ui-hybrid-source-evidence",
+      "acceptanceCriteria": ["AC-004", "AC-005", "AC-006"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"showReactSteps": true, "routingMode": "manual"}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": [{"id": "conv-evidence", "title": "混合检索引用", "type": "chat", "createdAt": "2026-08-08T00:00:00.000Z", "updatedAt": "2026-08-08T00:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}},
+          {"pattern": "**/api/conversations/conv-evidence/messages", "method": "GET", "body": {"messages": [{"id": "assistant-evidence", "conversationId": "conv-evidence", "role": "assistant", "content": "SQLite 使用 WAL 模式。 [C1]", "createdAt": "2026-08-08T00:00:00.000Z", "uiBlocks": [{"id": "block-evidence", "messageId": "assistant-evidence", "blockIndex": 0, "textOffset": 26, "kind": "wiki_source_reference", "version": 1, "data": {"refId": "C1", "title": "数据库设计", "file": "pages/架构/数据库设计.md", "heading": "索引设计", "snippet": "SQLite 使用 WAL 模式。", "chunkId": "pages/架构/数据库设计.md#chunk:0", "matchTypes": ["keyword", "vector"], "pageStatus": "active"}, "createdAt": "2026-08-08T00:00:00.000Z", "updatedAt": "2026-08-08T00:00:00.000Z"}]}]}},
+          {"pattern": "**/api/conversations/conv-evidence/ingestion-events", "method": "GET", "body": ""}
+        ]
+      },
+      "markers": ["Mint", "输入消息"],
+      "steps": [
+        {"action": "waitFor", "text": "数据库设计", "exact": true, "timeoutMs": 10000},
+        {"action": "assertText", "text": "参考依据"},
+        {"action": "assertText", "text": "索引设计"},
+        {"action": "assertText", "text": "关键词"},
+        {"action": "assertText", "text": "语义"},
+        {"action": "assertText", "text": "SQLite 使用 WAL 模式。"}
+      ]
+    },
+    {
+      "id": "wiki-vector-backfill-health",
+      "acceptanceCriteria": ["AC-002", "AC-003"],
+      "route": "/wiki",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [{"type": "file", "name": "数据库设计.md", "path": "pages/架构/数据库设计.md", "modifiedAt": 1}], "total": 1}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [], "total": 0}},
+          {"pattern": "**/api/wiki/vector-health", "method": "GET", "body": {"documentCount": 10, "vectorizedCount": 7, "pendingCount": 3, "failedCount": 0, "orphanCount": 0, "coverage": 0.7, "model": "bge-m3", "dimensions": 1024, "lastIndexedAt": "2026-08-08T00:00:00.000Z"}},
+          {"pattern": "**/api/wiki/vector-backfill", "method": "POST", "status": 200, "body": {"job": {"id": "vector-job-1", "scope": "all", "prefix": null, "paths": [], "status": "queued", "total": 10, "processed": 0, "indexed": 0, "skipped": 0, "failed": 0, "currentPath": null, "error": null, "attempts": 0, "createdAt": "2026-08-08T00:00:00.000Z", "updatedAt": "2026-08-08T00:00:00.000Z"}}},
+          {"pattern": "**/api/wiki/vector-backfill/vector-job-1", "method": "GET", "responses": [
+            {"job": {"id": "vector-job-1", "scope": "all", "prefix": null, "paths": [], "status": "queued", "total": 10, "processed": 0, "indexed": 0, "skipped": 0, "failed": 0, "currentPath": null, "error": null, "attempts": 0, "createdAt": "2026-08-08T00:00:00.000Z", "updatedAt": "2026-08-08T00:00:00.000Z"}},
+            {"job": {"id": "vector-job-1", "scope": "all", "prefix": null, "paths": [], "status": "completed", "total": 10, "processed": 10, "indexed": 3, "skipped": 7, "failed": 0, "currentPath": null, "error": null, "attempts": 1, "createdAt": "2026-08-08T00:00:00.000Z", "updatedAt": "2026-08-08T00:00:01.000Z"}}
+          ]}
+        ]
+      },
+      "markers": ["知识库", "向量索引"],
+      "steps": [
+        {"action": "waitFor", "text": "向量索引", "exact": true, "timeoutMs": 10000},
+        {"action": "assertText", "text": "覆盖率"},
+        {"action": "assertText", "text": "70%"},
+        {"action": "assertText", "text": "已覆盖 7 / 10 片段"},
+        {"action": "click", "target": {"role": "button", "name": "回填历史向量"}},
+        {"action": "waitFor", "text": "等待回填", "timeoutMs": 10000},
+        {"action": "assertRequests", "contains": "/wiki/vector-backfill", "countAtLeast": 1}
+      ]
+    }
+  ]
+}

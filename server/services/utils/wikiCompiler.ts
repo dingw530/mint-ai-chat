@@ -287,6 +287,7 @@ ${sourceText}`;
   // 甚至在 JSON 尚未完成时被截断；短文保持原有额度，长文提高输出上限。
   const maxTokens = sourceText.length >= 8000 ? 12000 : 4096;
 
+  console.log(prompt, userMessage)
   const result = await adapter.call(
     [
       { role: 'system', content: prompt },

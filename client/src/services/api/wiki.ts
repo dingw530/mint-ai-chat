@@ -41,6 +41,36 @@ export interface WikiHeatResponse {
   };
   pages: WikiHeatPage[];
 }
+
+export interface WikiVectorHealth {
+  documentCount: number;
+  vectorizedCount: number;
+  pendingCount: number;
+  failedCount: number;
+  orphanCount: number;
+  coverage: number;
+  model: string;
+  dimensions: number;
+  lastIndexedAt: string | null;
+}
+
+export interface WikiVectorBackfillJob {
+  id: string;
+  scope: 'all' | 'prefix' | 'selected';
+  prefix: string | null;
+  paths: string[];
+  status: 'queued' | 'running' | 'completed' | 'partial_failed' | 'failed' | 'cancelled';
+  total: number;
+  processed: number;
+  indexed: number;
+  skipped: number;
+  failed: number;
+  currentPath: string | null;
+  error: string | null;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
+}
 export interface UploadJob {
   id: string;
   status?: string;
@@ -132,6 +162,29 @@ export function readWiki(path: string): Promise<WikiReadResponse> {
 
 export function getWikiHeat(limit = 30): Promise<WikiHeatResponse> {
   return callEndpoint<WikiHeatResponse>('wiki:heat', limit);
+}
+
+/** 获取向量索引健康度。 */
+export function getWikiVectorHealth(): Promise<WikiVectorHealth> {
+  return callEndpoint<WikiVectorHealth>('wiki:getVectorHealth');
+}
+
+/** 启动 Wiki 向量回填任务。 */
+export async function startWikiVectorBackfill(input: { scope: 'all' | 'prefix' | 'selected'; prefix?: string; paths?: string[] }): Promise<WikiVectorBackfillJob> {
+  const result = await callEndpoint<{ job: WikiVectorBackfillJob }>('wiki:startVectorBackfill', input);
+  return result.job;
+}
+
+/** 获取向量回填任务状态。 */
+export async function getWikiVectorBackfill(jobId: string): Promise<WikiVectorBackfillJob> {
+  const result = await callEndpoint<{ job: WikiVectorBackfillJob }>('wiki:getVectorBackfill', jobId);
+  return result.job;
+}
+
+/** 重试失败的向量回填任务。 */
+export async function retryWikiVectorBackfill(jobId: string): Promise<WikiVectorBackfillJob> {
+  const result = await callEndpoint<{ job: WikiVectorBackfillJob }>('wiki:retryVectorBackfill', jobId);
+  return result.job;
 }
 
 /**

@@ -7,6 +7,7 @@ import { createLogger } from '../../utils/logger.js';
 import { archiveWikiRawFile, saveWikiSourceText } from './wikiFileService.js';
 import { registerCompiledKnowledge } from './wikiKnowledgeLifecycleService.js';
 import { rebuildWikiSearchIndex } from './wikiSearchService.js';
+import type { EmbeddingConfig } from '../utils/embeddingService.js';
 import type { WikiPageSummary } from './wikiIngestionTypes.js';
 
 export { archiveWikiRawFile, buildWikiSourceText } from './wikiFileService.js';
@@ -97,7 +98,14 @@ export async function ingestWikiSource(
   );
 
   registerCompiledKnowledge(sourceFile, request.sourceText, compileResult.compiledPages, compileResult.claims);
-  rebuildWikiSearchIndex(wikiPath);
+  const embeddingConfig: EmbeddingConfig | undefined = settings.wikiSearchMode === 'hybrid'
+    ? {
+      apiUrl: settings.embeddingApiUrl,
+      model: settings.embeddingModel,
+      dimensions: settings.embeddingDimensions,
+    }
+    : undefined;
+  await rebuildWikiSearchIndex(wikiPath, embeddingConfig);
 
   let graphErrors: string[] = [];
 

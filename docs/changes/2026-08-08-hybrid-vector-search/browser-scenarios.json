@@ -1,0 +1,35 @@
+{
+  "scenarios": [
+    {
+      "id": "hybrid-search-settings-save",
+      "acceptanceCriteria": ["AC-001"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/settings", "method": "GET", "body": {"apiUrl": "https://example.test/v1", "apiKeyMasked": "****", "modelId": "test-model", "showReactSteps": true, "routingMode": "manual", "wikiPath": "/tmp/mint-wiki", "wikiSearchMode": "keyword", "embeddingApiUrl": "http://127.0.0.1:11434/v1", "embeddingModel": "bge-m3", "embeddingDimensions": 1024}},
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": []}},
+          {"pattern": "**/api/wiki/schema", "method": "GET", "body": {"version": 1, "categories": []}},
+          {"pattern": "**/api/settings", "method": "PUT", "body": {"success": true}}
+        ]
+      },
+      "markers": ["设置"],
+      "steps": [
+        {"action": "click", "target": {"role": "button", "name": "设置"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "设置"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"text": "知识库"}},
+        {"action": "click", "target": {"label": "搜索模式"}},
+        {"action": "click", "target": {"text": "向量融合（FTS5 + BGE-M3）", "exact": true}},
+        {"action": "click", "target": {"role": "button", "name": "保存"}},
+        {"action": "waitFor", "target": {"text": "设置已保存", "exact": true}},
+        {"action": "assertText", "text": "设置已保存"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/settings", "status": 200},
+        {"method": "PUT", "contains": "/api/settings", "status": 200}
+      ]
+    }
+  ]
+}

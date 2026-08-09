@@ -672,6 +672,60 @@
     "async": false
   },
   {
+    "id": "wiki:startVectorBackfill",
+    "ipcChannel": "wiki:startVectorBackfill",
+    "preloadMethod": "startWikiVectorBackfill",
+    "method": "POST",
+    "httpPath": "/wiki/vector-backfill",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:getVectorBackfill",
+    "ipcChannel": "wiki:getVectorBackfill",
+    "preloadMethod": "getWikiVectorBackfill",
+    "method": "GET",
+    "httpPath": "/wiki/vector-backfill/:jobId",
+    "args": [
+      {
+        "from": "path",
+        "name": "jobId"
+      }
+    ],
+    "result": "job",
+    "async": false
+  },
+  {
+    "id": "wiki:retryVectorBackfill",
+    "ipcChannel": "wiki:retryVectorBackfill",
+    "preloadMethod": "retryWikiVectorBackfill",
+    "method": "POST",
+    "httpPath": "/wiki/vector-backfill/:jobId/retry",
+    "args": [
+      {
+        "from": "path",
+        "name": "jobId"
+      }
+    ],
+    "result": "direct",
+    "async": false
+  },
+  {
+    "id": "wiki:getVectorHealth",
+    "ipcChannel": "wiki:getVectorHealth",
+    "preloadMethod": "getWikiVectorHealth",
+    "method": "GET",
+    "httpPath": "/wiki/vector-health",
+    "args": [],
+    "result": "direct",
+    "async": false
+  },
+  {
     "id": "graph:data",
     "ipcChannel": "graph:data",
     "preloadMethod": "getGraphData",

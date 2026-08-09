@@ -36,6 +36,8 @@ export default function A2uiSegment({ segment }: { segment: A2uiSegmentData }) {
 
   return (
     <div className="a2ui-answer-segment" ref={containerRef}>
+      {surfaces.length > 0 && <div className="a2ui-source-group-label">参考依据</div>}
+      <div className="a2ui-source-group">
       {surfaces.map((surface) => {
         const source = surface.dataModel.get('/source');
         return (
@@ -44,13 +46,18 @@ export default function A2uiSegment({ segment }: { segment: A2uiSegmentData }) {
             {showFallback && source && typeof source === 'object' && !Array.isArray(source) && 'title' in source && (
               <div className="source-reference-card" data-a2ui-fallback="true" aria-label="回答来源">
                 <span className="source-reference-card-label">[{String('refId' in source ? source.refId : '')}]</span>
-                <strong className="source-reference-card-title">{String(source.title)}</strong>
-                {'file' in source && <span className="source-reference-card-file">{String(source.file)}</span>}
+                <span className="source-reference-card-body">
+                  <strong className="source-reference-card-title">{String(source.title)}</strong>
+                  {'heading' in source && source.heading && <span className="source-reference-card-heading">{String(source.heading)}</span>}
+                  {'snippet' in source && source.snippet && <span className="source-reference-card-snippet">{String(source.snippet)}</span>}
+                  {'file' in source && <span className="source-reference-card-footer"><span className="source-reference-card-file">{String(source.file)}</span></span>}
+                </span>
               </div>
             )}
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

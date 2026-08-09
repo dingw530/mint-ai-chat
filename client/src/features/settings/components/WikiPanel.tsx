@@ -6,6 +6,14 @@ import type { WikiSchema } from '@/services/api/wiki';
 interface WikiPanelProps {
   wikiPath: string;
   setWikiPath: (value: string) => void;
+  wikiSearchMode: 'keyword' | 'hybrid';
+  setWikiSearchMode: (value: 'keyword' | 'hybrid') => void;
+  embeddingApiUrl: string;
+  setEmbeddingApiUrl: (value: string) => void;
+  embeddingModel: string;
+  setEmbeddingModel: (value: string) => void;
+  embeddingDimensions: number;
+  setEmbeddingDimensions: (value: number) => void;
   onToast?: (type: 'success' | 'error', message: string) => void;
 }
 
@@ -40,7 +48,19 @@ function formatList(value: string[]): string {
   return value.join(', ');
 }
 
-export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelProps) {
+export default function WikiPanel({
+  wikiPath,
+  setWikiPath,
+  wikiSearchMode,
+  setWikiSearchMode,
+  embeddingApiUrl,
+  setEmbeddingApiUrl,
+  embeddingModel,
+  setEmbeddingModel,
+  embeddingDimensions,
+  setEmbeddingDimensions,
+  onToast,
+}: WikiPanelProps) {
   const [schema, setSchema] = useState<WikiSchema | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -144,6 +164,71 @@ export default function WikiPanel({ wikiPath, setWikiPath, onToast }: WikiPanelP
         />
         <p className="form-help">Agent 将在此目录下创建和维护知识页面。支持绝对路径，留空禁用 Wiki 功能。</p>
       </div>
+
+      <div className="form-group">
+        <label htmlFor="wikiSearchMode">搜索模式</label>
+        <div
+          id="wikiSearchMode"
+          className="wiki-search-mode-options"
+          role="group"
+          aria-label="搜索模式"
+        >
+          <button
+            type="button"
+            className={wikiSearchMode === 'keyword' ? 'active' : ''}
+            aria-pressed={wikiSearchMode === 'keyword'}
+            onClick={() => setWikiSearchMode('keyword')}
+          >
+            关键词（FTS5）
+          </button>
+          <button
+            type="button"
+            className={wikiSearchMode === 'hybrid' ? 'active' : ''}
+            aria-pressed={wikiSearchMode === 'hybrid'}
+            onClick={() => setWikiSearchMode('hybrid')}
+          >
+            向量融合（FTS5 + BGE-M3）
+          </button>
+        </div>
+        <p className="form-help">向量服务不可用时会自动回退到关键词搜索。</p>
+      </div>
+
+      {wikiSearchMode === 'hybrid' && (
+        <div className="wiki-embedding-settings">
+          <div className="form-group">
+            <label htmlFor="embeddingApiUrl">Embedding 服务 URL</label>
+            <input
+              id="embeddingApiUrl"
+              type="url"
+              value={embeddingApiUrl}
+              onChange={(event) => setEmbeddingApiUrl(event.target.value)}
+              placeholder="http://127.0.0.1:11434/v1"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="embeddingModel">Embedding 模型</label>
+            <input
+              id="embeddingModel"
+              type="text"
+              value={embeddingModel}
+              onChange={(event) => setEmbeddingModel(event.target.value)}
+              placeholder="bge-m3"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="embeddingDimensions">向量维度</label>
+            <input
+              id="embeddingDimensions"
+              type="number"
+              min="1024"
+              max="1024"
+              value={embeddingDimensions}
+              onChange={(event) => setEmbeddingDimensions(Number(event.target.value))}
+            />
+            <p className="form-help">当前 sqlite-vec 索引固定为 1024 维，BGE-M3 默认输出 1024 维。</p>
+          </div>
+        </div>
+      )}
 
       <hr className="settings-divider" />
       <div className="wiki-schema-heading">

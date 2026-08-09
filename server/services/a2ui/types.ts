@@ -31,6 +31,12 @@ export interface A2UIReference {
   snippet: string;
   chunkId: string;
   score?: number;
+  matchTypes?: string[];
+  pageStatus?: string | null;
+  lastVerifiedAt?: string | null;
+  lexicalRank?: number | null;
+  vectorRank?: number | null;
+  distance?: number | null;
 }
 
 export interface A2UIProviderResult {

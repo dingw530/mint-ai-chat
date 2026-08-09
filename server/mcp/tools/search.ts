@@ -95,7 +95,7 @@ export function registerSearchTool(server: McpServer, ctx: WikiServiceContext): 
       }
 
       // 搜索模式
-      const result = searchWiki(ctx.wikiPath, question, normalizedMaxResults, normalizedIncludeContent);
+      const result = await searchWiki(ctx.wikiPath, question, normalizedMaxResults, normalizedIncludeContent);
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result) }],
       };
