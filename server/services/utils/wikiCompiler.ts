@@ -32,6 +32,111 @@ export interface WikiCompiledClaim {
   confidence?: number;
   importance?: number;
   evidence?: string;
+  evidenceQuote?: string;
+}
+
+/** 将原文与证据片段规范化，允许换行和空格差异但不放宽文字内容。 */
+function normalizeEvidenceText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[\s*_`]/g, '');
+}
+
+/** 从模型拼接的证据中恢复一条仍与原文连续匹配的完整句子。 */
+function findMatchingEvidence(sourceText: string, evidence: string): string | undefined {
+  const normalizedSource = normalizeEvidenceText(sourceText);
+  const normalizedEvidence = normalizeEvidenceText(evidence);
+  if (normalizedSource.includes(normalizedEvidence)) return evidence;
+
+  const candidates = evidence
+    .split(/[。！？!?；;：:\n…]+/)
+    .map((candidate) => candidate.trim())
+    .filter((candidate) => candidate.length >= 8)
+    .sort((left, right) => right.length - left.length);
+  return candidates.find((candidate) => normalizedSource.includes(normalizeEvidenceText(candidate)));
+}
+
+/** 为超长文档选择页面正文中能回指原文的片段。 */
+function fallbackEvidenceForPage(sourceText: string, page: CompiledPage, index: number): string {
+  const contentCandidates = page.content
+    .split(/\n+/)
+    .map((line) => line.replace(/^#{1,6}\s+|^[-*+]\s+/, '').trim())
+    .filter((line) => line.length >= 12);
+  for (const candidate of contentCandidates) {
+    const matching = findMatchingEvidence(sourceText, candidate);
+    if (matching) return matching;
+  }
+
+  const sourceCandidates = sourceText
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 12 && !/^置⾝钉内.*\d+\s*\/\s*\d+$/.test(line));
+  return sourceCandidates[index % Math.max(1, sourceCandidates.length)] || sourceText.slice(0, 80);
+}
+
+/** 长文模型无法可靠产出 claims 时，生成仅由原文片段组成的低置信度兜底。 */
+function buildFallbackClaims(sourceText: string, pages: CompiledPage[]): WikiCompiledClaim[] {
+  return pages.map((page, index) => {
+    const evidence = fallbackEvidenceForPage(sourceText, page, index);
+    return {
+      pageTitle: page.title,
+      text: evidence,
+      normalizedKey: `fallback:${page.title}`,
+      confidence: 0.2,
+      importance: 0.2,
+      evidence,
+      evidenceQuote: evidence,
+    };
+  });
+}
+
+/** 在 Wiki 写入前验证 AI Claim 是否能被当前原始资料直接支持。 */
+function validateCompiledClaims(
+  sourceText: string,
+  pages: CompiledPage[],
+  claims: WikiCompiledClaim[],
+): void {
+  const failures: string[] = [];
+  const pageTitles = new Set(pages.map((page) => page.title));
+  const claimsByPage = new Map<string, number>();
+
+  for (const claim of claims) {
+    const pageTitle = typeof claim.pageTitle === 'string' ? claim.pageTitle.trim() : '';
+    const claimText = typeof claim.text === 'string' ? claim.text.trim() : '';
+    const evidence = typeof claim.evidenceQuote === 'string' && claim.evidenceQuote.trim()
+      ? claim.evidenceQuote
+      : claim.evidence;
+
+    if (!pageTitles.has(pageTitle)) {
+      failures.push(`Claim 指向不存在的页面：${pageTitle || '（空标题）'}`);
+      continue;
+    }
+    claimsByPage.set(pageTitle, (claimsByPage.get(pageTitle) || 0) + 1);
+    if (!claimText) {
+      failures.push(`页面「${pageTitle}」存在空 Claim`);
+      continue;
+    }
+    if (typeof evidence !== 'string' || !evidence.trim()) {
+      failures.push(`页面「${pageTitle}」的 Claim 缺少原文证据`);
+      continue;
+    }
+    const matchingEvidence = findMatchingEvidence(sourceText, evidence);
+    if (!matchingEvidence) {
+      failures.push(`页面「${pageTitle}」的证据不在原始资料中：${evidence.trim().slice(0, 120)}`);
+    } else if (matchingEvidence !== evidence) {
+      claim.evidence = matchingEvidence;
+      claim.evidenceQuote = matchingEvidence;
+    }
+  }
+
+  if (claims.length === 0) failures.push('AI 未返回可验证的 Wiki Claim');
+  for (const page of pages) {
+    if (!claimsByPage.has(page.title)) failures.push(`页面「${page.title}」没有关联 Claim`);
+  }
+  if (failures.length > 0) {
+    throw new Error(`Wiki 证据校验失败：${failures.join('；')}`);
+  }
 }
 
 /**
@@ -277,33 +382,104 @@ ${schemaInfo}
 ${sourceText}`;
 
   console.log(
-    `[wikiCompiler] calling AI: url=${settings.apiUrl}, model=${settings.modelId}, apiKey=${settings.apiKey ? 'set(' + settings.apiKey.substring(0, 8) + '...)' : 'NOT SET'}`,
+    `[wikiCompiler] calling AI: url=${settings.apiUrl}, model=${settings.modelId}`,
   );
 
   const adapter = getAdapter(settings.apiType || 'openai-chat');
   if (!adapter) throw new Error('Adapter not found');
 
   // 长文需要输出多个完整页面。固定 4096 tokens 会迫使模型把整篇资料压成一页，
-  // 甚至在 JSON 尚未完成时被截断；短文保持原有额度，长文提高输出上限。
-  const maxTokens = sourceText.length >= 8000 ? 12000 : 4096;
+  // 甚至在 JSON 尚未完成时被截断；长文提高输出上限，但保持在常见兼容模型的上限内。
+  const maxTokens = sourceText.length >= 8000 ? 8192 : 4096;
+  const messages = [
+    { role: 'system', content: prompt },
+    { role: 'user', content: userMessage },
+  ];
 
-  console.log(prompt, userMessage)
+  let result: string;
+  try {
+    result = await adapter.call(
+      messages,
+      { modelId: settings.modelId },
+      settings.apiUrl,
+      settings.apiKey,
+      { maxTokens, temperature: 0.3, thinking: false },
+    );
+  } catch (error) {
+    if (maxTokens <= 4096) throw error;
+    console.warn('[wikiCompiler] long-source request failed; retrying with maxTokens=4096');
+    result = await adapter.call(
+      messages,
+      { modelId: settings.modelId },
+      settings.apiUrl,
+      settings.apiKey,
+      { maxTokens: 4096, temperature: 0.3, thinking: false },
+    );
+  }
+
+  // 部分 OpenAI 兼容网关在长上下文 + 大输出预算时会返回空 message；
+  // 降低输出预算重试，避免把可恢复的供应商行为误报为格式错误。
+  if (!result.trim() && maxTokens > 4096) {
+    console.warn('[wikiCompiler] AI returned an empty response; retrying with maxTokens=4096');
+    result = await adapter.call(
+      messages,
+      { modelId: settings.modelId },
+      settings.apiUrl,
+      settings.apiKey,
+      { maxTokens: 4096, temperature: 0.3, thinking: false },
+    );
+  }
+
+  console.log(
+    `[wikiCompiler] AI response received, length=${result.length}`,
+  );
+
+  return result;
+}
+
+/**
+ * 当页面编译响应因长度限制省略 claims 时，单独提取页面级原文证据。
+ */
+async function callAiForClaims(
+  settings: AiSettings,
+  sourceText: string,
+  pages: CompiledPage[],
+): Promise<WikiCompiledClaim[]> {
+  const pageTitles = pages.map((page) => page.title);
+  const adapter = getAdapter(settings.apiType || 'openai-chat');
+  if (!adapter) return [];
   const result = await adapter.call(
     [
-      { role: 'system', content: prompt },
-      { role: 'user', content: userMessage },
+      {
+        role: 'system',
+        content: '你是一个严格的证据抽取助手，只输出 JSON，不要输出 Markdown 或解释文字。',
+      },
+      {
+        role: 'user',
+        content: `请为下列每个 Wiki 页面生成至少一条可独立验证的 Claim。
+要求：
+1. pageTitle 必须逐字匹配给定页面标题；
+2. text 是原始资料明确支持的事实或结论；
+3. evidenceQuote 必须从原始资料逐字复制，不能改写；
+4. 只输出以下格式，pages 必须为空数组：
+{"pages":[],"claims":[{"pageTitle":"页面标题","text":"事实或结论","evidenceQuote":"原文证据"}],"relationships":[],"summary":""}
+
+页面标题：
+${JSON.stringify(pageTitles)}
+
+原始资料：
+${sourceText}`,
+      },
     ],
     { modelId: settings.modelId },
     settings.apiUrl,
     settings.apiKey,
-    { maxTokens, temperature: 0.3 },
+    { maxTokens: 4096, temperature: 0.1, thinking: false },
   );
 
-  console.log(
-    `[wikiCompiler] AI response received, length=${result.length}, preview=${result.substring(0, 100)}`,
-  );
-
-  return result;
+  if (!result?.trim()) return [];
+  const parsed = tryParseLooseJson(result);
+  return parsed?.claims || [];
 }
 
 // ── Page Merge ───────────────────────────────────────────────────
@@ -503,14 +679,39 @@ export async function compileSource(
   // AI 常在 content 字段中输出字面换行符，导致 JSON.parse 失败，先尝试宽松解析
   const parsed = tryParseLooseJson(aiResult);
   if (!parsed) {
-    console.error(`[wikiCompiler] AI 返回非 JSON 格式 (len=${aiResult.length})，完整返回:`);
-    console.error(aiResult);
+    console.error(`[wikiCompiler] AI 返回非 JSON 格式 (len=${aiResult.length})`);
     throw new Error('AI 返回格式异常，完整返回已打印到日志');
   }
   const compiled: { pages: CompiledPage[]; claims?: WikiCompiledClaim[]; relationships?: Relationship[]; summary: string } = parsed;
 
   if (!compiled.pages || compiled.pages.length === 0) {
     throw new Error('AI 未生成任何 Wiki 页面');
+  }
+
+  const initialClaims = compiled.claims || [];
+  if (initialClaims.length === 0) {
+    console.warn('[wikiCompiler] AI response omitted claims; extracting claims separately');
+    compiled.claims = await callAiForClaims(settings, sourceText, compiled.pages);
+  }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      validateCompiledClaims(sourceText, compiled.pages, compiled.claims || []);
+      break;
+    } catch (error) {
+      if (attempt === 1) {
+        if (sourceText.length < 8000) throw error;
+        console.warn('[wikiCompiler] claims remained invalid; using deterministic long-source fallback');
+        compiled.claims = buildFallbackClaims(sourceText, compiled.pages);
+        validateCompiledClaims(sourceText, compiled.pages, compiled.claims);
+        break;
+      }
+      console.warn(
+        initialClaims.length === 0
+          ? '[wikiCompiler] extracted claims failed evidence validation; retrying extraction'
+          : '[wikiCompiler] AI claims failed evidence validation; extracting claims separately',
+      );
+      compiled.claims = await callAiForClaims(settings, sourceText, compiled.pages);
+    }
   }
 
   const categories = normalizeWikiCategories(schema.categories);

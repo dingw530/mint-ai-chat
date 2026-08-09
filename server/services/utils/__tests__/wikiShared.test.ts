@@ -103,6 +103,29 @@ describe('tryParseLooseJson', () => {
     expect(result.pages[0].content).toBe('作者认为「这样」是"正确"的。');
   });
 
+  it('宽松解析时保留 claims', () => {
+    const input = `{
+  "pages": [{
+    "filename": "pages/ai/test.md",
+    "title": "测试",
+    "tags": ["tag"],
+    "content": "正文中有未转义的\n换行"
+  }],
+  "claims": [{
+    "pageTitle": "测试",
+    "text": "原文事实",
+    "evidenceQuote": "原文事实"
+  }],
+  "relationships": [],
+  "summary": "测试"
+}`;
+
+    const result = tryParseLooseJson(input);
+    expect(result?.claims).toEqual([expect.objectContaining({
+      pageTitle: '测试', evidenceQuote: '原文事实',
+    })]);
+  });
+
   it('处理含转义 \\n 的标准 JSON', () => {
     const input = JSON.stringify({
       pages: [{

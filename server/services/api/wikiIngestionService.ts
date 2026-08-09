@@ -4,11 +4,18 @@ import { appendWikiManifestEntry } from '../utils/wikiShared.js';
 import { buildGraphFromPages } from '../graphBuilder.js';
 import { generateCrossBatchCandidates } from './crossBatchSemanticService.js';
 import { createLogger } from '../../utils/logger.js';
-import { archiveWikiRawFile, saveWikiSourceText } from './wikiFileService.js';
+import {
+  discardWikiStagedFile,
+  finalizeWikiSourceFile,
+  rollbackWikiSourceFile,
+  stageWikiRawFile,
+  stageWikiSourceText,
+} from './wikiFileService.js';
 import { registerCompiledKnowledge } from './wikiKnowledgeLifecycleService.js';
 import { rebuildWikiSearchIndex } from './wikiSearchService.js';
 import type { EmbeddingConfig } from '../utils/embeddingService.js';
 import type { WikiPageSummary } from './wikiIngestionTypes.js';
+import type { CompiledPage, Relationship } from '../utils/wikiShared.js';
 
 export { archiveWikiRawFile, buildWikiSourceText } from './wikiFileService.js';
 export type { WikiSourceSegment } from './wikiIngestionTypes.js';
@@ -62,7 +69,7 @@ function archiveRawFiles(wikiPath: string, files: WikiArchivedFileInput[] | unde
       continue;
     }
     if (!file.buffer) continue;
-    archivedPaths.push(archiveWikiRawFile(wikiPath, file.name, file.buffer));
+    archivedPaths.push(stageWikiRawFile(wikiPath, file.name, file.buffer));
   }
 
   return archivedPaths;
@@ -82,70 +89,94 @@ export async function ingestWikiSource(
   const sourceFile =
     archivedFiles.length === 1
       ? archivedFiles[0]
-      : saveWikiSourceText(
+      : stageWikiSourceText(
           wikiPath,
           request.sourceText,
           request.sourceTitle,
           request.sourceFilenameHint,
         );
+  const stagedFiles = [...new Set([...archivedFiles, sourceFile])];
+  const finalizedFiles: string[] = [];
 
-  const compileResult = await compileSource(
-    settings,
-    wikiPath,
-    request.sourceText,
-    sourceFile.split('/').pop() || request.sourceTitle,
-    { title: request.sourceTitle, category: request.category },
-  );
-
-  registerCompiledKnowledge(sourceFile, request.sourceText, compileResult.compiledPages, compileResult.claims);
-  const embeddingConfig: EmbeddingConfig | undefined = settings.wikiSearchMode === 'hybrid'
-    ? {
-      apiUrl: settings.embeddingApiUrl,
-      model: settings.embeddingModel,
-      dimensions: settings.embeddingDimensions,
-    }
-    : undefined;
-  await rebuildWikiSearchIndex(wikiPath, embeddingConfig);
-
-  let graphErrors: string[] = [];
-
-  // 摄入后自动构建知识图谱：页面级边
   try {
-    const graphResult = buildGraphFromPages(
-      compileResult.compiledPages,
-      compileResult.relationships,
+    const compileResult = await compileSource(
+      settings,
       wikiPath,
+      request.sourceText,
+      sourceFile.split('/').pop() || request.sourceTitle,
+      { title: request.sourceTitle, category: request.category },
     );
-    if (graphResult.errors.length > 0) {
-      log.warn('[graphBuilder] 部分构建失败:', { errors: graphResult.errors });
-      graphErrors = graphResult.errors;
+    const finalizedByPath = finalizeStagedFiles(wikiPath, stagedFiles, finalizedFiles);
+    const committedSourceFile = finalizedByPath.get(sourceFile) || sourceFile;
+    const committedArchivedFiles = archivedFiles.map((file) => finalizedByPath.get(file) || file);
+
+    registerCompiledKnowledge(committedSourceFile, request.sourceText, compileResult.compiledPages, compileResult.claims);
+    const embeddingConfig: EmbeddingConfig | undefined = settings.wikiSearchMode === 'hybrid'
+      ? {
+        apiUrl: settings.embeddingApiUrl,
+        model: settings.embeddingModel,
+        dimensions: settings.embeddingDimensions,
+      }
+      : undefined;
+    await rebuildWikiSearchIndex(wikiPath, embeddingConfig);
+
+    const graphErrors = buildIngestionGraph(compileResult.compiledPages, compileResult.relationships, wikiPath);
+    try {
+      await generateCrossBatchCandidates(settings, wikiPath, compileResult.compiledPages);
+    } catch (err) {
+      log.warn('[crossBatchCandidates] 生成失败', { error: (err as Error).message });
     }
+
+    const manifestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    appendWikiManifestEntry(wikiPath, {
+      id: manifestId,
+      sourceFile: committedSourceFile,
+      archivedFiles: committedArchivedFiles,
+      pageFiles: compileResult.pages.map((page) => page.filename),
+      summary: request.summaryHint || compileResult.summary,
+      createdAt: new Date().toISOString(),
+    });
+
+    return {
+      sourceFile: committedSourceFile,
+      archivedFiles: committedArchivedFiles,
+      pages: compileResult.pages,
+      summary: compileResult.summary,
+      manifestId,
+      graphErrors: graphErrors.length > 0 ? graphErrors : undefined,
+    };
+  } catch (error: unknown) {
+    stagedFiles.forEach((file) => discardWikiStagedFile(wikiPath, file));
+    finalizedFiles.forEach((file) => rollbackWikiSourceFile(wikiPath, file));
+    throw error;
+  }
+}
+
+function finalizeStagedFiles(
+  wikiPath: string,
+  files: string[],
+  finalizedFiles: string[],
+): Map<string, string> {
+  const finalizedByPath = new Map<string, string>();
+  for (const file of files) {
+    const finalized = finalizeWikiSourceFile(wikiPath, file);
+    finalizedByPath.set(file, finalized);
+    if (finalized !== file) finalizedFiles.push(finalized);
+  }
+  return finalizedByPath;
+}
+
+function buildIngestionGraph(
+  pages: CompiledPage[],
+  relationships: Relationship[],
+  wikiPath: string,
+): string[] {
+  try {
+    const graphResult = buildGraphFromPages(pages, relationships, wikiPath);
+    if (graphResult.errors.length > 0) log.warn('[graphBuilder] 部分构建失败:', { errors: graphResult.errors });
+    return graphResult.errors;
   } catch (err) {
     log.error('[graphBuilder] 构建异常:', { error: (err as Error).message });
-    graphErrors = [(err as Error).message];
+    return [(err as Error).message];
   }
-  try {
-    await generateCrossBatchCandidates(settings, wikiPath, compileResult.compiledPages);
-  } catch (err) {
-    log.warn('[crossBatchCandidates] 生成失败', { error: (err as Error).message });
-  }
-
-  const manifestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  appendWikiManifestEntry(wikiPath, {
-    id: manifestId,
-    sourceFile,
-    archivedFiles,
-    pageFiles: compileResult.pages.map((page) => page.filename),
-    summary: request.summaryHint || compileResult.summary,
-    createdAt: new Date().toISOString(),
-  });
-
-  return {
-    sourceFile,
-    archivedFiles,
-    pages: compileResult.pages,
-    summary: compileResult.summary,
-    manifestId,
-    graphErrors: graphErrors.length > 0 ? graphErrors : undefined,
-  };
 }

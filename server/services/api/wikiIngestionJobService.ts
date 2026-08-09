@@ -5,6 +5,7 @@ import { captureWikiPage } from '../utils/wikiPageCapture.js';
 import { isSupportedFile } from '../utils/fileParseService.js';
 import {
   archiveWikiUpload,
+  discardWikiStagedFile,
   readArchivedWikiFile,
   WikiUploadValidationError,
 } from './wikiFileService.js';
@@ -44,6 +45,7 @@ export interface WikiIngestionJobDependencies {
   parseFile: typeof parseFile;
   ingestWikiSource: typeof ingestWikiSource;
   archiveWikiUpload: typeof archiveWikiUpload;
+  discardWikiStagedFile: typeof discardWikiStagedFile;
   readArchivedWikiFile: typeof readArchivedWikiFile;
   createJob: typeof jobStore.createJob;
   updateJob: typeof jobStore.updateJob;
@@ -64,6 +66,7 @@ const defaultDependencies: WikiIngestionJobDependencies = {
   parseFile,
   ingestWikiSource,
   archiveWikiUpload,
+  discardWikiStagedFile,
   readArchivedWikiFile,
   createJob: jobStore.createJob,
   updateJob: jobStore.updateJob,
@@ -125,7 +128,7 @@ export class WikiIngestionJobService {
   }
 
   /**
-   * 校验并归档上传文件，创建后台作业后立即返回。
+   * 校验并暂存上传文件，创建后台作业后立即返回。
    */
   start(input: WikiUploadInput): WikiUploadStartResult {
     const normalizedInput: WikiUploadInput = {
@@ -162,7 +165,7 @@ export class WikiIngestionJobService {
     };
   }
 
-  /** 创建 Chat 异步摄入任务；文件在入队前归档，后台任务只读取归档路径。 */
+  /** 创建 Chat 异步摄入任务；文件在入队前暂存，后台任务只读取暂存路径。 */
   startChat(input: WikiChatIngestionInput, conversationId?: string): WikiJobStartResult {
     const settings = this.dependencies.getAiSettings();
     const wikiPath = settings.wikiPath;
@@ -178,21 +181,26 @@ export class WikiIngestionJobService {
 
     const archivedFiles: Array<{ name: string; existingRelativePath: string }> = [];
     let totalSize = 0;
-    for (const file of input.files || []) {
-      if (!isSupportedFile(file.name)) {
-        throw new WikiUploadValidationError(`不支持的文件类型: ${path.extname(file.name)}`);
+    try {
+      for (const file of input.files || []) {
+        if (!isSupportedFile(file.name)) {
+          throw new WikiUploadValidationError(`不支持的文件类型: ${path.extname(file.name)}`);
+        }
+        const buffer = Buffer.from(file.content, 'base64');
+        if (settings.wikiMaxFileSize > 0 && buffer.length > settings.wikiMaxFileSize) {
+          throw new WikiUploadValidationError(`文件 ${file.name} 超过大小限制`);
+        }
+        const sourceFile = this.dependencies.archiveWikiUpload(wikiPath, settings, {
+          name: file.name,
+          size: buffer.length,
+          buffer,
+        });
+        archivedFiles.push({ name: file.name, existingRelativePath: sourceFile });
+        totalSize += buffer.length;
       }
-      const buffer = Buffer.from(file.content, 'base64');
-      if (settings.wikiMaxFileSize > 0 && buffer.length > settings.wikiMaxFileSize) {
-        throw new WikiUploadValidationError(`文件 ${file.name} 超过大小限制`);
-      }
-      const sourceFile = this.dependencies.archiveWikiUpload(wikiPath, settings, {
-        name: file.name,
-        size: buffer.length,
-        buffer,
-      });
-      archivedFiles.push({ name: file.name, existingRelativePath: sourceFile });
-      totalSize += buffer.length;
+    } catch (error: unknown) {
+      archivedFiles.forEach((file) => this.dependencies.discardWikiStagedFile(wikiPath, file.existingRelativePath));
+      throw error;
     }
 
     const fileCount = (input.files?.length || 0) + (input.urls?.length || 0);
@@ -365,6 +373,7 @@ export class WikiIngestionJobService {
         result,
       });
     } catch (error: unknown) {
+      archivedFiles.forEach((file) => this.dependencies.discardWikiStagedFile(settings.wikiPath, file.existingRelativePath));
       if (!(error instanceof CancelledJobError)) this.markError(jobId, error);
     }
   }
@@ -422,6 +431,7 @@ export class WikiIngestionJobService {
         result,
       });
     } catch (error: unknown) {
+      this.dependencies.discardWikiStagedFile(settings.wikiPath, sourceFile);
       if (!(error instanceof CancelledJobError)) this.markError(jobId, error);
     }
   }

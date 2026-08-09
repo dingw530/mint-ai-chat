@@ -6,7 +6,9 @@ import {
   archiveWikiRawFile,
   archiveWikiUpload,
   buildWikiSourceText,
+  finalizeWikiSourceFile,
   readArchivedWikiFile,
+  discardWikiStagedFile,
   validateWikiUpload,
 } from '../wikiFileService.js';
 
@@ -37,7 +39,7 @@ describe('wikiFileService', () => {
     ).toThrow('超过限制');
   });
 
-  it('archives uploads with a normalized, unique path', () => {
+  it('stages uploads and finalizes them with a normalized, unique path', () => {
     const wikiPath = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-files-'));
     const today = new Date().toISOString().slice(0, 10);
     const input = { name: '2026-07-15-my-notes!!.md', size: 3, buffer: Buffer.from('abc') };
@@ -45,9 +47,15 @@ describe('wikiFileService', () => {
     const first = archiveWikiUpload(wikiPath, { wikiMaxFileSize: 0 }, input);
     const second = archiveWikiUpload(wikiPath, { wikiMaxFileSize: 0 }, input);
 
-    expect(first).toBe(`sources/${today}-my-notes.md`);
-    expect(second).toBe(`sources/${today}-my-notes-2.md`);
+    expect(first).toBe(`ingestion-pending/${today}-my-notes.md`);
+    expect(second).toBe(`ingestion-pending/${today}-my-notes-2.md`);
+    expect(fs.existsSync(path.join(wikiPath, 'sources'))).toBe(false);
     expect(readArchivedWikiFile(wikiPath, first).toString()).toBe('abc');
+
+    expect(finalizeWikiSourceFile(wikiPath, first)).toBe(`sources/${today}-my-notes.md`);
+    expect(fs.readFileSync(path.join(wikiPath, 'sources', `${today}-my-notes.md`), 'utf-8')).toBe('abc');
+    discardWikiStagedFile(wikiPath, second);
+    expect(fs.existsSync(path.join(wikiPath, second))).toBe(false);
   });
 
   it('rejects paths outside the Wiki root', () => {

@@ -112,8 +112,19 @@ export interface LooseWikiPage {
   content: string;
 }
 
+export interface LooseWikiClaim {
+  pageTitle: string;
+  text: string;
+  normalizedKey?: string;
+  confidence?: number;
+  importance?: number;
+  evidence?: string;
+  evidenceQuote?: string;
+}
+
 export interface LooseWikiParseResult {
   pages: LooseWikiPage[];
+  claims?: LooseWikiClaim[];
   relationships: Relationship[];
   summary: string;
 }
@@ -133,16 +144,17 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
 1. 分析资料内容，提取关键知识点
 2. 按独立知识主题拆分页面：短文且只有一个核心主题时可生成一篇；长文、包含多个章节或同时包含案例/方法/概念时，必须生成 2-6 篇页面。不要把整篇文章压缩成一篇总览页。
 3. 每篇页面只承载一个核心主题，标题要能独立表达该主题；页面之间通过 relationships 和「关联页面」建立连接
-4. 每个页面必须包含以下字段：
+4. 页面正文中的每个事实性结论都必须在 claims 中列出；不得补充原始资料没有的信息
+5. 每个页面必须包含以下字段：
    - title: 页面标题
    - tags: [标签列表]
    - created: YYYY-MM-DD（当前日期）
    - source: {sourceFilename}（原始资料文件名）
-5. 内容用 Markdown 编写，结构清晰
-6. 文件名为 pages/分类/页面名.md，分类必须填写且不能为空。禁止将页面直接放在 pages/ 根目录下。
-7. 页面分类必须从当前 Schema 提供的分类定义中选择，必须按页面自身主题判断，不得默认全部使用同一个分类
-8. 页面之间使用 Mint Wiki 协议链接交叉引用
-9. 每个页面正文末尾必须添加「关联页面」段落，引用已有知识库中相关的页面。格式：
+6. 内容用 Markdown 编写，结构清晰
+7. 文件名为 pages/分类/页面名.md，分类必须填写且不能为空。禁止将页面直接放在 pages/ 根目录下。
+8. 页面分类必须从当前 Schema 提供的分类定义中选择，必须按页面自身主题判断，不得默认全部使用同一个分类
+9. 页面之间使用 Mint Wiki 协议链接交叉引用
+10. 每个页面正文末尾必须添加「关联页面」段落，引用已有知识库中相关的页面。格式：
 
 ## 关联页面
 - [已有页面标题](mint-wiki://open?path=pages%2F分类%2F已有页面标题.md)
@@ -211,7 +223,7 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
       "normalizedKey": "稳定的主题键",
       "confidence": 0.0,
       "importance": 0.0,
-      "evidence": "原始资料中的依据"
+      "evidenceQuote": "从原始资料逐字复制的证据片段"
     }
   ],
   "relationships": [
@@ -233,7 +245,64 @@ export const INGEST_SYSTEM_PROMPT = `你是一个知识编译助手，遵循 LLM
  *  标准 JSON.parse 必然失败。此函数通过逐字段提取绕过此问题：
  *  1. 先尝试标准 parse / 提取 {...}
  *  2. 若仍失败，用正则逐个提取 page 对象中的 filename/title/tags/content
- *  3. 对 content 字段，通过引号平衡算法安全截取原始内容并手动转义 */
+ *  3. 对 content 字段，通过引号平衡算法安全截取原始内容并手动转义
+ *  4. 对 claims / relationships 数组，保留仍可独立解析的 JSON 数组 */
+function extractJsonArray(text: string, key: string): unknown[] | null {
+  const keyMatch = new RegExp(`"${key}"\\s*:`).exec(text);
+  if (!keyMatch) return null;
+
+  const start = text.indexOf('[', keyMatch.index + keyMatch[0].length);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '[') depth += 1;
+    if (char === ']') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          const parsed: unknown = JSON.parse(text.slice(start, index + 1));
+          return Array.isArray(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** 将宽松解析得到的未知值收窄为可供证据校验使用的 Claim。 */
+function parseLooseClaims(value: unknown[] | null): LooseWikiClaim[] {
+  if (!value) return [];
+  return value.filter((item): item is LooseWikiClaim => (
+    Boolean(item)
+    && typeof item === 'object'
+    && typeof (item as Record<string, unknown>).pageTitle === 'string'
+    && typeof (item as Record<string, unknown>).text === 'string'
+  ));
+}
+
+/**
+ * 从非标准 JSON 中提取结构化结果。
+ */
 export function tryParseLooseJson(text: string): LooseWikiParseResult | null {
   // 1. standard parse
   try { return JSON.parse(text); } catch { /* empty */ }
@@ -297,12 +366,18 @@ export function tryParseLooseJson(text: string): LooseWikiParseResult | null {
   }
 
   if (pages.length > 0) {
-    let relationships: Relationship[] = [];
-    const relMatch = text.match(/"relationships"s*:s*([[sS]*?])s*,s*"summary"/);
-    if (relMatch) {
-      try { relationships = JSON.parse(relMatch[1]); } catch { /* skip */ }
-    }
-    return { pages, relationships, summary: `成功提取 ${pages.length} 个页面` };
+    const claims = parseLooseClaims(extractJsonArray(text, 'claims'));
+    const relationshipsValue = extractJsonArray(text, 'relationships');
+    const relationships = relationshipsValue
+      ? relationshipsValue.filter((item): item is Relationship => (
+        Boolean(item)
+        && typeof item === 'object'
+        && typeof (item as Record<string, unknown>).source === 'string'
+        && typeof (item as Record<string, unknown>).target === 'string'
+        && typeof (item as Record<string, unknown>).relation === 'string'
+      ))
+      : [];
+    return { pages, claims, relationships, summary: `成功提取 ${pages.length} 个页面` };
   }
 
   return null;
