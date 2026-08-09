@@ -184,4 +184,20 @@ describe('A2UIComposer', () => {
       distance: 0.22,
     });
   });
+
+  it('exposes references from an artifact-sized raw result without replacing model context', () => {
+    const composer = new A2UIComposer();
+    composer.captureToolResult('wiki_search', {
+      results: [{ file: 'pages/raw.md', chunkId: 'pages/raw.md#file', title: 'Raw page', heading: '' }],
+    });
+
+    expect(composer.getReferences()).toEqual([{
+      refId: 'C1',
+      file: 'pages/raw.md',
+      title: 'Raw page',
+      heading: '',
+      chunkId: 'pages/raw.md#file',
+    }]);
+    expect(composer.getBlocks()).toHaveLength(0);
+  });
 });

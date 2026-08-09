@@ -47,6 +47,7 @@ export interface ToolExecutionResult {
   succeeded: boolean;
   resultSummary?: string;
   approvalRequired?: { approvalId?: string; reason: string };
+  rawResult?: unknown;
 }
 
 // ── SSE 流解析（无 Express 依赖） ──
@@ -222,7 +223,7 @@ export class ToolLoopEngine {
       content: resultStr,
     };
 
-    return { assistantMsg, toolMsg, succeeded: true };
+    return { assistantMsg, toolMsg, succeeded: true, rawResult: toolResult };
   }
 
   // 执行工具并支持重试（用于 reactChat 场景）
@@ -275,6 +276,7 @@ export class ToolLoopEngine {
       succeeded,
       resultSummary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
       approvalRequired,
+      rawResult: toolResult,
     };
   }
 }

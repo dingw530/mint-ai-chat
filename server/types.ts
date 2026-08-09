@@ -179,6 +179,13 @@ export interface StreamResult {
   reasoning: string;
   toolCalls: ToolCall[] | null;
   uiBlocks?: PersistedUiBlock[];
+  wikiReferences?: Array<{
+    refId: string;
+    title: string;
+    file: string;
+    heading: string;
+    chunkId: string;
+  }>;
 }
 
 export interface StreamChunk {

@@ -100,6 +100,27 @@ describe('agent-eval', () => {
     expect(result.reasons).toContain('missing required source: source-rag.md');
   });
 
+  it('separates retrieval hits from citations shown in the final answer', () => {
+    const evalCase: EvalCase = {
+      id: 'wiki-retrieval-vs-citation-001',
+      input: '问题',
+      tags: ['wiki', 'retrieval', 'citation'],
+      expected: { requiredSourceFiles: ['source-rag.md'], minCitations: 1 },
+    };
+    const result = verifyExecution(evalCase, {
+      content: '回答',
+      events: [{ type: 'run_completed' }],
+      citations: [],
+      retrievedCitations: [{ file: 'pages/rag.md', sourceFile: 'source-rag.md' }],
+    }, 1, 10);
+    expect(result.retrievalPassed).toBe(true);
+    expect(result.retrievalCoverage).toBe(1);
+    expect(result.citationCoverage).toBe(0);
+    expect(result.queryPassed).toBe(false);
+    expect(result.passed).toBe(false);
+    expect(result.reasons).toContain('missing required source: source-rag.md');
+  });
+
   it('requires an explicit abstention for unanswerable questions', () => {
     const evalCase: EvalCase = {
       id: 'wiki-abstention-001',
@@ -115,20 +136,62 @@ describe('agent-eval', () => {
     expect(result.abstained).toBe(true);
   });
 
+  it('recognizes natural abstention wording and separates tool budget from answer quality', () => {
+    const evalCase: EvalCase = {
+      id: 'wiki-query-quality-001',
+      input: '问题',
+      tags: ['wiki', 'citation', 'abstention'],
+      expected: {
+        mustUseTools: ['wiki_search'],
+        maxToolCalls: 3,
+        mustAbstain: true,
+        abstainMarkers: ['未找到'],
+        requiredSourceFiles: ['source-rag.md'],
+        minCitations: 1,
+      },
+    };
+    const result = verifyExecution(evalCase, {
+      content: '知识库中没有任何关于这个问题的相关资料，无法提供回答。',
+      events: [
+        { type: 'tool_call_start', toolName: 'wiki_search', round: 1 },
+        { type: 'tool_call_start', toolName: 'wiki_search', round: 1 },
+        { type: 'tool_call_start', toolName: 'wiki_search', round: 2 },
+        { type: 'tool_call_start', toolName: 'wiki_search', round: 2 },
+        { type: 'run_completed' },
+      ],
+      citations: [{ file: 'pages/rag.md', sourceFile: 'source-rag.md', refId: 'C1' }],
+    }, 1, 10);
+    expect(result.abstentionPassed).toBe(true);
+    expect(result.queryPassed).toBe(true);
+    expect(result.toolBudgetPassed).toBe(false);
+    expect(result.wikiSearchCalls).toBe(4);
+    expect(result.unrelatedToolCalls).toBe(0);
+    expect(result.passed).toBe(false);
+  });
+
   it('calculates pass@1 and Pass^k independently', () => {
     const result = (caseId: string, runIndex: number, passed: boolean): EvalCaseResult => ({
       caseId,
       runIndex,
       passed,
+      queryPassed: passed,
+      answerPassed: passed,
+      retrievalPassed: passed,
+      toolBudgetPassed: passed,
+      abstentionPassed: passed,
       vetoed: false,
       reasons: passed ? [] : ['failed'],
       content: '',
       citations: [],
       citationCount: 0,
+      retrievedCitationCount: 0,
       citationCoverage: 0,
+      retrievalCoverage: 0,
       abstained: false,
       rounds: 1,
       toolCalls: 0,
+      wikiSearchCalls: 0,
+      unrelatedToolCalls: 0,
       successfulToolCalls: 0,
       retries: 0,
       loopDetected: false,

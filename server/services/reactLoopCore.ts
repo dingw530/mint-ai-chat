@@ -65,6 +65,12 @@ interface ToolExecutionResult {
   assistantMsg: HistoryMessage;
   toolMsg: HistoryMessage;
   approvalRequired?: { approvalId?: string; reason: string };
+  rawResult?: unknown;
+}
+
+export interface ReactExecutionPolicy {
+  maxToolCalls?: number;
+  maxToolCallsByName?: Record<string, number>;
 }
 
 /** 创建一次 ReAct 运行的可变状态，避免把状态散落在主循环的多个闭包变量中。 */
@@ -188,6 +194,7 @@ async function executeToolCalls(
     state: ReactRunState;
     maxRounds: number;
     runStartedAt: number;
+    executionPolicy?: ReactExecutionPolicy;
   },
 ): Promise<ToolExecutionResult[]> {
   const { state, events } = context;
@@ -196,6 +203,7 @@ async function executeToolCalls(
       const callId = originalCall.id || `${context.runId}:r${context.round}:c${index}`;
       const toolCall = { ...originalCall, id: callId };
       const startedAt = Date.now();
+      const canExecute = reserveToolCall(toolCall.function.name, state, context.executionPolicy);
       events.emit({
         type: 'tool_call_start',
         state: 'executing_tools',
@@ -206,8 +214,6 @@ async function executeToolCalls(
         summary: getToolCallSummary(toolCall),
       });
       state.currentTool = toolCall.function.name;
-      state.toolCount += 1;
-      state.toolCounts[state.currentTool] = (state.toolCounts[state.currentTool] || 0) + 1;
       events.emit({
         type: 'agent_status',
         ...getAgentStatus(
@@ -218,6 +224,26 @@ async function executeToolCalls(
           context.runStartedAt,
         ),
       });
+
+      if (!canExecute) {
+        const message = `评测工具预算已用尽，已拦截 ${toolCall.function.name}。请基于已有结果直接回答，不要继续调用工具。`;
+        events.emit({
+          type: 'tool_call_end',
+          round: context.round,
+          callId,
+          toolName: toolCall.function.name,
+          result: message,
+          duration: Date.now() - startedAt,
+          status: 'success',
+          summary: '已达到评测工具预算，未执行该调用',
+        });
+        state.forceFinalAnswer = true;
+        return {
+          index,
+          assistantMsg: { role: 'assistant', content: '', tool_calls: [toolCall], reasoning: result.reasoning || undefined },
+          toolMsg: { role: 'tool', tool_call_id: toolCall.id, content: message },
+        };
+      }
 
       let attempts = 0;
       const execution = await toolLoopEngine.executeToolCallWithRetry(
@@ -313,9 +339,20 @@ async function executeToolCalls(
         assistantMsg: execution.assistantMsg,
         toolMsg: execution.toolMsg,
         approvalRequired: execution.approvalRequired,
+        rawResult: execution.rawResult,
       };
     }),
   );
+}
+
+/** 预留一次工具调用名额；超限调用仍会被记录，但不会触达真实工具。 */
+function reserveToolCall(toolName: string, state: ReactRunState, policy?: ReactExecutionPolicy): boolean {
+  const totalAllowed = policy?.maxToolCalls === undefined || state.toolCount < policy.maxToolCalls;
+  const nameLimit = policy?.maxToolCallsByName?.[toolName];
+  const nameAllowed = nameLimit === undefined || (state.toolCounts[toolName] || 0) < nameLimit;
+  state.toolCount += 1;
+  state.toolCounts[toolName] = (state.toolCounts[toolName] || 0) + 1;
+  return totalAllowed && nameAllowed;
 }
 
 /** 兼容适配器返回的 JSON 参数和无法解析的原始参数字符串。 */
@@ -350,6 +387,7 @@ export async function reactChat(
   agent?: string,
   signal?: AbortSignal,
   conversationId?: string,
+  executionPolicy?: ReactExecutionPolicy,
 ): Promise<StreamResult> {
   const runId = uuidv4();
   const events = new ReactEventEmitter(sink, runId);
@@ -368,13 +406,13 @@ export async function reactChat(
   const { apiUrl, apiKey } = settings;
   if (!apiUrl || !apiKey) {
     fail(new Error('API URL or API Key not configured'));
-    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [] };
+    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [], wikiReferences: [] };
   }
 
   const adapter = getAdapter(settings.apiType || 'openai-chat');
   if (!adapter) {
     fail(new Error(`Unsupported API type: ${settings.apiType}`));
-    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [] };
+    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [], wikiReferences: [] };
   }
 
   const maxIterations = Math.max(1, Math.min(20, settings.reactMaxIterations ?? 5));
@@ -385,7 +423,7 @@ export async function reactChat(
     tools = await getAllToolDefinitions(agent);
   } catch (error) {
     fail(error);
-    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [] };
+    return { content: '', reasoning: '', toolCalls: null, uiBlocks: [], wikiReferences: [] };
   }
 
   let currentMessages: HistoryMessage[] = [...messages];
@@ -507,6 +545,7 @@ export async function reactChat(
       state,
       maxRounds: maxIterations,
       runStartedAt,
+      executionPolicy,
     });
 
     if (toolResults.some((result) => result.approvalRequired)) {
@@ -528,6 +567,9 @@ export async function reactChat(
             result: toolResult.toolMsg.content,
           },
         });
+        if (toolResult.rawResult !== undefined) {
+          a2uiComposer.captureToolResult(toolCall.function.name, toolResult.rawResult);
+        }
         if (uiResult.contextResult) toolResult.toolMsg.content = uiResult.contextResult;
         currentMessages.push(toolResult.assistantMsg, toolResult.toolMsg);
       });
@@ -588,5 +630,6 @@ export async function reactChat(
     reasoning: state.finalReasoning,
     toolCalls: null,
     uiBlocks: a2uiComposer.getBlocks(),
+    wikiReferences: a2uiComposer.getReferences(),
   };
 }

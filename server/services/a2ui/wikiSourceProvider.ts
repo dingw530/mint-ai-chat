@@ -109,6 +109,10 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
     return this.references.get(refId) || null;
   }
 
+  getReferences(): A2UIReference[] {
+    return [...this.references.values()].map((reference) => ({ ...reference }));
+  }
+
   createEmission(reference: A2UIReference, blockIndex: number, textOffset: number): A2UIEmission | null {
     if (this.emittedFiles.has(reference.file)) return null;
     const registration = a2uiRepository.findComponentRegistration('wiki_source_reference');
