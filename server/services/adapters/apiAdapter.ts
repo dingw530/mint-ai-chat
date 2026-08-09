@@ -13,6 +13,8 @@ export interface ParsedChunk {
 export interface CallOptions {
   maxTokens?: number;
   temperature?: number;
+  /** OpenAI-compatible reasoning models may expose a provider-specific thinking switch. */
+  thinking?: boolean;
   signal?: AbortSignal;
 }
 

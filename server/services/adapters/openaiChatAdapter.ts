@@ -118,6 +118,9 @@ export const openaiChatAdapter: ApiAdapter = {
       max_tokens: options?.maxTokens ?? 4096,
       temperature: options?.temperature ?? 0,
     };
+    if (options?.thinking !== undefined) {
+      body.thinking = { type: options.thinking ? 'enabled' : 'disabled' };
+    }
 
     const response = await fetch(url, {
       method: 'POST',
