@@ -127,6 +127,10 @@ export interface VisibleSettings {
   activeEndpointId: string | null;
   activeEndpointName: string | null;
   wikiPath: string;
+  wikiSearchMode: 'keyword' | 'hybrid';
+  embeddingApiUrl: string;
+  embeddingModel: string;
+  embeddingDimensions: number;
 }
 
 export interface SettingsInput {
@@ -141,6 +145,10 @@ export interface SettingsInput {
   toolMaxRetries?: number;
   showReactSteps?: boolean;
   wikiPath?: string;
+  wikiSearchMode?: 'keyword' | 'hybrid';
+  embeddingApiUrl?: string;
+  embeddingModel?: string;
+  embeddingDimensions?: number;
 }
 
 // ── SSE 流类型 ──
@@ -401,6 +409,10 @@ export interface ElectronAPI {
   openWikiInObsidian: () => Promise<{ success: boolean }>;
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
   getWikiHeat: (limit?: number) => Promise<import('@/services/api/wiki').WikiHeatResponse>;
+  getWikiVectorHealth: () => Promise<import('@/services/api/wiki').WikiVectorHealth>;
+  startWikiVectorBackfill: (input: { scope: 'all' | 'prefix' | 'selected'; prefix?: string; paths?: string[] }) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
+  getWikiVectorBackfill: (jobId: string) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
+  retryWikiVectorBackfill: (jobId: string) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
   readWiki: (
     path: string,
   ) => Promise<{ content: string; path: string; name: string; size: number }>;

@@ -214,6 +214,40 @@ describe('reactChat', () => {
     expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(2);
   });
 
+  it('blocks evaluator tool calls after the configured budget', async () => {
+    const calls = [1, 2, 3].map((index) => ({
+      id: `wiki-${index}`,
+      type: 'function' as const,
+      function: { name: 'wiki_search', arguments: JSON.stringify({ question: `q-${index}` }) },
+    }));
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockResolvedValueOnce({ content: '', reasoning: '', toolCalls: calls })
+      .mockResolvedValueOnce({ content: 'done', reasoning: '', toolCalls: null });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
+      assistantMsg: { role: 'assistant', content: '', tool_calls: [] },
+      toolMsg: { role: 'tool', tool_call_id: 'wiki', content: '{}' },
+      succeeded: true,
+    });
+
+    await reactChat(
+      [{ role: 'user', content: 'hi' }],
+      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+      sink,
+      undefined,
+      undefined,
+      'eval:budget',
+      { maxToolCallsByName: { wiki_search: 2 } },
+    );
+
+    expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(2);
+    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+    expect(events.filter((event) => event.type === 'tool_call_start')).toHaveLength(3);
+    expect(events.filter((event) => event.type === 'tool_call_end')).toHaveLength(3);
+    expect(events.find((event) => event.type === 'tool_call_end' && event.callId === 'wiki-3')?.summary).toContain('预算');
+  });
+
   it('emits a single cancelled terminal event and skips the model call', async () => {
     const controller = new AbortController();
     controller.abort();

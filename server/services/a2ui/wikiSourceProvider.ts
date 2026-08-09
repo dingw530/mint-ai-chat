@@ -17,6 +17,12 @@ interface WikiResult {
   snippet?: string;
   chunkId?: string;
   score?: number;
+  matchTypes?: string[];
+  pageStatus?: string | null;
+  lastVerifiedAt?: string | null;
+  lexicalRank?: number | null;
+  vectorRank?: number | null;
+  distance?: number | null;
 }
 
 interface WikiSearchPayload {
@@ -85,6 +91,12 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
           snippet: result.snippet || '',
           chunkId: result.chunkId,
           score: result.score,
+          matchTypes: result.matchTypes,
+          pageStatus: result.pageStatus,
+          lastVerifiedAt: result.lastVerifiedAt,
+          lexicalRank: result.lexicalRank,
+          vectorRank: result.vectorRank,
+          distance: result.distance,
         });
         if (fileKey) this.referenceIdsByFile.set(fileKey, refId);
       }
@@ -95,6 +107,10 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
 
   findReference(refId: string): A2UIReference | null {
     return this.references.get(refId) || null;
+  }
+
+  getReferences(): A2UIReference[] {
+    return [...this.references.values()].map((reference) => ({ ...reference }));
   }
 
   createEmission(reference: A2UIReference, blockIndex: number, textOffset: number): A2UIEmission | null {

@@ -100,7 +100,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       maxResults: normalizedInput.maxResults,
       includeContent: normalizedInput.includeContent,
     });
-    const result = searchWiki(
+    const result = await searchWiki(
       wikiPath,
       normalizedInput.question,
       normalizedInput.maxResults,

@@ -92,6 +92,12 @@ interface SourceReferenceModel {
   snippet: string;
   chunkId: string;
   score?: number;
+  matchTypes?: string[];
+  pageStatus?: string | null;
+  lastVerifiedAt?: string | null;
+  lexicalRank?: number | null;
+  vectorRank?: number | null;
+  distance?: number | null;
 }
 
 function isSourceReferenceModel(value: unknown): value is SourceReferenceModel {
@@ -120,8 +126,17 @@ const sourceReferenceCard = createComponentImplementation(sourceReferenceCardApi
       onClick={() => requestWikiPage(model.file)}
     >
       <span className="source-reference-card-label">[{model.refId}]</span>
-      <strong className="source-reference-card-title">{model.title}</strong>
-      <span className="source-reference-card-file">{model.file}</span>
+      <span className="source-reference-card-body">
+        <strong className="source-reference-card-title">{model.title}</strong>
+        {model.heading && <span className="source-reference-card-heading">{model.heading}</span>}
+        {model.snippet && <span className="source-reference-card-snippet">{model.snippet}</span>}
+        <span className="source-reference-card-footer">
+          <span className="source-reference-card-file">{model.file}</span>
+          {model.matchTypes?.includes('keyword') && <span className="source-reference-card-match">关键词</span>}
+          {model.matchTypes?.includes('vector') && <span className="source-reference-card-match source-reference-card-match-semantic">语义</span>}
+          {model.pageStatus && <span className="source-reference-card-status">{model.pageStatus === 'stale' ? '待复核' : model.pageStatus === 'active' ? '已验证' : model.pageStatus}</span>}
+        </span>
+      </span>
     </button>
   );
 });

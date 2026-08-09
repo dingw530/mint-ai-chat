@@ -32,6 +32,19 @@ const WIKI_MANIFEST_CONTENT = JSON.stringify({
   entries: [],
 }, null, 2) + '\n';
 
+export const DEFAULT_EMBEDDING_API_URL = 'http://127.0.0.1:11434/v1';
+export const DEFAULT_EMBEDDING_MODEL = 'bge-m3';
+export const DEFAULT_EMBEDDING_DIMENSIONS = 1024;
+
+function getSearchMode(raw: RawSettings): 'keyword' | 'hybrid' {
+  return raw.wikiSearchMode === 'hybrid' ? 'hybrid' : 'keyword';
+}
+
+function getEmbeddingDimensions(raw: RawSettings): number {
+  const dimensions = Number.parseInt(raw.embeddingDimensions || String(DEFAULT_EMBEDDING_DIMENSIONS), 10);
+  return Number.isFinite(dimensions) && dimensions > 0 ? dimensions : DEFAULT_EMBEDDING_DIMENSIONS;
+}
+
 function ensureWikiPath(wikiPath: string): void {
   if (!wikiPath) return;
   try {
@@ -99,6 +112,10 @@ export function get(): VisibleSettings {
     activeEndpointName: activeEndpoint?.name || null,
     wikiPath: raw.wikiPath || '',
     wikiMaxFileSize: parseInt(raw.wikiMaxFileSize || '10485760', 10),
+    wikiSearchMode: getSearchMode(raw),
+    embeddingApiUrl: raw.embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
+    embeddingModel: raw.embeddingModel || DEFAULT_EMBEDDING_MODEL,
+    embeddingDimensions: getEmbeddingDimensions(raw),
   };
 }
 
@@ -129,6 +146,10 @@ export function getAiSettings(): AiSettings {
       maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
       wikiPath: raw.wikiPath || '',
       wikiMaxFileSize: parseInt(raw.wikiMaxFileSize || '10485760', 10),
+      wikiSearchMode: getSearchMode(raw),
+      embeddingApiUrl: raw.embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
+      embeddingModel: raw.embeddingModel || DEFAULT_EMBEDDING_MODEL,
+      embeddingDimensions: getEmbeddingDimensions(raw),
     };
   }
   // 兜底：旧 settings 表（过渡期兼容）
@@ -148,12 +169,16 @@ export function getAiSettings(): AiSettings {
     maxContextRounds: parseInt(raw.maxContextRounds || '10', 10),
     wikiPath: raw.wikiPath || '',
     wikiMaxFileSize: parseInt(raw.wikiMaxFileSize || '10485760', 10),
+    wikiSearchMode: getSearchMode(raw),
+    embeddingApiUrl: raw.embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
+    embeddingModel: raw.embeddingModel || DEFAULT_EMBEDDING_MODEL,
+    embeddingDimensions: getEmbeddingDimensions(raw),
   };
 }
 
 // 保存设置：API Key 加密后写入，仅在有新 key 时更新
 // @deprecated — 同步端点逻辑将在后续版本移除，前端直接操作 model_endpoints 接口
-export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode, reactMaxIterations, toolMaxRetries, showReactSteps, wikiPath, wikiMaxFileSize }: SettingsInput): void {
+export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode, reactMaxIterations, toolMaxRetries, showReactSteps, wikiPath, wikiMaxFileSize, wikiSearchMode, embeddingApiUrl, embeddingModel, embeddingDimensions }: SettingsInput): void {
   const settings: Record<string, string> = {
     apiUrl,
     modelId,
@@ -166,6 +191,10 @@ export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memo
     showReactSteps: showReactSteps !== undefined ? String(showReactSteps) : 'true',
     wikiPath: wikiPath || '',
     wikiMaxFileSize: String(wikiMaxFileSize ?? 10485760),
+    wikiSearchMode: wikiSearchMode === 'hybrid' ? 'hybrid' : 'keyword',
+    embeddingApiUrl: embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
+    embeddingModel: embeddingModel || DEFAULT_EMBEDDING_MODEL,
+    embeddingDimensions: String(embeddingDimensions ?? DEFAULT_EMBEDDING_DIMENSIONS),
   };
   if (apiKey) {
     settings.apiKey = encrypt(apiKey);

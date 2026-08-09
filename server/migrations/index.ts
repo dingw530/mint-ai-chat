@@ -559,6 +559,72 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 25,
+    name: 'add-wiki-vector-search-index',
+    up: (db) => {
+      db.prepare('SELECT vec_version()').get();
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS wiki_embeddings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id TEXT NOT NULL UNIQUE,
+          model TEXT NOT NULL,
+          dimensions INTEGER NOT NULL,
+          content_hash TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (document_id) REFERENCES wiki_search_documents(id) ON DELETE CASCADE
+        );
+        CREATE VIRTUAL TABLE IF NOT EXISTS wiki_search_vectors USING vec0(
+          embedding float[1024] distance_metric=cosine
+        );
+        CREATE INDEX IF NOT EXISTS idx_wiki_embeddings_document
+          ON wiki_embeddings(document_id);
+      `);
+    },
+  },
+  {
+    id: 26,
+    name: 'add-wiki-vector-index-failures',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS wiki_vector_index_failures (
+          document_id TEXT PRIMARY KEY,
+          source_path TEXT NOT NULL,
+          error TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (document_id) REFERENCES wiki_search_documents(id) ON DELETE CASCADE
+        );
+      `);
+    },
+  },
+  {
+    id: 27,
+    name: 'add-wiki-vector-backfill-jobs',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS wiki_vector_backfill_jobs (
+          id TEXT PRIMARY KEY,
+          scope TEXT NOT NULL CHECK(scope IN ('all', 'prefix', 'selected')),
+          prefix TEXT,
+          paths_json TEXT NOT NULL DEFAULT '[]',
+          status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'completed', 'partial_failed', 'failed', 'cancelled')),
+          total INTEGER NOT NULL DEFAULT 0,
+          processed INTEGER NOT NULL DEFAULT 0,
+          indexed INTEGER NOT NULL DEFAULT 0,
+          skipped INTEGER NOT NULL DEFAULT 0,
+          failed INTEGER NOT NULL DEFAULT 0,
+          current_path TEXT,
+          error TEXT,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_wiki_vector_backfill_jobs_updated
+          ON wiki_vector_backfill_jobs(updated_at DESC);
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──

@@ -1,5 +1,6 @@
 import * as wikiService from '../../services/api/wikiService.js';
 import { wikiIngestionJobService } from '../../services/api/wikiIngestionJobService.js';
+import { wikiVectorBackfillService } from '../../services/api/wikiVectorBackfillService.js';
 import type { EndpointDescriptor } from '../types.js';
 
 export const wikiEndpoints: EndpointDescriptor[] = [
@@ -118,6 +119,46 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     service: (jobId: string) => wikiIngestionJobService.remove(jobId),
     ipcServiceRef: { module: 'wikiIngestionJobService', method: 'remove' },
     args: [{ from: 'path', name: 'jobId' }],
+    result: 'direct',
+  },
+  {
+    id: 'wiki:startVectorBackfill',
+    method: 'POST',
+    path: '/vector-backfill',
+    preloadMethod: 'startWikiVectorBackfill',
+    service: (input: unknown) => wikiVectorBackfillService.start(input),
+    ipcServiceRef: { module: 'wikiVectorBackfillService', method: 'start' },
+    args: [{ from: 'body' }],
+    result: 'direct',
+  },
+  {
+    id: 'wiki:getVectorBackfill',
+    method: 'GET',
+    path: '/vector-backfill/:jobId',
+    preloadMethod: 'getWikiVectorBackfill',
+    service: (jobId: string) => wikiVectorBackfillService.getStatus(jobId),
+    ipcServiceRef: { module: 'wikiVectorBackfillService', method: 'getStatus' },
+    args: [{ from: 'path', name: 'jobId' }],
+    result: 'job',
+  },
+  {
+    id: 'wiki:retryVectorBackfill',
+    method: 'POST',
+    path: '/vector-backfill/:jobId/retry',
+    preloadMethod: 'retryWikiVectorBackfill',
+    service: (jobId: string) => wikiVectorBackfillService.retry(jobId),
+    ipcServiceRef: { module: 'wikiVectorBackfillService', method: 'retry' },
+    args: [{ from: 'path', name: 'jobId' }],
+    result: 'direct',
+  },
+  {
+    id: 'wiki:getVectorHealth',
+    method: 'GET',
+    path: '/vector-health',
+    preloadMethod: 'getWikiVectorHealth',
+    service: () => wikiVectorBackfillService.getHealth(),
+    ipcServiceRef: { module: 'wikiVectorBackfillService', method: 'getHealth' },
+    args: [],
     result: 'direct',
   },
 ];

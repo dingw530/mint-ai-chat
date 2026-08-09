@@ -104,9 +104,16 @@ npm run eval:wiki-rag -w agent-eval
 报告默认写入 `agent-eval/viewer/report.json`，包含：
 
 - `passAt1`：单次通过率
+- `queryPassAt1`：答案内容、最终展示引用和检索证据均通过率，不把工具预算超限单独混入查询质量
+- `answerPassAt1`：答案内容与拒答行为通过率
+- `toolBudgetPassRate`：工具调用次数和循环控制通过率
+- `wikiSearchBudgetPassRate`：Wiki 查询是否控制在每题最多 2 次搜索（可用 `maxWikiSearchCalls` 覆盖）
+- `averageWikiSearchCalls`：每次评测平均 `wiki_search` 调用次数
+- `unrelatedToolRate`：非 `wiki_search` 工具调用占比，用于识别 `discover_tools`、`invoke_skill` 等无关调用
 - `passPowerK`：多次运行稳定性
 - `citationCoverageRate`：引用断言覆盖率
 - `citationAccuracyRate`：来源引用准确率
+- `retrievalCoverageRate`：工具检索结果对目标来源断言的覆盖率；它与最终答案展示的引用覆盖率分开统计
 - `abstentionAccuracy`：无答案拒答准确率
 
 ### 查看报告

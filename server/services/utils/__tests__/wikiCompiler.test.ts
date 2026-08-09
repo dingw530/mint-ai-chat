@@ -40,8 +40,9 @@ describe('compileSource', () => {
     adapter.call.mockResolvedValue(JSON.stringify({
       pages: [{
         filename: 'pages/concepts/Type Safety.md', title: 'Type Safety', tags: ['typescript'],
-        content: 'Use explicit boundaries.',
+        content: 'Use explicit boundaries.\n\nsource text',
       }],
+      claims: [{ pageTitle: 'Type Safety', text: 'source text', evidenceQuote: 'source text' }],
       relationships: [], summary: 'created one page',
     }));
 
@@ -54,11 +55,72 @@ describe('compileSource', () => {
     expect(fs.readFileSync(path.join(wikiPath, '_index.md'), 'utf8')).toContain('Type Safety');
   });
 
+  it('passes the larger output budget for long sources', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/long.md', title: 'Long', tags: [], content: 'source text' }],
+      claims: [{ pageTitle: 'Long', text: 'source text', evidenceQuote: 'source text' }],
+      relationships: [], summary: 'long source',
+    }));
+
+    await compileSource(settings, wikiPath, 'source text'.repeat(1000), 'long.md');
+
+    expect(adapter.call).toHaveBeenCalledWith(
+      expect.any(Array),
+      { modelId: 'test-model' },
+      'https://example.com/v1',
+      'test-key',
+      { maxTokens: 8192, temperature: 0.3, thinking: false },
+    );
+  });
+
+  it('retries an empty long-source response with the default budget', async () => {
+    adapter.call
+      .mockResolvedValueOnce('')
+      .mockResolvedValueOnce(JSON.stringify({
+        pages: [{ filename: 'pages/concepts/retry.md', title: 'Retry', tags: [], content: 'source text' }],
+        claims: [{ pageTitle: 'Retry', text: 'source text', evidenceQuote: 'source text' }],
+        relationships: [], summary: 'retry',
+      }));
+
+    await compileSource(settings, wikiPath, 'source text'.repeat(1000), 'long.md');
+
+    expect(adapter.call).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Array),
+      { modelId: 'test-model' },
+      'https://example.com/v1',
+      'test-key',
+      { maxTokens: 4096, temperature: 0.3, thinking: false },
+    );
+  });
+
+  it('retries a failed long-source response with the default budget', async () => {
+    adapter.call
+      .mockRejectedValueOnce(new Error('request timed out'))
+      .mockResolvedValueOnce(JSON.stringify({
+        pages: [{ filename: 'pages/concepts/timeout.md', title: 'Timeout', tags: [], content: 'source text' }],
+        claims: [{ pageTitle: 'Timeout', text: 'source text', evidenceQuote: 'source text' }],
+        relationships: [], summary: 'timeout retry',
+      }));
+
+    await compileSource(settings, wikiPath, 'source text'.repeat(1000), 'long.md');
+
+    expect(adapter.call).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Array),
+      { modelId: 'test-model' },
+      'https://example.com/v1',
+      'test-key',
+      { maxTokens: 4096, temperature: 0.3, thinking: false },
+    );
+  });
+
   it('deduplicates a page whose title already exists', async () => {
     fs.mkdirSync(path.join(wikiPath, 'pages', 'concepts'), { recursive: true });
     fs.writeFileSync(path.join(wikiPath, 'pages', 'concepts', 'existing.md'), '---\ntitle: Existing Concept\n---\n\nold');
     adapter.call.mockResolvedValue(JSON.stringify({
       pages: [{ filename: 'pages/concepts/new.md', title: 'Existing Concept', tags: [], content: 'duplicate' }],
+      claims: [{ pageTitle: 'Existing Concept', text: 'source text', evidenceQuote: 'source text' }],
       relationships: [], summary: 'deduplicated',
     }));
 
@@ -68,6 +130,73 @@ describe('compileSource', () => {
     expect(result.relationships).toEqual([expect.objectContaining({
       source: 'Existing Concept', target: 'Existing Concept', relation: '属于',
     })]);
+  });
+
+  it('rejects compiled pages without claims before writing', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/unsafe.md', title: 'Unsafe', tags: [], content: 'invented' }],
+      relationships: [], summary: 'unsafe',
+    }));
+
+    await expect(compileSource(settings, wikiPath, 'source text', 'notes.md'))
+      .rejects.toThrow('AI 未返回可验证的 Wiki Claim');
+    expect(fs.existsSync(path.join(wikiPath, 'pages', 'concepts', 'unsafe.md'))).toBe(false);
+    expect(fs.existsSync(path.join(wikiPath, '_index.md'))).toBe(false);
+  });
+
+  it('extracts claims in a second call when page compilation omits them', async () => {
+    adapter.call
+      .mockResolvedValueOnce(JSON.stringify({
+        pages: [{ filename: 'pages/concepts/recovered.md', title: 'Recovered', tags: [], content: 'source text' }],
+        relationships: [], summary: 'pages only',
+      }))
+      .mockResolvedValueOnce(JSON.stringify({
+        pages: [],
+        claims: [{ pageTitle: 'Recovered', text: 'source text', evidenceQuote: 'source text' }],
+        relationships: [], summary: 'claims',
+      }));
+
+    const result = await compileSource(settings, wikiPath, 'source text', 'notes.md');
+
+    expect(result.claims).toEqual([expect.objectContaining({ pageTitle: 'Recovered' })]);
+    expect(adapter.call).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses a low-confidence source-only fallback for invalid long-source claims', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/fallback.md', title: 'Fallback', tags: [], content: 'source text' }],
+      relationships: [], summary: 'pages only',
+    }));
+
+    const result = await compileSource(settings, wikiPath, 'source text'.repeat(1000), 'long.md');
+
+    expect(result.claims[0]).toMatchObject({ pageTitle: 'Fallback', confidence: 0.2 });
+  });
+
+  it('rejects claims whose evidence is absent from the source', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/unsafe.md', title: 'Unsafe', tags: [], content: 'invented' }],
+      claims: [{ pageTitle: 'Unsafe', text: 'invented fact', evidenceQuote: 'not in source' }],
+      relationships: [], summary: 'unsafe',
+    }));
+
+    await expect(compileSource(settings, wikiPath, 'source text', 'notes.md'))
+      .rejects.toThrow('证据不在原始资料中');
+    expect(fs.existsSync(path.join(wikiPath, 'pages', 'concepts', 'unsafe.md'))).toBe(false);
+    expect(fs.existsSync(path.join(wikiPath, '_index.md'))).toBe(false);
+  });
+
+  it('rejects claims that point to a page not in the compiled result', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/known.md', title: 'Known', tags: [], content: 'source text' }],
+      claims: [{ pageTitle: 'Unknown', text: 'source text', evidenceQuote: 'source text' }],
+      relationships: [], summary: 'unsafe',
+    }));
+
+    await expect(compileSource(settings, wikiPath, 'source text', 'notes.md'))
+      .rejects.toThrow('Claim 指向不存在的页面');
+    expect(fs.existsSync(path.join(wikiPath, 'pages', 'concepts', 'known.md'))).toBe(false);
+    expect(fs.existsSync(path.join(wikiPath, '_index.md'))).toBe(false);
   });
 
   it('rejects malformed AI output before writing pages', async () => {

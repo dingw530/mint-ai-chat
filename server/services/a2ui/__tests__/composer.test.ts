@@ -150,4 +150,54 @@ describe('A2UIComposer', () => {
     expect(result('a.md').contextResult).toContain('"refId":"C1"');
     expect(result('b.md').contextResult).toContain('"refId":"C2"');
   });
+
+  it('carries hybrid evidence metadata into the persisted source block', () => {
+    const composer = new A2UIComposer();
+    composer.handle({
+      runId: 'run-1',
+      round: 1,
+      event: {
+        kind: 'tool_result',
+        toolName: 'wiki_search',
+        result: {
+          results: [{
+            file: 'pages/a.md',
+            chunkId: 'a#0',
+            title: 'A',
+            heading: '索引设计',
+            snippet: '证据片段',
+            matchTypes: ['keyword', 'vector'],
+            pageStatus: 'active',
+            lexicalRank: 2,
+            vectorRank: 1,
+            distance: 0.22,
+          }],
+        },
+      },
+    });
+    composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_chunk', content: '结论 [C1]' } });
+    composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_completed', content: '' } });
+    expect(composer.getBlocks()[0].data).toMatchObject({
+      heading: '索引设计',
+      matchTypes: ['keyword', 'vector'],
+      vectorRank: 1,
+      distance: 0.22,
+    });
+  });
+
+  it('exposes references from an artifact-sized raw result without replacing model context', () => {
+    const composer = new A2UIComposer();
+    composer.captureToolResult('wiki_search', {
+      results: [{ file: 'pages/raw.md', chunkId: 'pages/raw.md#file', title: 'Raw page', heading: '' }],
+    });
+
+    expect(composer.getReferences()).toEqual([{
+      refId: 'C1',
+      file: 'pages/raw.md',
+      title: 'Raw page',
+      heading: '',
+      chunkId: 'pages/raw.md#file',
+    }]);
+    expect(composer.getBlocks()).toHaveLength(0);
+  });
 });

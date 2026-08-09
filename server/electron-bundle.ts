@@ -32,4 +32,5 @@ export {
   createWikiIngestionJobService,
   wikiIngestionJobService,
 } from './services/api/wikiIngestionJobService.js';
+export { wikiVectorBackfillService } from './services/api/wikiVectorBackfillService.js';
 export * as pageCaptureService from './services/utils/wikiPageCapture.js';

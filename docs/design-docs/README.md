@@ -40,3 +40,5 @@
 | [Context Artifact 生命周期第一阶段](<../changes/2026-08-03-context-artifact-lifecycle/design-doc.md>) | 2026-08-03 | 已完成 |
 | [摄入任务中心](<../changes/2026-08-04-ingestion-task-center/design-doc.md>) | 2026-08-04 | 已完成 |
 | [Mint Wiki 统一链接协议](<../changes/2026-08-05-mint-wiki-protocol/design-doc.md>) | 2026-08-05 | 已完成 |
+| [Wiki 摄入证据闸门](<../changes/2026-08-09-ingestion-evidence-gate/design-doc.md>) | 2026-08-09 | 已完成 |
+| [Wiki 摄入 Source 事务化](<../changes/2026-08-09-ingestion-source-transaction/design-doc.md>) | 2026-08-09 | 已完成 |

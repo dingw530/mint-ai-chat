@@ -39,6 +39,10 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   const [toolMaxRetries, setToolMaxRetries] = useState(5);
   const [showReactSteps, setShowReactSteps] = useState(true);
   const [wikiPath, setWikiPath] = useState('');
+  const [wikiSearchMode, setWikiSearchMode] = useState<'keyword' | 'hybrid'>('keyword');
+  const [embeddingApiUrl, setEmbeddingApiUrl] = useState('http://127.0.0.1:11434/v1');
+  const [embeddingModel, setEmbeddingModel] = useState('bge-m3');
+  const [embeddingDimensions, setEmbeddingDimensions] = useState(1024);
   const [apiKeyDirty, setApiKeyDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -60,6 +64,10 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
         setToolMaxRetries(data.toolMaxRetries ?? 5);
         setShowReactSteps(data.showReactSteps !== false);
         setWikiPath(data.wikiPath || '');
+        setWikiSearchMode(data.wikiSearchMode || 'keyword');
+        setEmbeddingApiUrl(data.embeddingApiUrl || 'http://127.0.0.1:11434/v1');
+        setEmbeddingModel(data.embeddingModel || 'bge-m3');
+        setEmbeddingDimensions(data.embeddingDimensions || 1024);
       })
       .catch((err) => {
         console.error('Failed to load settings:', err);
@@ -111,7 +119,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
 
   const showToast = useCallback((type: string, message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 10000);
   }, []);
 
   const validate = () => {
@@ -151,9 +159,12 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
         toolMaxRetries,
         showReactSteps,
         wikiPath: wikiPath.trim(),
+        wikiSearchMode,
+        embeddingApiUrl: embeddingApiUrl.trim(),
+        embeddingModel: embeddingModel.trim(),
+        embeddingDimensions,
       });
       showToast('success', '设置已保存');
-      setTimeout(() => onClose(), 1000);
     } catch (err) {
       showToast('error', `Failed to save: ${(err as Error).message}`);
     } finally {
@@ -220,7 +231,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   return (
     <div className="modal-overlay">
       <Toast toast={toast} />
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} ref={modalRef}>
+      <div className="modal modal-wide" role="dialog" aria-label="设置" onClick={(e) => e.stopPropagation()} ref={modalRef}>
         <div className="modal-header">
           <h2>设置</h2>
           <button className="modal-close-btn" onClick={onClose} title="关闭">
@@ -288,14 +299,26 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
               <MemoriesPanel onToast={showToast} />
             )}
             {activeTab === 'wiki' && (
-              <WikiPanel wikiPath={wikiPath} setWikiPath={setWikiPath} onToast={showToast} />
+              <WikiPanel
+                wikiPath={wikiPath}
+                setWikiPath={setWikiPath}
+                wikiSearchMode={wikiSearchMode}
+                setWikiSearchMode={setWikiSearchMode}
+                embeddingApiUrl={embeddingApiUrl}
+                setEmbeddingApiUrl={setEmbeddingApiUrl}
+                embeddingModel={embeddingModel}
+                setEmbeddingModel={setEmbeddingModel}
+                embeddingDimensions={embeddingDimensions}
+                setEmbeddingDimensions={setEmbeddingDimensions}
+                onToast={showToast}
+              />
             )}
             {activeTab === 'endpoints' && (
               <EndpointsPanel onToast={showToast} />
             )}
           </div>
         </div>
-        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'skills' && activeTab !== 'bash' && activeTab !== 'memories' && activeTab !== 'wiki' && (
+        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'skills' && activeTab !== 'bash' && activeTab !== 'memories' && (
           <div className="modal-actions">
             <button className="btn-secondary" onClick={onClose}>
               取消

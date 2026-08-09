@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { runMigrations } from './migrations/index.js';
+import { load as loadSqliteVec } from 'sqlite-vec';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -21,6 +22,12 @@ const Database = require(
 const DB_PATH: string = process.env.AI_CHAT_DB_PATH || path.join(os.homedir(), '.mint', 'data.db');
 
 let db: DatabaseConstructor.Database | undefined;
+let vectorExtensionLoaded = false;
+
+/** 返回 sqlite-vec 是否已成功加载，供关键词模式保持可用。 */
+export function isVectorExtensionLoaded(): boolean {
+  return vectorExtensionLoaded;
+}
 
 // 获取数据库单例：延迟初始化，首次调用时自动建表、迁移、种子数据
 export function getDb(): DatabaseConstructor.Database {
@@ -30,6 +37,13 @@ export function getDb(): DatabaseConstructor.Database {
     db.pragma('journal_mode = WAL');   // WAL 模式提升并发读写性能
     db.pragma('foreign_keys = ON');    // 启用外键约束
     db.pragma('busy_timeout = 5000');  // 索引重建与生命周期写入并发时短暂等待写锁
+    try {
+      loadSqliteVec(db);
+      vectorExtensionLoaded = true;
+    } catch (error) {
+      vectorExtensionLoaded = false;
+      console.warn('[db] sqlite-vec unavailable; keyword search remains enabled:', error instanceof Error ? error.message : String(error));
+    }
     createSchema();
     runMigrations(db);
     seedData();
@@ -319,6 +333,33 @@ function createSchema(): void {
       title, heading, body, source_path,
       document_id UNINDEXED
     );
+    CREATE TABLE IF NOT EXISTS wiki_vector_index_failures (
+      document_id TEXT PRIMARY KEY,
+      source_path TEXT NOT NULL,
+      error TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (document_id) REFERENCES wiki_search_documents(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS wiki_vector_backfill_jobs (
+      id TEXT PRIMARY KEY,
+      scope TEXT NOT NULL CHECK(scope IN ('all', 'prefix', 'selected')),
+      prefix TEXT,
+      paths_json TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'completed', 'partial_failed', 'failed', 'cancelled')),
+      total INTEGER NOT NULL DEFAULT 0,
+      processed INTEGER NOT NULL DEFAULT 0,
+      indexed INTEGER NOT NULL DEFAULT 0,
+      skipped INTEGER NOT NULL DEFAULT 0,
+      failed INTEGER NOT NULL DEFAULT 0,
+      current_path TEXT,
+      error TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_wiki_vector_backfill_jobs_updated
+      ON wiki_vector_backfill_jobs(updated_at DESC);
   `);
 }
 

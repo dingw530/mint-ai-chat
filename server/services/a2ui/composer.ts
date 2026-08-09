@@ -42,6 +42,28 @@ export class A2UIComposer {
     return this.blocks.map((block) => ({ ...block, data: { ...block.data } }));
   }
 
+  /** 返回本轮已从 Wiki 搜索结果解析出的全部结构化引用。 */
+  getReferences(): Array<{
+    refId: string;
+    title: string;
+    file: string;
+    heading: string;
+    chunkId: string;
+  }> {
+    return this.providers.flatMap((provider) => (provider.getReferences?.() || []).map((reference) => ({
+      refId: reference.refId,
+      title: reference.title,
+      file: reference.file,
+      heading: reference.heading,
+      chunkId: reference.chunkId,
+    })));
+  }
+
+  /** 仅登记原始工具结果中的引用，不改变已经发送给模型的上下文内容。 */
+  captureToolResult(toolName: string, result: unknown): void {
+    this.handleToolResult(toolName, result);
+  }
+
   /** 移除未被编译为组件的引用标记，防止前端显示孤立标记。 */
   sanitizeContent(content: string): string {
     return content

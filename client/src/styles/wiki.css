@@ -131,23 +131,73 @@
 /* ── Welcome / Empty State ── */
 
 .wiki-welcome {
+  position: relative;
   flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 760px);
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  gap: clamp(32px, 6vh, 64px);
+  min-height: 100%;
+  margin: -40px -48px;
+  padding: clamp(52px, 8vh, 96px) clamp(32px, 7vw, 112px) 112px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 76% 45%, color-mix(in srgb, var(--accent-subtle) 60%, transparent), transparent 28%),
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-tertiary) 45%, transparent), transparent 52%);
+}
+
+.wiki-welcome::before {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to right, color-mix(in srgb, var(--border-subtle) 35%, transparent) 1px, transparent 1px);
+  background-size: 96px 100%;
+  content: '';
+  opacity: .28;
+  pointer-events: none;
+}
+
+.wiki-welcome-main {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-self: center;
+  width: min(100%, 620px);
   text-align: center;
-  min-height: 100%;
-  margin: -40px -48px;
-  padding: 60px 48px;
-  padding-bottom: 120px;
+}
+
+.wiki-welcome-overline,
+.wiki-welcome-side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.wiki-welcome-overline {
+  margin-bottom: clamp(28px, 5vh, 54px);
+}
+
+.wiki-welcome-overline-code {
+  color: var(--accent);
+  font-family: 'SF Mono', monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
 }
 
 .wiki-welcome-glyph {
   position: relative;
-  width: 80px;
-  height: 80px;
-  margin-bottom: 28px;
+  width: 66px;
+  height: 66px;
+  margin-bottom: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,7 +206,7 @@
 .wiki-welcome-glyph-bg {
   position: absolute;
   inset: 0;
-  border-radius: 24px;
+  border-radius: 20px;
   background: linear-gradient(135deg, var(--accent-subtle) 0%, color-mix(in srgb, var(--accent-subtle) 50%, var(--bg-primary)) 100%);
   transform: rotate(6deg);
   transition: transform 0.4s ease;
@@ -176,36 +226,41 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
   background: var(--bg-primary);
   color: var(--accent);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .wiki-welcome-glyph-icon svg {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   stroke: currentColor;
   stroke-width: 1.5;
 }
 
 .wiki-welcome h2 {
   font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 650;
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 680;
   color: var(--text-primary);
-  margin: 0 0 8px;
-  letter-spacing: -0.02em;
+  margin: 0 0 14px;
+  letter-spacing: -0.055em;
+  line-height: 1.06;
+}
+
+.wiki-welcome h2 span {
+  color: var(--accent);
 }
 
 .wiki-welcome p {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-tertiary);
-  margin: 0 0 36px;
+  margin: 0;
   line-height: 1.6;
-  max-width: 320px;
+  max-width: 360px;
 }
 
 .wiki-welcome-tips {
@@ -250,6 +305,207 @@
 
 .wiki-welcome-tip-text {
   color: var(--text-secondary);
+}
+
+.wiki-welcome-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 26px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.wiki-welcome-capabilities span,
+.wiki-welcome-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wiki-welcome-capabilities i,
+.wiki-welcome-live i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.wiki-welcome-side {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  width: 100%;
+  max-width: 980px;
+  justify-self: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-default);
+}
+
+.wiki-vector-health {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 8px 18px;
+  width: 100%;
+  padding: 0;
+}
+
+.wiki-vector-health-label,
+.wiki-vector-health-coverage,
+.wiki-vector-health-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wiki-vector-health-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wiki-vector-health-label i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: .7;
+}
+
+.wiki-vector-health-coverage {
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.wiki-vector-health-coverage small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.wiki-vector-health-stats {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.wiki-vector-health-stats span + span {
+  padding-left: 10px;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.wiki-vector-health-alert {
+  color: var(--error-text);
+}
+
+.wiki-vector-health-progress {
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.wiki-vector-health-progress span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-vector-health-action {
+  width: auto;
+  min-width: auto;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+  transition: color .2s ease;
+}
+
+.wiki-vector-health-action:hover:not(:disabled) {
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.wiki-vector-health-action:active:not(:disabled) {
+  transform: none;
+}
+
+.wiki-vector-health-action:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+/* Legacy card layout is intentionally replaced by the low-contrast welcome bar. */
+.wiki-vector-health--welcome {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* ── Responsive welcome status bar ── */
+@media (max-width: 900px) {
+  .wiki-welcome {
+    gap: 36px;
+    padding-top: 48px;
+  }
+
+  .wiki-welcome-side {
+    max-width: 680px;
+  }
+
+  .wiki-vector-health {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .wiki-vector-health-action {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 560px) {
+  .wiki-welcome {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .wiki-welcome-overline-code {
+    display: none;
+  }
+
+  .wiki-vector-health {
+    grid-template-columns: auto auto;
+  }
+
+  .wiki-vector-health-stats {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .wiki-vector-health-action {
+    grid-column: 2;
+  }
 }
 
 /* ── Wiki Document Reader ── */

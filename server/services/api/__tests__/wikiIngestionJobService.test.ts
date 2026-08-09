@@ -141,6 +141,20 @@ describe('wikiIngestionJobService', () => {
     expect(createJob).not.toHaveBeenCalled();
   });
 
+  it('cleans already staged Chat files when a later file is invalid', () => {
+    const discardWikiStagedFile = vi.fn();
+    const service = createWikiIngestionJobService({
+      getAiSettings: () => settings,
+      archiveWikiUpload: (_path, _settings, file) => `ingestion-pending/${file.name}`,
+      discardWikiStagedFile,
+    });
+
+    expect(() => service.startChat({
+      files: [{ name: 'good.md', content: 'good' }, { name: 'bad.exe', content: 'bad' }],
+    })).toThrow('不支持的文件类型');
+    expect(discardWikiStagedFile).toHaveBeenCalledWith('/tmp/test-wiki', 'ingestion-pending/good.md');
+  });
+
   it('returns the existing job for a repeated idempotency key', () => {
     const existing = { id: 'job-existing', fileName: 'notes.md', fileSize: 5, fileCount: 1 } as WikiJob;
     const archiveWikiUpload = vi.fn(() => 'sources/notes.md');

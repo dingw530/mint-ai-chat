@@ -31,6 +31,12 @@ export interface A2UIReference {
   snippet: string;
   chunkId: string;
   score?: number;
+  matchTypes?: string[];
+  pageStatus?: string | null;
+  lastVerifiedAt?: string | null;
+  lexicalRank?: number | null;
+  vectorRank?: number | null;
+  distance?: number | null;
 }
 
 export interface A2UIProviderResult {
@@ -43,6 +49,7 @@ export interface A2UIProvider {
   handleToolResult(rawResult: unknown, nextReferenceIndex: number): A2UIProviderResult;
   findReference(refId: string): A2UIReference | null;
   createEmission(reference: A2UIReference, blockIndex: number, textOffset: number): A2UIEmission | null;
+  getReferences?(): A2UIReference[];
 }
 
 export type A2UIOutput =
