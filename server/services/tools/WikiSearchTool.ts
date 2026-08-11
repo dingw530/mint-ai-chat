@@ -44,11 +44,10 @@ interface WikiSearchOutput {
 /**
  * 复合 Wiki 搜索工具：支持批量读取和关键词搜索。
  * 当你知道需要哪些文件时，始终用 paths 一次性批量读取多个文件，减少循环次数。
- * 也可以在一轮中并行调用多个 wiki_search，加快多篇查询速度。
  */
 export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> {
   readonly name = 'wiki_search';
-  readonly description = '搜索并读取 Wiki 知识库。支持 paths 批量读取多个文件（一次传入任意数量路径），也支持 question 关键词搜索返回匹配页面。原始结果提供 chunkId；聊天编排层会在返回给模型的工具结果中追加本轮 refId（如 C1），回答引用时只能使用实际返回的 refId。所有 Wiki 文件访问必须通过此工具，禁止使用 bash。当你需要多个文件时，把所有路径放入 paths 一次读完，不要分多次调用。你也可以在一轮中并行发起多个 wiki_search 调用加速处理。';
+  readonly description = '搜索并读取 Wiki 知识库。支持 paths 批量读取多个文件（一次传入任意数量路径），也支持 question 关键词搜索返回匹配页面。原始结果提供 chunkId；聊天编排层会在返回给模型的工具结果中追加本轮 refId（如 C1），回答引用时只能使用实际返回的 refId。所有 Wiki 文件访问必须通过此工具，禁止使用 bash。当你需要多个文件时，把所有路径放入 paths 一次读完，不要分多次调用；先完成一次搜索并检查证据是否足够，再决定是否补充搜索。';
   readonly inputSchema = WikiSearchInputSchema;
 
   isReadOnly(): boolean { return true; }
@@ -115,13 +114,13 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
 
     for (const filePath of paths) {
       if (!isPathSafe(wikiPath, filePath)) {
-        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[路径不安全: ${filePath}]`, score: 0, title: filePath, snippet: `[路径不安全: ${filePath}]` });
+        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[路径不安全: ${filePath}]`, score: 0, title: filePath, snippet: '' });
         continue;
       }
 
       const resolvedPath = path.resolve(wikiPath, filePath);
       if (!fs.existsSync(resolvedPath)) {
-        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[文件不存在: ${filePath}]`, score: 0, title: filePath, snippet: `[文件不存在: ${filePath}]` });
+        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[文件不存在: ${filePath}]`, score: 0, title: filePath, snippet: '' });
         continue;
       }
 
@@ -134,10 +133,11 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
           const isDir = fs.statSync(full).isDirectory();
           return `${isDir ? '[DIR]' : '[FILE]'} ${e}`;
         }).join('\n');
-        results.push({ chunkId: `${filePath}#listing`, file: filePath, content: listing, score: 1, title: filePath, snippet: listing.substring(0, 520) });
+        results.push({ chunkId: `${filePath}#listing`, file: filePath, content: listing, score: 1, title: filePath, snippet: '' });
       } else {
         const content = fs.readFileSync(resolvedPath, 'utf-8');
-        results.push({ chunkId: `${filePath}#file`, file: filePath, content: content.substring(0, 100000), score: 1, title: filePath, snippet: content.substring(0, 520) });
+        const parsed = parseWikiPage(filePath, content);
+        results.push({ chunkId: `${filePath}#file`, file: filePath, content: content.substring(0, 100000), score: 1, title: parsed.title, snippet: '' });
       }
     }
 

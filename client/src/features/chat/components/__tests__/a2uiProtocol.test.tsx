@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { A2uiSurface } from '@a2ui/react/v0_9';
-import { buildPersistedA2uiMessages, createA2uiProcessor, parseA2uiMessage } from '../a2uiProtocol';
+import A2uiSegment from '../A2uiSegment';
+import { buildPersistedA2uiMessages, createA2uiProcessor, getSourceSnippet, parseA2uiMessage } from '../a2uiProtocol';
 import { mintCatalog } from '../IngestionTaskCards';
 
 const model = {
@@ -17,6 +18,13 @@ const model = {
 };
 
 describe('official A2UI v0.9 ingestion protocol', () => {
+  it('only exposes summaries for chunk-level references', () => {
+    expect(getSourceSnippet({ chunkId: 'pages/a.md#chunk:0', snippet: 'chunk evidence' })).toBe('chunk evidence');
+    expect(getSourceSnippet({ chunkId: 'pages/a.md#claim:1', snippet: 'claim evidence' })).toBe('claim evidence');
+    expect(getSourceSnippet({ chunkId: 'pages/a.md#file', snippet: 'document frontmatter' })).toBe('');
+    expect(getSourceSnippet({ chunkId: 'pages/a.md#chunk:0', snippet: '  ' })).toBe('');
+  });
+
   it('rebuilds a persisted wiki block as official messages', () => {
     const messages = buildPersistedA2uiMessages({
       id: 'block-1', messageId: 'message-1', blockIndex: 0, textOffset: 4,
@@ -51,6 +59,45 @@ describe('official A2UI v0.9 ingestion protocol', () => {
     expect(container.textContent).toContain('索引设计');
     expect(container.textContent).toContain('关键词');
     expect(container.textContent).toContain('语义');
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it('does not render the beginning of a whole-file result as a summary', async () => {
+    const processor = createA2uiProcessor(mintCatalog);
+    processor.processMessages([
+      { version: 'v0.9', createSurface: { surfaceId: 'file-source', catalogId: 'mint' } },
+      { version: 'v0.9', updateComponents: { surfaceId: 'file-source', components: [{ id: 'root', component: 'SourceReferenceCard', data: { path: '/source' } }] } },
+      { version: 'v0.9', updateDataModel: { surfaceId: 'file-source', path: '/source', value: { refId: 'C1', title: 'Architecture', file: 'pages/a.md', snippet: 'document frontmatter', chunkId: 'pages/a.md#file' } } },
+    ]);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<A2uiSurface surface={processor.model.getSurface('file-source')!} />));
+    expect(container.querySelector('.source-reference-card')).not.toBeNull();
+    expect(container.querySelector('.source-reference-card-snippet')).toBeNull();
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it('does not render a separate source group heading', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(
+      <A2uiSegment
+        segment={{
+          type: 'a2ui',
+          segmentId: 'segment-1',
+          messages: [
+            { version: 'v0.9', createSurface: { surfaceId: 'segment-source', catalogId: 'mint' } },
+            { version: 'v0.9', updateComponents: { surfaceId: 'segment-source', components: [{ id: 'root', component: 'SourceReferenceCard', data: { path: '/source' } }] } },
+            { version: 'v0.9', updateDataModel: { surfaceId: 'segment-source', path: '/source', value: { refId: 'C1', title: 'Architecture', file: 'pages/a.md', chunkId: 'pages/a.md#chunk:0' } } },
+          ],
+        }}
+      />,
+    ));
+    expect(container.querySelector('.a2ui-source-group-label')).toBeNull();
     await act(async () => root.unmount());
     container.remove();
   });

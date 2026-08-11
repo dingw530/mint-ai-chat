@@ -200,4 +200,23 @@ describe('A2UIComposer', () => {
     }]);
     expect(composer.getBlocks()).toHaveLength(0);
   });
+
+  it('keeps a searched chunk when a later path read returns the whole file', () => {
+    const composer = new A2UIComposer();
+    composer.captureToolResult('wiki_search', {
+      results: [{ file: 'pages/a.md', chunkId: 'pages/a.md#chunk:1', title: 'A', heading: '目标段落', snippet: 'chunk evidence' }],
+    });
+    composer.captureToolResult('wiki_search', {
+      results: [{ file: 'pages/a.md', chunkId: 'pages/a.md#file', title: 'A', snippet: '' }],
+    });
+
+    composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_chunk', content: '结论 [C1]' } });
+    composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_completed', content: '' } });
+
+    expect(composer.getBlocks()[0].data).toMatchObject({
+      chunkId: 'pages/a.md#chunk:1',
+      heading: '目标段落',
+      snippet: 'chunk evidence',
+    });
+  });
 });

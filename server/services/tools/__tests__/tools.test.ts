@@ -556,10 +556,12 @@ describe('WikiSearchTool', () => {
 
   it('should read files via paths parameter', async () => {
     fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
-    fs.writeFileSync(path.join(tmpDir, 'pages/test.md'), '# Test\nHello world');
+    fs.writeFileSync(path.join(tmpDir, 'pages/test.md'), '---\ntitle: Test page\n---\n# Test\nHello world');
     const result = await tool.execute({ question: 'unused', paths: ['pages/test.md'] }, ctx);
     expect(result.results.length).toBe(1);
     expect(result.results[0].content).toContain('Hello world');
+    expect(result.results[0].title).toBe('Test page');
+    expect(result.results[0].snippet).toBe('');
   });
 
   it('should apply default search options when execute is called directly', async () => {
