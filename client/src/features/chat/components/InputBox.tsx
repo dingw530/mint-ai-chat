@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 
 function SendIcon() {
   return (
@@ -11,9 +11,10 @@ function SendIcon() {
 interface InputBoxProps {
   onSend: (content: string) => void;
   disabled: boolean;
+  children?: ReactNode;
 }
 
-export default function InputBox({ onSend, disabled }: InputBoxProps) {
+export default function InputBox({ onSend, disabled, children }: InputBoxProps) {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isCompositing = useRef(false);
@@ -53,28 +54,37 @@ export default function InputBox({ onSend, disabled }: InputBoxProps) {
   return (
     <div className="input-box">
       <form onSubmit={handleSubmit}>
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            adjustHeight();
-          }}
-          onKeyDown={handleKeyDown}
-          onCompositionStart={() => { isCompositing.current = true; }}
-          onCompositionEnd={() => { isCompositing.current = false; }}
-          placeholder={disabled ? '等待回复...' : '输入消息...'}
-          rows={1}
-          disabled={disabled}
-        />
-        <button
-          type="submit"
-          className="send-btn"
-          disabled={disabled || !text.trim()}
-          aria-label="发送消息"
-        >
-          <SendIcon />
-        </button>
+        <div className="input-box-editor">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              adjustHeight();
+            }}
+            onKeyDown={handleKeyDown}
+            onCompositionStart={() => { isCompositing.current = true; }}
+            onCompositionEnd={() => { isCompositing.current = false; }}
+            placeholder={disabled ? '等待回复...' : '输入消息...'}
+            rows={1}
+            disabled={disabled}
+          />
+        </div>
+        <div className="input-box-toolbar">
+          <div className="input-box-context">{children}</div>
+          <div className="input-box-hints" aria-hidden="true">
+            <span><kbd>Enter</kbd> 发送</span>
+            <span><kbd>Shift</kbd><b>+</b><kbd>Enter</kbd> 换行</span>
+          </div>
+          <button
+            type="submit"
+            className="send-btn"
+            disabled={disabled || !text.trim()}
+            aria-label="发送消息"
+          >
+            <SendIcon />
+          </button>
+        </div>
       </form>
     </div>
   );

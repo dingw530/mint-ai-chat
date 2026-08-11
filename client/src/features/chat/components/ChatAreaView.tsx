@@ -111,15 +111,6 @@ export default function ChatAreaView({
           <div className="chat-input-zone">
             <IngestionTaskCards conversationId={activeConversation} />
             <div className="chat-input-row">
-              <AgentBar
-                agents={agents}
-                activeAgent={activeAgent}
-                autoRoutedAgent={autoRoutedAgent}
-                lockedAgent={lockedAgent}
-                routingMode={routingMode}
-                onSelectAgent={onSelectAgent}
-                onUnlock={onUnlock}
-              />
               <div className="chat-input-main">
                 {sending ? (
                   <button className="stop-btn" onClick={onStop}>
@@ -129,7 +120,17 @@ export default function ChatAreaView({
                     停止生成
                   </button>
                 ) : (
-                  <InputBox onSend={onSend} disabled={sending} />
+                  <InputBox onSend={onSend} disabled={sending}>
+                    <AgentBar
+                      agents={agents}
+                      activeAgent={activeAgent}
+                      autoRoutedAgent={autoRoutedAgent}
+                      lockedAgent={lockedAgent}
+                      routingMode={routingMode}
+                      onSelectAgent={onSelectAgent}
+                      onUnlock={onUnlock}
+                    />
+                  </InputBox>
                 )}
               </div>
             </div>
