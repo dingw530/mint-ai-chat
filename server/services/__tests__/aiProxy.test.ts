@@ -44,6 +44,7 @@ describe('aiProxy', () => {
       const { getAdapter } = await import('../adapters/apiAdapter.js');
       const mockAdapter = vi.mocked(getAdapter)();
       mockAdapter.call = vi.fn().mockRejectedValue(new Error('API fail'));
+      vi.mocked(getAdapter).mockReturnValue(mockAdapter);
 
       const title = await generateTitle(
         { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
@@ -52,6 +53,28 @@ describe('aiProxy', () => {
       );
       // Falls back to truncated title
       expect(title).toBeTruthy();
+    });
+
+    it('disables thinking for title generation', async () => {
+      const { getAdapter } = await import('../adapters/apiAdapter.js');
+      const mockAdapter = vi.mocked(getAdapter)();
+      mockAdapter.call = vi.fn().mockResolvedValue('Chat title');
+      vi.mocked(getAdapter).mockReturnValue(mockAdapter);
+
+      const title = await generateTitle(
+        { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+        'Hello world',
+        'Response',
+      );
+
+      expect(title).toBe('Chat title');
+      expect(mockAdapter.call).toHaveBeenCalledWith(
+        expect.any(Array),
+        { modelId: undefined },
+        'https://api.test.com',
+        'sk-key',
+        { maxTokens: 60, temperature: 0.5, thinking: false },
+      );
     });
   });
 });
