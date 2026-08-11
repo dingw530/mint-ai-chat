@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { A2uiSurface } from '@a2ui/react/v0_9';
 import type { A2uiSegment as A2uiSegmentData } from '@/types';
-import { createA2uiProcessor, parseA2uiMessage, type A2uiSurfaceModel } from './a2uiProtocol';
+import { createA2uiProcessor, getSourceSnippet, parseA2uiMessage, type A2uiSurfaceModel } from './a2uiProtocol';
 import { mintCatalog } from './IngestionTaskCards';
 
 /** 渲染一段回答中的 A2UI 消息；处理失败时不影响旁边的文本答案。 */
@@ -36,10 +36,10 @@ export default function A2uiSegment({ segment }: { segment: A2uiSegmentData }) {
 
   return (
     <div className="a2ui-answer-segment" ref={containerRef}>
-      {surfaces.length > 0 && <div className="a2ui-source-group-label">参考依据</div>}
       <div className="a2ui-source-group">
       {surfaces.map((surface) => {
         const source = surface.dataModel.get('/source');
+        const sourceSnippet = getSourceSnippet(source);
         return (
           <div key={surface.id}>
             <div data-a2ui-surface="true"><A2uiSurface surface={surface} /></div>
@@ -49,8 +49,8 @@ export default function A2uiSegment({ segment }: { segment: A2uiSegmentData }) {
                 <span className="source-reference-card-body">
                   <strong className="source-reference-card-title">{String(source.title)}</strong>
                   {'heading' in source && source.heading && <span className="source-reference-card-heading">{String(source.heading)}</span>}
-                  {'snippet' in source && source.snippet && <span className="source-reference-card-snippet">{String(source.snippet)}</span>}
-                  {'file' in source && <span className="source-reference-card-footer"><span className="source-reference-card-file">{String(source.file)}</span></span>}
+                  {sourceSnippet && <span className="source-reference-card-snippet">{sourceSnippet}</span>}
+                  {'file' in source && source.file !== source.title && <span className="source-reference-card-footer"><span className="source-reference-card-file">{String(source.file)}</span></span>}
                 </span>
               </div>
             )}

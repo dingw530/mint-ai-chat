@@ -26,6 +26,20 @@ export function createMintComponentApi<Schema extends ComponentApi['schema']>(na
   return { name, schema };
 }
 
+/** 判断来源是否绑定了可展示的 Wiki chunk，而不是整页读取结果。 */
+export function isChunkReference(chunkId: string): boolean {
+  return chunkId.includes('#chunk:') || chunkId.includes('#claim:');
+}
+
+/** 仅返回 chunk 级来源摘要；整页读取或空摘要不参与卡片展示。 */
+export function getSourceSnippet(value: unknown): string {
+  if (!value || typeof value !== 'object' || !('chunkId' in value) || typeof value.chunkId !== 'string' || !isChunkReference(value.chunkId)) {
+    return '';
+  }
+  if (!('snippet' in value) || typeof value.snippet !== 'string') return '';
+  return value.snippet.trim();
+}
+
 /** 将持久化业务 Block 恢复为官方 A2UI 消息；未知契约只记录并降级为纯文本。 */
 export function buildPersistedA2uiMessages(block: PersistedUiBlock): A2uiMessage[] {
   if (block.kind !== 'wiki_source_reference' || block.version !== 1) {

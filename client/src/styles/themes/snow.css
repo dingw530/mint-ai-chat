@@ -87,7 +87,7 @@
 }
 
 /* Frost accent on input focus */
-.theme-snow .input-box textarea:focus {
+.theme-snow .input-box form:focus-within {
   border-color: var(--border-strong);
 }
 

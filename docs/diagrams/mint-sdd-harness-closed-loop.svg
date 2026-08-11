@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1180" role="img" aria-labelledby="title desc">
+  <title id="title">Mint 的 SDD 与 Harness 开发闭环</title>
+  <desc id="desc">从问题目标出发，经 SDD 变更包、人工审核、Harness 任务、AI 实现和验证，最终交付；失败进入结构化证据驱动的有限修复循环。</desc>
+  <defs>
+    <style>
+      .bg { fill: #f9fbfb; }
+      .grid { stroke: #e9eeee; stroke-width: 1; }
+      .title { font: 700 45px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #202124; }
+      .subtitle { font: 400 21px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #667085; }
+      .eyebrow { font: 700 15px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; letter-spacing: 2px; fill: #6c8498; }
+      .nodeTitle { font: 700 24px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #202124; text-anchor: middle; }
+      .nodeText { font: 400 16px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #55616d; text-anchor: middle; }
+      .cardTitle { font: 700 16px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #26323a; }
+      .cardText { font: 400 13px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #42947c; }
+      .small { font: 400 13px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #728191; }
+      .loopTitle { font: 700 27px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #202124; }
+      .loopText { font: 400 17px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #586673; }
+      .pill { font: 700 13px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #5e4530; text-anchor: middle; }
+      .check { font: 600 16px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #29343c; }
+      .flowLabel { font: 500 13px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif; fill: #728191; text-anchor: middle; }
+      .shadow { filter: url(#shadow); }
+      .flow { fill: none; stroke: #2eae81; stroke-width: 3.2; marker-end: url(#arrow-green); }
+      .feedback { fill: none; stroke: #578fc5; stroke-width: 2.6; marker-end: url(#arrow-blue); }
+      .feedbackDash { fill: none; stroke: #578fc5; stroke-width: 2.6; stroke-dasharray: 8 8; marker-end: url(#arrow-blue); }
+      .control { fill: none; stroke: #d99a38; stroke-width: 2.2; stroke-dasharray: 5 5; marker-end: url(#arrow-gold); }
+      .guard { fill: none; stroke: #12a879; stroke-width: 2; stroke-dasharray: 6 5; marker-end: url(#arrow-green); }
+    </style>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#314252" flood-opacity=".16"/></filter>
+    <marker id="arrow-green" markerWidth="12" markerHeight="9" refX="10" refY="4.5" orient="auto"><path d="M0,0 L11,4.5 L0,9 Z" fill="#2eae81"/></marker>
+    <marker id="arrow-blue" markerWidth="12" markerHeight="9" refX="10" refY="4.5" orient="auto"><path d="M0,0 L11,4.5 L0,9 Z" fill="#578fc5"/></marker>
+    <marker id="arrow-gold" markerWidth="12" markerHeight="9" refX="10" refY="4.5" orient="auto"><path d="M0,0 L11,4.5 L0,9 Z" fill="#d99a38"/></marker>
+  </defs>
+
+  <rect class="bg" width="1920" height="1180"/>
+  <g opacity=".9"><path class="grid" d="M120 0V1180 M360 0V1180 M600 0V1180 M840 0V1180 M1080 0V1180 M1320 0V1180 M1560 0V1180 M1800 0V1180 M0 180H1920 M0 420H1920 M0 660H1920 M0 900H1920"/></g>
+
+  <rect x="86" y="68" width="84" height="32" rx="16" fill="#e7f8f0" stroke="#15a87d"/>
+  <text x="128" y="90" class="eyebrow" text-anchor="middle" fill="#15956f">MINT</text>
+  <text id="title" class="title" x="85" y="163">Mint 的 SDD × Harness 开发闭环</text>
+  <text class="subtitle" x="85" y="203">先定义“完成”，再开始实现；规格是协作协议，证据是交付凭证。</text>
+
+  <rect x="1435" y="78" width="400" height="102" rx="23" fill="#ffffff" stroke="#cfe1da" stroke-width="1.4"/>
+  <text class="eyebrow" x="1465" y="118" fill="#15a87d">CORE IDEA</text>
+  <text x="1465" y="151" style="font:700 18px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#26323a">SDD 管目标与事实，Harness 管执行与判定</text>
+  <text class="small" x="1465" y="172">人在关键节点控制范围、风险与交付决策</text>
+
+  <!-- Main flow -->
+  <rect class="shadow" x="85" y="302" width="220" height="272" rx="28" fill="#ffffff" stroke="#b9d8cb" stroke-width="1.8"/>
+  <circle cx="132" cy="350" r="28" fill="#ddf4eb"/>
+  <text x="132" y="358" style="font:700 18px 'PingFang SC',Arial,sans-serif;fill:#22a47d" text-anchor="middle">01</text>
+  <text class="nodeTitle" x="195" y="417">问题 / 目标</text>
+  <text class="nodeText" x="195" y="463">为什么做？</text>
+  <line x1="120" y1="492" x2="270" y2="492" stroke="#dce8e3" stroke-width="1.5"/>
+  <text class="nodeText" x="195" y="531">用户价值</text>
+  <text class="nodeText" x="195" y="555">范围与边界</text>
+
+  <path class="flow" d="M305 438 H390"/>
+  <rect fill="#f9fbfb" x="328" y="404" width="38" height="19" rx="4"/><text class="flowLabel" x="347" y="418">澄清</text>
+
+  <rect class="shadow" x="390" y="250" width="585" height="376" rx="31" fill="#eefaf5" stroke="#15a87d" stroke-width="2"/>
+  <text class="eyebrow" x="425" y="300">02 SPECIFICATION LAYER</text>
+  <text x="425" y="341" style="font:700 29px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#202124">SDD 变更包</text>
+  <text x="425" y="371" class="nodeText" text-anchor="start">一个变更，一个可追溯的事实源</text>
+  <rect x="425" y="402" width="242" height="78" rx="16" fill="#ffffff" stroke="#9dd8c3" stroke-width="1.3"/>
+  <text class="cardTitle" x="448" y="435">Product Spec</text><text class="cardText" x="448" y="461">目标 · 用户故事 · AC</text>
+  <rect x="692" y="402" width="242" height="78" rx="16" fill="#ffffff" stroke="#9dd8c3" stroke-width="1.3"/>
+  <text class="cardTitle" x="715" y="435">Design Doc</text><text class="cardText" x="715" y="461">架构 · 数据流 · DS</text>
+  <rect x="425" y="499" width="242" height="78" rx="16" fill="#ffffff" stroke="#9dd8c3" stroke-width="1.3"/>
+  <text class="cardTitle" x="448" y="532">Exec Plan</text><text class="cardText" x="448" y="558">任务拆解 · TP · 顺序</text>
+  <rect x="692" y="499" width="242" height="78" rx="16" fill="#ffffff" stroke="#9dd8c3" stroke-width="1.3"/>
+  <text class="cardTitle" x="715" y="532">Traceability</text><text class="cardText" x="715" y="558">状态 · 产出 · 风险 · 证据</text>
+
+  <path class="flow" d="M975 438 H1025"/>
+  <rect x="985" y="338" width="154" height="35" rx="17" fill="#fff3dd" stroke="#e4bf77"/>
+  <text class="pill" x="1062" y="361">人工 checkpoint</text>
+  <path class="control" d="M1062 373 V423"/>
+
+  <rect class="shadow" x="1025" y="399" width="180" height="128" rx="22" fill="#faf5ff" stroke="#aa8ce3" stroke-width="1.6"/>
+  <text class="eyebrow" x="1053" y="431" fill="#8864c9">TASK PROTOCOL</text>
+  <text class="nodeTitle" x="1115" y="465">Harness Task</text>
+  <text class="small" x="1115" y="491" text-anchor="middle">TP · AC · 检查项</text>
+  <text class="small" x="1115" y="511" text-anchor="middle">范围 · 保护路径 · 轮次</text>
+
+  <path class="flow" d="M1205 463 H1240"/>
+  <rect class="shadow" x="1240" y="302" width="220" height="272" rx="28" fill="#ffffff" stroke="#bed4e8" stroke-width="1.8"/>
+  <circle cx="1287" cy="350" r="28" fill="#e6f1fb"/>
+  <text x="1287" y="358" style="font:700 18px 'PingFang SC',Arial,sans-serif;fill:#5b94c9" text-anchor="middle">03</text>
+  <text class="nodeTitle" x="1350" y="417">AI 实现</text>
+  <text class="nodeText" x="1350" y="463">按 TP 小步交付</text>
+  <line x1="1275" y1="492" x2="1425" y2="492" stroke="#dce8e3" stroke-width="1.5"/>
+  <text class="nodeText" x="1350" y="531">代码 · 测试 · 迁移</text>
+  <text class="nodeText" x="1350" y="555">受控范围内修改</text>
+
+  <path class="flow" d="M1460 438 H1510"/>
+  <rect fill="#f9fbfb" x="1470" y="404" width="34" height="19" rx="4"/><text class="flowLabel" x="1487" y="418">检查</text>
+
+  <rect class="shadow" x="1510" y="250" width="250" height="376" rx="31" fill="#f1f7fe" stroke="#5b94c9" stroke-width="2"/>
+  <text class="eyebrow" x="1540" y="300" fill="#5b7892">04 HARNESS</text>
+  <text x="1540" y="341" style="font:700 29px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#202124">验证与证据</text>
+  <text x="1540" y="371" class="nodeText" text-anchor="start">AC → 可运行检查</text>
+  <g>
+    <rect x="1540" y="401" width="190" height="39" rx="11" fill="#ffffff" stroke="#c9d9e8"/><circle cx="1561" cy="420" r="7" fill="#2eae81"/><text class="check" x="1580" y="426">Unit / API</text>
+    <rect x="1540" y="450" width="190" height="39" rx="11" fill="#ffffff" stroke="#c9d9e8"/><circle cx="1561" cy="469" r="7" fill="#2eae81"/><text class="check" x="1580" y="475">Browser AC</text>
+    <rect x="1540" y="499" width="190" height="39" rx="11" fill="#ffffff" stroke="#c9d9e8"/><circle cx="1561" cy="518" r="7" fill="#2eae81"/><text class="check" x="1580" y="524">Coverage</text>
+    <rect x="1540" y="548" width="190" height="39" rx="11" fill="#ffffff" stroke="#c9d9e8"/><circle cx="1561" cy="567" r="7" fill="#2eae81"/><text class="check" x="1580" y="573">Boundary + diff</text>
+  </g>
+
+  <path class="flow" d="M1760 438 H1800"/>
+  <rect class="shadow" x="1800" y="302" width="90" height="272" rx="28" fill="#ffffff" stroke="#bed4e8" stroke-width="1.8"/>
+  <circle cx="1845" cy="350" r="28" fill="#e6f1fb"/><text x="1845" y="358" style="font:700 18px 'PingFang SC',Arial,sans-serif;fill:#5b94c9" text-anchor="middle">05</text>
+  <text class="nodeTitle" x="1845" y="417">交付</text>
+  <text class="nodeText" x="1845" y="456">验收</text>
+  <line x1="1823" y1="492" x2="1867" y2="492" stroke="#dce8e3" stroke-width="1.5"/>
+  <text class="small" x="1845" y="532" text-anchor="middle">归档</text>
+  <text class="small" x="1845" y="553" text-anchor="middle">可回放</text>
+
+  <!-- Guardrail strip -->
+  <rect x="1030" y="650" width="430" height="57" rx="16" fill="#ecfbf5" stroke="#9edec7"/>
+  <text x="1057" y="675" class="eyebrow" fill="#16815f">GUARDRAILS</text>
+  <text x="1057" y="696" style="font:600 15px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#28604d">Rule：红线　·　Skill：标准流程　·　Script：硬门禁</text>
+  <path class="guard" d="M1260 650 V574"/>
+  <path class="guard" d="M1380 650 V574"/>
+
+  <!-- Feedback loop -->
+  <rect x="85" y="738" width="1750" height="255" rx="30" fill="#ffffff" stroke="#cfe1da" stroke-width="1.8"/>
+  <text class="eyebrow" x="125" y="789">FEEDBACK LOOP</text>
+  <text class="loopTitle" x="125" y="832">失败不是终点，而是下一轮输入</text>
+  <text class="loopText" x="125" y="865">Harness 留存结构化证据，区分环境、范围和业务失败；只在当前 TP 内做有限修复。</text>
+
+  <path class="control" d="M1635 626 V732"/>
+  <text class="flowLabel" x="1673" y="685">writeback + failure artifact</text>
+
+  <rect class="shadow" x="125" y="895" width="245" height="64" rx="17" fill="#fff8f3" stroke="#efc8b2"/>
+  <text class="cardTitle" x="247" y="933" text-anchor="middle">检查失败 / 偏差</text>
+  <path class="feedback" d="M370 927 H425"/>
+  <rect class="shadow" x="425" y="895" width="245" height="64" rx="17" fill="#f4f9fd" stroke="#bed8ed"/>
+  <text class="cardTitle" x="547" y="933" text-anchor="middle">结构化证据</text>
+  <path class="feedback" d="M670 927 H725"/>
+  <rect class="shadow" x="725" y="895" width="245" height="64" rx="17" fill="#f4f9fd" stroke="#bed8ed"/>
+  <text class="cardTitle" x="847" y="933" text-anchor="middle">定位根因</text>
+  <path class="feedback" d="M970 927 H1025"/>
+  <rect class="shadow" x="1025" y="895" width="245" height="64" rx="17" fill="#f3fbf7" stroke="#b9e0d1"/>
+  <text class="cardTitle" x="1147" y="925" text-anchor="middle">最小修复</text>
+  <text class="small" x="1147" y="946" text-anchor="middle">或补充规格</text>
+  <path class="feedback" d="M1270 927 H1325"/>
+  <rect class="shadow" x="1325" y="895" width="245" height="64" rx="17" fill="#f3fbf7" stroke="#b9e0d1"/>
+  <text class="cardTitle" x="1447" y="933" text-anchor="middle">重新验证</text>
+
+  <path class="feedbackDash" d="M1570 927 C1680 927 1690 850 1600 820 C1490 783 1365 790 1350 574"/>
+  <rect fill="#ffffff" x="1412" y="781" width="135" height="20" rx="5"/>
+  <text class="flowLabel" x="1479" y="795">最多 3 轮</text>
+
+  <rect x="85" y="1040" width="545" height="78" rx="21" fill="#ffffff" stroke="#d5e5df"/>
+  <circle cx="123" cy="1079" r="17" fill="#dff5eb"/><text x="123" y="1085" style="font:700 18px Arial;fill:#20a579" text-anchor="middle">✓</text>
+  <text x="155" y="1073" style="font:700 17px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#28333a">验收标准前置</text>
+  <text class="small" x="155" y="1098">先说清“什么算完成”</text>
+  <rect x="690" y="1040" width="545" height="78" rx="21" fill="#ffffff" stroke="#d5e5df"/>
+  <circle cx="728" cy="1079" r="17" fill="#e6f1fb"/><text x="728" y="1085" style="font:700 18px Arial;fill:#5b94c9" text-anchor="middle">↗</text>
+  <text x="760" y="1073" style="font:700 17px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#28333a">追溯贯穿全程</text>
+  <text class="small" x="760" y="1098">目标 → 设计 → 任务 → 证据</text>
+  <rect x="1295" y="1040" width="540" height="78" rx="21" fill="#ffffff" stroke="#d5e5df"/>
+  <circle cx="1333" cy="1079" r="17" fill="#fff4d9"/><text x="1333" y="1085" style="font:700 18px Arial;fill:#c99a32" text-anchor="middle">○</text>
+  <text x="1365" y="1073" style="font:700 17px 'PingFang SC','Noto Sans CJK SC',Arial,sans-serif;fill:#28333a">证据驱动交付</text>
+  <text class="small" x="1365" y="1098">结果可验证，过程可回放</text>
+</svg>

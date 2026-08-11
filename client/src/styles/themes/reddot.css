@@ -109,10 +109,9 @@
 }
 
 /* Input focus — red ring */
-.theme-reddot .input-box textarea:focus {
+.theme-reddot .input-box form:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(255, 75, 75, 0.15), 0 0 0 4px var(--accent-glow);
-  background: white;
 }
 
 /* Chat bubbles */

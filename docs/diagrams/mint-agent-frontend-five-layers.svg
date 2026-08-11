@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1120" viewBox="0 0 1920 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Mint Agent 前端五层通用抽象</title>
+  <desc id="desc">展示 Mint 前端从 HTTP SSE 和 Electron IPC 传输，到 SSE 事件归一化、Reducer 状态机、Agent 运行控制和内容段渲染的五层抽象。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#eef4f8"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#0e7490"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#17324d" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrowBlue" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L12 6 L0 12 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L12 6 L0 12 Z" fill="#ea580c"/>
+    </marker>
+    <style>
+      .title { font: 700 36px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #102a43; }
+      .subtitle { font: 400 17px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #627d98; }
+      .layer { font: 700 18px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #17324d; }
+      .layer-en { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #829ab1; }
+      .node-title { font: 700 19px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #102a43; }
+      .node-title-light { font: 700 19px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #ffffff; }
+      .body { font: 400 14px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334e68; }
+      .body-light { font: 400 14px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #dbeafe; }
+      .code { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #486581; }
+      .code-light { font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #dbeafe; }
+      .label { font: 600 12px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #486581; }
+      .note-title { font: 700 16px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #17324d; }
+      .note { font: 400 13px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #486581; }
+      .legend { font: 600 13px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334e68; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1120" fill="url(#bg)"/>
+  <rect x="28" y="24" width="1864" height="1068" rx="28" fill="#ffffff" opacity="0.8"/>
+
+  <text x="70" y="78" class="title">Mint Agent 前端：五层通用抽象</text>
+  <text x="70" y="110" class="subtitle">把“原始 SSE 事件”转换为“可复用的 Agent 状态与内容段”，让 Chat、Wiki 和未来工作流共享运行逻辑</text>
+  <text x="1850" y="78" text-anchor="end" class="layer-en">FRONTEND AGENT ARCHITECTURE</text>
+
+  <!-- Layer bands -->
+  <rect x="58" y="150" width="1804" height="190" rx="20" fill="#eef6ff" stroke="#93c5fd" stroke-width="2"/>
+  <rect x="58" y="362" width="1804" height="190" rx="20" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+  <rect x="58" y="574" width="1804" height="190" rx="20" fill="#ecfeff" stroke="#67e8f9" stroke-width="2"/>
+  <rect x="58" y="786" width="1804" height="190" rx="20" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+
+  <!-- Layer 1 -->
+  <text x="86" y="187" class="layer">① 传输层</text>
+  <text x="86" y="208" class="layer-en">TRANSPORT</text>
+  <g filter="url(#shadow)">
+    <rect x="330" y="178" width="430" height="132" rx="17" fill="url(#blue)"/>
+    <rect x="805" y="178" width="430" height="132" rx="17" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/>
+    <rect x="1280" y="178" width="500" height="132" rx="17" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/>
+  </g>
+  <text x="360" y="216" class="node-title-light">统一发送接口</text>
+  <text x="360" y="244" class="body-light">send(input, callbacks) → abort()</text>
+  <text x="360" y="270" class="body-light">浏览器与桌面端共享上层 API</text>
+  <text x="360" y="294" class="code-light">client/src/hooks/useSSE.ts</text>
+  <text x="835" y="216" class="node-title">HTTP SSE</text>
+  <text x="835" y="244" class="body">fetch + ReadableStream</text>
+  <text x="835" y="270" class="body">分片读取、AbortController</text>
+  <text x="835" y="294" class="code">services/api/streaming.ts</text>
+  <text x="1310" y="216" class="node-title">Electron IPC</text>
+  <text x="1310" y="244" class="body">chat:chunk · chat:done · chat:error</text>
+  <text x="1310" y="270" class="body">清理旧 listener，避免事件重复</text>
+  <text x="1310" y="294" class="code">getElectronAPI() · preload</text>
+
+  <!-- Layer 2 -->
+  <text x="86" y="399" class="layer">② 事件协议层</text>
+  <text x="86" y="420" class="layer-en">EVENT PROTOCOL</text>
+  <g filter="url(#shadow)">
+    <rect x="330" y="390" width="530" height="132" rx="17" fill="#ffffff" stroke="#a78bfa" stroke-width="2"/>
+    <rect x="905" y="390" width="420" height="132" rx="17" fill="url(#teal)"/>
+    <rect x="1370" y="390" width="410" height="132" rx="17" fill="#ffffff" stroke="#a78bfa" stroke-width="2"/>
+  </g>
+  <text x="360" y="428" class="node-title">parseSSEChunk</text>
+  <text x="360" y="456" class="body">识别并解析 run / tool / answer / a2ui</text>
+  <text x="360" y="482" class="body">隐藏原始 SSE 差异，向上层发统一回调</text>
+  <text x="360" y="506" class="code">client/src/services/api/_base.ts</text>
+  <text x="935" y="428" class="node-title-light">归一化 Agent 事件</text>
+  <text x="935" y="456" class="body-light">run_started · round_started</text>
+  <text x="935" y="480" class="body-light">tool_call_* · approval_required</text>
+  <text x="935" y="504" class="body-light">answer · run_completed · run_failed</text>
+  <text x="1400" y="428" class="node-title">事件回调边界</text>
+  <text x="1400" y="456" class="body">SendCallbacks / ReactReducerEvent</text>
+  <text x="1400" y="482" class="body">组件不直接判断原始 SSE JSON</text>
+  <text x="1400" y="506" class="code">parseSSEChunk → callbacks</text>
+
+  <!-- Layer 3 -->
+  <text x="86" y="611" class="layer">③ 状态机层</text>
+  <text x="86" y="632" class="layer-en">STATE MACHINE</text>
+  <g filter="url(#shadow)">
+    <rect x="330" y="602" width="520" height="132" rx="17" fill="url(#blue)"/>
+    <rect x="895" y="602" width="430" height="132" rx="17" fill="#ffffff" stroke="#22d3ee" stroke-width="2"/>
+    <rect x="1370" y="602" width="410" height="132" rx="17" fill="#ffffff" stroke="#22d3ee" stroke-width="2"/>
+  </g>
+  <text x="360" y="640" class="node-title-light">reduceReactEvent</text>
+  <text x="360" y="668" class="body-light">(oldState, event) → newState</text>
+  <text x="360" y="694" class="body-light">纯函数：不请求网络、不直接改旧状态</text>
+  <text x="360" y="718" class="code-light">useReactEventReducer.ts</text>
+  <text x="925" y="640" class="node-title">AgentRunState</text>
+  <text x="925" y="668" class="body">runId · status · steps · error</text>
+  <text x="925" y="694" class="body">running / completed / failed / cancelled</text>
+  <text x="925" y="720" class="code">单一状态来源</text>
+  <text x="1400" y="640" class="node-title">派生前端状态</text>
+  <text x="1400" y="668" class="body">ReActStep · DecisionTrace</text>
+  <text x="1400" y="694" class="body">AgentRunStatus · loop / retry</text>
+  <text x="1400" y="720" class="code">dispatchReactEvent()</text>
+
+  <!-- Layer 4 -->
+  <text x="86" y="823" class="layer">④ 运行控制层</text>
+  <text x="86" y="844" class="layer-en">RUN CONTROLLER</text>
+  <g filter="url(#shadow)">
+    <rect x="330" y="814" width="560" height="132" rx="17" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="935" y="814" width="400" height="132" rx="17" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+    <rect x="1380" y="814" width="400" height="132" rx="17" fill="url(#teal)"/>
+  </g>
+  <text x="360" y="852" class="node-title">useChatRunActions</text>
+  <text x="360" y="880" class="body">创建临时消息 · 聚合流式文本 · 完成收尾</text>
+  <text x="360" y="906" class="body">发送 · 停止 · 重新生成 · 审批恢复</text>
+  <text x="360" y="930" class="code">chatStreamCallbacks.ts · useChatRunActions.ts</text>
+  <text x="965" y="852" class="node-title">可复用动作接口</text>
+  <text x="965" y="880" class="body">send() · stop() · regenerate()</text>
+  <text x="965" y="906" class="body">approve() · deny() · route()</text>
+  <text x="965" y="930" class="code">业务页面不处理连接细节</text>
+  <text x="1410" y="852" class="node-title-light">扩展点</text>
+  <text x="1410" y="880" class="body-light">输入适配 · Agent 配置 · 工具能力</text>
+  <text x="1410" y="906" class="body-light">保持运行控制逻辑不变</text>
+  <text x="1410" y="930" class="code-light">Chat / Wiki / Workflow</text>
+
+  <!-- Presentation zone -->
+  <rect x="58" y="1000" width="1804" height="74" rx="18" fill="#102a43"/>
+  <text x="88" y="1032" class="node-title-light">⑤ 内容与展示层</text>
+  <text x="88" y="1054" class="body-light">ContentSegment：text · tool_call · thinking · a2ui</text>
+  <text x="620" y="1032" class="body-light">MessageList · ReActStep · AgentRunStatus · DecisionTrace · A2uiSegment · MarkdownRenderer</text>
+  <text x="1775" y="1032" text-anchor="end" class="code-light">只渲染状态，不理解 SSE</text>
+
+  <!-- Primary arrows -->
+  <path d="M760 244 H805" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M1235 244 H1280" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M1235 310 C1235 350 1160 350 1160 390" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M860 456 H905" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M1325 456 H1370" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M1115 522 V602" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M850 668 C875 668 875 744 610 744 V814" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M890 880 H935" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M1335 880 H1380" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <path d="M1640 946 V1000" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+
+  <!-- Feedback loop -->
+  <path d="M1570 814 C1570 760 1740 760 1740 602" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-dasharray="8 7" marker-end="url(#arrowOrange)"/>
+  <text x="1760" y="720" class="label">用户动作 / 新事件</text>
+
+  <!-- Legend -->
+  <line x1="88" y1="1092" x2="126" y2="1092" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)"/>
+  <text x="138" y="1097" class="legend">主数据流</text>
+  <line x1="270" y1="1092" x2="308" y2="1092" stroke="#ea580c" stroke-width="2.5" stroke-dasharray="8 7" marker-end="url(#arrowOrange)"/>
+  <text x="320" y="1097" class="legend">反馈 / 事件回流</text>
+  <text x="1850" y="1097" text-anchor="end" class="legend">原则：传输可替换 · 事件可归一化 · 状态可测试 · 展示可扩展</text>
+</svg>

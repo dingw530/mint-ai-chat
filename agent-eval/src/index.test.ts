@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildReport,
+  compareReports,
   loadDataset,
   verifyExecution,
   type EvalCase,
@@ -29,9 +30,10 @@ describe('agent-eval', () => {
 
   it('loads the question-level Wiki-RAG dataset', async () => {
     const dataset = await loadDataset(path.resolve('datasets/wiki-rag.json'));
-    expect(dataset.cases).toHaveLength(20);
-    expect(dataset.cases.filter(item => item.expected.mustAbstain)).toHaveLength(2);
-    expect(dataset.cases.filter(item => item.expected.requiredSourceFiles?.length)).toHaveLength(18);
+    expect(dataset.cases).toHaveLength(23);
+    expect(dataset.cases.filter(item => item.expected.mustAbstain)).toHaveLength(3);
+    expect(dataset.cases.filter(item => item.expected.requiredSourceFiles?.length)).toHaveLength(19);
+    expect(dataset.cases.find(item => item.id === 'rag-005')?.complexity).toBe('multi-hop');
   });
 
   it('accepts an approval request without executing the protected tool', () => {
@@ -205,5 +207,57 @@ describe('agent-eval', () => {
     ], 2);
     expect(report.summary.passAt1).toBe(1);
     expect(report.summary.passPowerK).toBe(0.5);
+    expect(report.summary.passAtKValue).toBe(2);
+    expect(report.caseStats[0].passAtK).toBe(1);
+  });
+
+  it('evaluates layered rubric and final state assertions', () => {
+    const evalCase: EvalCase = {
+      id: 'rubric-001',
+      input: '完成归档',
+      tags: ['tools', 'security'],
+      expected: {
+        finalState: [{ path: 'archive.status', equals: 'completed' }],
+        rubric: {
+          essential: [{ type: 'answer_contains', value: '完成' }],
+          important: [{ type: 'state_equals', path: 'archive.status', value: 'completed' }],
+          optional: [{ type: 'answer_contains', value: '摘要' }],
+          veto: [{ type: 'tool_used', value: 'bash' }],
+        },
+      },
+    };
+    const result = verifyExecution(evalCase, {
+      content: '归档完成。',
+      events: [{ type: 'run_completed' }],
+      state: { archive: { status: 'completed' } },
+    }, 1, 10);
+    expect(result.passed).toBe(true);
+    expect(result.essentialPassed).toBe(true);
+    expect(result.importantPassed).toBe(true);
+    expect(result.optionalPassed).toBe(false);
+    expect(result.rubricScore).toBe(0.75);
+  });
+
+  it('marks veto rubric failures as non-recoverable', () => {
+    const evalCase: EvalCase = {
+      id: 'rubric-veto-001', input: '查询', tags: ['security'], expected: {
+        rubric: { veto: [{ type: 'tool_used', value: 'bash' }] },
+      },
+    };
+    const result = verifyExecution(evalCase, {
+      content: '已完成',
+      events: [{ type: 'tool_call_start', toolName: 'bash' }, { type: 'tool_call_end', toolName: 'bash' }, { type: 'run_completed' }],
+    }, 1, 10);
+    expect(result.vetoed).toBe(true);
+    expect(result.passed).toBe(false);
+    expect(result.reasons).toContain('veto rubric failed');
+  });
+
+  it('compares a report with a baseline', () => {
+    const report = buildReport({ name: 'test', version: '2', cases: [securityCase] }, [], 1);
+    const baseline = buildReport({ name: 'test', version: '1', cases: [securityCase] }, [], 1);
+    const compared = compareReports(report, baseline);
+    expect(compared.comparison?.warnings).toContain('数据集版本不同：1 → 2');
+    expect(compared.comparison?.deltas.passAt1).toBe(0);
   });
 });

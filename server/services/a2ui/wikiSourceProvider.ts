@@ -38,6 +38,11 @@ function isWikiPayload(value: unknown): value is WikiSearchPayload {
   return Boolean(value && typeof value === 'object' && Array.isArray((value as WikiSearchPayload).results));
 }
 
+/** 判断来源是否绑定了搜索命中的具体 chunk，而不是整页读取结果。 */
+function isChunkReference(chunkId: string): boolean {
+  return chunkId.includes('#chunk:') || chunkId.includes('#claim:');
+}
+
 function makeMessages(registration: A2UIComponentRegistration, surfaceId: string, data: A2UIReference): A2uiMessage[] {
   return [
     { version: 'v0.9', createSurface: { surfaceId, catalogId: registration.catalogId } },
@@ -82,7 +87,13 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
       const fileKey = result.file?.trim();
       const existingRefId = fileKey ? this.referenceIdsByFile.get(fileKey) : undefined;
       const refId = existingRefId || `C${nextReferenceIndex++}`;
-      if (result.file && result.chunkId) {
+      const existingReference = existingRefId ? this.references.get(existingRefId) : undefined;
+      const shouldStoreReference = Boolean(
+        result.file
+        && result.chunkId
+        && (!existingReference || !isChunkReference(existingReference.chunkId) || isChunkReference(result.chunkId)),
+      );
+      if (shouldStoreReference && result.file && result.chunkId) {
         this.references.set(refId, {
           refId,
           title: result.title || result.file,

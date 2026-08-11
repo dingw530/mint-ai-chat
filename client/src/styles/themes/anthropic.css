@@ -111,10 +111,9 @@
 }
 
 /* Input focus — coral ring */
-.theme-anthropic .input-box textarea:focus {
+.theme-anthropic .input-box form:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(225, 140, 110, 0.15), 0 0 0 4px var(--accent-glow);
-  background: white;
 }
 
 /* Chat bubbles — warm white */

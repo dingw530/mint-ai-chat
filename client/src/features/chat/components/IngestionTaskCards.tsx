@@ -11,6 +11,7 @@ import IngestionJobDetails from '@/shared/components/IngestionJobDetails';
 import {
   createA2uiProcessor,
   createMintComponentApi,
+  getSourceSnippet,
   parseA2uiMessage,
   type A2uiSurfaceModel,
 } from './a2uiProtocol';
@@ -89,7 +90,7 @@ interface SourceReferenceModel {
   title: string;
   file: string;
   heading: string;
-  snippet: string;
+  snippet?: string;
   chunkId: string;
   score?: number;
   matchTypes?: string[];
@@ -106,7 +107,6 @@ function isSourceReferenceModel(value: unknown): value is SourceReferenceModel {
   return typeof model.refId === 'string'
     && typeof model.title === 'string'
     && typeof model.file === 'string'
-    && typeof model.snippet === 'string'
     && typeof model.chunkId === 'string';
 }
 
@@ -118,6 +118,7 @@ const sourceReferenceCardApi = createMintComponentApi(
 const sourceReferenceCard = createComponentImplementation(sourceReferenceCardApi, ({ props }) => {
   const model = isSourceReferenceModel(props.data) ? props.data : undefined;
   if (!model) return null;
+  const snippet = getSourceSnippet(model);
   return (
     <button
       type="button"
@@ -129,13 +130,13 @@ const sourceReferenceCard = createComponentImplementation(sourceReferenceCardApi
       <span className="source-reference-card-body">
         <strong className="source-reference-card-title">{model.title}</strong>
         {model.heading && <span className="source-reference-card-heading">{model.heading}</span>}
-        {model.snippet && <span className="source-reference-card-snippet">{model.snippet}</span>}
-        <span className="source-reference-card-footer">
+        {snippet && <span className="source-reference-card-snippet">{snippet}</span>}
+        {model.file !== model.title && <span className="source-reference-card-footer">
           <span className="source-reference-card-file">{model.file}</span>
           {model.matchTypes?.includes('keyword') && <span className="source-reference-card-match">关键词</span>}
           {model.matchTypes?.includes('vector') && <span className="source-reference-card-match source-reference-card-match-semantic">语义</span>}
           {model.pageStatus && <span className="source-reference-card-status">{model.pageStatus === 'stale' ? '待复核' : model.pageStatus === 'active' ? '已验证' : model.pageStatus}</span>}
-        </span>
+        </span>}
       </span>
     </button>
   );
