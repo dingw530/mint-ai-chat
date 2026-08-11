@@ -30,6 +30,17 @@ describe('serializeToolResultForContext', () => {
     await expect(serializeToolResultForContext(result)).resolves.toBe(JSON.stringify(result));
   });
 
+  it('keeps explicitly inline large results unchanged', async () => {
+    const source = { content: 'x'.repeat(TOOL_RESULT_ARTIFACT_THRESHOLD + 100) };
+    const content = await serializeToolResultForContext(source, {
+      conversationId: 'conversation/inline',
+      skipArtifact: true,
+    });
+
+    expect(content).toBe(JSON.stringify(source));
+    await expect(stat(testArtifactRoot)).rejects.toThrow();
+  });
+
   it('stores large results and returns a bounded structured preview', async () => {
     const source = { records: 'x'.repeat(TOOL_RESULT_ARTIFACT_THRESHOLD + 100) };
     const content = await serializeToolResultForContext(source, {

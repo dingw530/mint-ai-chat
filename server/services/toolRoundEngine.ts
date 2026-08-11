@@ -210,6 +210,7 @@ export class ToolLoopEngine {
     const resultStr = await serializeToolResultForContext(toolResult, {
       summary: getToolResultSummary(tc, toolResult),
       conversationId,
+      skipArtifact: tc.function.name === 'read_artifact',
     });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',
@@ -257,6 +258,7 @@ export class ToolLoopEngine {
     const resultStr = await serializeToolResultForContext(toolResult, {
       summary: succeeded ? getToolResultSummary(tc, toolResult) : undefined,
       conversationId,
+      skipArtifact: tc.function.name === 'read_artifact',
     });
     const assistantMsg: HistoryMessage = {
       role: 'assistant',

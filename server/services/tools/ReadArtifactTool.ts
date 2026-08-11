@@ -24,6 +24,10 @@ interface ReadArtifactOutput {
   sha256: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
  * 读取上下文 artifact，严格限制在 Mint artifact 根目录内。
  * @param input artifact 路径及分页参数
@@ -52,7 +56,17 @@ export class ReadArtifactTool extends BaseTool<ReadArtifactInput, ReadArtifactOu
   }
 
   getResultSummary(result: ReadArtifactOutput): string {
-    return `已读取 artifact ${result.offset}-${result.offset + result.content.length}/${result.totalChars}`;
+    if (!isRecord(result) || typeof result.content !== 'string') {
+      return '已读取 artifact（结果格式异常）';
+    }
+
+    const offset = typeof result.offset === 'number' && Number.isFinite(result.offset)
+      ? result.offset
+      : 0;
+    const totalChars = typeof result.totalChars === 'number' && Number.isFinite(result.totalChars)
+      ? result.totalChars
+      : offset + result.content.length;
+    return `已读取 artifact ${offset}-${offset + result.content.length}/${totalChars}`;
   }
 
   async execute(input: ReadArtifactInput, _context: ToolContext): Promise<ReadArtifactOutput> {

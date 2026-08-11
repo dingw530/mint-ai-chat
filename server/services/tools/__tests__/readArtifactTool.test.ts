@@ -32,6 +32,16 @@ describe('ReadArtifactTool', () => {
     expect(result.totalChars).toBe(10);
     expect(result.truncated).toBe(true);
     expect(result.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(tool.getResultSummary(result)).toBe('已读取 artifact 2-6/10');
+  });
+
+  it('does not render NaN when summary metadata is incomplete', () => {
+    const malformedResult = { content: 'abc', totalChars: 10 };
+
+    const summary = Reflect.apply(tool.getResultSummary, tool, [malformedResult]);
+
+    expect(summary).toBe('已读取 artifact 0-3/10');
+    expect(summary).not.toContain('NaN');
   });
 
   it('rejects paths outside the artifact root', async () => {

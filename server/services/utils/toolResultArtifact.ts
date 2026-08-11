@@ -40,6 +40,8 @@ let artifactOperationQueue: Promise<void> = Promise.resolve();
 export interface ToolResultMessageOptions {
   summary?: string;
   conversationId?: string;
+  /** 是否保持结果原样返回，不保存为 artifact。 */
+  skipArtifact?: boolean;
 }
 
 /**
@@ -277,7 +279,7 @@ export async function serializeToolResultForContext(
   const serialized = JSON.stringify(normalizedResult) ?? String(normalizedResult);
   const byteLength = Buffer.byteLength(serialized, 'utf8');
 
-  if (byteLength <= TOOL_RESULT_ARTIFACT_THRESHOLD) {
+  if (byteLength <= TOOL_RESULT_ARTIFACT_THRESHOLD || options.skipArtifact) {
     return serialized;
   }
 
