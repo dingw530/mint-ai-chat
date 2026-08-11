@@ -115,7 +115,7 @@ Mint 的核心定位是以 LLM Wiki 知识库为基础的个人 AI 助手：它�
 ## 架构
 
 <p align="center">
-  <img src="architecture.svg" alt="Mint 架构" width="900" />
+  <img src="docs/diagrams/architecture.svg" alt="Mint LLM Wiki 产品功能地图与技术架构" width="900" />
 </p>
 
 在 Electron 模式下，应用会在**同一进程内**运行 server：服务模块直接加载到主进程中，并通过 IPC handler 调用，完全绕过 HTTP。这可以消除网络开销，并让渲染进程直接访问服务。
