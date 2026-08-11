@@ -54,6 +54,7 @@ interface ReactRunState {
   awaitingApproval: boolean;
   forceFinalAnswer: boolean;
   toolCounts: Record<string, number>;
+  toolCountsByRound: Record<string, Record<string, number>>;
   toolCount: number;
   currentTool?: string;
   retryCount: number;
@@ -71,6 +72,7 @@ interface ToolExecutionResult {
 export interface ReactExecutionPolicy {
   maxToolCalls?: number;
   maxToolCallsByName?: Record<string, number>;
+  maxToolCallsPerRoundByName?: Record<string, number>;
 }
 
 /** 创建一次 ReAct 运行的可变状态，避免把状态散落在主循环的多个闭包变量中。 */
@@ -82,6 +84,7 @@ function createRunState(): ReactRunState {
     awaitingApproval: false,
     forceFinalAnswer: false,
     toolCounts: {},
+    toolCountsByRound: {},
     toolCount: 0,
     retryCount: 0,
   };
@@ -203,7 +206,7 @@ async function executeToolCalls(
       const callId = originalCall.id || `${context.runId}:r${context.round}:c${index}`;
       const toolCall = { ...originalCall, id: callId };
       const startedAt = Date.now();
-      const canExecute = reserveToolCall(toolCall.function.name, state, context.executionPolicy);
+      const canExecute = reserveToolCall(toolCall.function.name, state, context.executionPolicy, context.round);
       events.emit({
         type: 'tool_call_start',
         state: 'executing_tools',
@@ -346,13 +349,19 @@ async function executeToolCalls(
 }
 
 /** 预留一次工具调用名额；超限调用仍会被记录，但不会触达真实工具。 */
-function reserveToolCall(toolName: string, state: ReactRunState, policy?: ReactExecutionPolicy): boolean {
+function reserveToolCall(toolName: string, state: ReactRunState, policy?: ReactExecutionPolicy, round?: number): boolean {
   const totalAllowed = policy?.maxToolCalls === undefined || state.toolCount < policy.maxToolCalls;
   const nameLimit = policy?.maxToolCallsByName?.[toolName];
   const nameAllowed = nameLimit === undefined || (state.toolCounts[toolName] || 0) < nameLimit;
+  const roundKey = String(round ?? 0);
+  const roundCounts = state.toolCountsByRound[roundKey] || {};
+  const roundLimit = policy?.maxToolCallsPerRoundByName?.[toolName];
+  const roundAllowed = roundLimit === undefined || (roundCounts[toolName] || 0) < roundLimit;
   state.toolCount += 1;
   state.toolCounts[toolName] = (state.toolCounts[toolName] || 0) + 1;
-  return totalAllowed && nameAllowed;
+  roundCounts[toolName] = (roundCounts[toolName] || 0) + 1;
+  state.toolCountsByRound[roundKey] = roundCounts;
+  return totalAllowed && nameAllowed && roundAllowed;
 }
 
 /** 兼容适配器返回的 JSON 参数和无法解析的原始参数字符串。 */

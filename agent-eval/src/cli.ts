@@ -1,10 +1,12 @@
 import path from 'node:path';
 import os from 'node:os';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import './loadEnv.js';
-import { datasetPath, loadDataset, runEvaluation, writeReport } from './index.js';
-import type { AgentEvalExecutor } from './index.js';
+import { compareReports, datasetPath, loadDataset, runEvaluation, writeReport } from './index.js';
+import type { AgentEvalExecutor, EvalReport } from './index.js';
 import { ingestWikiRagCorpus, prepareWikiRagCorpus } from './wikiRagCorpus.js';
+import { resolveRuns } from './runOptions.js';
 
 const [, , command = 'list', ...args] = process.argv;
 const evalDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,15 +23,18 @@ const dryRunExecutor: AgentEvalExecutor = async evalCase => {
   ].filter((value): value is string => Boolean(value));
   const toolEvents = (expected.mustUseTools || []).map(toolName => ({ type: 'tool_call_start', toolName, round: 1 }));
   const citations = (expected.requiredSourceFiles || []).map(file => ({ file, refId: `dry-${file}` }));
+  const completionEvent = expected.mustRequireApproval
+    ? { type: 'approval_required', toolName: expected.approvalTool || expected.mustUseTools?.[0], round: 1 }
+    : { type: 'run_completed' };
   return {
     content: claims.join('；'),
-    events: [...toolEvents, { type: 'run_completed' }],
+    events: [...toolEvents, completionEvent],
     citations,
   };
 };
 
 function optionValue(args: string[], name: string): string | undefined {
-  const index = args.indexOf(name);
+  const index = args.lastIndexOf(name);
   if (index < 0) return undefined;
   const value = args[index + 1];
   if (!value || value.startsWith('--')) throw new Error(`${name} requires a value`);
@@ -79,9 +84,9 @@ async function main(): Promise<void> {
     return;
   }
   if (command !== 'run') throw new Error(`Unknown eval command: ${command}`);
-  const datasetName = optionValue(args, '--dataset'); const runsValue = optionValue(args, '--runs'); const outputPath = optionValue(args, '--output');
+  const datasetName = optionValue(args, '--dataset'); const runsValue = optionValue(args, '--runs'); const outputPath = optionValue(args, '--output'); const baselinePath = optionValue(args, '--baseline');
   const live = args.includes('--live');
-  const name = datasetName || 'smoke'; const runs = Number(runsValue || 1);
+  const name = datasetName || 'smoke'; const runs = resolveRuns(runsValue, live);
   const output = outputPath || path.join(evalDirectory, 'viewer/report.json');
   const dbPath = applyDatabaseOverride(args);
   const dataset = await loadDataset(datasetPath(datasetsDirectory, name));
@@ -98,6 +103,10 @@ async function main(): Promise<void> {
     if (!settings.wikiPath) throw new Error('Live Wiki-RAG evaluation requires --wiki <isolated-wiki-path> or a configured wikiPath');
     executor = server.createReactExecutor(settings);
   }
-  const report = await runEvaluation(dataset, executor, runs); await writeReport(report, output); console.log(JSON.stringify(report.summary, null, 2));
+  const report = await runEvaluation(dataset, executor, runs);
+  const finalReport = baselinePath
+    ? compareReports(report, JSON.parse(await fs.readFile(path.resolve(baselinePath), 'utf8')) as EvalReport)
+    : report;
+  await writeReport(finalReport, output); console.log(JSON.stringify(finalReport.summary, null, 2));
 }
 main().catch(error => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; });

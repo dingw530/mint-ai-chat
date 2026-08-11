@@ -19,6 +19,14 @@ interface EvalCitation {
   sourceFile?: string;
 }
 
+interface EvalWikiReference {
+  file: string;
+  title: string;
+  heading: string;
+  chunkId: string;
+  refId: string;
+}
+
 export interface EvalSettingsInput {
   apiUrl: string;
   apiKey: string;
@@ -30,9 +38,10 @@ const EVAL_WIKI_QUERY_PROTOCOL = [
   '【Wiki-RAG 评测协议】',
   '1. 先用一次 wiki_search 的 question 模式搜索原问题；搜索结果包含完整页面内容和可用的 [C#] 引用标记。',
   '2. 只有在结果为空或明显缺少问题所需主题时，才补充一次搜索；已知多个页面路径时必须用一次 paths 批量读取，不要逐页读取。',
-  '3. 不要调用 discover_tools、invoke_skill 或 bash 来完成 Wiki 查询；不要为了确认已经获得的内容重复搜索。',
-  '4. 最多进行两次 wiki_search，然后必须回答；如果证据不足，明确说明知识库没有足够信息，不要猜测。',
-  '5. 每个基于 Wiki 事实的段落都必须在句末使用实际存在的 [C#] 引用；不得编造引用编号。',
+  '3. 每一轮最多发起一个 wiki_search，禁止在同一轮并行发起多个 wiki_search；需要多个文件时使用一次 paths 批量读取。',
+  '4. 不要调用 discover_tools、invoke_skill 或 bash 来完成 Wiki 查询；不要为了确认已经获得的内容重复搜索。',
+  '5. 最多进行两次 wiki_search，然后必须回答；如果证据不足，明确说明知识库没有足够信息，不要猜测。',
+  '6. 每个基于 Wiki 事实的段落都必须在句末使用实际存在的 [C#] 引用；不得使用 [1]、[2] 这类无 C 前缀的编号，也不得编造引用编号。',
 ].join('\n');
 
 class EvalSink implements Sink {
@@ -87,6 +96,32 @@ function citationsFromWikiLinks(wikiPath: string, content: string): EvalCitation
   return citations;
 }
 
+/** 将模型常见的 [1]/[C1] 引用标记映射回本轮 Wiki 搜索引用。 */
+export function citationsFromReferenceMarkers(
+  wikiPath: string,
+  content: string,
+  references: EvalWikiReference[],
+  existingCitations: EvalCitation[] = [],
+): EvalCitation[] {
+  const referencesById = new Map(references.map((reference) => [reference.refId.toLocaleUpperCase(), reference]));
+  const citationsById = new Map(existingCitations
+    .filter((citation) => citation.refId)
+    .map((citation) => [citation.refId!.toLocaleUpperCase(), citation]));
+  const citations: EvalCitation[] = [];
+  const pattern = /(?:\[|【)(C?)(\d+)(?:\]|】)(?=\s*(?:[。！？.!?；;,:，、\n]|$))/gi;
+  for (const match of content.matchAll(pattern)) {
+    const referenceId = `C${match[2]}`.toLocaleUpperCase();
+    const existing = citationsById.get(referenceId);
+    if (existing) {
+      citations.push(existing);
+      continue;
+    }
+    const reference = referencesById.get(referenceId);
+    if (reference) citations.push(citationFromReference(wikiPath, reference));
+  }
+  return citations;
+}
+
 function dedupeCitations(citations: EvalCitation[]): EvalCitation[] {
   const seen = new Set<string>();
   return citations.filter((citation) => {
@@ -97,15 +132,19 @@ function dedupeCitations(citations: EvalCitation[]): EvalCitation[] {
   });
 }
 
-function citationsFromReferences(wikiPath: string, references: Array<{ file: string; title: string; heading: string; chunkId: string; refId: string }>): EvalCitation[] {
-  return references.map((reference) => ({
+function citationFromReference(wikiPath: string, reference: EvalWikiReference): EvalCitation {
+  return {
     file: reference.file,
     title: reference.title,
     heading: reference.heading,
     chunkId: reference.chunkId,
     refId: reference.refId,
     sourceFile: readCitationSource(wikiPath, reference.file),
-  }));
+  };
+}
+
+function citationsFromReferences(wikiPath: string, references: EvalWikiReference[]): EvalCitation[] {
+  return references.map((reference) => citationFromReference(wikiPath, reference));
 }
 
 interface EvalCaseInput {
@@ -125,6 +164,7 @@ function buildExecutionPolicy(evalCase: EvalCaseInput): ReactExecutionPolicy {
   return {
     maxToolCalls: evalCase.expected?.maxToolCalls,
     maxToolCallsByName: maxWikiSearchCalls === undefined ? undefined : { wiki_search: maxWikiSearchCalls },
+    maxToolCallsPerRoundByName: maxWikiSearchCalls === undefined ? undefined : { wiki_search: 1 },
   };
 }
 
@@ -150,12 +190,19 @@ export function createReactExecutor(settings: AiSettings) {
     ];
     const result = await reactChat(messages, settings, sink, evalCase.agent, undefined, `eval:${evalCase.id}`, buildExecutionPolicy(evalCase));
     const blockCitations = (result.uiBlocks ?? []).map((block) => citationFromBlock(settings.wikiPath, block));
+    const answerMarkerCitations = citationsFromReferenceMarkers(
+      settings.wikiPath,
+      result.content,
+      result.wikiReferences || [],
+      blockCitations,
+    );
     return {
       content: result.content,
       events: sink.events,
       citations: dedupeCitations([
         ...blockCitations,
         ...citationsFromWikiLinks(settings.wikiPath, result.content),
+        ...answerMarkerCitations,
       ]),
       retrievedCitations: dedupeCitations(citationsFromReferences(settings.wikiPath, result.wikiReferences || [])),
     };

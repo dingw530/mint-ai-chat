@@ -107,14 +107,29 @@ npm run eval:wiki-rag -w agent-eval
 - `queryPassAt1`：答案内容、最终展示引用和检索证据均通过率，不把工具预算超限单独混入查询质量
 - `answerPassAt1`：答案内容与拒答行为通过率
 - `toolBudgetPassRate`：工具调用次数和循环控制通过率
-- `wikiSearchBudgetPassRate`：Wiki 查询是否控制在每题最多 2 次搜索（可用 `maxWikiSearchCalls` 覆盖）
+- `wikiSearchBudgetPassRate`：Wiki 查询是否控制在每题最多 2 次搜索（可用 `maxWikiSearchCalls` 覆盖）；评测模式每轮最多执行一次 Wiki 搜索
 - `averageWikiSearchCalls`：每次评测平均 `wiki_search` 调用次数
 - `unrelatedToolRate`：非 `wiki_search` 工具调用占比，用于识别 `discover_tools`、`invoke_skill` 等无关调用
-- `passPowerK`：多次运行稳定性
+- `passAtK` / `passPowerK`：默认以 `k=min(3, runsPerCase)` 计算；前者表示多次尝试至少一次通过，后者表示连续多次运行全部通过
+- `caseStats`：每条用例的通过次数、通过率、延迟均值、标准差和 p95
+- `comparison`：传入 `--baseline` 后生成的同名指标差值和版本警告
+- `p50LatencyMs` / `p95LatencyMs`：端到端延迟分位数
+- `essentialPassRate` / `importantPassRate` / `optionalPassRate`：分层 Rubric 通过率；Veto 中描述的是禁止出现的条件，命中后会直接否决用例
 - `citationCoverageRate`：引用断言覆盖率
 - `citationAccuracyRate`：来源引用准确率
 - `retrievalCoverageRate`：工具检索结果对目标来源断言的覆盖率；它与最终答案展示的引用覆盖率分开统计
 - `abstentionAccuracy`：无答案拒答准确率
+
+多次运行并与历史报告比较：
+
+```bash
+node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
+  run --dataset wiki-rag --live --runs 3 \
+  --baseline /tmp/wiki-rag-baseline.json \
+  --output /tmp/wiki-rag-current.json
+```
+
+用例还可以声明 `complexity`、`capabilities`、`expected.rubric` 和 `expected.finalState`。执行器可额外返回 `state`、token 用量、TTFT 和 `traceId`，以便把最终状态、成本和完整 Trace 纳入评测报告。
 
 ### 查看报告
 
@@ -156,10 +171,12 @@ node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
   --model "$MINT_EVAL_MODEL_ID"
 
 node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
-  run --dataset wiki-rag --live --runs 1 \
+  run --dataset wiki-rag --live --runs 3 \
   --wiki /tmp/mint-wiki-rag-ingested \
   --db /tmp/mint-wiki-rag-agent-eval.db
 ```
+
+Live 评测支持两种运行规模：`--runs 1` 用于快速验证，`--runs 3` 用于计算 Pass@3 和 Pass^3；未指定时默认运行 3 次。其他运行次数会被 CLI 拒绝。
 
 ## 数据集说明
 
@@ -168,6 +185,6 @@ Wiki/RAG 数据集位于 [datasets/wiki-rag](./datasets/wiki-rag/)，包括：
 - `raw/`：10 篇原始源文档，已排除简历；
 - `fixture/`：`prepare` 生成的确定性检索 fixture；
 - `manifest.json`：语料版本、格式及排除文件记录；
-- `../wiki-rag.json`：20 条问题级用例，包含 18 条可回答问题和 2 条无答案问题。
+- `../wiki-rag.json`：23 条问题级用例，包含可回答、无答案、多跳检索、边界拒答和审批安全问题。
 
 `raw/` 是源文档，不等同于已经摄入的知识库页面。需要评估完整的“源文档 → 摄入 → 检索 → 回答”链路时，必须执行 `eval:wiki-rag:ingest`，并始终使用隔离 Wiki 和隔离 DB。
