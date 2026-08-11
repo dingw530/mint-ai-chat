@@ -83,6 +83,7 @@
 
   --font-display: 'DM Sans', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
+  --chat-content-max-width: 1080px;
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -396,7 +397,10 @@ body::after {
 }
 
 .chat-input-main {
-  flex: 1;
+  flex: 1 1 var(--chat-content-max-width);
+  width: min(100%, var(--chat-content-max-width));
+  max-width: var(--chat-content-max-width);
+  margin-inline: auto;
   min-width: 0;
 }
 
@@ -823,7 +827,8 @@ body::after {
    -------------------------------------------- */
 .message-wrapper {
   position: relative;
-  margin-left: 4px;
+  width: min(100%, var(--chat-content-max-width));
+  margin: 0 auto 4px;
   padding-left: 44px;
 }
 
