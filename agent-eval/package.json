@@ -23,5 +23,5 @@
     "typescript": "^6.0.3",
     "vitest": "^1.6.1"
   },
-  "engines": { "node": "20.18.3" }
+  "engines": { "node": "20.19.4" }
 }

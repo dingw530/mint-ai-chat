@@ -14,8 +14,22 @@ const { execFileSync } = require('child_process');
 const rootDir = path.join(__dirname, '..');
 const electronDir = __dirname;
 
+/**
+ * Returns the sqlite-vec package that contains the current platform's loadable extension.
+ * @returns {string} Package name for the current platform and CPU architecture.
+ */
+function getSqliteVecPlatformPackageName() {
+  const os = process.platform === 'win32' ? 'windows' : process.platform;
+  return `sqlite-vec-${os}-${process.arch}`;
+}
+
 // 仅原生/WASM 模块需要从 node_modules 拷贝
-const NATIVE_MODULES = ['better-sqlite3', 'pdfjs-dist'];
+const NATIVE_MODULES = [
+  'better-sqlite3',
+  'pdfjs-dist',
+  'sqlite-vec',
+  getSqliteVecPlatformPackageName(),
+];
 
 function buildServerBundle() {
   const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';

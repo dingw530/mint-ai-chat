@@ -68,10 +68,10 @@
     "website"
   ],
   "engines": {
-    "node": "20.18.3"
+    "node": "20.19.4"
   },
   "dependencies": {
-    "electron": "^41.0.2",
+    "electron": "41.7.1",
     "sharp": "^0.35.1",
     "undici": "^7.29.0"
   }

@@ -20,7 +20,10 @@ function rebuildNodeModule() {
     env: process.env,
     stdio: 'inherit',
   });
-  process.exit(result.status ?? 1);
+
+  if (result.status !== 0) {
+    throw new Error(`Failed to rebuild better-sqlite3 for Node.js (exit ${result.status ?? 1})`);
+  }
 }
 
 async function rebuildElectronModule() {
@@ -53,11 +56,20 @@ async function rebuildElectronModule() {
     mode: 'sequential',
   });
 
+  // npm workspaces cause @electron/rebuild to also rebuild the hoisted copy.
+  // Restore it for server/Vitest while preserving the Electron copy above.
+  rebuildNodeModule();
+
   console.log(`Electron native modules rebuilt for Electron ${electronVersion}`);
 }
 
 if (runtime === 'node') {
-  rebuildNodeModule();
+  try {
+    rebuildNodeModule();
+  } catch (error) {
+    console.error(error.stack || error.message);
+    process.exit(1);
+  }
 } else {
   rebuildElectronModule().catch((error) => {
     console.error(error.stack || error.message);
