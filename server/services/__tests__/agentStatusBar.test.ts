@@ -29,6 +29,8 @@ describe('agentStatusBar', () => {
     expect(message.content).toContain('Retries: 1');
     expect(message.content).toContain('Strategy:');
     expect(message.content).toContain('</agent_status>');
+    // elapsedMs 每轮必变，不应进入模型上下文以保持前缀缓存稳定
+    expect(message.content).not.toContain('Elapsed:');
   });
 
   it('removes only status messages and preserves the conversation history', () => {
