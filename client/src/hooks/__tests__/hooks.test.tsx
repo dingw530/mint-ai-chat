@@ -104,6 +104,21 @@ describe('useSSE', () => {
     expect(secondAbort).toHaveBeenCalledOnce();
     hook.unmount();
   });
+
+  it('keeps streams for different conversations independent', () => {
+    const firstAbort = vi.fn(); const secondAbort = vi.fn();
+    api.sendMessageStream.mockReturnValueOnce({ abort: firstAbort }).mockReturnValueOnce({ abort: secondAbort });
+    const hook = renderHook(() => useSSE());
+    const callbacks: SendCallbacks = {};
+    act(() => hook.result.current.send('conversation-a', 'hello', callbacks));
+    act(() => hook.result.current.send('conversation-b', 'hello', callbacks));
+    expect(firstAbort).not.toHaveBeenCalled();
+    expect(secondAbort).not.toHaveBeenCalled();
+    act(() => hook.result.current.abort('conversation-a'));
+    expect(firstAbort).toHaveBeenCalledOnce();
+    expect(secondAbort).not.toHaveBeenCalled();
+    hook.unmount();
+  });
 });
 
 describe('useSidebarResize', () => {

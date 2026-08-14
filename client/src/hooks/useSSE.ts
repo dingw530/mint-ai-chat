@@ -10,7 +10,7 @@ interface UseSSEReturn {
     agent?: string,
     options?: SendOptions,
   ) => void;
-  abort: () => void;
+  abort: (conversationId?: string) => void;
 }
 
 /**
@@ -18,23 +18,27 @@ interface UseSSEReturn {
  * Returns a send function and an abort function.
  */
 export default function useSSE(): UseSSEReturn {
-  const abortRef = useRef<(() => void) | null>(null);
+  const abortRefs = useRef(new Map<string, () => void>());
 
   const send = useCallback<UseSSEReturn['send']>((conversationId, content, callbacks, agent, options = {}) => {
-    // 先清理上一次的 listener/connection，防止 Electron IPC listener 累积导致事件重复
-    if (abortRef.current) {
-      abortRef.current();
-      abortRef.current = null;
+    const previousAbort = abortRefs.current.get(conversationId);
+    if (previousAbort) {
+      previousAbort();
+      abortRefs.current.delete(conversationId);
     }
     const { abort } = sendMessageStream(conversationId, content, callbacks, agent, options);
-    abortRef.current = abort;
+    abortRefs.current.set(conversationId, abort);
   }, []);
 
-  const abort = useCallback(() => {
-    if (abortRef.current) {
-      abortRef.current();
-      abortRef.current = null;
+  const abort = useCallback((conversationId?: string) => {
+    if (conversationId) {
+      const currentAbort = abortRefs.current.get(conversationId);
+      currentAbort?.();
+      abortRefs.current.delete(conversationId);
+      return;
     }
+    abortRefs.current.forEach((currentAbort) => currentAbort());
+    abortRefs.current.clear();
   }, []);
 
   return { send, abort };

@@ -8,17 +8,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── 流式对话 ──
   sendMessage: (convId, content, agent, regenerate) =>
     ipcRenderer.invoke('chat:send', convId, content, agent, regenerate),
-  onChunk: (callback) => {
-    ipcRenderer.on('chat:chunk', (_event, data) => callback(data));
+  onChunk: (conversationId, callback) => {
+    const listener = (_event, eventConversationId, data) => {
+      if (eventConversationId === conversationId) callback(data);
+    };
+    ipcRenderer.on('chat:chunk', listener);
+    return () => ipcRenderer.removeListener('chat:chunk', listener);
   },
-  onDone: (callback) => {
-    ipcRenderer.on('chat:done', () => callback());
+  onDone: (conversationId, callback) => {
+    const listener = (_event, eventConversationId) => {
+      if (eventConversationId === conversationId) callback();
+    };
+    ipcRenderer.on('chat:done', listener);
+    return () => ipcRenderer.removeListener('chat:done', listener);
   },
-  onError: (callback) => {
-    ipcRenderer.on('chat:error', (_event, err) => callback(err));
+  onError: (conversationId, callback) => {
+    const listener = (_event, eventConversationId, err) => {
+      if (eventConversationId === conversationId) callback(err);
+    };
+    ipcRenderer.on('chat:error', listener);
+    return () => ipcRenderer.removeListener('chat:error', listener);
   },
-  removeListener: (channel) => {
-    ipcRenderer.removeAllListeners(channel);
+  removeListener: (channel, callback) => {
+    if (callback) ipcRenderer.removeListener(channel, callback);
+    else ipcRenderer.removeAllListeners(channel);
   },
   subscribeIngestionEvents: (conversationId) => ipcRenderer.invoke('chat:a2ui:subscribe', conversationId),
   onA2ui: (callback) => {

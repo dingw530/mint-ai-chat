@@ -329,10 +329,10 @@ export interface ElectronAPI {
 
   // 流式对话
   sendMessage: (convId: string, content: string, agent?: string, regenerate?: boolean) => void;
-  onChunk: (callback: (data: string) => void) => void;
-  onDone: (callback: () => void) => void;
-  onError: (callback: (err: string) => void) => void;
-  removeListener: (channel: string) => void;
+  onChunk: (conversationId: string, callback: (data: string) => void) => () => void;
+  onDone: (conversationId: string, callback: () => void) => () => void;
+  onError: (conversationId: string, callback: (err: string) => void) => () => void;
+  removeListener: (channel: string, callback?: (...args: never[]) => void) => void;
   subscribeIngestionEvents: (conversationId: string) => Promise<{ subscribed: boolean }>;
   onA2ui: (callback: (data: string) => void) => void;
 

@@ -8,16 +8,16 @@
 function registerChatHandlers({ ipcMain, services, logger }) {
   ipcMain.handle('chat:send', async (event, convId, content, agent, regenerate) => {
     if (!services.msgSvc) {
-      event.sender.send('chat:error', 'Services not loaded');
+      event.sender.send('chat:error', convId, 'Services not loaded');
       return;
     }
 
-    const sink = new services.sinkMod.IpcSink(event);
+    const sink = new services.sinkMod.IpcSink(event, convId);
     try {
       await services.msgSvc.sendMessage(convId, content, sink, agent, regenerate);
     } catch (err) {
       logger.error(`chat:send error: ${err.message}`);
-      if (!sink.writableEnded) event.sender.send('chat:error', err.message);
+      if (!sink.writableEnded) event.sender.send('chat:error', convId, err.message);
     }
   });
 
