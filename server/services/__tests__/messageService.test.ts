@@ -59,6 +59,7 @@ import * as agentService from '../api/agentService.js';
 import { routingService } from '../api/routingService.js';
 import { streamChat } from '../aiProxy.js';
 import { reactChat } from '../reactLoopCore.js';
+import { getAllToolDefinitions } from '../toolOrchestration.js';
 import { sendMessage, getMessages } from '../messageService.js';
 
 describe('messageService', () => {
@@ -182,6 +183,30 @@ describe('messageService', () => {
       const sentMessages = vi.mocked(streamChat).mock.calls[0][0];
       expect(sentMessages.find(message => message.role === 'system')?.content).toBe('base prompt');
       expect(sentMessages.map(message => message.role)).toEqual(['system', 'user', 'user']);
+      expect(sentMessages[1].content).toContain('<user_memory>');
+      expect(sentMessages[2].content).toBe('hi');
+    });
+
+    it('passes the assembled context to ReAct when tools are available', async () => {
+      vi.mocked(settingsService.getAiSettings).mockReturnValue({
+        apiUrl: 'https://api.test.com', apiKey: 'sk-key', modelId: 'gpt-4',
+        apiType: 'openai-chat', systemPrompt: 'base prompt', thinkingMode: false,
+        memoryEnabled: true, reactMaxIterations: 5, toolMaxRetries: 3,
+        showReactSteps: true, maxContextRounds: 10, wikiPath: '', wikiMaxFileSize: 10485760,
+      });
+      vi.mocked(memoryService.buildMemoryContext).mockReturnValue('记忆：用户在北京');
+      vi.mocked(messageRepo.getHistory).mockReturnValue([{ role: 'user', content: 'hi' }]);
+      vi.mocked(getAllToolDefinitions).mockResolvedValueOnce([{
+        type: 'function',
+        function: { name: 'lookup', description: 'lookup context', parameters: {} },
+      }]);
+      vi.mocked(reactChat).mockResolvedValueOnce({ content: 'response', reasoning: '', toolCalls: null });
+      const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+      await sendMessage('conv-1', 'hi', sink);
+
+      const sentMessages = vi.mocked(reactChat).mock.calls[0][0];
+      expect(sentMessages.map((message) => message.role)).toEqual(['system', 'user', 'user']);
       expect(sentMessages[1].content).toContain('<user_memory>');
       expect(sentMessages[2].content).toBe('hi');
     });

@@ -41,3 +41,4 @@
 | [Mint Wiki 统一链接协议](<../changes/2026-08-05-mint-wiki-protocol/product-spec.md>) | 2026-08-05 | 已完成 |
 | [Wiki 摄入证据闸门](<../changes/2026-08-09-ingestion-evidence-gate/product-spec.md>) | 2026-08-09 | 已完成 |
 | [Wiki 摄入 Source 事务化](<../changes/2026-08-09-ingestion-source-transaction/product-spec.md>) | 2026-08-09 | 已完成 |
+| [ContextProvider 消息编排改造](<../changes/2026-08-14-context-provider/product-spec.md>) | 2026-08-14 | 已完成 |
