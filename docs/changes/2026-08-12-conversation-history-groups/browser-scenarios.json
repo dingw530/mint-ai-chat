@@ -1,0 +1,113 @@
+{
+  "scenarios": [
+    {
+      "id": "conversation-history-date-groups",
+      "acceptanceCriteria": ["AC-001", "AC-003", "AC-004"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"showReactSteps": false, "routingMode": "manual"}
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {"endpoints": []}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {
+              "conversations": [
+                {"id":"today","title":"今天的对话","type":"chat","createdAt":"2026-08-12T09:00:00.000Z","updatedAt":"2026-08-12T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"},
+                {"id":"yesterday","title":"昨天的对话","type":"chat","createdAt":"2026-08-11T09:00:00.000Z","updatedAt":"2026-08-11T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"},
+                {"id":"week","title":"7天内的对话","type":"chat","createdAt":"2026-08-08T09:00:00.000Z","updatedAt":"2026-08-08T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"},
+                {"id":"month","title":"30天内的对话","type":"chat","createdAt":"2026-07-20T09:00:00.000Z","updatedAt":"2026-07-20T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"},
+                {"id":"older","title":"更早的对话","type":"chat","createdAt":"2026-07-01T09:00:00.000Z","updatedAt":"2026-07-01T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"}
+              ]
+            }
+          },
+          {
+            "pattern": "**/api/conversations/*/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations/*/ingestion-events",
+            "method": "GET",
+            "contentType": "text/event-stream",
+            "body": ""
+          }
+        ]
+      },
+      "markers": ["输入消息..."],
+      "steps": [
+        {"action":"waitFor","text":"今天","exact":true,"timeoutMs":10000},
+        {"action":"waitFor","text":"昨天","exact":true,"timeoutMs":10000},
+        {"action":"waitFor","text":"7天内","exact":true,"timeoutMs":10000},
+        {"action":"waitFor","text":"30天内","exact":true,"timeoutMs":10000},
+        {"action":"waitFor","text":"更早","exact":true,"timeoutMs":10000},
+        {"action":"assertText","text":"今天的对话"},
+        {"action":"assertText","text":"昨天的对话"},
+        {"action":"assertText","text":"7天内的对话"},
+        {"action":"assertText","text":"30天内的对话"},
+        {"action":"assertText","text":"更早的对话"}
+      ]
+    },
+    {
+      "id": "image-history-date-groups",
+      "acceptanceCriteria": ["AC-002"],
+      "route": "/image",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": []}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"showReactSteps": false, "routingMode": "manual"}
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {"endpoints": [{"id":"image-model","name":"图像模型","category":"image","isActive":true}]}
+          },
+          {
+            "pattern": "**/api/conversations?type=image",
+            "method": "GET",
+            "body": {
+              "conversations": [
+                {"id":"image-today","title":"今天的生图","type":"image","createdAt":"2026-08-12T09:00:00.000Z","updatedAt":"2026-08-12T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"},
+                {"id":"image-yesterday","title":"昨天的生图","type":"image","createdAt":"2026-08-11T09:00:00.000Z","updatedAt":"2026-08-11T10:00:00.000Z","lockedAgent":null,"routingMode":"manual"}
+              ]
+            }
+          },
+          {
+            "pattern": "**/api/conversations/*/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          }
+        ]
+      },
+      "markers": ["新建生图"],
+      "steps": [
+        {"action":"waitFor","text":"今天","exact":true,"timeoutMs":10000},
+        {"action":"waitFor","text":"昨天","exact":true,"timeoutMs":10000},
+        {"action":"assertText","text":"今天的生图"},
+        {"action":"assertText","text":"昨天的生图"}
+      ]
+    }
+  ]
+}

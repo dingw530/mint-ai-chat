@@ -1,6 +1,7 @@
 import { useState, useCallback, KeyboardEvent } from 'react';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import type { Conversation } from '@/types';
+import { groupConversationsByDate } from '@/shared/utils/conversationGroups';
 
 function ImageNavIcon() {
   return (
@@ -92,6 +93,8 @@ export default function ImageSidebar({
     else if (e.key === 'Escape') { setEditingId(null); setEditTitle(''); }
   };
 
+  const conversationGroups = groupConversationsByDate(conversations);
+
   return (
     <div className="sidebar-chat-content">
       <div className="sidebar-actions">
@@ -113,46 +116,51 @@ export default function ImageSidebar({
         ) : conversations.length === 0 && (
           <div className="empty-state">暂无生图记录</div>
         )}
-        {conversations.map((conv) => (
-          <div
-            key={conv.id}
-            className={`conversation-item${conv.id === activeId ? ' active' : ''}`}
-            onClick={() => onSelect(conv.id)}
-          >
-            {editingId === conv.id ? (
-              <input
-                className="title-input"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onBlur={submitRename}
-                onKeyDown={handleRenameKeyDown}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <>
-                <div className="conv-icon"><ImageNavIcon /></div>
-                <span className="title">{conv.title}</span>
-                <span className="actions">
-                  <button title="重命名" onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
-                    <EditIcon />
-                  </button>
-                  <button title="删除" onClick={(e) => {
-                    e.stopPropagation();
-                    showConfirm({
-                      variant: 'danger',
-                      title: '删除对话',
-                      message: `确定要删除"${conv.title}"吗？`,
-                      confirmLabel: '删除',
-                      onConfirm: () => onDelete(conv.id),
-                    });
-                  }}>
-                    <TrashIcon />
-                  </button>
-                </span>
-              </>
-            )}
-          </div>
+        {conversationGroups.map((group) => (
+          <section className="conversation-group" key={group.label}>
+            <h3 className="conversation-group-title">{group.label}</h3>
+            {group.conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`conversation-item${conv.id === activeId ? ' active' : ''}`}
+                onClick={() => onSelect(conv.id)}
+              >
+                {editingId === conv.id ? (
+                  <input
+                    className="title-input"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={submitRename}
+                    onKeyDown={handleRenameKeyDown}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <div className="conv-icon"><ImageNavIcon /></div>
+                    <span className="title">{conv.title}</span>
+                    <span className="actions">
+                      <button title="重命名" onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
+                        <EditIcon />
+                      </button>
+                      <button title="删除" onClick={(e) => {
+                        e.stopPropagation();
+                        showConfirm({
+                          variant: 'danger',
+                          title: '删除对话',
+                          message: `确定要删除"${conv.title}"吗？`,
+                          confirmLabel: '删除',
+                          onConfirm: () => onDelete(conv.id),
+                        });
+                      }}>
+                        <TrashIcon />
+                      </button>
+                    </span>
+                  </>
+                )}
+              </div>
+            ))}
+          </section>
         ))}
       </div>
       {confirmDialog && (
