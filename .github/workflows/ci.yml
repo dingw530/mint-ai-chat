@@ -21,8 +21,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: cd server && npx tsc --noEmit
-      - run: cd client && npx tsc --noEmit
+      - run: npm run typecheck
       - run: npm run lint
 
   test:
@@ -54,5 +53,4 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: cd server && npm run build
-      - run: cd client && npm run build
+      - run: npm run build
