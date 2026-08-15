@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback } from 'react';
 import { lockAgent, unlockAgent } from '@/services/api';
 import type { Conversation } from '@/types';
 
@@ -6,7 +6,7 @@ interface UseChatAgentActionsOptions {
   activeConversation: string | null;
   routingMode: string;
   onUpdateConversation?: (convId: string, updates: Partial<Conversation>) => void;
-  setActiveAgent: Dispatch<SetStateAction<string>>;
+  setActiveAgent: (value: string) => void;
 }
 
 /** 管理助手锁定、解锁和手动选择动作。 */

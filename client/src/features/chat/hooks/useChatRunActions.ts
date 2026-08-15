@@ -25,10 +25,10 @@ interface UseChatRunActionsOptions {
   onAutoCreate: (title?: string) => Promise<string | undefined>;
   onTitleUpdate: (id: string, title: string) => void;
   setMessages: Dispatch<SetStateAction<Message[]>>;
-  setSending: Dispatch<SetStateAction<boolean>>;
-  setStreamingId: Dispatch<SetStateAction<string | null>>;
-  setActiveAgent: Dispatch<SetStateAction<string>>;
-  setAutoRoutedAgent: Dispatch<SetStateAction<string | null>>;
+  setSending: (value: boolean) => void;
+  setStreamingId: (value: string | null) => void;
+  setActiveAgent: (value: string) => void;
+  setAutoRoutedAgent: (value: string | null) => void;
   setAgentRunStatus: Dispatch<SetStateAction<AgentRunStatusData | null>>;
   dispatchReactEvent: (event: ReactReducerEvent) => void;
   resetReactEvents: () => void;
