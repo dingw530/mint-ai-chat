@@ -42,10 +42,11 @@ function formatToolCounts(toolCounts: Record<string, number>): string {
  */
 export function buildAgentStatusMessage(snapshot: AgentStatusSnapshot): HistoryMessage {
   const loopGuard = snapshot.loopDetected ? 'triggered' : 'normal';
+  // 注意：不渲染 elapsedMs。它是每轮必变的时间戳，对模型决策无价值，
+  // 却会让这条状态消息每轮内容不同，破坏 LLM 前缀缓存稳定性。
   const content = [
     STATUS_MARKER,
     `Current round: ${snapshot.round}/${snapshot.maxRounds}`,
-    `Elapsed: ${Math.max(0, Math.round(snapshot.elapsedMs))}ms`,
     `Tool calls: ${formatToolCounts(snapshot.toolCounts)} (total=${snapshot.toolCount})`,
     `Current tool: ${safeField(snapshot.currentTool)}`,
     `Retries: ${snapshot.retryCount}`,

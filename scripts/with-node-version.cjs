@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const requiredVersion = process.env.MINT_REQUIRED_NODE_VERSION || '20.18.3';
+const requiredVersion = process.env.MINT_REQUIRED_NODE_VERSION || '20.19.4';
 const [command, ...args] = process.argv.slice(2);
 
 if (!command) {

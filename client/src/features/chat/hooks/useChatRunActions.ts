@@ -25,15 +25,15 @@ interface UseChatRunActionsOptions {
   onAutoCreate: (title?: string) => Promise<string | undefined>;
   onTitleUpdate: (id: string, title: string) => void;
   setMessages: Dispatch<SetStateAction<Message[]>>;
-  setSending: Dispatch<SetStateAction<boolean>>;
-  setStreamingId: Dispatch<SetStateAction<string | null>>;
-  setActiveAgent: Dispatch<SetStateAction<string>>;
-  setAutoRoutedAgent: Dispatch<SetStateAction<string | null>>;
+  setSending: (value: boolean) => void;
+  setStreamingId: (value: string | null) => void;
+  setActiveAgent: (value: string) => void;
+  setAutoRoutedAgent: (value: string | null) => void;
   setAgentRunStatus: Dispatch<SetStateAction<AgentRunStatusData | null>>;
   dispatchReactEvent: (event: ReactReducerEvent) => void;
   resetReactEvents: () => void;
   send: SendStream;
-  abort: () => void;
+  abort: (conversationId?: string) => void;
 }
 
 function createAssistantMessage(conversationId: string): MessageWithTempId {
@@ -93,49 +93,13 @@ export default function useChatRunActions({
   send,
   abort,
 }: UseChatRunActionsOptions) {
-  const streamBufferRef = useRef<{ id: string; content: string }>({ id: '', content: '' });
-  const streamRafRef = useRef<number>(0);
+  const activeRunsRef = useRef(new Map<string, { tempId: string; finish: () => void }>());
 
   const updateTempMessage = useCallback((tempId: string, update: (message: Message) => Message) => {
     setMessages((previous) => previous.map((message) => (
       getTempId(message) === tempId ? update(message) : message
     )));
   }, [setMessages]);
-
-  const flushStream = useCallback(() => {
-    const buffer = streamBufferRef.current;
-    if (!buffer.content) return;
-    const content = buffer.content;
-    buffer.content = '';
-    updateTempMessage(buffer.id, (message) => {
-      const segments = [...(message.segments || [])];
-      const last = segments[segments.length - 1];
-      if (last?.type === 'text') {
-        segments[segments.length - 1] = { ...last, content: last.content + content };
-      }
-      else segments.push({ type: 'text', content });
-      return { ...message, content: message.content + content, segments };
-    });
-  }, [updateTempMessage]);
-
-  const scheduleFlush = useCallback(() => {
-    if (streamRafRef.current) return;
-    streamRafRef.current = requestAnimationFrame(() => {
-      streamRafRef.current = 0;
-      flushStream();
-    });
-  }, [flushStream]);
-
-  const finishStream = useCallback((tempId: string, error?: Error) => {
-    if (streamRafRef.current) {
-      cancelAnimationFrame(streamRafRef.current);
-      streamRafRef.current = 0;
-    }
-    flushStream();
-    if (error) updateTempMessage(tempId, (message) => ({ ...message, role: 'error', content: `Error: ${error.message}` }));
-    setSending(false);
-    setStreamingId(null);
-  }, [flushStream, setSending, setStreamingId, updateTempMessage]);
 
   const runConversation = useCallback((
     conversationId: string,
@@ -145,7 +109,35 @@ export default function useChatRunActions({
     options?: SendOptions,
     onCompleted?: () => void,
   ) => {
-    streamBufferRef.current = { id: tempId, content: '' };
+    const streamBufferRef = { current: { id: tempId, content: '' } };
+    let streamRaf = 0;
+    const flushStream = () => {
+      const buffer = streamBufferRef.current;
+      if (!buffer.content) return;
+      const contentToFlush = buffer.content;
+      buffer.content = '';
+      updateTempMessage(buffer.id, (message) => {
+        const segments = [...(message.segments || [])];
+        const last = segments[segments.length - 1];
+        if (last?.type === 'text') segments[segments.length - 1] = { ...last, content: last.content + contentToFlush };
+        else segments.push({ type: 'text', content: contentToFlush });
+        return { ...message, content: message.content + contentToFlush, segments };
+      });
+    };
+    const scheduleFlush = () => {
+      if (streamRaf) return;
+      streamRaf = requestAnimationFrame(() => { streamRaf = 0; flushStream(); });
+    };
+    const finishStream = (finishedTempId: string, error?: Error) => {
+      if (streamRaf) { cancelAnimationFrame(streamRaf); streamRaf = 0; }
+      flushStream();
+      if (error) updateTempMessage(finishedTempId, (message) => ({ ...message, role: 'error', content: `Error: ${error.message}` }));
+      setSending(false);
+      setStreamingId(null);
+      const activeRun = activeRunsRef.current.get(conversationId);
+      if (activeRun?.tempId === finishedTempId) activeRunsRef.current.delete(conversationId);
+    };
+    activeRunsRef.current.set(conversationId, { tempId, finish: () => finishStream(tempId) });
     const conversation = conversations.find((item) => item.id === conversationId);
     send(conversationId, content, createChatStreamCallbacks({
       tempId,
@@ -161,7 +153,7 @@ export default function useChatRunActions({
       setAgentRunStatus,
       dispatchReactEvent,
     }), agent, options);
-  }, [conversations, dispatchReactEvent, finishStream, flushStream, scheduleFlush, send, setActiveAgent, setAgentRunStatus, setAutoRoutedAgent, updateTempMessage]);
+  }, [conversations, dispatchReactEvent, send, setActiveAgent, setAgentRunStatus, setAutoRoutedAgent, setSending, setStreamingId, updateTempMessage]);
 
   const handleToolApproval = useCallback((approvalId: string, action: 'approve' | 'deny') => {
     if (!activeConversation) return;
@@ -234,9 +226,10 @@ export default function useChatRunActions({
   }, [activeConversation, messages, resetReactEvents, runConversation, setMessages, setSending, setStreamingId]);
 
   const handleStop = useCallback(() => {
-    abort();
-    finishStream(streamBufferRef.current.id);
-  }, [abort, finishStream]);
+    if (!activeConversation) return;
+    abort(activeConversation);
+    activeRunsRef.current.get(activeConversation)?.finish();
+  }, [abort, activeConversation]);
 
   return { handleSend, handleRegenerate, handleStop, handleToolApproval };
 }

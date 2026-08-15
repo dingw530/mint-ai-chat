@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
 import ChatAreaView from './ChatAreaView';
 import useSSE from '@/hooks/useSSE';
@@ -35,10 +35,7 @@ export default function ChatArea({
   onInitialMessageSent,
   onLinkClick,
 }: ChatAreaProps) {
-  const [sending, setSending] = useState(false);
-  const [streamingId, setStreamingId] = useState<string | null>(null);
   const { send, abort } = useSSE();
-  const previousConversationRef = useRef<string | null>(null);
   const conversationData = useChatConversationData({ activeConversation, initialMessage });
   const {
     messages,
@@ -68,8 +65,8 @@ export default function ChatArea({
     onAutoCreate,
     onTitleUpdate,
     setMessages,
-    setSending,
-    setStreamingId,
+    setSending: conversationData.setSending,
+    setStreamingId: conversationData.setStreamingId,
     setActiveAgent,
     setAutoRoutedAgent,
     setAgentRunStatus,
@@ -81,15 +78,10 @@ export default function ChatArea({
   const { handleSend } = runActions;
 
   useEffect(() => {
-    if (previousConversationRef.current && previousConversationRef.current !== activeConversation) abort();
-    previousConversationRef.current = activeConversation;
-  }, [abort, activeConversation]);
-
-  useEffect(() => {
-    if (!initialMessage || sending) return;
+    if (!initialMessage || conversationData.sending) return;
     handleSend(initialMessage);
     onInitialMessageSent?.();
-  }, [handleSend, initialMessage, onInitialMessageSent, sending]);
+  }, [handleSend, initialMessage, onInitialMessageSent, conversationData.sending]);
 
   const currentConversation = activeConversation
     ? conversations.find((conversation) => conversation.id === activeConversation)
@@ -113,14 +105,14 @@ export default function ChatArea({
       title={title}
       loading={loading}
       messages={messages}
-      streamingId={streamingId}
+      streamingId={conversationData.streamingId}
       messagesEndRef={messagesEndRef}
       reactSteps={reactSteps}
       reactRunId={reactRunId}
       decisionTrace={decisionTrace}
       agentRunStatus={agentRunStatus}
       showReactSteps={showReactSteps}
-      sending={sending}
+      sending={conversationData.sending}
       agents={agents}
       activeAgent={activeAgent}
       autoRoutedAgent={autoRoutedAgent}

@@ -13,6 +13,7 @@
     "start": "node ../scripts/with-node-version.cjs node --dns-result-order=ipv4first dist/index.js",
     "dev": "NODE_OPTIONS='--dns-result-order=ipv4first' node ../scripts/with-node-version.cjs tsx watch index.ts",
     "build": "node ../scripts/with-node-version.cjs tsc && node ../scripts/with-node-version.cjs node ../scripts/generate-endpoints-manifest.mjs",
+    "typecheck": "node ../scripts/with-node-version.cjs tsc --noEmit",
     "build:mcp": "node ../scripts/with-node-version.cjs esbuild mcp/cli.ts --bundle --platform=node --target=node18 --outfile=dist/mcp-server.cjs --external:better-sqlite3",
     "test": "node ../scripts/with-node-version.cjs vitest run",
     "test:watch": "node ../scripts/with-node-version.cjs vitest",
@@ -26,7 +27,7 @@
     "mint": "./dist/cli/index.js"
   },
   "engines": {
-    "node": "20.18.3"
+    "node": "20.19.4"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

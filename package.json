@@ -12,6 +12,7 @@
     "test:client": "npm test -w mint-client",
     "test:agent": "npm test -w agent-eval",
     "test:coverage": "npm run test:coverage -w mint-server",
+    "typecheck": "npm run typecheck -w mint-server && npm run typecheck -w mint-client",
     "harness:test": "node --test .harness/tests",
     "harness:inspect": "node .harness/cli.mjs inspect",
     "harness:check": "node .harness/cli.mjs check",
@@ -68,10 +69,10 @@
     "website"
   ],
   "engines": {
-    "node": "20.18.3"
+    "node": "20.19.4"
   },
   "dependencies": {
-    "electron": "^41.0.2",
+    "electron": "41.7.1",
     "sharp": "^0.35.1",
     "undici": "^7.29.0"
   }

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f.svg?logo=electron)](https://www.electronjs.org/)
-[![Node](https://img.shields.io/badge/Node.js-%3E%3D18-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/Node.js-20.19.4-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
@@ -40,12 +40,12 @@ Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构
 
 ### 环境要求
 
-- Node.js 20.18.3
+- Node.js 20.19.4
 
-Server、Vitest 和 server 构建脚本会自动校验并使用 Node.js 20.18.3。首次运行前执行：
+Server、Vitest 和 server 构建脚本会自动校验并使用 Node.js 20.19.4。首次运行前执行：
 
 ```bash
-nvm install 20.18.3
+nvm install 20.19.4
 nvm use
 ```
 

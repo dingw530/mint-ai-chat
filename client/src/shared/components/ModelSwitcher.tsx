@@ -20,7 +20,7 @@ export default function ModelSwitcher({ activeEndpoint, endpoints, onEndpointCha
       const rect = btnRef.current.getBoundingClientRect();
       setDropdownStyle({
         position: 'fixed',
-        top: rect.bottom + 4,
+        bottom: window.innerHeight - rect.top + 4,
         right: window.innerWidth - rect.right,
         zIndex: 1000,
       });
@@ -59,6 +59,7 @@ export default function ModelSwitcher({ activeEndpoint, endpoints, onEndpointCha
     <div className="model-switcher">
       <button
         ref={btnRef}
+        type="button"
         className="model-switcher-btn"
         onClick={() => setOpen(!open)}
         title={activeEndpoint?.modelId || ''}

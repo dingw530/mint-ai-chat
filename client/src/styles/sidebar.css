@@ -185,6 +185,24 @@
   padding: 4px 8px 8px;
 }
 
+.conversation-group {
+  margin-bottom: 10px;
+}
+
+.conversation-group:last-child {
+  margin-bottom: 0;
+}
+
+.conversation-group-title {
+  margin: 8px 12px 4px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
 .empty-state {
   display: flex;
   align-items: center;

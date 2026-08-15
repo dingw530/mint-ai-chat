@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: 构建阶段 — 编译 server + client
 # ============================================================
-FROM node:20.18.3-bookworm AS builder
+FROM node:20.19.4-bookworm AS builder
 
 WORKDIR /app
 
@@ -35,7 +35,7 @@ RUN npm prune --omit=dev
 # ============================================================
 # Stage 2: 运行阶段 — 最小化镜像
 # ============================================================
-FROM node:20.18.3-bookworm-slim
+FROM node:20.19.4-bookworm-slim
 
 WORKDIR /app
 

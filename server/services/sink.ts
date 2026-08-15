@@ -117,11 +117,15 @@ export class AccumulatingSink implements Sink {
 export class IpcSink implements Sink {
   private _ended = false;
 
-  constructor(private event: { sender: { send: (channel: string, ...args: unknown[]) => void } }) {}
+  constructor(
+    private event: { sender: { send: (channel: string, ...args: unknown[]) => void } },
+    private readonly conversationId?: string,
+  ) {}
 
   write(data: string): void {
     if (!this._ended) {
-      this.event.sender.send('chat:chunk', data);
+      if (this.conversationId) this.event.sender.send('chat:chunk', this.conversationId, data);
+      else this.event.sender.send('chat:chunk', data);
     }
   }
 
@@ -131,7 +135,8 @@ export class IpcSink implements Sink {
 
   end(): void {
     if (!this._ended) {
-      this.event.sender.send('chat:done');
+      if (this.conversationId) this.event.sender.send('chat:done', this.conversationId);
+      else this.event.sender.send('chat:done');
       this._ended = true;
     }
   }

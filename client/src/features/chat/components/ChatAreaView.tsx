@@ -6,6 +6,7 @@ import ChatHeader from './ChatHeader';
 import DecisionTrace from './DecisionTrace';
 import AgentRunStatus, { type AgentRunStatusData } from './AgentRunStatus';
 import IngestionTaskCards from './IngestionTaskCards';
+import ModelSwitcher from '@/shared/components/ModelSwitcher';
 import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
 import type { Agent, DecisionTraceItem, EndpointOutput, Message, ReActStep } from '@/types';
 
@@ -81,9 +82,6 @@ export default function ChatAreaView({
     <div className="main-area">
       <ChatHeader
         title={title}
-        activeEndpoint={activeEndpoint}
-        endpoints={endpoints}
-        onEndpointChange={onEndpointChange}
       />
       <div className="chat-area">
         {showReactSteps && (decisionTrace.length > 0 || agentRunStatus) && (
@@ -129,6 +127,11 @@ export default function ChatAreaView({
                       routingMode={routingMode}
                       onSelectAgent={onSelectAgent}
                       onUnlock={onUnlock}
+                    />
+                    <ModelSwitcher
+                      activeEndpoint={activeEndpoint}
+                      endpoints={endpoints}
+                      onEndpointChange={onEndpointChange}
                     />
                   </InputBox>
                 )}

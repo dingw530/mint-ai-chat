@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { runMigrations } from './migrations/index.js';
-import { load as loadSqliteVec } from 'sqlite-vec';
+import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -24,6 +24,20 @@ const DB_PATH: string = process.env.AI_CHAT_DB_PATH || path.join(os.homedir(), '
 let db: DatabaseConstructor.Database | undefined;
 let vectorExtensionLoaded = false;
 
+/**
+ * Resolves the sqlite-vec dynamic library to a path SQLite can load.
+ * @returns {string} A filesystem path to the sqlite-vec extension.
+ */
+function getSqliteVecExtensionPath(): string {
+  const extensionPath = getSqliteVecLoadablePath();
+
+  if (!process.versions.electron) return extensionPath;
+
+  const asarSegment = `${path.sep}app.asar${path.sep}`;
+  const unpackedSegment = `${path.sep}app.asar.unpacked${path.sep}`;
+  return extensionPath.replace(asarSegment, unpackedSegment);
+}
+
 /** 返回 sqlite-vec 是否已成功加载，供关键词模式保持可用。 */
 export function isVectorExtensionLoaded(): boolean {
   return vectorExtensionLoaded;
@@ -38,7 +52,7 @@ export function getDb(): DatabaseConstructor.Database {
     db.pragma('foreign_keys = ON');    // 启用外键约束
     db.pragma('busy_timeout = 5000');  // 索引重建与生命周期写入并发时短暂等待写锁
     try {
-      loadSqliteVec(db);
+      db.loadExtension(getSqliteVecExtensionPath());
       vectorExtensionLoaded = true;
     } catch (error) {
       vectorExtensionLoaded = false;

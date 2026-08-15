@@ -83,6 +83,7 @@
 
   --font-display: 'DM Sans', sans-serif;
   --font-body: 'Plus Jakarta Sans', sans-serif;
+  --chat-content-max-width: 1080px;
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -390,13 +391,15 @@ body::after {
   display: flex;
   align-items: stretch;
   gap: 12px;
-  padding: 14px 24px 18px;
+  padding: 0 24px 18px;
   background: var(--bg-secondary);
-  border-top: 1px solid var(--border-subtle);
 }
 
 .chat-input-main {
-  flex: 1;
+  flex: 1 1 var(--chat-content-max-width);
+  width: min(100%, var(--chat-content-max-width));
+  max-width: var(--chat-content-max-width);
+  margin-inline: auto;
   min-width: 0;
 }
 
@@ -823,7 +826,8 @@ body::after {
    -------------------------------------------- */
 .message-wrapper {
   position: relative;
-  margin-left: 4px;
+  width: min(100%, var(--chat-content-max-width));
+  margin: 0 auto 4px;
   padding-left: 44px;
 }
 
@@ -1443,8 +1447,8 @@ body::after {
 
 .input-box form:focus-within {
   border-color: var(--accent-border);
-  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: none;
+  transform: none;
 }
 
 .input-box-editor {
@@ -1501,6 +1505,7 @@ body::after {
 .input-box-context {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -1513,15 +1518,47 @@ body::after {
   overflow-x: auto;
 }
 
-.input-box-context .agent-dropdown {
-  width: 168px;
-  height: 36px;
+.input-box-context .agent-dropdown,
+.input-box-context .model-switcher-btn {
+  height: 32px;
+  border: 1px solid transparent;
   border-radius: var(--radius-full);
   background: var(--bg-tertiary);
 }
 
+.input-box-context .agent-dropdown {
+  width: 154px;
+  gap: 6px;
+  padding: 0 10px;
+}
+
 .input-box-context .agent-dropdown:hover {
   background: var(--accent-subtle);
+  border-color: transparent;
+}
+
+.input-box-context .model-switcher {
+  flex-shrink: 0;
+}
+
+.input-box-context .model-switcher-btn {
+  gap: 5px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.input-box-context .model-switcher-btn:hover {
+  background: var(--accent-subtle);
+  border-color: transparent;
+}
+
+.input-box-context .agent-select-trigger {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.input-box-context .model-switcher-name {
+  max-width: 100px;
 }
 
 .input-box-hints {
@@ -3511,13 +3548,6 @@ body::after {
 
 
 /* === Extracted to separate CSS file (see styles/) === */
-
-/* ── 主页面 header 右侧区域 ── */
-.main-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
 
 /* ── 模型选择器 ── */
 .model-switcher {

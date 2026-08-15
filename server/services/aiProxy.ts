@@ -196,7 +196,7 @@ export async function generateTitle(settings: AiSettings, userContent: string, a
       { modelId: settings.modelId },
       apiUrl,
       apiKey,
-      { maxTokens: 60, temperature: 0.5 },
+      { maxTokens: 60, temperature: 0.5, thinking: false },
     );
 
     console.log('[generateTitle] raw response:', JSON.stringify(content));

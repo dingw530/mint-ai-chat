@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type SetStateAction } from 'react';
 import { fetchAgents, getMessages, getSettings } from '@/services/api';
-import type { Agent, DecisionTraceItem, Message, ReActStep } from '@/types';
-import {
-  createInitialReactEventState,
-  reduceReactEvent,
-  type ReactReducerEvent,
-} from './useReactEventReducer';
+import type { Agent, Message } from '@/types';
+import type { ReactReducerEvent } from './useReactEventReducer';
 import type { AgentRunStatusData } from '../components/AgentRunStatus';
+import * as chatRuntimeStore from './chatRuntimeStore';
 
 interface UseChatConversationDataOptions {
   activeConversation: string | null;
@@ -22,34 +19,45 @@ export default function useChatConversationData({
   activeConversation,
   initialMessage,
 }: UseChatConversationDataOptions) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [activeAgent, setActiveAgent] = useState('general');
-  const [autoRoutedAgent, setAutoRoutedAgent] = useState<string | null>(null);
-  const [reactSteps, setReactSteps] = useState<ReActStep[]>([]);
-  const [reactRunId, setReactRunId] = useState<string | null>(null);
-  const [decisionTrace, setDecisionTrace] = useState<DecisionTraceItem[]>([]);
-  const [agentRunStatus, setAgentRunStatus] = useState<AgentRunStatusData | null>(null);
   const [showReactSteps, setShowReactSteps] = useState(true);
-  const reactEventStateRef = useRef(createInitialReactEventState());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const conversationId = activeConversation || '';
+  const runtime = useSyncExternalStore(
+    useCallback((listener) => conversationId ? chatRuntimeStore.subscribe(conversationId, listener) : () => {}, [conversationId]),
+    useCallback(() => conversationId ? chatRuntimeStore.getRuntime(conversationId) : chatRuntimeStore.getEmptyRuntime(), [conversationId]),
+    useCallback(() => conversationId ? chatRuntimeStore.getRuntime(conversationId) : chatRuntimeStore.getEmptyRuntime(), [conversationId]),
+  );
 
   const dispatchReactEvent = useCallback((event: ReactReducerEvent) => {
-    const next = reduceReactEvent(reactEventStateRef.current, event);
-    reactEventStateRef.current = next;
-    setReactSteps(next.steps);
-    setReactRunId(next.runId);
-    setDecisionTrace(next.decisionTrace);
-  }, []);
+    if (conversationId) chatRuntimeStore.dispatchReactEvent(conversationId, event);
+  }, [conversationId]);
 
   const resetReactEvents = useCallback(() => {
-    reactEventStateRef.current = createInitialReactEventState();
-    setReactSteps([]);
-    setReactRunId(null);
-    setDecisionTrace([]);
-    setAgentRunStatus(null);
-  }, []);
+    if (conversationId) chatRuntimeStore.resetReactEvents(conversationId);
+  }, [conversationId]);
+
+  const setMessages = useCallback((action: SetStateAction<Message[]>) => {
+    if (conversationId) chatRuntimeStore.setMessages(conversationId, action);
+  }, [conversationId]);
+  const setSending = useCallback((sending: boolean) => {
+    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { sending });
+  }, [conversationId]);
+  const setStreamingId = useCallback((streamingId: string | null) => {
+    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { streamingId });
+  }, [conversationId]);
+  const setActiveAgent = useCallback((activeAgent: string) => {
+    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { activeAgent });
+  }, [conversationId]);
+  const setAutoRoutedAgent = useCallback((autoRoutedAgent: string | null) => {
+    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { autoRoutedAgent });
+  }, [conversationId]);
+  const setAgentRunStatus = useCallback((action: SetStateAction<AgentRunStatusData | null>) => {
+    if (!conversationId) return;
+    const previous = chatRuntimeStore.getRuntime(conversationId).agentRunStatus;
+    const agentRunStatus = typeof action === 'function' ? action(previous) : action;
+    chatRuntimeStore.setRuntime(conversationId, { agentRunStatus });
+  }, [conversationId]);
 
   useEffect(() => {
     fetchAgents()
@@ -68,46 +76,42 @@ export default function useChatConversationData({
   }, []);
 
   useEffect(() => {
-    if (!activeConversation) {
-      setMessages([]);
-      return;
-    }
+    if (!conversationId) return;
     if (initialMessage) {
-      setLoading(false);
-      setMessages([]);
+      chatRuntimeStore.setRuntime(conversationId, { loading: false, messages: [] });
       return;
     }
-    setLoading(true);
-    setMessages([]);
-    getMessages(activeConversation)
-      .then((data) => setMessages(data.messages || []))
+    const currentRuntime = chatRuntimeStore.getRuntime(conversationId);
+    if (currentRuntime.loaded || currentRuntime.sending) return;
+    chatRuntimeStore.beginLoading(conversationId);
+    getMessages(conversationId)
+      .then((data) => chatRuntimeStore.finishLoading(conversationId, data.messages || []))
       .catch((error: unknown) => console.error('Failed to load messages:', error))
-      .finally(() => setLoading(false));
-  }, [activeConversation, initialMessage]);
+      .finally(() => chatRuntimeStore.setRuntime(conversationId, { loading: false }));
+  }, [conversationId, initialMessage]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView(false);
-  }, [messages]);
-
-  useEffect(() => {
-    setAutoRoutedAgent(null);
-    resetReactEvents();
-  }, [activeConversation, resetReactEvents]);
+    if (runtime.messages.length) messagesEndRef.current?.scrollIntoView(false);
+  }, [runtime.messages]);
 
   return {
-    messages,
+    messages: runtime.messages,
     setMessages,
-    loading,
+    loading: runtime.loading,
+    sending: runtime.sending,
+    streamingId: runtime.streamingId,
+    setSending,
+    setStreamingId,
     agents,
     setAgents,
-    activeAgent,
+    activeAgent: runtime.activeAgent,
     setActiveAgent,
-    autoRoutedAgent,
+    autoRoutedAgent: runtime.autoRoutedAgent,
     setAutoRoutedAgent,
-    reactSteps,
-    reactRunId,
-    decisionTrace,
-    agentRunStatus,
+    reactSteps: runtime.reactState.steps,
+    reactRunId: runtime.reactState.runId,
+    decisionTrace: runtime.reactState.decisionTrace,
+    agentRunStatus: runtime.agentRunStatus,
     setAgentRunStatus,
     showReactSteps,
     messagesEndRef,

@@ -25,24 +25,31 @@ export function sendMessageStream(
   if (isElectron() && !options?.control) {
     const api = getElectronAPI()!;
     const lastThought = { value: '' };
-
-    // 先清除旧监听器，防止重复触发
-    api.removeListener('chat:chunk');
-    api.removeListener('chat:done');
-    api.removeListener('chat:error');
-
-    api.onChunk((raw: string) => {
-      try { parseSSEChunk(JSON.parse(raw), callbacks, lastThought); } catch {}
-    });
-    api.onDone(() => callbacks.onDone?.());
-    api.onError((err: string) => callbacks.onError?.(new Error(err)));
+    const onChunk = (raw: string) => {
+      try { parseSSEChunk(JSON.parse(raw), callbacks, lastThought); } catch { /* Ignore malformed chunks. */ }
+    };
+    let cleanup = () => {};
+    const onDone = () => {
+      cleanup();
+      callbacks.onDone?.();
+    };
+    const onError = (err: string) => {
+      cleanup();
+      callbacks.onError?.(new Error(err));
+    };
+    const removeChunkListener = api.onChunk(conversationId, onChunk);
+    const removeDoneListener = api.onDone(conversationId, onDone);
+    const removeErrorListener = api.onError(conversationId, onError);
+    cleanup = () => {
+      removeChunkListener();
+      removeDoneListener();
+      removeErrorListener();
+    };
     api.sendMessage(conversationId, content, agent, !!options?.regenerate);
 
     return {
       abort: () => {
-        api.removeListener('chat:chunk');
-        api.removeListener('chat:done');
-        api.removeListener('chat:error');
+        cleanup();
       },
     };
   }
@@ -84,14 +91,14 @@ export function sendMessageStream(
           if (!line.startsWith('data: ')) continue;
           const dataStr = line.slice(6).trim();
           if (dataStr === '[DONE]') continue;
-          try { parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought); } catch {}
+          try { parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought); } catch { /* Ignore malformed chunks. */ }
         }
       }
 
       if (buffer.startsWith('data: ')) {
         const dataStr = buffer.slice(6).trim();
         if (dataStr !== '[DONE]') {
-          try { parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought); } catch {}
+          try { parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought); } catch { /* Ignore malformed chunks. */ }
         }
       }
 
