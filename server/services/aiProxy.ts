@@ -6,7 +6,7 @@ import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
 import { getErrorMessage } from '../utils/typeGuards.js';
-import { AgentRun, agentRunRegistry } from './agentRun.js';
+import { AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
 import { ReactEventEmitter, subscribeReactEvents } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
 import { estimateMessagesTokens } from './utils/tokenEstimator.js';
@@ -76,7 +76,7 @@ export async function streamChat(
   conversationId?: string,
   existingRun?: AgentRun,
 ): Promise<StreamResult> {
-  const run = existingRun || new AgentRun({ runId: randomUUID(), conversationId });
+  const run = existingRun || createDurableAgentRun({ runId: randomUUID(), conversationId });
   if (!existingRun) agentRunRegistry.register(run);
   const detachSink = subscribeReactEvents(run, sink);
   const events = new ReactEventEmitter(run);

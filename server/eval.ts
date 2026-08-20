@@ -7,7 +7,7 @@ import * as settingsService from './services/api/settingsService.js';
 import type { ReactEvent } from './services/reactEvents.js';
 import { AccumulatingSink } from './services/sink.js';
 import type { ReactExecutionPolicy } from './services/reactLoopCore.js';
-import { AgentRun, agentRunRegistry } from './services/agentRun.js';
+import { createDurableAgentRun, agentRunRegistry } from './services/agentRun.js';
 export type { WikiIngestionRequest, WikiIngestionResult } from './services/api/wikiIngestionService.js';
 export { ingestWikiSource } from './services/api/wikiIngestionService.js';
 
@@ -173,7 +173,7 @@ export function configureEvalSettings(input: EvalSettingsInput): AiSettings {
 /** 创建供 agent-eval 使用的 Mint ReAct executor。 */
 export function createReactExecutor(settings: AiSettings) {
   return async (evalCase: EvalCaseInput) => {
-    const run = new AgentRun({ runId: `eval:${evalCase.id}`, conversationId: `eval:${evalCase.id}` });
+    const run = createDurableAgentRun({ runId: `eval:${evalCase.id}`, conversationId: `eval:${evalCase.id}` });
     agentRunRegistry.register(run);
     const events: ReactEvent[] = [];
     run.subscribe((event) => events.push(event));

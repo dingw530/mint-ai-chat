@@ -1,4 +1,5 @@
 import type { ReactEvent, ReactEventBase, ReactEventPayload } from './reactEvents.js';
+import { agentRunEventRepository, type AgentRunEventWriter, type PersistedAgentRunEvent } from '../repositories/agentRunEventRepository.js';
 
 export type AgentRunPhase =
   | 'running'
@@ -17,7 +18,7 @@ export interface AgentRunApproval {
 export interface AgentRunToolState {
   callId: string;
   toolName: string;
-  status: 'running' | 'success' | 'failed' | 'retrying' | 'approval_required';
+  status: 'running' | 'success' | 'failed' | 'retrying' | 'approval_required' | 'tool_outcome_unknown';
 }
 
 export interface AgentRunSnapshot {
@@ -36,6 +37,7 @@ export type AgentRunSubscriber = (event: ReactEvent) => void;
 export interface AgentRunOptions {
   runId: string;
   conversationId?: string;
+  eventRepository?: AgentRunEventWriter;
 }
 
 const TERMINAL_EVENT_TYPES = new Set<ReactEventPayload['type']>([
@@ -52,6 +54,7 @@ export class AgentRun {
   private readonly toolCalls = new Map<string, AgentRunToolState>();
   private sequence = 0;
   private round = 0;
+  private durableSequence = 0;
   private phase: AgentRunPhase = 'running';
   private approval?: AgentRunApproval;
   private terminal = false;
@@ -62,6 +65,7 @@ export class AgentRun {
   publish(payload: ReactEventPayload): ReactEvent | undefined {
     if (this.terminal) return undefined;
 
+    this.persist(payload);
     this.updateState(payload);
     const event = withEventIdentity(payload, {
       runId: this.options.runId,
@@ -155,6 +159,16 @@ export class AgentRun {
     }
   }
 
+  private persist(payload: ReactEventPayload): void {
+    const event = toPersistedEvent(payload, this.options.runId, this.options.conversationId);
+    if (!event || !this.options.eventRepository) return;
+    const record = this.options.eventRepository.append({
+      sequence: this.durableSequence + 1,
+      event,
+    });
+    this.durableSequence = record.sequence;
+  }
+
   private notifySubscribers(event: ReactEvent): void {
     for (const subscriber of this.subscribers) {
       try {
@@ -164,6 +178,28 @@ export class AgentRun {
       }
     }
   }
+}
+
+function toPersistedEvent(payload: ReactEventPayload, runId: string, conversationId?: string): PersistedAgentRunEvent | undefined {
+  switch (payload.type) {
+    case 'run_started': return { type: 'run_started', runId, ...(conversationId ? { conversationId } : {}) };
+    case 'round_started': return { type: 'round_started', runId, round: payload.round };
+    case 'tool_call_start': return { type: 'tool_call_started', runId, callId: payload.callId, toolName: payload.toolName, round: payload.round };
+    case 'tool_call_end': return { type: 'tool_call_finished', runId, callId: payload.callId, toolName: payload.toolName, status: 'success' };
+    case 'tool_call_error':
+      if (payload.phase !== 'final' || payload.status === 'approval_required') return undefined;
+      return { type: 'tool_call_finished', runId, callId: payload.callId, toolName: payload.toolName, status: 'failed' };
+    case 'approval_required': return { type: 'approval_required', runId, callId: payload.callId, approvalId: payload.approvalId };
+    case 'run_completed': return { type: 'run_terminal', runId, outcome: 'completed' };
+    case 'run_failed': return { type: 'run_terminal', runId, outcome: 'failed' };
+    case 'run_cancelled': return { type: 'run_terminal', runId, outcome: 'cancelled' };
+    default: return undefined;
+  }
+}
+
+/** Creates a production AgentRun with the durable event writer enabled. */
+export function createDurableAgentRun(options: Omit<AgentRunOptions, 'eventRepository'>): AgentRun {
+  return new AgentRun({ ...options, eventRepository: agentRunEventRepository });
 }
 
 function withEventIdentity<T extends ReactEventPayload>(
@@ -179,7 +215,7 @@ function getTerminalPhase(type: ReactEventPayload['type']): AgentRunPhase {
   return 'cancelled';
 }
 
-/** Manages active and approval-paused runs without providing persistence or restart recovery. */
+/** Manages active and approval-paused in-process runs; durable recovery is provided separately. */
 export class AgentRunRegistry {
   private readonly runs = new Map<string, AgentRun>();
   private readonly runsByConversation = new Map<string, string>();

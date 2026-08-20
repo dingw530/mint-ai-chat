@@ -3,6 +3,39 @@ import { AgentRun, AgentRunRegistry } from '../agentRun.js';
 import type { ReactEvent } from '../reactEvents.js';
 
 describe('AgentRun', () => {
+  it('commits recovery events before notifying subscribers', () => {
+    const writes: unknown[] = [];
+    const run = new AgentRun({
+      runId: 'durable-run',
+      conversationId: 'durable-conversation',
+      eventRepository: { append: (input) => { writes.push(input); return { runId: input.event.runId, sequence: input.sequence, schemaVersion: 1, event: input.event, createdAt: 'now' }; } },
+    });
+    const received: ReactEvent[] = [];
+    run.subscribe((event) => received.push(event));
+
+    run.publish({ type: 'run_started', state: 'running' });
+    run.publish({ type: 'thought', content: 'not durable' });
+    run.publish({ type: 'run_completed', state: 'completed', content: 'done', reasoning: '' });
+
+    expect(writes).toHaveLength(2);
+    expect((writes[0] as { sequence: number }).sequence).toBe(1);
+    expect((writes[1] as { sequence: number }).sequence).toBe(2);
+    expect(received).toHaveLength(3);
+  });
+
+  it('does not notify subscribers when a durable commit fails', () => {
+    const received: ReactEvent[] = [];
+    const run = new AgentRun({
+      runId: 'failed-durable-run',
+      eventRepository: { append: () => { throw new Error('disk full'); } },
+    });
+    run.subscribe((event) => received.push(event));
+
+    expect(() => run.publish({ type: 'run_started', state: 'running' })).toThrow('disk full');
+    expect(received).toHaveLength(0);
+    expect(run.getSnapshot()).toMatchObject({ sequence: 0, terminal: false, phase: 'running' });
+  });
+
   it('assigns strictly increasing sequences and publishes only one terminal event', () => {
     const run = new AgentRun({ runId: 'run-1', conversationId: 'conversation-1' });
     const events: ReactEvent[] = [];

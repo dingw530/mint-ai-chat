@@ -11,7 +11,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { ReactEventEmitter, subscribeReactEvents } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
-import { AgentRun, agentRunRegistry } from './agentRun.js';
+import { AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
 import { estimateMessagesTokens } from './utils/tokenEstimator.js';
 import {
   buildAgentStatusMessage,
@@ -690,7 +690,7 @@ export async function reactChat(
   executionPolicy?: ReactExecutionPolicy,
   existingRun?: AgentRun,
 ): Promise<StreamResult> {
-  const run = existingRun || new AgentRun({ runId: uuidv4(), conversationId });
+  const run = existingRun || createDurableAgentRun({ runId: uuidv4(), conversationId });
   if (!existingRun) agentRunRegistry.register(run);
   const detachSink = subscribeReactEvents(run, sink);
   if (run.getSnapshot().sequence === 0) new ReactEventEmitter(run).emit({ type: 'run_started', state: 'running' });

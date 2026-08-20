@@ -625,6 +625,27 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    id: 28,
+    name: 'add-agent-run-events',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_run_events (
+          run_id TEXT NOT NULL,
+          sequence INTEGER NOT NULL CHECK(sequence > 0),
+          schema_version INTEGER NOT NULL CHECK(schema_version > 0),
+          event_type TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (run_id, sequence)
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_run_events_run_sequence
+          ON agent_run_events(run_id, sequence);
+        CREATE INDEX IF NOT EXISTS idx_agent_run_events_open_runs
+          ON agent_run_events(run_id, sequence DESC);
+      `);
+    },
+  },
 ];
 
 // ── 迁移执行器 ──
