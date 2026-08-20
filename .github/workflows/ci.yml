@@ -33,6 +33,7 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm test
+      - run: npm run test:engineering
 
   coverage:
     runs-on: ubuntu-latest

@@ -81,16 +81,25 @@ npm run electron:dev
 ```bash
 # macOS
 npm run electron:build:mac
-
-
 ```
 
 构建产物位于 `electron/release/`。
 
+打包、原生依赖或 Electron 配置变更后，运行以下命令从全新 `.app` 中检查 `app.asar`、`app.asar.unpacked` 与 sqlite-vec 动态库：
+
+```bash
+npm run verify:electron-artifact:mac
+```
+
 ### 测试
 
 ```bash
-cd server && npm test
+# 与 pre-commit 一致的源码基线
+npm run verify:source
+
+# 按变更面选择验证；UI/Wiki profile 必须绑定 SDD change
+npm run verify:change -- --profile agent-runtime
+npm run verify:change -- --profile ui --change 2026-08-16-example
 ```
 
 ## 项目简介
