@@ -155,20 +155,29 @@ describe('agent-eval', () => {
     const result = verifyExecution(evalCase, {
       content: '知识库中没有任何关于这个问题的相关资料，无法提供回答。',
       events: [
-        { type: 'tool_call_start', toolName: 'wiki_search', round: 1 },
-        { type: 'tool_call_start', toolName: 'wiki_search', round: 1 },
-        { type: 'tool_call_start', toolName: 'wiki_search', round: 2 },
-        { type: 'tool_call_start', toolName: 'wiki_search', round: 2 },
+        { type: 'tool_call_start', callId: 'wiki-1', toolName: 'wiki_search', round: 1 },
+        { type: 'tool_call_end', callId: 'wiki-1', toolName: 'wiki_search', round: 1 },
+        { type: 'tool_call_start', callId: 'wiki-2', toolName: 'wiki_search', round: 1 },
+        { type: 'tool_call_end', callId: 'wiki-2', toolName: 'wiki_search', round: 1 },
+        { type: 'tool_call_start', callId: 'wiki-3', toolName: 'wiki_search', round: 2 },
+        { type: 'tool_call_end', callId: 'wiki-3', toolName: 'wiki_search', round: 2, summary: '已达到评测工具预算，未执行该调用' },
+        { type: 'tool_call_start', callId: 'wiki-4', toolName: 'wiki_search', round: 2 },
+        { type: 'tool_call_end', callId: 'wiki-4', toolName: 'wiki_search', round: 2, summary: '已达到评测工具预算，未执行该调用' },
         { type: 'run_completed' },
       ],
       citations: [{ file: 'pages/rag.md', sourceFile: 'source-rag.md', refId: 'C1' }],
     }, 1, 10);
     expect(result.abstentionPassed).toBe(true);
     expect(result.queryPassed).toBe(true);
-    expect(result.toolBudgetPassed).toBe(false);
-    expect(result.wikiSearchCalls).toBe(4);
+    expect(result.toolBudgetPassed).toBe(true);
+    expect(result.toolCalls).toBe(2);
+    expect(result.attemptedToolCalls).toBe(4);
+    expect(result.blockedToolCalls).toBe(2);
+    expect(result.wikiSearchCalls).toBe(2);
+    expect(result.attemptedWikiSearchCalls).toBe(4);
+    expect(result.blockedWikiSearchCalls).toBe(2);
     expect(result.unrelatedToolCalls).toBe(0);
-    expect(result.passed).toBe(false);
+    expect(result.passed).toBe(true);
   });
 
   it('calculates pass@1 and Pass^k independently', () => {
@@ -192,7 +201,11 @@ describe('agent-eval', () => {
       abstained: false,
       rounds: 1,
       toolCalls: 0,
+      attemptedToolCalls: 0,
+      blockedToolCalls: 0,
       wikiSearchCalls: 0,
+      attemptedWikiSearchCalls: 0,
+      blockedWikiSearchCalls: 0,
       unrelatedToolCalls: 0,
       successfulToolCalls: 0,
       retries: 0,

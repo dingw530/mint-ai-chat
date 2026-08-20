@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-export interface EvalTraceEvent { type: string; round?: number; toolName?: string; phase?: string; error?: string; result?: string; }
+export interface EvalTraceEvent { type: string; round?: number; callId?: string; toolName?: string; phase?: string; status?: string; summary?: string; error?: string; result?: string; }
 export type EvalTag = 'qa' | 'wiki' | 'tools' | 'security' | 'retrieval' | 'citation' | 'abstention';
 export type EvalComplexity = 'basic' | 'multi-hop' | 'boundary' | 'adversarial' | 'long-horizon';
 export interface EvalCitation { file: string; title?: string; heading?: string; sourceFile?: string; chunkId?: string; refId?: string; }
@@ -42,10 +42,10 @@ export interface EvalCase {
 }
 export interface EvalDataset { name: string; version: string; cases: EvalCase[]; metadata?: Record<string, unknown>; }
 export interface EvalExecution { content: string; events: EvalTraceEvent[]; citations?: EvalCitation[]; retrievedCitations?: EvalCitation[]; state?: Record<string, unknown>; inputTokens?: number; outputTokens?: number; reasoningTokens?: number; ttftMs?: number; traceId?: string; }
-export interface EvalCaseResult { caseId: string; runIndex: number; passed: boolean; queryPassed: boolean; answerPassed: boolean; retrievalPassed: boolean; toolBudgetPassed: boolean; abstentionPassed: boolean; vetoed: boolean; essentialPassed?: boolean; importantPassed?: boolean; optionalPassed?: boolean; rubricScore?: number; reasons: string[]; content: string; citations: EvalCitation[]; citationCount: number; retrievedCitationCount: number; citationCoverage: number; retrievalCoverage: number; abstained: boolean; rounds: number; toolCalls: number; wikiSearchCalls: number; unrelatedToolCalls: number; successfulToolCalls: number; retries: number; loopDetected: boolean; approvalRequired: boolean; latencyMs: number; inputTokens?: number; outputTokens?: number; reasoningTokens?: number; ttftMs?: number; traceId?: string; }
+export interface EvalCaseResult { caseId: string; runIndex: number; passed: boolean; queryPassed: boolean; answerPassed: boolean; retrievalPassed: boolean; toolBudgetPassed: boolean; abstentionPassed: boolean; vetoed: boolean; essentialPassed?: boolean; importantPassed?: boolean; optionalPassed?: boolean; rubricScore?: number; reasons: string[]; content: string; citations: EvalCitation[]; citationCount: number; retrievedCitationCount: number; citationCoverage: number; retrievalCoverage: number; abstained: boolean; rounds: number; toolCalls: number; attemptedToolCalls: number; blockedToolCalls: number; wikiSearchCalls: number; attemptedWikiSearchCalls: number; blockedWikiSearchCalls: number; unrelatedToolCalls: number; successfulToolCalls: number; retries: number; loopDetected: boolean; approvalRequired: boolean; latencyMs: number; inputTokens?: number; outputTokens?: number; reasoningTokens?: number; ttftMs?: number; traceId?: string; }
 export interface EvalCaseStats { caseId: string; runs: number; passedRuns: number; passRate: number; passAtK: number; passPowerK: number; meanLatencyMs: number; latencyStdDevMs: number; p95LatencyMs: number; }
 export interface EvalComparison { baselineGeneratedAt: string; baselineVersion: string; warnings: string[]; deltas: Record<string, number>; }
-export interface EvalReport { dataset: string; version: string; runsPerCase: number; generatedAt: string; summary: { totalRuns: number; passedRuns: number; queryPassedRuns: number; answerPassedRuns: number; passAt1: number; queryPassAt1: number; answerPassAt1: number; passAtK: number; passAtKValue: number; passPowerK: number; passPowerKValue: number; toolSuccessRate: number; toolBudgetPassRate: number; wikiSearchBudgetPassRate: number; averageRounds: number; averageToolCalls: number; averageWikiSearchCalls: number; unrelatedToolRate: number; retryRate: number; loopRate: number; averageLatencyMs: number; p50LatencyMs: number; p95LatencyMs: number; averageInputTokens: number; averageOutputTokens: number; averageReasoningTokens: number; averageTtftMs: number; citationCoverageRate: number; citationAccuracyRate: number; retrievalCoverageRate: number; abstentionAccuracy: number; essentialPassRate: number; importantPassRate: number; optionalPassRate: number; }; caseStats: EvalCaseStats[]; comparison?: EvalComparison; results: EvalCaseResult[]; }
+export interface EvalReport { dataset: string; version: string; runsPerCase: number; generatedAt: string; summary: { totalRuns: number; passedRuns: number; queryPassedRuns: number; answerPassedRuns: number; passAt1: number; queryPassAt1: number; answerPassAt1: number; passAtK: number; passAtKValue: number; passPowerK: number; passPowerKValue: number; toolSuccessRate: number; toolBudgetPassRate: number; wikiSearchBudgetPassRate: number; averageRounds: number; averageToolCalls: number; averageAttemptedToolCalls: number; averageBlockedToolCalls: number; averageWikiSearchCalls: number; averageAttemptedWikiSearchCalls: number; averageBlockedWikiSearchCalls: number; unrelatedToolRate: number; retryRate: number; loopRate: number; averageLatencyMs: number; p50LatencyMs: number; p95LatencyMs: number; averageInputTokens: number; averageOutputTokens: number; averageReasoningTokens: number; averageTtftMs: number; citationCoverageRate: number; citationAccuracyRate: number; retrievalCoverageRate: number; abstentionAccuracy: number; essentialPassRate: number; importantPassRate: number; optionalPassRate: number; }; caseStats: EvalCaseStats[]; comparison?: EvalComparison; results: EvalCaseResult[]; }
 export type AgentEvalExecutor = (evalCase: EvalCase) => Promise<EvalExecution>;
 
 function isStringArray(value: unknown): value is string[] {
@@ -170,6 +170,29 @@ function evaluateFinalState(assertions: EvalStateAssertion[], state: Record<stri
   return passed;
 }
 
+function isBudgetBlockedToolEnd(event: EvalTraceEvent): boolean {
+  return event.type === 'tool_call_end'
+    && event.summary?.includes('未执行该调用') === true;
+}
+
+interface ToolAccounting {
+  starts: EvalTraceEvent[];
+  executedStarts: EvalTraceEvent[];
+  ends: EvalTraceEvent[];
+  executedEnds: EvalTraceEvent[];
+  blockedEnds: EvalTraceEvent[];
+}
+
+function accountToolEvents(events: EvalTraceEvent[]): ToolAccounting {
+  const starts = events.filter(event => event.type === 'tool_call_start');
+  const ends = events.filter(event => event.type === 'tool_call_end');
+  const blockedEnds = ends.filter(isBudgetBlockedToolEnd);
+  const blockedCallIds = new Set(blockedEnds.map(event => event.callId).filter((callId): callId is string => Boolean(callId)));
+  const executedStarts = starts.filter(event => !event.callId || !blockedCallIds.has(event.callId));
+  const executedEnds = ends.filter(event => !isBudgetBlockedToolEnd(event));
+  return { starts, executedStarts, ends, executedEnds, blockedEnds };
+}
+
 /** 加载并校验一个 Agent 评估数据集。 */
 export async function loadDataset(filePath: string): Promise<EvalDataset> {
   const raw = JSON.parse(await fs.readFile(filePath, 'utf8')) as Partial<EvalDataset>;
@@ -219,7 +242,7 @@ export function validateCase(item: unknown, ids = new Set<string>()): asserts it
 /** 使用答案和轨迹执行确定性验收。 */
 export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, runIndex: number, latencyMs: number): EvalCaseResult {
   const content = execution.content.toLowerCase(); const events = execution.events;
-  const starts = events.filter(event => event.type === 'tool_call_start'); const ends = events.filter(event => event.type === 'tool_call_end');
+  const { starts, executedStarts, executedEnds, blockedEnds } = accountToolEvents(events);
   const errors = events.filter(event => event.type === 'tool_call_error'); const approvals = events.filter(event => event.type === 'approval_required');
   const citations = execution.citations || [];
   const retrievedCitations = execution.retrievedCitations || citations;
@@ -233,12 +256,15 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
   for (const group of evalCase.expected.mustContainAny || []) if (!group.some(value => content.includes(value.toLowerCase()))) reasons.push(`missing answer alternatives: ${group.join(' / ')}`);
   for (const value of evalCase.expected.mustNotContain || []) if (content.includes(value.toLowerCase())) reasons.push(`forbidden answer content: ${value}`);
   const toolNames = starts.map(event => event.toolName).filter((toolName): toolName is string => Boolean(toolName));
-  const wikiSearchCalls = toolNames.filter(toolName => toolName === 'wiki_search').length;
-  const unrelatedToolCalls = toolNames.filter(toolName => toolName !== 'wiki_search').length;
+  const executedToolNames = executedStarts.map(event => event.toolName).filter((toolName): toolName is string => Boolean(toolName));
+  const wikiSearchCalls = executedToolNames.filter(toolName => toolName === 'wiki_search').length;
+  const attemptedWikiSearchCalls = toolNames.filter(toolName => toolName === 'wiki_search').length;
+  const blockedWikiSearchCalls = blockedEnds.filter(event => event.toolName === 'wiki_search').length;
+  const unrelatedToolCalls = executedToolNames.filter(toolName => toolName !== 'wiki_search').length;
   const maxWikiSearchCalls = getWikiSearchBudget(evalCase);
   for (const tool of evalCase.expected.mustUseTools || []) if (!toolNames.includes(tool)) reasons.push(`missing tool: ${tool}`);
   for (const tool of evalCase.expected.mustNotUseTools || []) if (toolNames.includes(tool)) reasons.push(`forbidden tool: ${tool}`);
-  if (evalCase.expected.maxToolCalls !== undefined && starts.length > evalCase.expected.maxToolCalls) reasons.push('tool call limit exceeded');
+  if (evalCase.expected.maxToolCalls !== undefined && executedStarts.length > evalCase.expected.maxToolCalls) reasons.push('tool call limit exceeded');
   if (maxWikiSearchCalls !== undefined && wikiSearchCalls > maxWikiSearchCalls) reasons.push('wiki search call limit exceeded');
   const citedFiles = citations.map(citation => `${citation.file} ${citation.title || ''} ${citation.sourceFile || ''}`.toLocaleLowerCase());
   const citedChunks = citations.map(citation => citation.chunkId || '').filter(Boolean);
@@ -286,7 +312,7 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
   const citationPassed = citationChecks.every(Boolean);
   const retrievalPassed = retrievalChecks.every(Boolean);
   const abstentionPassed = !evalCase.expected.mustAbstain || abstained;
-  const toolBudgetPassed = (evalCase.expected.maxToolCalls === undefined || starts.length <= evalCase.expected.maxToolCalls)
+  const toolBudgetPassed = (evalCase.expected.maxToolCalls === undefined || executedStarts.length <= evalCase.expected.maxToolCalls)
     && (maxWikiSearchCalls === undefined || wikiSearchCalls <= maxWikiSearchCalls)
     && !loopDetected;
   const answerFailures = reasons.filter(reason => reason.startsWith('missing answer ') || reason.startsWith('forbidden answer ') || reason === 'answer did not abstain' || reason === 'answer abstained unexpectedly');
@@ -296,7 +322,7 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
   const passed = queryPassed && toolBudgetPassed && !vetoed;
   if (!passed && !reasons.length) reasons.push('run did not complete');
   const retrievalCoverage = retrievalChecks.length > 0 ? retrievalChecks.filter(Boolean).length / retrievalChecks.length : retrievedCitations.length > 0 ? 1 : 0;
-  return { caseId: evalCase.id, runIndex, passed, queryPassed, answerPassed, retrievalPassed, toolBudgetPassed, abstentionPassed, vetoed, essentialPassed, importantPassed, optionalPassed, rubricScore, reasons, content: execution.content, citations, citationCount: citations.length, retrievedCitationCount: retrievedCitations.length, citationCoverage, retrievalCoverage, abstained, rounds: new Set(events.filter(event => event.round !== undefined).map(event => event.round)).size, toolCalls: starts.length, wikiSearchCalls, unrelatedToolCalls, successfulToolCalls: ends.length, retries: errors.filter(event => event.phase === 'retrying').length, loopDetected, approvalRequired: approvals.length > 0, latencyMs, inputTokens: execution.inputTokens, outputTokens: execution.outputTokens, reasoningTokens: execution.reasoningTokens, ttftMs: execution.ttftMs, traceId: execution.traceId };
+  return { caseId: evalCase.id, runIndex, passed, queryPassed, answerPassed, retrievalPassed, toolBudgetPassed, abstentionPassed, vetoed, essentialPassed, importantPassed, optionalPassed, rubricScore, reasons, content: execution.content, citations, citationCount: citations.length, retrievedCitationCount: retrievedCitations.length, citationCoverage, retrievalCoverage, abstained, rounds: new Set(events.filter(event => event.round !== undefined).map(event => event.round)).size, toolCalls: executedStarts.length, attemptedToolCalls: starts.length, blockedToolCalls: blockedEnds.length, wikiSearchCalls, attemptedWikiSearchCalls, blockedWikiSearchCalls, unrelatedToolCalls, successfulToolCalls: executedEnds.length, retries: errors.filter(event => event.phase === 'retrying').length, loopDetected, approvalRequired: approvals.length > 0, latencyMs, inputTokens: execution.inputTokens, outputTokens: execution.outputTokens, reasoningTokens: execution.reasoningTokens, ttftMs: execution.ttftMs, traceId: execution.traceId };
 }
 
 /** 执行一个数据集，并返回逐用例结果和聚合指标。 */
@@ -371,7 +397,7 @@ export function buildReport(dataset: EvalDataset, results: EvalCaseResult[], run
     const evalCase = dataset.cases.find(item => item.id === result.caseId);
     return evalCase ? getWikiSearchBudget(evalCase) !== undefined : false;
   });
-  return { dataset: dataset.name, version: dataset.version, runsPerCase, generatedAt: new Date().toISOString(), summary: { totalRuns, passedRuns, queryPassedRuns, answerPassedRuns, passAt1: firstRuns.filter(result => result.passed).length / Math.max(1, firstRuns.length), queryPassAt1: firstRuns.filter(result => result.queryPassed).length / Math.max(1, firstRuns.length), answerPassAt1: firstRuns.filter(result => result.answerPassed).length / Math.max(1, firstRuns.length), passAtK: average(caseStats.map(stat => stat.passAtK)), passAtKValue: k, passPowerK: average(caseStats.map(stat => stat.passPowerK)), passPowerKValue: k, toolSuccessRate: successfulTools / Math.max(1, totalTools), toolBudgetPassRate: results.filter(result => result.toolBudgetPassed).length / Math.max(1, totalRuns), wikiSearchBudgetPassRate: wikiSearchBudgetResults.length > 0 ? wikiSearchBudgetResults.filter(result => !result.reasons.includes('wiki search call limit exceeded')).length / wikiSearchBudgetResults.length : 0, averageRounds: averageResult(result => result.rounds), averageToolCalls: averageResult(result => result.toolCalls), averageWikiSearchCalls: averageResult(result => result.wikiSearchCalls), unrelatedToolRate: results.reduce((sum, result) => sum + result.unrelatedToolCalls, 0) / Math.max(1, totalTools), retryRate: results.filter(result => result.retries > 0).length / Math.max(1, totalRuns), loopRate: results.filter(result => result.loopDetected).length / Math.max(1, totalRuns), averageLatencyMs: averageResult(result => result.latencyMs), p50LatencyMs: percentile(results.map(result => result.latencyMs), 0.5), p95LatencyMs: percentile(results.map(result => result.latencyMs), 0.95), averageInputTokens: averageDefined(results, result => result.inputTokens), averageOutputTokens: averageDefined(results, result => result.outputTokens), averageReasoningTokens: averageDefined(results, result => result.reasoningTokens), averageTtftMs: averageDefined(results, result => result.ttftMs), citationCoverageRate, citationAccuracyRate, retrievalCoverageRate, abstentionAccuracy: abstentionResults.filter(result => result.abstentionPassed).length / Math.max(1, abstentionResults.length), essentialPassRate: averageResult(result => Number(result.essentialPassed)), importantPassRate: averageResult(result => Number(result.importantPassed)), optionalPassRate: averageResult(result => Number(result.optionalPassed)) }, caseStats, results };
+  return { dataset: dataset.name, version: dataset.version, runsPerCase, generatedAt: new Date().toISOString(), summary: { totalRuns, passedRuns, queryPassedRuns, answerPassedRuns, passAt1: firstRuns.filter(result => result.passed).length / Math.max(1, firstRuns.length), queryPassAt1: firstRuns.filter(result => result.queryPassed).length / Math.max(1, firstRuns.length), answerPassAt1: firstRuns.filter(result => result.answerPassed).length / Math.max(1, firstRuns.length), passAtK: average(caseStats.map(stat => stat.passAtK)), passAtKValue: k, passPowerK: average(caseStats.map(stat => stat.passPowerK)), passPowerKValue: k, toolSuccessRate: successfulTools / Math.max(1, totalTools), toolBudgetPassRate: results.filter(result => result.toolBudgetPassed).length / Math.max(1, totalRuns), wikiSearchBudgetPassRate: wikiSearchBudgetResults.length > 0 ? wikiSearchBudgetResults.filter(result => !result.reasons.includes('wiki search call limit exceeded')).length / wikiSearchBudgetResults.length : 0, averageRounds: averageResult(result => result.rounds), averageToolCalls: averageResult(result => result.toolCalls), averageAttemptedToolCalls: averageResult(result => result.attemptedToolCalls), averageBlockedToolCalls: averageResult(result => result.blockedToolCalls), averageWikiSearchCalls: averageResult(result => result.wikiSearchCalls), averageAttemptedWikiSearchCalls: averageResult(result => result.attemptedWikiSearchCalls), averageBlockedWikiSearchCalls: averageResult(result => result.blockedWikiSearchCalls), unrelatedToolRate: results.reduce((sum, result) => sum + result.unrelatedToolCalls, 0) / Math.max(1, totalTools), retryRate: results.filter(result => result.retries > 0).length / Math.max(1, totalRuns), loopRate: results.filter(result => result.loopDetected).length / Math.max(1, totalRuns), averageLatencyMs: averageResult(result => result.latencyMs), p50LatencyMs: percentile(results.map(result => result.latencyMs), 0.5), p95LatencyMs: percentile(results.map(result => result.latencyMs), 0.95), averageInputTokens: averageDefined(results, result => result.inputTokens), averageOutputTokens: averageDefined(results, result => result.outputTokens), averageReasoningTokens: averageDefined(results, result => result.reasoningTokens), averageTtftMs: averageDefined(results, result => result.ttftMs), citationCoverageRate, citationAccuracyRate, retrievalCoverageRate, abstentionAccuracy: abstentionResults.filter(result => result.abstentionPassed).length / Math.max(1, abstentionResults.length), essentialPassRate: averageResult(result => Number(result.essentialPassed)), importantPassRate: averageResult(result => Number(result.importantPassed)), optionalPassRate: averageResult(result => Number(result.optionalPassed)) }, caseStats, results };
 }
 
 /** 将当前报告与历史基线按同名聚合指标做差，便于识别回归。 */
