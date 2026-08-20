@@ -7,7 +7,8 @@ import * as messageRepo from '../../repositories/messageRepository.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ReactEventEmitter } from '../reactEvents.js';
 import type { Sink } from '../sink.js';
-import { AgentRun, agentRunRegistry } from '../agentRun.js';
+import { agentRunRegistry } from '../agentRun.js';
+import type { AgentRun } from '../agentRun.js';
 import { subscribeReactEvents } from '../reactEvents.js';
 import type { PendingToolApproval } from '../tools/approvalStore.js';
 
