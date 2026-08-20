@@ -1,0 +1,189 @@
+{
+  "scenarios": [
+    {
+      "id": "agent-run-sse-lifecycle",
+      "acceptanceCriteria": ["AC-002", "AC-005", "AC-006"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"showReactSteps": true, "routingMode": "manual"}
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {"endpoints": []}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {"conversations": [{"id": "runtime", "title": "运行时契约", "type": "chat", "createdAt": "2026-08-20T09:00:00.000Z", "updatedAt": "2026-08-20T09:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}
+          },
+          {
+            "pattern": "**/api/conversations/*/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations/*/ingestion-events",
+            "method": "GET",
+            "contentType": "text/event-stream",
+            "body": ""
+          },
+          {
+            "pattern": "**/api/conversations/runtime/messages",
+            "method": "POST",
+            "contentType": "text/event-stream",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"run-runtime\",\"sequence\":1,\"state\":\"running\"}\n\ndata: {\"type\":\"tool_call_start\",\"runId\":\"run-runtime\",\"sequence\":2,\"round\":1,\"state\":\"executing_tools\",\"callId\":\"tool-1\",\"toolName\":\"wiki_search\",\"arguments\":{},\"summary\":\"检索资料\"}\n\ndata: {\"type\":\"tool_call_end\",\"runId\":\"run-runtime\",\"sequence\":3,\"round\":1,\"callId\":\"tool-1\",\"toolName\":\"wiki_search\",\"result\":\"已找到资料\",\"status\":\"success\"}\n\ndata: {\"type\":\"answer\",\"runId\":\"run-runtime\",\"sequence\":4,\"round\":2,\"content\":\"连续事件回答\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"run-runtime\",\"sequence\":5,\"state\":\"completed\",\"content\":\"连续事件回答\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n"
+          }
+        ]
+      },
+      "markers": ["输入消息..."],
+      "steps": [
+        {"action": "fill", "target": {"placeholder": "输入消息..."}, "value": "运行测试"},
+        {"action": "press", "target": {"placeholder": "输入消息..."}, "key": "Enter"},
+        {"action": "waitFor", "text": "连续事件回答", "exact": true},
+        {"action": "assertText", "text": "wiki_search"},
+        {"action": "assertText", "text": "连续事件回答"},
+        {"action": "assertRequests"}
+      ],
+      "assertRequests": [
+        {"method": "POST", "contains": "/api/conversations/runtime/messages", "status": 200, "countExactly": 2}
+      ]
+    },
+    {
+      "id": "agent-run-approval-continuity",
+      "acceptanceCriteria": ["AC-003", "AC-006"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"showReactSteps": true, "routingMode": "manual"}
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {"endpoints": []}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {"conversations": [{"id": "approval", "title": "审批连续性", "type": "chat", "createdAt": "2026-08-20T09:00:00.000Z", "updatedAt": "2026-08-20T09:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}
+          },
+          {
+            "pattern": "**/api/conversations/*/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations/*/ingestion-events",
+            "method": "GET",
+            "contentType": "text/event-stream",
+            "body": ""
+          },
+          {
+            "pattern": "**/api/conversations/approval/messages",
+            "method": "POST",
+            "contentType": "text/event-stream",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"run-approval\",\"sequence\":1,\"state\":\"running\"}\n\ndata: {\"type\":\"tool_call_start\",\"runId\":\"run-approval\",\"sequence\":2,\"round\":1,\"state\":\"executing_tools\",\"callId\":\"tool-approval\",\"toolName\":\"bash\",\"arguments\":{},\"summary\":\"执行命令\"}\n\ndata: {\"type\":\"approval_required\",\"runId\":\"run-approval\",\"sequence\":3,\"round\":1,\"callId\":\"tool-approval\",\"toolName\":\"bash\",\"approvalId\":\"approval-1\",\"reason\":\"需要确认\"}\n\n",
+            "controlBodies": {
+              "approve": "data: {\"type\":\"tool_call_end\",\"runId\":\"run-approval\",\"sequence\":4,\"round\":1,\"callId\":\"tool-approval\",\"toolName\":\"bash\",\"result\":\"完成\",\"status\":\"success\"}\n\ndata: {\"type\":\"answer\",\"runId\":\"run-approval\",\"sequence\":5,\"round\":2,\"content\":\"审批后继续\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"run-approval\",\"sequence\":6,\"state\":\"completed\",\"content\":\"审批后继续\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n"
+            }
+          }
+        ]
+      },
+      "markers": ["输入消息..."],
+      "steps": [
+        {"action": "fill", "target": {"placeholder": "输入消息..."}, "value": "执行需要审批的操作"},
+        {"action": "press", "target": {"placeholder": "输入消息..."}, "key": "Enter"},
+        {"action": "waitFor", "target": {"role": "button", "name": "批准执行"}},
+        {"action": "click", "target": {"role": "button", "name": "批准执行"}},
+        {"action": "waitFor", "text": "审批后继续", "exact": true},
+        {"action": "assertText", "text": "审批后继续"},
+        {"action": "assertRequests"}
+      ],
+      "assertRequests": [
+        {"method": "POST", "contains": "/api/conversations/approval/messages", "status": 200, "countExactly": 3}
+      ]
+    },
+    {
+      "id": "agent-run-approval-denial",
+      "acceptanceCriteria": ["AC-003", "AC-006"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/agents",
+            "method": "GET",
+            "body": {"agents": [{"id": "general", "label": "通用助手", "available": true}]}
+          },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {"showReactSteps": true, "routingMode": "manual"}
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {"endpoints": []}
+          },
+          {
+            "pattern": "**/api/conversations",
+            "method": "GET",
+            "body": {"conversations": [{"id": "denial", "title": "审批拒绝", "type": "chat", "createdAt": "2026-08-20T09:00:00.000Z", "updatedAt": "2026-08-20T09:00:00.000Z", "lockedAgent": null, "routingMode": "manual"}]}
+          },
+          {
+            "pattern": "**/api/conversations/*/messages",
+            "method": "GET",
+            "body": {"messages": []}
+          },
+          {
+            "pattern": "**/api/conversations/*/ingestion-events",
+            "method": "GET",
+            "contentType": "text/event-stream",
+            "body": ""
+          },
+          {
+            "pattern": "**/api/conversations/denial/messages",
+            "method": "POST",
+            "contentType": "text/event-stream",
+            "body": "data: {\"type\":\"run_started\",\"runId\":\"run-denial\",\"sequence\":1,\"state\":\"running\"}\n\ndata: {\"type\":\"tool_call_start\",\"runId\":\"run-denial\",\"sequence\":2,\"round\":1,\"state\":\"executing_tools\",\"callId\":\"tool-denial\",\"toolName\":\"bash\",\"arguments\":{},\"summary\":\"执行命令\"}\n\ndata: {\"type\":\"approval_required\",\"runId\":\"run-denial\",\"sequence\":3,\"round\":1,\"callId\":\"tool-denial\",\"toolName\":\"bash\",\"approvalId\":\"approval-denial\",\"reason\":\"需要确认\"}\n\n",
+            "controlBodies": {
+              "deny": "data: {\"type\":\"tool_call_error\",\"runId\":\"run-denial\",\"sequence\":4,\"round\":1,\"callId\":\"tool-denial\",\"toolName\":\"bash\",\"error\":\"已拒绝执行\",\"retryCount\":0,\"phase\":\"final\",\"status\":\"failed\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"run-denial\",\"sequence\":5,\"state\":\"completed\",\"content\":\"\",\"reasoning\":\"\"}\n\ndata: [DONE]\n\n"
+            }
+          }
+        ]
+      },
+      "markers": ["输入消息..."],
+      "steps": [
+        {"action": "fill", "target": {"placeholder": "输入消息..."}, "value": "执行需要审批的操作"},
+        {"action": "press", "target": {"placeholder": "输入消息..."}, "key": "Enter"},
+        {"action": "waitFor", "target": {"role": "button", "name": "拒绝", "exact": true}},
+        {"action": "click", "target": {"role": "button", "name": "拒绝", "exact": true}},
+        {"action": "waitFor", "text": "已拒绝执行", "exact": true},
+        {"action": "assertText", "text": "已拒绝执行"},
+        {"action": "assertRequests"}
+      ],
+      "assertRequests": [
+        {"method": "POST", "contains": "/api/conversations/denial/messages", "status": 200, "countExactly": 3}
+      ]
+    }
+  ]
+}
