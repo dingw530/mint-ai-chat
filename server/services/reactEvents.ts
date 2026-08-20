@@ -1,6 +1,7 @@
 import type { Sink } from './sink.js';
 import type { AgentStatusSnapshot } from './agentStatusBar.js';
 import type { A2uiMessage } from './a2ui/types.js';
+import { AgentRun } from './agentRun.js';
 
 export type ReactRunState =
   | 'running'
@@ -13,6 +14,7 @@ export type ReactRunState =
 
 export interface ReactEventBase {
   runId: string;
+  conversationId?: string;
   sequence: number;
   round?: number;
 }
@@ -100,38 +102,51 @@ const TERMINAL_TYPES = new Set<ReactEventPayload['type']>([
  * 为一次 ReAct 运行分配序列号，并保证最多发送一个终态事件。
  */
 export class ReactEventEmitter {
-  private sequence = 0;
-  private terminal = false;
+  private readonly run: AgentRun;
+  private readonly detachSink?: () => void;
 
   constructor(
-    private readonly sink: Sink,
-    private readonly runId: string,
-  ) {}
+    run: AgentRun,
+  );
+  constructor(sink: Sink, runId: string);
+  constructor(
+    runOrSink: AgentRun | Sink,
+    runId?: string,
+  ) {
+    if (runOrSink instanceof AgentRun) {
+      this.run = runOrSink;
+      return;
+    }
+    if (!runId) throw new Error('runId is required when creating a sink-backed event emitter');
+    this.run = new AgentRun({ runId });
+    this.detachSink = subscribeReactEvents(this.run, runOrSink);
+  }
 
   emit(payload: ReactEventPayload): boolean {
-    if (this.terminal || this.sink.writableEnded) return false;
-
-    const event = {
-      ...payload,
-      runId: this.runId,
-      sequence: ++this.sequence,
-    } as ReactEvent;
-
-    if (this.sink.writeEvent) {
-      this.sink.writeEvent(event);
-    } else {
-      this.sink.write(JSON.stringify(event));
-    }
-
-    if (TERMINAL_TYPES.has(payload.type)) {
-      this.terminal = true;
-    }
-    return true;
+    return this.run.publish(payload) !== undefined;
   }
 
   get isTerminal(): boolean {
-    return this.terminal;
+    return this.run.isTerminal;
   }
+
+  get runId(): string {
+    return this.run.runId;
+  }
+
+  /** Releases the legacy sink subscription created by the compatibility constructor. */
+  dispose(): void {
+    this.detachSink?.();
+  }
+}
+
+/** Connects a runtime event stream to an existing SSE, IPC, CLI, or test sink. */
+export function subscribeReactEvents(run: AgentRun, sink: Sink): () => void {
+  return run.subscribe((event) => {
+    if (sink.writableEnded) return;
+    if (sink.writeEvent) sink.writeEvent(event);
+    else sink.write(JSON.stringify(event));
+  });
 }
 
 export function isReactTerminalEvent(event: ReactEvent): boolean {

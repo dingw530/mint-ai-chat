@@ -5,8 +5,9 @@ import { reactChat } from './services/reactLoopCore.js';
 import { parseWikiPage } from './services/utils/wikiShared.js';
 import * as settingsService from './services/api/settingsService.js';
 import type { ReactEvent } from './services/reactEvents.js';
-import type { Sink } from './services/sink.js';
+import { AccumulatingSink } from './services/sink.js';
 import type { ReactExecutionPolicy } from './services/reactLoopCore.js';
+import { AgentRun, agentRunRegistry } from './services/agentRun.js';
 export type { WikiIngestionRequest, WikiIngestionResult } from './services/api/wikiIngestionService.js';
 export { ingestWikiSource } from './services/api/wikiIngestionService.js';
 
@@ -43,16 +44,6 @@ const EVAL_WIKI_QUERY_PROTOCOL = [
   '5. 最多进行两次 wiki_search，然后必须回答；如果证据不足，明确说明知识库没有足够信息，不要猜测。',
   '6. 每个基于 Wiki 事实的段落都必须在句末使用实际存在的 [C#] 引用；不得使用 [1]、[2] 这类无 C 前缀的编号，也不得编造引用编号。',
 ].join('\n');
-
-class EvalSink implements Sink {
-  readonly events: ReactEvent[] = [];
-  private ended = false;
-  write(_data: string): void {}
-  writeEvent(event: ReactEvent): void { this.events.push(event); }
-  end(): void { this.ended = true; }
-  get headersSent(): boolean { return false; }
-  get writableEnded(): boolean { return this.ended; }
-}
 
 function readCitationSource(wikiPath: string, file: string): string | undefined {
   if (!wikiPath || !file || path.isAbsolute(file)) return undefined;
@@ -182,13 +173,26 @@ export function configureEvalSettings(input: EvalSettingsInput): AiSettings {
 /** 创建供 agent-eval 使用的 Mint ReAct executor。 */
 export function createReactExecutor(settings: AiSettings) {
   return async (evalCase: EvalCaseInput) => {
-    const sink = new EvalSink();
+    const run = new AgentRun({ runId: `eval:${evalCase.id}`, conversationId: `eval:${evalCase.id}` });
+    agentRunRegistry.register(run);
+    const events: ReactEvent[] = [];
+    run.subscribe((event) => events.push(event));
+    const sink = new AccumulatingSink();
     const systemPrompt = [settings.systemPrompt, EVAL_WIKI_QUERY_PROTOCOL].filter(Boolean).join('\n\n');
     const messages: HistoryMessage[] = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: evalCase.input },
     ];
-    const result = await reactChat(messages, settings, sink, evalCase.agent, undefined, `eval:${evalCase.id}`, buildExecutionPolicy(evalCase));
+    const result = await reactChat(
+      messages,
+      settings,
+      sink,
+      evalCase.agent,
+      undefined,
+      `eval:${evalCase.id}`,
+      buildExecutionPolicy(evalCase),
+      run,
+    );
     const blockCitations = (result.uiBlocks ?? []).map((block) => citationFromBlock(settings.wikiPath, block));
     const answerMarkerCitations = citationsFromReferenceMarkers(
       settings.wikiPath,
@@ -198,7 +202,7 @@ export function createReactExecutor(settings: AiSettings) {
     );
     return {
       content: result.content,
-      events: sink.events,
+      events,
       citations: dedupeCitations([
         ...blockCitations,
         ...citationsFromWikiLinks(settings.wikiPath, result.content),

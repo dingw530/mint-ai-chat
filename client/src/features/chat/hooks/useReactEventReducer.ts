@@ -5,6 +5,7 @@ export type ReactEventStatus = 'idle' | 'running' | 'completed' | 'failed' | 'ca
 export interface ReactEventState {
   runId: string | null;
   status: ReactEventStatus;
+  lastSequence: number;
   steps: ReActStep[];
   decisionTrace: DecisionTraceItem[];
   error?: string;
@@ -28,10 +29,17 @@ export interface ReactReducerEvent {
   approvalId?: string;
   reason?: string;
   message?: string;
+  sequence?: number;
 }
 
 export function createInitialReactEventState(): ReactEventState {
-  return { runId: null, status: 'idle', steps: [], decisionTrace: [] };
+  return { runId: null, status: 'idle', lastSequence: 0, steps: [], decisionTrace: [] };
+}
+
+function getNextSequence(state: ReactEventState, event: ReactReducerEvent): number | undefined {
+  if (event.sequence === undefined) return state.lastSequence;
+  if (!Number.isSafeInteger(event.sequence) || event.sequence <= state.lastSequence) return undefined;
+  return event.sequence;
 }
 
 function traceItem(
@@ -49,9 +57,11 @@ export function reduceReactEvent(
   event: ReactReducerEvent,
 ): ReactEventState {
   if (event.type === 'run_started') {
+    if (event.sequence !== undefined && !Number.isSafeInteger(event.sequence)) return state;
     return {
       runId: event.runId || state.runId,
       status: 'running',
+      lastSequence: event.sequence || 0,
       steps: [],
       decisionTrace: [{
         id: `${event.runId || 'run'}:0`,
@@ -67,6 +77,10 @@ export function reduceReactEvent(
   }
 
   if (event.runId && state.runId && event.runId !== state.runId) return state;
+
+  const nextSequence = getNextSequence(state, event);
+  if (nextSequence === undefined) return state;
+  state = { ...state, lastSequence: nextSequence };
 
   switch (event.type) {
     case 'round_started':

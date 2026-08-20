@@ -14,11 +14,19 @@ export interface AgentStatusSnapshot {
   elapsedMs: number;
   toolCount: number;
   toolCounts: Record<string, number>;
+  toolBudgets: Record<string, AgentToolBudget>;
+  totalToolBudget?: AgentToolBudget;
   currentTool?: string;
   retryCount: number;
   lastError?: string;
   loopDetected: boolean;
   phase: AgentStatusPhase;
+}
+
+export interface AgentToolBudget {
+  limit: number;
+  used: number;
+  remaining: number;
 }
 
 const STATUS_MARKER = '<agent_status>';
@@ -35,6 +43,21 @@ function formatToolCounts(toolCounts: Record<string, number>): string {
     : entries.map(([name, count]) => `${safeField(name)}=${count}`).join(', ');
 }
 
+function formatToolBudgets(
+  toolBudgets: Record<string, AgentToolBudget>,
+  totalToolBudget?: AgentToolBudget,
+): string {
+  const entries = Object.entries(toolBudgets);
+  const formatted = entries
+    .map(([name, budget]) => `${safeField(name)}=${budget.used}/${budget.limit} (remaining=${budget.remaining})`);
+  if (totalToolBudget) {
+    formatted.unshift(`total=${totalToolBudget.used}/${totalToolBudget.limit} (remaining=${totalToolBudget.remaining})`);
+  }
+  return formatted.length === 0
+    ? 'none'
+    : formatted.join(', ');
+}
+
 /**
  * 将一次 ReAct 运行的真实状态转换为模型可直接读取的末尾元消息。
  * @param snapshot 当前运行状态快照
@@ -48,11 +71,12 @@ export function buildAgentStatusMessage(snapshot: AgentStatusSnapshot): HistoryM
     STATUS_MARKER,
     `Current round: ${snapshot.round}/${snapshot.maxRounds}`,
     `Tool calls: ${formatToolCounts(snapshot.toolCounts)} (total=${snapshot.toolCount})`,
+    `Tool budgets: ${formatToolBudgets(snapshot.toolBudgets, snapshot.totalToolBudget)}`,
     `Current tool: ${safeField(snapshot.currentTool)}`,
     `Retries: ${snapshot.retryCount}`,
     `Last error: ${safeField(snapshot.lastError)}`,
     `Loop guard: ${loopGuard}`,
-    'Strategy: change approach after repeated failures; deliver a verified answer near the iteration limit; stop when a loop is detected.',
+    'Strategy: change approach after repeated failures; deliver a verified answer near the iteration limit; stop when a loop or tool budget is exhausted.',
     `Phase: ${snapshot.phase}`,
     '</agent_status>',
   ].join('\n');

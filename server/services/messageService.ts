@@ -18,6 +18,7 @@ import { AI_REQUEST_TIMEOUT_MS } from './adapters/apiAdapter.js';
 import * as a2uiRepository from '../repositories/a2uiRepository.js';
 import type { PersistedUiBlock } from '../types.js';
 import { applyContextProviders } from './contextProvider.js';
+import { AgentRun, agentRunRegistry } from './agentRun.js';
 
 export function getMessages(conversationId: string) {
   const conversation = conversationRepo.findById(conversationId);
@@ -180,8 +181,24 @@ export async function sendMessage(conversationId: string, content: string, sink:
     }
 
     const { content: fullContent, reasoning: fullReasoning, uiBlocks: fullUiBlocks } = useReact
-      ? await reactChat(requestMessages, settings, deferredSink, resolvedAgent, orchestratorSignal, conversationId)
-      : await streamChat(requestMessages, settings, deferredSink, resolvedAgent, conversationId);
+      ? await reactChat(
+        requestMessages,
+        settings,
+        deferredSink,
+        resolvedAgent,
+        orchestratorSignal,
+        conversationId,
+        undefined,
+        createRegisteredRun(conversationId),
+      )
+      : await streamChat(
+        requestMessages,
+        settings,
+        deferredSink,
+        resolvedAgent,
+        conversationId,
+        createRegisteredRun(conversationId),
+      );
 
     clearTimeout(orchestratorTimer);
     // AI 回复完成后持久化（流式结束时才写入）
@@ -213,4 +230,11 @@ export async function sendMessage(conversationId: string, content: string, sink:
     }
     deferredSink.flush();
   }
+}
+
+/** Creates the process-local run that owns one user-visible chat invocation. */
+function createRegisteredRun(conversationId: string): AgentRun {
+  const run = new AgentRun({ runId: uuidv4(), conversationId });
+  agentRunRegistry.register(run);
+  return run;
 }

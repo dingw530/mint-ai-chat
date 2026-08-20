@@ -144,7 +144,7 @@ export function parseSSEChunk(
   callbacks: SendCallbacks,
   lastThought: { value: string },
 ) {
-  console.log(data);
+  if (!hasValidRunEnvelope(data)) return;
   if (data.type) {
     switch (data.type) {
       case 'run_started':
@@ -209,4 +209,16 @@ export function parseSSEChunk(
   if (data.content) callbacks.onChunk?.(data.content as string);
   if (data.reasoning) callbacks.onReasoning?.(data.reasoning as string);
   if (data.agent) callbacks.onRouting?.(data.agent as string);
+}
+
+/** Accepts legacy events and complete AgentRun envelopes, while rejecting half-formed run identities. */
+function hasValidRunEnvelope(data: Record<string, unknown>): boolean {
+  const hasRunId = Object.prototype.hasOwnProperty.call(data, 'runId');
+  const hasSequence = Object.prototype.hasOwnProperty.call(data, 'sequence');
+  if (!hasRunId && !hasSequence) return true;
+  return typeof data.runId === 'string'
+    && data.runId.length > 0
+    && typeof data.sequence === 'number'
+    && Number.isSafeInteger(data.sequence)
+    && data.sequence > 0;
 }

@@ -31,6 +31,20 @@ describe('reduceReactEvent', () => {
     expect(reduceReactEvent(completed, { type: 'thought', content: 'late event' })).toBe(completed);
   });
 
+  it('ignores out-of-order AgentRun events while accepting strictly increasing sequences', () => {
+    const started = reduceReactEvent(createInitialReactEventState(), {
+      type: 'run_started', runId: 'run-1', sequence: 1,
+    });
+    const thought = reduceReactEvent(started, {
+      type: 'thought', runId: 'run-1', sequence: 3, content: 'current event',
+    });
+
+    expect(reduceReactEvent(thought, {
+      type: 'thought', runId: 'run-1', sequence: 2, content: 'stale event',
+    })).toBe(thought);
+    expect(thought).toMatchObject({ lastSequence: 3, steps: [{ content: 'current event' }] });
+  });
+
   it('builds a safe action trace without thought, arguments, or raw results', () => {
     const state = reduce(createInitialReactEventState(),
       { type: 'run_started', runId: 'run-1' },

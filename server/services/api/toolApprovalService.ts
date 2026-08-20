@@ -7,6 +7,9 @@ import * as messageRepo from '../../repositories/messageRepository.js';
 import { v4 as uuidv4 } from 'uuid';
 import { ReactEventEmitter } from '../reactEvents.js';
 import type { Sink } from '../sink.js';
+import { AgentRun, agentRunRegistry } from '../agentRun.js';
+import { subscribeReactEvents } from '../reactEvents.js';
+import type { PendingToolApproval } from '../tools/approvalStore.js';
 
 class ReactEventSink extends AccumulatingSink {
   readonly events: Record<string, unknown>[] = [];
@@ -20,6 +23,156 @@ class ReactEventSink extends AccumulatingSink {
       // Non-event output is retained by AccumulatingSink but is not part of the UI event stream.
     }
   }
+}
+
+interface ActiveRunApprovalResult {
+  status: 'denied' | 'completed' | 'failed';
+  toolName: string;
+  reason?: string;
+  result?: unknown;
+  error?: string;
+  continuation?: {
+    content: string;
+    reasoning: string;
+    events: Record<string, unknown>[];
+  };
+}
+
+/** Finds the original paused run only when the approval still belongs to that run and conversation. */
+function findPausedRun(request: PendingToolApproval, approvalId: string): AgentRun | undefined {
+  const runId = request.resume?.runId;
+  if (!runId) return undefined;
+  const run = agentRunRegistry.get(runId);
+  const snapshot = run?.getSnapshot();
+  if (
+    !run
+    || snapshot?.conversationId !== request.conversationId
+    || snapshot.phase !== 'paused_for_approval'
+    || snapshot.approval?.approvalId !== approvalId
+  ) return undefined;
+  return run;
+}
+
+/** Continues an approval-linked AgentRun without assigning a new run ID or resetting its sequence. */
+async function continueActiveRun(
+  request: PendingToolApproval,
+  approvalId: string,
+  action: ApprovalAction,
+  sink: Sink,
+): Promise<ActiveRunApprovalResult | undefined> {
+  const run = findPausedRun(request, approvalId);
+  if (!run) return undefined;
+  const detachSink = subscribeReactEvents(run, sink);
+  const events = new ReactEventEmitter(run);
+  const round = Math.max(1, run.getSnapshot().round);
+
+  if (!run.resumeApproval(approvalId)) {
+    detachSink();
+    return undefined;
+  }
+
+  if (action === 'deny') {
+    events.emit({
+      type: 'tool_call_error',
+      round,
+      callId: request.toolCall.id,
+      toolName: request.toolCall.function.name,
+      error: '已拒绝执行',
+      retryCount: 0,
+      phase: 'final',
+      status: 'failed',
+    });
+    events.emit({ type: 'run_completed', state: 'completed', content: '', reasoning: '' });
+    detachSink();
+    sink.end();
+    return { status: 'denied', toolName: request.toolCall.function.name, reason: request.reason };
+  }
+
+  const tool = toolRegistry.get(request.toolCall.function.name);
+  if (!tool) {
+    events.emit({ type: 'run_failed', state: 'failed', error: `Tool not found: ${request.toolCall.function.name}` });
+    detachSink();
+    sink.end();
+    return { status: 'failed', toolName: request.toolCall.function.name, error: 'Tool not found' };
+  }
+
+  const execution = await toolLoopEngine.executeToolCallWithRetry(
+    request.toolCall,
+    request.resume?.reasoning,
+    request.resume?.settings.toolMaxRetries ?? 0,
+    undefined,
+    request.conversationId,
+    { approvalGranted: true },
+  );
+
+  if (!execution.succeeded) {
+    events.emit({
+      type: 'tool_call_error',
+      round,
+      callId: request.toolCall.id,
+      toolName: request.toolCall.function.name,
+      error: execution.toolMsg.content,
+      retryCount: 0,
+      phase: 'final',
+      status: 'failed',
+    });
+    events.emit({ type: 'run_completed', state: 'completed', content: '', reasoning: '' });
+    detachSink();
+    sink.end();
+    return { status: 'failed', toolName: request.toolCall.function.name, error: execution.toolMsg.content };
+  }
+
+  events.emit({
+    type: 'tool_call_end',
+    round,
+    callId: request.toolCall.id,
+    toolName: request.toolCall.function.name,
+    result: execution.toolMsg.content,
+    duration: 0,
+    status: 'success',
+  });
+  detachSink();
+
+  if (!request.resume) {
+    events.emit({ type: 'run_completed', state: 'completed', content: '', reasoning: '' });
+    sink.end();
+    return { status: 'completed', toolName: request.toolCall.function.name, result: parseToolResult(execution.toolMsg.content) };
+  }
+
+  const continuation = await reactChat(
+    [...request.resume.messages, execution.assistantMsg, execution.toolMsg],
+    request.resume.settings,
+    sink,
+    request.resume.agent,
+    undefined,
+    request.conversationId,
+    undefined,
+    run,
+  );
+  if (continuation.content) persistContinuation(request.conversationId, continuation.content, continuation.reasoning);
+
+  return {
+    status: 'completed',
+    toolName: request.toolCall.function.name,
+    result: parseToolResult(execution.toolMsg.content),
+    continuation: {
+      content: continuation.content,
+      reasoning: continuation.reasoning,
+      events: sink instanceof ReactEventSink ? sink.events : [],
+    },
+  };
+}
+
+/** Persists only the final assistant answer produced after an approval continuation. */
+function persistContinuation(conversationId: string, content: string, reasoning: string): void {
+  messageRepo.create({
+    id: uuidv4(),
+    conversationId,
+    role: 'assistant',
+    content,
+    reasoning: reasoning || null,
+    createdAt: new Date().toISOString(),
+  });
 }
 
 /**
@@ -38,6 +191,15 @@ export async function resolveToolApproval(
   if (!request) {
     const error = new Error('审批不存在、已过期或已被消费');
     Object.assign(error, { status: 404 });
+    throw error;
+  }
+
+  const activeSink = new ReactEventSink();
+  const activeRunResult = await continueActiveRun(request, approvalId, action, activeSink);
+  if (activeRunResult) return { approvalId, ...activeRunResult };
+  if (request.resume?.runId) {
+    const error = new Error('关联的 AgentRun 已结束或不再等待此审批');
+    Object.assign(error, { status: 409 });
     throw error;
   }
 
@@ -123,6 +285,14 @@ export async function streamToolApproval(
   const request = toolApprovalStore.consume(conversationId, approvalId, action);
   if (!request) {
     sink.write(JSON.stringify({ type: 'run_failed', state: 'failed', error: '审批不存在、已过期或已被消费' }));
+    sink.end();
+    return;
+  }
+
+  const activeRunResult = await continueActiveRun(request, approvalId, action, sink);
+  if (activeRunResult) return;
+  if (request.resume?.runId) {
+    sink.write(JSON.stringify({ type: 'run_failed', state: 'failed', error: '关联的 AgentRun 已结束或不再等待此审批' }));
     sink.end();
     return;
   }

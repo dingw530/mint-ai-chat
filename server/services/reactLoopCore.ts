@@ -9,12 +9,14 @@ import {
   prepareContext,
 } from './utils/contextWindow.js';
 import { v4 as uuidv4 } from 'uuid';
-import { ReactEventEmitter } from './reactEvents.js';
+import { ReactEventEmitter, subscribeReactEvents } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
+import { AgentRun, agentRunRegistry } from './agentRun.js';
 import { estimateMessagesTokens } from './utils/tokenEstimator.js';
 import {
   buildAgentStatusMessage,
   removeAgentStatusMessages,
+  type AgentToolBudget,
   type AgentStatusSnapshot,
 } from './agentStatusBar.js';
 import { A2UIComposer } from './a2ui/composer.js';
@@ -53,6 +55,7 @@ interface ReactRunState {
   streamedAsAnswer: boolean;
   awaitingApproval: boolean;
   forceFinalAnswer: boolean;
+  budgetExhausted: boolean;
   toolCounts: Record<string, number>;
   toolCountsByRound: Record<string, Record<string, number>>;
   toolCount: number;
@@ -83,6 +86,7 @@ function createRunState(): ReactRunState {
     streamedAsAnswer: false,
     awaitingApproval: false,
     forceFinalAnswer: false,
+    budgetExhausted: false,
     toolCounts: {},
     toolCountsByRound: {},
     toolCount: 0,
@@ -128,6 +132,7 @@ function getAgentStatus(
   round: number,
   maxRounds: number,
   runStartedAt: number,
+  executionPolicy?: ReactExecutionPolicy,
 ): AgentStatusSnapshot {
   return {
     round,
@@ -135,12 +140,41 @@ function getAgentStatus(
     elapsedMs: Date.now() - runStartedAt,
     toolCount: state.toolCount,
     toolCounts: { ...state.toolCounts },
+    toolBudgets: getToolBudgets(state, executionPolicy),
+    totalToolBudget: getTotalToolBudget(state, executionPolicy),
     currentTool: state.currentTool,
     retryCount: state.retryCount,
     lastError: state.lastError,
-    loopDetected: state.forceFinalAnswer,
+    loopDetected: state.forceFinalAnswer && !state.budgetExhausted,
     phase,
   };
+}
+
+function getToolBudgets(
+  state: ReactRunState,
+  executionPolicy?: ReactExecutionPolicy,
+): Record<string, AgentToolBudget> {
+  const limits = executionPolicy?.maxToolCallsByName || {};
+  return Object.fromEntries(Object.entries(limits).map(([name, limit]) => {
+    const used = Math.min(state.toolCounts[name] || 0, limit);
+    return [name, { limit, used, remaining: Math.max(0, limit - used) }];
+  }));
+}
+
+function getTotalToolBudget(
+  state: ReactRunState,
+  executionPolicy?: ReactExecutionPolicy,
+): AgentToolBudget | undefined {
+  const limit = executionPolicy?.maxToolCalls;
+  if (limit === undefined) return undefined;
+  const used = Math.min(state.toolCount, limit);
+  return { limit, used, remaining: Math.max(0, limit - used) };
+}
+
+function hasExhaustedToolBudget(state: ReactRunState, executionPolicy?: ReactExecutionPolicy): boolean {
+  if (executionPolicy?.maxToolCalls !== undefined && state.toolCount >= executionPolicy.maxToolCalls) return true;
+  return Object.entries(executionPolicy?.maxToolCallsByName || {})
+    .some(([name, limit]) => (state.toolCounts[name] || 0) >= limit);
 }
 
 /** 在每轮请求模型前压缩上下文，摘要提示词明确要求保留后续工具执行所需的事实。 */
@@ -192,7 +226,6 @@ async function executeToolCalls(
     conversationId?: string;
     maxRetries: number;
     signal?: AbortSignal;
-    sink: Sink;
     events: ReactEventEmitter;
     state: ReactRunState;
     maxRounds: number;
@@ -225,6 +258,7 @@ async function executeToolCalls(
           context.round,
           context.maxRounds,
           context.runStartedAt,
+          context.executionPolicy,
         ),
       });
 
@@ -241,6 +275,7 @@ async function executeToolCalls(
           summary: '已达到评测工具预算，未执行该调用',
         });
         state.forceFinalAnswer = true;
+        state.budgetExhausted = true;
         return {
           index,
           assistantMsg: { role: 'assistant', content: '', tool_calls: [toolCall], reasoning: result.reasoning || undefined },
@@ -276,12 +311,14 @@ async function executeToolCalls(
               context.round,
               context.maxRounds,
               context.runStartedAt,
+              context.executionPolicy,
             ),
           });
         },
         context.conversationId,
         {
           approvalContext: {
+            runId: context.events.runId,
             messages: cloneMessages(context.currentMessages),
             settings: context.settings,
             agent: context.agent,
@@ -348,7 +385,7 @@ async function executeToolCalls(
   );
 }
 
-/** 预留一次工具调用名额；超限调用仍会被记录，但不会触达真实工具。 */
+/** 预留一次工具调用名额；被拒绝的调用不计入已消耗预算。 */
 function reserveToolCall(toolName: string, state: ReactRunState, policy?: ReactExecutionPolicy, round?: number): boolean {
   const totalAllowed = policy?.maxToolCalls === undefined || state.toolCount < policy.maxToolCalls;
   const nameLimit = policy?.maxToolCallsByName?.[toolName];
@@ -357,11 +394,12 @@ function reserveToolCall(toolName: string, state: ReactRunState, policy?: ReactE
   const roundCounts = state.toolCountsByRound[roundKey] || {};
   const roundLimit = policy?.maxToolCallsPerRoundByName?.[toolName];
   const roundAllowed = roundLimit === undefined || (roundCounts[toolName] || 0) < roundLimit;
+  if (!totalAllowed || !nameAllowed || !roundAllowed) return false;
   state.toolCount += 1;
   state.toolCounts[toolName] = (state.toolCounts[toolName] || 0) + 1;
   roundCounts[toolName] = (roundCounts[toolName] || 0) + 1;
   state.toolCountsByRound[roundKey] = roundCounts;
-  return totalAllowed && nameAllowed && roundAllowed;
+  return true;
 }
 
 /** 兼容适配器返回的 JSON 参数和无法解析的原始参数字符串。 */
@@ -389,28 +427,23 @@ function cloneMessages(messages: HistoryMessage[]): HistoryMessage[] {
 }
 
 // ── ReAct 循环引擎 ──
-export async function reactChat(
+/** Executes the ReAct loop against an AgentRun without depending on any transport sink. */
+export async function executeReactRun(
   messages: HistoryMessage[],
   settings: AiSettings,
-  sink: Sink,
+  run: AgentRun,
   agent?: string,
   signal?: AbortSignal,
   conversationId?: string,
   executionPolicy?: ReactExecutionPolicy,
 ): Promise<StreamResult> {
-  const runId = uuidv4();
-  const events = new ReactEventEmitter(sink, runId);
+  const runId = run.runId;
+  const events = new ReactEventEmitter(run);
   const a2uiComposer = new A2UIComposer();
-  const finishSink = () => {
-    if (!sink.writableEnded) sink.end();
-  };
   const fail = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     events.emit({ type: 'run_failed', state: 'failed', error: message });
-    finishSink();
   };
-
-  events.emit({ type: 'run_started', state: 'running' });
 
   const { apiUrl, apiKey } = settings;
   if (!apiUrl || !apiKey) {
@@ -443,7 +476,10 @@ export async function reactChat(
 
   while (iteration < maxIterations && !events.isTerminal) {
     const round = iteration + 1;
-    if (sink.writableEnded) break;
+    if (hasExhaustedToolBudget(state, executionPolicy)) {
+      state.forceFinalAnswer = true;
+      state.budgetExhausted = true;
+    }
     if (signal?.aborted) {
       events.emit({ type: 'run_cancelled', state: 'cancelled' });
       break;
@@ -458,7 +494,7 @@ export async function reactChat(
       signal,
     );
 
-    // 检测到重复调用后，将下一次模型请求标记为最终回答，避免继续消耗工具轮次。
+    // 检测到重复调用或预算耗尽后，将下一次模型请求标记为最终回答，避免继续消耗工具轮次。
     const isLast = state.forceFinalAnswer || iteration === maxIterations - 1;
     // 模型的 content 统一作为回答流输出；reasoning 仍作为思考事件输出。
     // 这样首轮无工具调用时也能保留回答的增量输出，避免 thought/answer 重复发送正文。
@@ -467,12 +503,12 @@ export async function reactChat(
     currentMessages = [
       ...removeAgentStatusMessages(currentMessages),
       buildAgentStatusMessage(
-        getAgentStatus(state, 'awaiting_model', round, maxIterations, runStartedAt),
+        getAgentStatus(state, 'awaiting_model', round, maxIterations, runStartedAt, executionPolicy),
       ),
     ];
     events.emit({
       type: 'agent_status',
-      ...getAgentStatus(state, 'awaiting_model', round, maxIterations, runStartedAt),
+      ...getAgentStatus(state, 'awaiting_model', round, maxIterations, runStartedAt, executionPolicy),
     });
     events.emit({ type: 'round_started', state: 'awaiting_model', round });
 
@@ -483,7 +519,7 @@ export async function reactChat(
         {
           messages: currentMessages,
           settings,
-          tools,
+          tools: isLast ? undefined : tools,
           adapter,
           signal,
           label,
@@ -504,7 +540,7 @@ export async function reactChat(
             } as ReactEventPayload);
           },
         },
-        sink,
+        undefined,
       );
     } catch (error) {
       console.error('[reactChat] executeRound failed:', error);
@@ -525,7 +561,7 @@ export async function reactChat(
       state.streamedAsAnswer = true;
       events.emit({
         type: 'agent_status',
-        ...getAgentStatus(state, 'completed', round, maxIterations, runStartedAt),
+        ...getAgentStatus(state, 'completed', round, maxIterations, runStartedAt, executionPolicy),
       });
       events.emit({
         type: 'run_completed',
@@ -549,7 +585,6 @@ export async function reactChat(
       conversationId,
       maxRetries,
       signal,
-      sink,
       events,
       state,
       maxRounds: maxIterations,
@@ -604,7 +639,7 @@ export async function reactChat(
         state.forceFinalAnswer = true;
         events.emit({
           type: 'agent_status',
-          ...getAgentStatus(state, 'finalizing', round, maxIterations, runStartedAt),
+          ...getAgentStatus(state, 'finalizing', round, maxIterations, runStartedAt, executionPolicy),
         });
         events.emit({
           type: 'loop_detected',
@@ -618,7 +653,7 @@ export async function reactChat(
     iteration++;
   }
 
-  if (!events.isTerminal && !sink.writableEnded) {
+  if (!events.isTerminal) {
     if (signal?.aborted) {
       events.emit({ type: 'run_cancelled', state: 'cancelled' });
     } else if (!state.streamedAsAnswer && !state.awaitingApproval) {
@@ -633,7 +668,6 @@ export async function reactChat(
     }
   }
 
-  finishSink();
   return {
     content: a2uiComposer.sanitizeContent(state.finalContent),
     reasoning: state.finalReasoning,
@@ -641,4 +675,29 @@ export async function reactChat(
     uiBlocks: a2uiComposer.getBlocks(),
     wikiReferences: a2uiComposer.getReferences(),
   };
+}
+
+/**
+ * Compatibility adapter that connects the Sink transport to the sink-independent ReAct runtime.
+ */
+export async function reactChat(
+  messages: HistoryMessage[],
+  settings: AiSettings,
+  sink: Sink,
+  agent?: string,
+  signal?: AbortSignal,
+  conversationId?: string,
+  executionPolicy?: ReactExecutionPolicy,
+  existingRun?: AgentRun,
+): Promise<StreamResult> {
+  const run = existingRun || new AgentRun({ runId: uuidv4(), conversationId });
+  if (!existingRun) agentRunRegistry.register(run);
+  const detachSink = subscribeReactEvents(run, sink);
+  if (run.getSnapshot().sequence === 0) new ReactEventEmitter(run).emit({ type: 'run_started', state: 'running' });
+  try {
+    return await executeReactRun(messages, settings, run, agent, signal, conversationId, executionPolicy);
+  } finally {
+    detachSink();
+    if (!sink.writableEnded) sink.end();
+  }
 }
