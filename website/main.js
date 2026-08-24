@@ -1,105 +1,45 @@
 const translations = {
   zh: {
-    navCapabilities: '能力', navPrinciples: '方法', navOpenSource: '开源', github: 'GitHub ↗', heroEyebrow: '开源 AI 工作台', heroTitle: '让想法<br /><em>开始行动。</em>', heroLede: 'Mint 把对话、知识和工具放进同一个安静而有力量的空间。少一点切换，多一点真正完成。', heroPrimary: '在 GitHub 查看', heroSecondary: '探索能力', artCaption: '对话 · 知识 · 行动', showcaseLabel: '真实界面', showcaseTitle: '熟悉的界面，<em>更大的空间。</em>', showcaseBody: '从对话开始，在同一个清爽的工作台里继续前进。这里就是 Mint 的真实界面。', shotOverview: '一个安静的工作台', shotSidebar: '清晰的入口和上下文', shotChat: '把问题聊到下一步', manifestoLabel: '为什么是 Mint', manifestoTitle: '工具应该<br /><strong>懂你的工作。</strong>', manifestoBody: '不是又一个聊天窗口。Mint 是一个可以积累上下文、连接知识、调用工具的工作空间。它让 AI 从“回答一个问题”，走向“陪你把事情做完”。', statOne: '保持上下文', statTwo: '连接你的知识', statThree: '实际完成工作', capabilitiesLabel: '核心能力', capabilitiesTitle: '一个空间，<em>三种力量。</em>', capabilitiesAside: '从灵感到交付，保持思路连贯。', cardOneTitle: '自然对话', cardOneBody: '支持多模型的流畅对话，把问题聊清楚，也把下一步聊出来。', cardTwoTitle: '活的知识库', cardTwoBody: '让文档、想法和经验彼此连接。你的上下文，值得被记住。', cardThreeTitle: '真正去行动', cardThreeBody: '通过工具和 Agent，把“应该做什么”变成“已经做完了什么”。', openSourceLabel: '开放构建', openSourceTitle: '你的工作台，<br /><em>由你定义。</em>', openSourceBody: 'Mint 开源、可扩展，也愿意听见你的想法。来看看它如何工作，或者一起让它变得更好。', openSourceButton: '打开仓库', footerTagline: '让想法开始行动。', footerMade: 'Made for meaningful work.'
+    siteTitle: 'Mint Docs — LLM Wiki',
+    headerStatus: '开源知识工作台', github: 'GitHub ↗', sidebarIntro: '把知识编译成上下文，再带进真实工作。', sidebarFooter: '持续补充中',
+    navStart: '开始', navOverview: '概览', navQuickStart: '快速开始', navConcepts: '概念', navWhat: 'Mint 是什么', navArchitecture: '架构分工', navLifecycle: '上下文生命周期', navGuides: '指南', navInterface: '界面对应', navSignals: '知识信号', breadcrumbOverview: '概览',
+    pageTitle: 'Mint 文档', pageLede: 'Mint 是一个以 LLM Wiki 为知识核心、以 Chat 为交互入口、以 Agent 和 Tools 为执行出口的开源 AI 工作台。', docMetaOne: '阅读时间 · 5 分钟', docMetaTwo: '范围 · 产品与架构',
+    whatTitle: 'Mint 要解决什么问题？', whatBody: '普通聊天可以回答一次问题，却很难持续记住项目背景、知识来源和已经做过的决定。Mint 把这些内容放进一个可编译、可检索、可追溯的知识层，再让对话和 Agent 使用同一份上下文。', principleLabel: '核心判断', principleBody: '如果上下文不能被留下、定位和继续使用，AI 的每次回答都可能只是一次性的文本生成。',
+    quickTitle: '从一个真实问题开始', quickBody: '不需要先理解所有模块。准备一份正在使用的项目资料，然后用一个具体问题走完下面的路径。', quickStepOneTitle: '放入资料', quickStepOneBody: '导入 Wiki 页面、README、设计文档或会议记录，保留来源。', quickStepTwoTitle: '检查知识状态', quickStepTwoBody: '查看页面、关系和知识热度，先知道哪些内容已经可用。', quickStepThreeTitle: '在 Chat 中追问', quickStepThreeBody: '围绕一个问题逐步追问，并回到来源核对上下文。', quickStepFourTitle: '交给执行层', quickStepFourBody: '需要行动时，再让 Agent 或 Tools 带着上下文完成下一步。',
+    architectureTitle: '组件如何分工', architectureBody: 'Mint 不是把所有能力塞进一个聊天框。每一层有明确职责，也有明确的产出。', tableLayer: '层', tableResponsibility: '负责什么', tableOutput: '产出什么', wikiResponsibility: '积累、组织和编译知识', wikiOutput: '可检索的页面、关系和来源', contextResponsibility: '把相关内容带入当前任务', contextOutput: '有边界的上下文', chatResponsibility: '提供最低摩擦的交互入口', chatOutput: '问题、追问和回答', agentResponsibility: '根据上下文推进任务', agentOutput: '动作、结果和可回看的过程',
+    lifecycleTitle: '上下文生命周期', lifecycleBody: '同一份知识会经历从来源到执行的几次转换。理解这条链，可以判断问题出在“没有资料”“没有检索到”，还是“没有执行”。', pipelineOne: 'Sources', pipelineOneBody: '原始页面与文件', pipelineTwo: 'Wiki', pipelineTwoBody: '结构与关系', pipelineThree: 'Context', pipelineThreeBody: '当前任务需要的片段', pipelineFour: 'Action', pipelineFourBody: '对话、工具与 Agent',
+    interfaceTitle: '这些概念在界面里对应什么？', interfaceBody: '左侧是进入不同工作面的导航，中间是当前任务，知识库页面则提供来源、关系和生命周期信号。下面是当前实现中的真实界面。', figureCaption: '知识热度页面：从访问反馈中识别值得继续维护的知识。',
+    signalsTitle: '知识信号是什么？', signalsBody: '知识库不应该只是文件列表。访问、召回和关系可以成为反馈信号，帮助判断哪些页面正在被使用、哪些内容需要更新，以及下一次检索应该优先看到什么。', signalUseTitle: '被谁使用', signalUseBody: '访问和召回反馈。', signalCareTitle: '哪里需要维护', signalCareBody: '过期、孤立或低热度页面。', signalNextTitle: '下一步看什么', signalNextBody: '关系和检索优先级。', footerNote: '这是一份随实现持续更新的文档。', footerLink: '在 GitHub 查看源码 ↗', tocLabel: '本页目录', tocWhat: 'Mint 要解决什么问题？', tocQuick: '从一个真实问题开始', tocArchitecture: '组件如何分工', tocLifecycle: '上下文生命周期', tocInterface: '界面对应', tocSignals: '知识信号', tocRelated: '相关入口'
   },
   en: {
-    navCapabilities: 'Capabilities', navPrinciples: 'Approach', navOpenSource: 'Open source', github: 'GitHub ↗', heroEyebrow: 'Open-source AI workspace', heroTitle: 'Move ideas<br /><em>into action.</em>', heroLede: 'Mint brings conversation, knowledge, and tools into one calm, capable workspace. Less switching. More done.', heroPrimary: 'View on GitHub', heroSecondary: 'Explore capabilities', artCaption: 'Conversation · Knowledge · Action', showcaseLabel: 'The real interface', showcaseTitle: 'A familiar interface, <em>more room to think.</em>', showcaseBody: 'Start with a conversation and keep moving inside one clear workspace. This is Mint, as it is.', shotOverview: 'A calm workspace', shotSidebar: 'Clear entry points and context', shotChat: 'Take the question to its next step', manifestoLabel: 'Why Mint', manifestoTitle: 'Tools should<br /><strong>understand your work.</strong>', manifestoBody: 'Not another chat window. Mint is a workspace that accumulates context, connects knowledge, and calls tools. It moves AI from answering one question to helping you finish the work.', statOne: 'Keep the context', statTwo: 'Connect your knowledge', statThree: 'Get the work done', capabilitiesLabel: 'Core capabilities', capabilitiesTitle: 'One space, <em>three forces.</em>', capabilitiesAside: 'Keep the thread from first spark to final handoff.', cardOneTitle: 'Natural conversation', cardOneBody: 'Fluid conversations across models that clarify the question and reveal the next step.', cardTwoTitle: 'Living knowledge', cardTwoBody: 'Connect documents, ideas, and experience. Your context deserves to be remembered.', cardThreeTitle: 'Real action', cardThreeBody: 'Turn “what should I do?” into “what have I finished?” with tools and Agents.', openSourceLabel: 'Build in the open', openSourceTitle: 'Your workspace,<br /><em>your definition.</em>', openSourceBody: 'Mint is open, extensible, and ready for your ideas. See how it works, or help make it better.', openSourceButton: 'Open repository', footerTagline: 'Move ideas into action.', footerMade: 'Made for meaningful work.'
+    siteTitle: 'Mint Docs — LLM Wiki',
+    headerStatus: 'Open knowledge workspace', github: 'GitHub ↗', sidebarIntro: 'Compile knowledge into context, then carry it into real work.', sidebarFooter: 'Continuously updated',
+    navStart: 'START', navOverview: 'Overview', navQuickStart: 'Quick start', navConcepts: 'CONCEPTS', navWhat: 'What is Mint?', navArchitecture: 'Architecture', navLifecycle: 'Context lifecycle', navGuides: 'GUIDES', navInterface: 'The interface', navSignals: 'Knowledge signals', breadcrumbOverview: 'Overview',
+    pageTitle: 'Mint documentation', pageLede: 'Mint is an open AI workspace with an LLM Wiki as its knowledge core, Chat as its interaction surface, and Agents and Tools as its execution layer.', docMetaOne: 'Read · 5 min', docMetaTwo: 'Scope · product and architecture',
+    whatTitle: 'What problem does Mint solve?', whatBody: 'A chat can answer one question, but it rarely keeps the project background, source material, and decisions that make the next question useful. Mint puts those things into a compilable, searchable, traceable knowledge layer, then lets conversations and Agents use the same context.', principleLabel: 'THE PRINCIPLE', principleBody: 'If context cannot be kept, located, and reused, every AI answer risks becoming a one-off piece of generated text.',
+    quickTitle: 'Start with a real question', quickBody: 'You do not need to understand every module first. Bring one project source you already use, then walk through this path with a concrete question.', quickStepOneTitle: 'Bring in the source', quickStepOneBody: 'Import Wiki pages, README files, design docs, or meeting notes while keeping their origin.', quickStepTwoTitle: 'Check the knowledge state', quickStepTwoBody: 'Look at pages, relationships, and usage signals to see what is ready to use.', quickStepThreeTitle: 'Ask in Chat', quickStepThreeBody: 'Follow one question through a conversation, then return to the source to check the context.', quickStepFourTitle: 'Hand it to execution', quickStepFourBody: 'When an action is needed, let an Agent or Tool move the next step forward with context in hand.',
+    architectureTitle: 'How the components divide the work', architectureBody: 'Mint does not put every capability inside one chat box. Each layer has a clear responsibility and a clear output.', tableLayer: 'Layer', tableResponsibility: 'Responsibility', tableOutput: 'Output', wikiResponsibility: 'Accumulate, organize, and compile knowledge', wikiOutput: 'Searchable pages, relationships, and sources', contextResponsibility: 'Bring relevant material into the current task', contextOutput: 'Bounded context', chatResponsibility: 'Provide the lowest-friction interaction surface', chatOutput: 'Questions, follow-ups, and answers', agentResponsibility: 'Move the task forward with context', agentOutput: 'Actions, results, and a reviewable process',
+    lifecycleTitle: 'The context lifecycle', lifecycleBody: 'The same piece of knowledge changes form as it moves from source to execution. This chain helps locate whether a problem is missing material, missing retrieval, or missing action.', pipelineOne: 'Sources', pipelineOneBody: 'Original pages and files', pipelineTwo: 'Wiki', pipelineTwoBody: 'Structure and relationships', pipelineThree: 'Context', pipelineThreeBody: 'The pieces needed now', pipelineFour: 'Action', pipelineFourBody: 'Chat, Tools, and Agents',
+    interfaceTitle: 'Where do these concepts appear in the interface?', interfaceBody: 'The left side leads into different work surfaces, the center holds the current task, and the knowledge pages expose source, relationship, and lifecycle signals. This is a real screen from the current implementation.', figureCaption: 'Knowledge heat: use access feedback to find the knowledge worth maintaining.',
+    signalsTitle: 'What are knowledge signals?', signalsBody: 'A knowledge base should be more than a file list. Access, recall, and relationships can become feedback signals that show what is being used, what needs care, and what retrieval should surface next.', signalUseTitle: 'What is used', signalUseBody: 'Access and recall feedback.', signalCareTitle: 'What needs care', signalCareBody: 'Stale, isolated, or low-signal pages.', signalNextTitle: 'What comes next', signalNextBody: 'Relationships and retrieval priority.', footerNote: 'This documentation evolves with the implementation.', footerLink: 'View the source on GitHub ↗', tocLabel: 'ON THIS PAGE', tocWhat: 'What problem does Mint solve?', tocQuick: 'Start with a real question', tocArchitecture: 'How the components divide the work', tocLifecycle: 'The context lifecycle', tocInterface: 'The interface', tocSignals: 'Knowledge signals', tocRelated: 'RELATED'
   }
 };
 
-Object.assign(translations.zh, {
-  navCapabilities: '技术架构',
-  navPrinciples: '产品架构',
-  heroEyebrow: 'LLM Wiki 实现 · 开源知识工作台',
-  heroTitle: '让知识成为<br /><em>AI 的上下文。</em>',
-  heroLede: 'Mint 是一个以 LLM Wiki 知识库为核心、以 Chat 为承载的开源 AI 系统：先把知识编译成上下文，再让对话、Agent 和工具在正确的信息上工作。',
-  heroPrimary: '探索 LLM Wiki',
-  heroSecondary: '查看知识信号',
-  showcaseLabel: 'LLM Wiki 实现',
-  showcaseTitle: '不是文档堆，<em>是活的知识系统。</em>',
-  showcaseBody: 'Mint 将 Wiki、知识图谱、热度信号和 Agent 工作流连接起来，让团队知道什么被看见、什么值得更新、下一步该做什么。',
-  shotWiki: 'LLM Wiki：让知识持续产生信号',
-  shotOverview: '从对话进入知识',
-  shotSidebar: '清晰的知识入口',
-  shotChat: '把上下文聊到下一步',
-  manifestoLabel: '产品架构',
-  manifestoTitle: 'LLM Wiki 是核心，<br /><strong>Chat 是承载。</strong>',
-  manifestoBody: 'Mint 的产品分工很清晰：LLM Wiki 负责积累、组织和编译知识；Chat 提供最低摩擦的交互入口；Agent 和 Tools 则把上下文带进真实任务。',
-  statOne: '知识库：积累与编译',
-  statTwo: 'Chat：上下文交互',
-  statThree: 'Agent：执行与回写',
-  capabilitiesLabel: '技术架构',
-  capabilitiesTitle: '从文档到上下文，<em>每层都有职责。</em>',
-  capabilitiesAside: '知识库负责积累和编译，Chat 负责把它带入工作。',
-  flowSource: '知识来源',
-  flowWiki: 'LLM Wiki 编译层',
-  flowContext: '上下文检索',
-  flowSurface: 'Chat / Agent / Tools',
-  cardOneTitle: '知识入口层',
-  cardOneBody: '接入 Wiki 文档、文件和外部知识，把分散信息变成可管理的来源。',
-  cardTwoTitle: 'LLM Wiki 核心层',
-  cardTwoBody: '编译结构、关系和生命周期，提供可检索、可追踪的上下文。',
-  cardThreeTitle: '承载与执行层',
-  cardThreeBody: 'Chat 承载交互，Agent 和 Tools 消费 Wiki 上下文并执行下一步。',
-  openSourceLabel: '开源的 LLM Wiki',
-  openSourceTitle: '把知识留下，<br /><em>让智能接着发生。</em>',
-  openSourceBody: 'Mint 正在实现一个属于你的 LLM Wiki：开放、可扩展，并且和真实工作流连接在一起。',
-  footerTagline: '让知识真正可用。'
-});
-
-Object.assign(translations.en, {
-  navCapabilities: 'Technical architecture',
-  navPrinciples: 'Product architecture',
-  heroEyebrow: 'LLM Wiki implementation · Open knowledge workspace',
-  heroTitle: 'Make knowledge<br /><em>AI context.</em>',
-  heroLede: 'Mint is an open AI system with an LLM Wiki knowledge base at its core and Chat as its surface: compile knowledge into context, then let conversations, Agents, and tools work on the right information.',
-  heroPrimary: 'Explore LLM Wiki',
-  heroSecondary: 'See knowledge signals',
-  showcaseLabel: 'LLM Wiki implementation',
-  showcaseTitle: 'Not a document pile, <em>a living knowledge system.</em>',
-  showcaseBody: 'Mint connects Wiki, knowledge graphs, usage signals, and Agent workflows — so teams can see what is useful, what needs care, and what should happen next.',
-  shotWiki: 'LLM Wiki: knowledge that keeps producing signal',
-  shotOverview: 'Move from conversation to knowledge',
-  shotSidebar: 'Clear knowledge entry points',
-  shotChat: 'Carry context into the next step',
-  manifestoLabel: 'Product architecture',
-  manifestoTitle: 'LLM Wiki is the core,<br /><strong>Chat is the surface.</strong>',
-  manifestoBody: 'Mint has a clear product split: the LLM Wiki accumulates, organizes, and compiles knowledge; Chat is the lowest-friction interaction surface; Agents and Tools carry that context into real work.',
-  statOne: 'Wiki: accumulate and compile',
-  statTwo: 'Chat: interact with context',
-  statThree: 'Agents: execute and write back',
-  capabilitiesLabel: 'Technical architecture',
-  capabilitiesTitle: 'From documents to context, <em>every layer has a job.</em>',
-  capabilitiesAside: 'The Wiki accumulates and compiles; Chat brings it into the work.',
-  flowSource: 'Knowledge sources',
-  flowWiki: 'LLM Wiki compiler',
-  flowContext: 'Context retrieval',
-  flowSurface: 'Chat / Agent / Tools',
-  cardOneTitle: 'Knowledge intake',
-  cardOneBody: 'Bring in Wiki pages, files, and external knowledge as managed sources for the system.',
-  cardTwoTitle: 'LLM Wiki core',
-  cardTwoBody: 'Compile structure, relationships, and lifecycle into searchable, traceable context.',
-  cardThreeTitle: 'Surface and execution',
-  cardThreeBody: 'Chat carries the interaction while Agents and Tools consume Wiki context and act.',
-  openSourceLabel: 'Open-source LLM Wiki',
-  openSourceTitle: 'Keep the knowledge,<br /><em>keep intelligence moving.</em>',
-  openSourceBody: 'Mint is an LLM Wiki implementation for your work: open, extensible, and connected to real workflows.',
-  footerTagline: 'Make knowledge genuinely useful.'
-});
-
 const toggle = document.querySelector('.language-toggle');
-const setLanguage = (language) => {
+
+function setLanguage(language) {
+  const copy = translations[language];
   document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
   document.body.classList.toggle('is-english', language === 'en');
   document.querySelectorAll('[data-i18n]').forEach((element) => {
-    const value = translations[language][element.dataset.i18n];
+    const value = copy[element.dataset.i18n];
     if (value) element.innerHTML = value;
   });
+  document.title = copy.siteTitle;
   toggle.setAttribute('aria-pressed', String(language === 'en'));
   localStorage.setItem('mint-site-language', language);
-};
+}
 
 const savedLanguage = localStorage.getItem('mint-site-language');
 setLanguage(savedLanguage === 'en' ? 'en' : 'zh');
 toggle.addEventListener('click', () => setLanguage(document.documentElement.lang === 'zh-CN' ? 'en' : 'zh'));
-document.querySelector('#year').textContent = new Date().getFullYear();
