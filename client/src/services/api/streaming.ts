@@ -45,7 +45,7 @@ export function sendMessageStream(
       removeDoneListener();
       removeErrorListener();
     };
-    api.sendMessage(conversationId, content, agent, !!options?.regenerate);
+    api.sendMessage(conversationId, content, agent, !!options?.regenerate, options?.slashCommand);
 
     return {
       abort: () => {

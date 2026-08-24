@@ -7,6 +7,7 @@ import * as messageRepo from '../repositories/messageRepository.js';
 import { generateImage } from '../services/api/imageService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { ResSink } from '../services/sink.js';
+import { validateSlashCommand } from '../services/api/slashCommandService.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/:id/messages', (req: Request, res: Response) => {
 
 // 发送消息：保存用户消息后以 SSE 流式返回 AI 回复
 router.post('/:id/messages', asyncHandler(async (req: Request, res: Response) => {
-  const { content, agent, regenerate, files, control } = req.body;
+  const { content, agent, regenerate, files, control, slashCommand: rawSlashCommand } = req.body;
   if (control?.type === 'tool_approval') {
     if ((control.action !== 'approve' && control.action !== 'deny') || typeof control.approvalId !== 'string') {
       res.status(400).json({ error: 'Invalid tool approval control message' });
@@ -37,6 +38,11 @@ router.post('/:id/messages', asyncHandler(async (req: Request, res: Response) =>
       control.action,
       new ResSink(res),
     );
+    return;
+  }
+  const slashCommand = rawSlashCommand === undefined ? undefined : validateSlashCommand(rawSlashCommand);
+  if (rawSlashCommand !== undefined && !slashCommand) {
+    res.status(400).json({ error: 'Invalid slash command or empty command input' });
     return;
   }
   if (!content && !files?.length) {
@@ -58,7 +64,7 @@ router.post('/:id/messages', asyncHandler(async (req: Request, res: Response) =>
   res.setHeader('X-Accel-Buffering', 'no');
 
   const sink = new ResSink(res);
-  await messageService.sendMessage(req.params.id as string, content || '', sink, agent, regenerate, files);
+  await messageService.sendMessage(req.params.id as string, content || '', sink, agent, regenerate, files, slashCommand || undefined);
 }));
 
 // 图片对话发消息

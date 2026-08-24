@@ -6,7 +6,7 @@
 /* global module */
 
 function registerChatHandlers({ ipcMain, services, logger }) {
-  ipcMain.handle('chat:send', async (event, convId, content, agent, regenerate) => {
+  ipcMain.handle('chat:send', async (event, convId, content, agent, regenerate, slashCommand) => {
     if (!services.msgSvc) {
       event.sender.send('chat:error', convId, 'Services not loaded');
       return;
@@ -14,7 +14,7 @@ function registerChatHandlers({ ipcMain, services, logger }) {
 
     const sink = new services.sinkMod.IpcSink(event, convId);
     try {
-      await services.msgSvc.sendMessage(convId, content, sink, agent, regenerate);
+      await services.msgSvc.sendMessage(convId, content, sink, agent, regenerate, undefined, slashCommand);
     } catch (err) {
       logger.error(`chat:send error: ${err.message}`);
       if (!sink.writableEnded) event.sender.send('chat:error', convId, err.message);

@@ -1,6 +1,7 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { generateTitle } from '@/services/api';
 import type { Conversation, Message, SendOptions } from '@/types';
+import { parseSlashCommand } from '../commands/slashCommands';
 import type { AgentRunStatusData } from '../components/AgentRunStatus';
 import type { ReactReducerEvent } from './useReactEventReducer';
 import {
@@ -72,6 +73,11 @@ function isAutoRoute(conversation: Conversation | undefined): boolean {
 function needsGeneratedTitle(conversation: Conversation | undefined, createdNow: boolean): boolean {
   const title = conversation?.title?.trim();
   return createdNow || !title || title === 'New Conversation';
+}
+
+function getSendOptions(content: string): SendOptions | undefined {
+  const parsed = parseSlashCommand(content);
+  return parsed ? { slashCommand: { command: parsed.command, input: parsed.input } } : undefined;
 }
 
 /** 管理消息流式运行、重新生成和工具审批动作。 */
@@ -209,7 +215,7 @@ export default function useChatRunActions({
       content,
       assistantMessage._tempId,
       isAutoRoute(conversation) ? undefined : activeAgent,
-      undefined,
+      getSendOptions(content),
       onCompleted,
     );
   }, [activeAgent, activeConversation, conversations, onAutoCreate, onTitleUpdate, resetReactEvents, runConversation, setMessages, setSending, setStreamingId]);
@@ -222,7 +228,7 @@ export default function useChatRunActions({
     setSending(true);
     setStreamingId(assistantMessage.id);
     resetReactEvents();
-    runConversation(activeConversation, lastUserMessage.content, assistantMessage._tempId, undefined, { regenerate: true });
+    runConversation(activeConversation, lastUserMessage.content, assistantMessage._tempId, undefined, { regenerate: true, ...getSendOptions(lastUserMessage.content) });
   }, [activeConversation, messages, resetReactEvents, runConversation, setMessages, setSending, setStreamingId]);
 
   const handleStop = useCallback(() => {

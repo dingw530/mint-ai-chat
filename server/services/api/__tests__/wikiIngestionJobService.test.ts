@@ -237,7 +237,7 @@ describe('wikiIngestionJobService', () => {
   });
 
   it('enforces retry and cancel state boundaries', () => {
-    let current = { id: 'job-1', status: 'failed', fileName: 'notes.md', fileSize: 1, progress: 100, step: '处理失败', createdAt: '', updatedAt: '' } as WikiJob;
+    let current = { id: 'job-1', status: 'failed', fileName: 'notes.md', fileSize: 1, progress: 100, step: '处理失败', result: { sourceFile: 'sources/notes.md' }, createdAt: '', updatedAt: '' } as WikiJob;
     const store = {
       get: vi.fn(() => current),
       update: vi.fn((_id: string, patch: Partial<WikiJob>) => { current = { ...current, ...patch }; return current; }),
@@ -245,7 +245,7 @@ describe('wikiIngestionJobService', () => {
       claimNext: vi.fn(() => undefined),
     } as unknown as JobStore;
     const service = createWikiIngestionJobService({ store });
-    expect(service.retry('job-1').status).toBe('queued');
+    expect(service.retry('job-1')).toMatchObject({ status: 'queued', progress: 0, step: '等待重试', result: undefined });
     expect(service.cancel('job-1').status).toBe('cancelled');
     expect(() => service.retry('job-1')).toThrow('当前任务状态不支持重试');
   });
@@ -255,6 +255,7 @@ describe('wikiIngestionJobService', () => {
     const remove = vi.fn(() => true);
     const store = {
       get: vi.fn(() => current),
+      getPayload: vi.fn(() => ({})),
       remove,
       recoverRunning: vi.fn(() => 0),
       claimNext: vi.fn(() => undefined),

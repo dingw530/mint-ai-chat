@@ -13,6 +13,8 @@ interface IngestionJobDetailsProps {
   onClose: () => void;
   onOpenPage: (path: string) => void;
   onOpenSourceUrl?: (url: string) => void;
+  onRetry?: () => Promise<void>;
+  retrying?: boolean;
 }
 
 function isPreviewable(kind: SourcePreviewKind | undefined): boolean {
@@ -24,6 +26,10 @@ function sourceKindLabel(kind: string | undefined): string {
   if (kind === 'html') return 'HTML';
   if (kind === 'text') return '文本';
   return '当前格式暂不支持在线预览';
+}
+
+function canRetryJob(job: UploadJob): boolean {
+  return Boolean(job.canRetry || ['failed', 'error', 'partial_failed'].includes(job.status || ''));
 }
 
 function PageList({ job, onOpenPage }: Pick<IngestionJobDetailsProps, 'job' | 'onOpenPage'>) {
@@ -98,7 +104,7 @@ function SourcePreview({ job }: { job: UploadJob }) {
 }
 
 /** 展示摄入来源、生成页面和风险信息，供 Chat 与 Wiki 两个入口复用。 */
-export default function IngestionJobDetails({ job, onClose, onOpenPage, onOpenSourceUrl }: IngestionJobDetailsProps) {
+export default function IngestionJobDetails({ job, onClose, onOpenPage, onOpenSourceUrl, onRetry, retrying = false }: IngestionJobDetailsProps) {
   const sourceUrls = job.result?.sourceUrls || [];
   const warnings = useMemo(() => [
     ...(job.result?.graphErrors || []).map((message) => `图谱：${message}`),
@@ -132,6 +138,7 @@ export default function IngestionJobDetails({ job, onClose, onOpenPage, onOpenSo
                 <i aria-hidden="true" /> {job.statusLabel || job.step}
               </span>
               <span>{job.result?.pages?.length || 0} 篇生成页面</span>
+              {canRetryJob(job) && onRetry && <button type="button" className="ingestion-details-retry" aria-label={`重试：${job.fileName}`} onClick={() => void onRetry()} disabled={retrying}>{retrying ? '重试中…' : '重试'}</button>}
             </div>
           </div>
           <button type="button" className="ingestion-details-close" onClick={onClose} aria-label="关闭"><span aria-hidden="true">×</span></button>

@@ -116,6 +116,25 @@ describe('wikiIngestionService', () => {
     expect(fs.readdirSync(path.join(tmpDir, 'sources'))).toHaveLength(0);
     });
 
+    it('retains the staged input when a retryable job compilation fails', async () => {
+    const staged = stageWikiRawFile(tmpDir, 'retry.md', Buffer.from('retry'));
+    vi.mocked(compileSource).mockRejectedValueOnce(new Error('temporary failure'));
+
+    await expect(wikiIngestionService.ingestWikiSource(
+      { wikiPath: tmpDir } as AiSettings,
+      tmpDir,
+      {
+        sourceText: 'retry',
+        sourceTitle: 'retry',
+        archivedFiles: [{ name: 'retry.md', existingRelativePath: staged }],
+        retainStagedFilesOnError: true,
+      },
+    )).rejects.toThrow('temporary failure');
+
+    expect(fs.existsSync(path.join(tmpDir, staged))).toBe(true);
+    expect(fs.readdirSync(path.join(tmpDir, 'sources'))).toHaveLength(0);
+    });
+
     it('moves the source into sources only after the ingestion pipeline succeeds', async () => {
     const staged = stageWikiRawFile(tmpDir, 'success.md', Buffer.from('success'));
     const page = {
