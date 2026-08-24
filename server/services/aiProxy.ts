@@ -6,7 +6,7 @@ import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
 import { getErrorMessage } from '../utils/typeGuards.js';
-import { AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
+import { type AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
 import { ReactEventEmitter, subscribeReactEvents } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
 import { estimateMessagesTokens } from './utils/tokenEstimator.js';

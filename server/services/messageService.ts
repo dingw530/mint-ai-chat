@@ -18,7 +18,7 @@ import { AI_REQUEST_TIMEOUT_MS } from './adapters/apiAdapter.js';
 import * as a2uiRepository from '../repositories/a2uiRepository.js';
 import type { PersistedUiBlock } from '../types.js';
 import { applyContextProviders } from './contextProvider.js';
-import { AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
+import { type AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
 import { buildSlashCommandContext, validateSlashCommand, type SlashCommandIntent } from './api/slashCommandService.js';
 
 export function getMessages(conversationId: string) {

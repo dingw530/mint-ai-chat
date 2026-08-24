@@ -15,7 +15,7 @@
     "build": "node ../scripts/with-node-version.cjs tsc && node ../scripts/with-node-version.cjs node ../scripts/generate-endpoints-manifest.mjs",
     "typecheck": "node ../scripts/with-node-version.cjs tsc --noEmit",
     "build:mcp": "node ../scripts/with-node-version.cjs esbuild mcp/cli.ts --bundle --platform=node --target=node18 --outfile=dist/mcp-server.cjs --external:better-sqlite3",
-    "test": "node ../scripts/with-node-version.cjs vitest run",
+    "test": "node ../scripts/with-node-version.cjs vitest run --poolOptions.threads.singleThread",
     "test:watch": "node ../scripts/with-node-version.cjs vitest",
     "test:coverage": "node ../scripts/with-node-version.cjs vitest run --coverage",
     "build:bundle": "node ../scripts/with-node-version.cjs node scripts/bundle.cjs",
