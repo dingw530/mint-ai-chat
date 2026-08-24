@@ -25,6 +25,16 @@ export interface CompileResult {
   summary: string;
 }
 
+/** 面向任务中心展示的 Wiki 编译阶段。 */
+export type WikiCompileProgressStage = 'prepare' | 'evidence' | 'pages';
+
+export interface CompileSourceOptions {
+  title?: string;
+  category?: string;
+  /** 编译进入真实阶段时通知异步摄入任务。 */
+  onProgress?: (stage: WikiCompileProgressStage) => void;
+}
+
 export interface WikiCompiledClaim {
   pageTitle: string;
   text: string;
@@ -136,6 +146,45 @@ function validateCompiledClaims(
   }
   if (failures.length > 0) {
     throw new Error(`Wiki 证据校验失败：${failures.join('；')}`);
+  }
+}
+
+/**
+ * 从资料开头提取可独立检索的事实，避免编译摘要遗漏文章首先声明的核心对象或定义。
+ */
+function extractLeadFacts(sourceText: string): string[] {
+  return sourceText
+    .split(/\r?\n+/)
+    .map((line) => line.replace(/^[#>*\-\s]+/, '').trim())
+    .filter((line) => line.length >= 12 && line.length <= 280)
+    .filter((line) => !/^={3,}|^第\s*\d+\s*页/.test(line))
+    .filter((line) => /(?:是|为|有|属于|来自|达到|超过|包含|可以|会|被)/.test(line))
+    .slice(0, 3);
+}
+
+/** 计算事实与页面的字符二元组重叠，用于把补充证据放回最相关的主题页。 */
+function leadFactRelevance(fact: string, page: CompiledPage): number {
+  const haystack = normalizeEvidenceText(`${page.title}\n${page.tags.join(' ')}\n${page.content}`);
+  const normalizedFact = normalizeEvidenceText(fact);
+  let score = 0;
+  for (let index = 0; index < normalizedFact.length - 1; index += 1) {
+    if (haystack.includes(normalizedFact.slice(index, index + 2))) score += 1;
+  }
+  return score;
+}
+
+/**
+ * 将编译结果未覆盖的开篇事实原文追加到最相关页面，保证 Sources 中的关键定义可被 Wiki 搜索。
+ */
+function preserveLeadFacts(sourceText: string, pages: CompiledPage[]): void {
+  const facts = extractLeadFacts(sourceText).filter((fact) => !pages.some((page) =>
+    normalizeEvidenceText(page.content).includes(normalizeEvidenceText(fact)),
+  ));
+  if (facts.length === 0 || pages.length === 0) return;
+
+  for (const fact of facts) {
+    const target = [...pages].sort((left, right) => leadFactRelevance(fact, right) - leadFactRelevance(fact, left))[0];
+    target.content = `${target.content.trim()}\n\n## 原始资料关键事实\n\n${fact}`;
   }
 }
 
@@ -653,7 +702,7 @@ export async function compileSource(
   wikiPath: string,
   sourceText: string,
   sourceFilename: string,
-  options?: { title?: string; category?: string },
+  options?: CompileSourceOptions,
 ): Promise<CompileResult> {
   const schemaPath = path.join(wikiPath, '_schema.json');
   let schema: Record<string, unknown> = {};
@@ -665,6 +714,7 @@ export async function compileSource(
 
   discoverCategoriesFromDir(wikiPath, schema);
   const existingIndex = buildExistingKnowledgeIndex(wikiPath);
+  options?.onProgress?.('prepare');
 
   const aiResult = await callAiForCompilation(
     settings,
@@ -688,6 +738,7 @@ export async function compileSource(
     throw new Error('AI 未生成任何 Wiki 页面');
   }
 
+  options?.onProgress?.('evidence');
   const initialClaims = compiled.claims || [];
   if (initialClaims.length === 0) {
     console.warn('[wikiCompiler] AI response omitted claims; extracting claims separately');
@@ -714,8 +765,10 @@ export async function compileSource(
     }
   }
 
+  options?.onProgress?.('pages');
   const categories = normalizeWikiCategories(schema.categories);
   compiled.pages = await auditPageCategories(settings, compiled.pages, categories);
+  preserveLeadFacts(sourceText, compiled.pages);
 
   // 概念去重校验：检查 AI 输出的页面标题是否与已有页面重复
   const existingPages = scanExistingPages(wikiPath);

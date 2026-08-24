@@ -86,6 +86,9 @@ describe('contextProvider', () => {
     ], { settings, userContent: 'question' }, [createWikiContextProvider()]);
 
     expect(withSystem[0].content).toContain('base prompt\n\n⚠️ Wiki 知识库使用规则');
+    expect(withSystem[0].content).toContain('每轮最多发起一次 wiki_search');
+    expect(withSystem[0].content).toContain('优先使用一次 paths 批量读取');
+    expect(withSystem[0].content).not.toContain('并行发起多个 wiki_search');
     expect(withoutSystem.map((message) => message.role)).toEqual(['system', 'user']);
     expect(withoutSystem[0].content).toContain('不得删除其他路径或整个知识库目录');
   });

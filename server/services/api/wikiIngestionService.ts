@@ -1,5 +1,5 @@
 import type { AiSettings } from '../../types.js';
-import { compileSource } from '../utils/wikiCompiler.js';
+import { compileSource, type WikiCompileProgressStage } from '../utils/wikiCompiler.js';
 import { appendWikiManifestEntry } from '../utils/wikiShared.js';
 import { buildGraphFromPages } from '../graphBuilder.js';
 import { generateCrossBatchCandidates } from './crossBatchSemanticService.js';
@@ -41,6 +41,10 @@ export interface WikiIngestionRequest {
   category?: string;
   summaryHint?: string;
   archivedFiles?: WikiArchivedFileInput[];
+  /** 异步可重试任务失败时保留其暂存输入；成功后仍会 finalize。 */
+  retainStagedFilesOnError?: boolean;
+  /** 将真实编译阶段转发给异步任务状态。 */
+  onCompileProgress?: (stage: WikiCompileProgressStage) => void;
 }
 
 /**
@@ -104,7 +108,11 @@ export async function ingestWikiSource(
       wikiPath,
       request.sourceText,
       sourceFile.split('/').pop() || request.sourceTitle,
-      { title: request.sourceTitle, category: request.category },
+      {
+        title: request.sourceTitle,
+        category: request.category,
+        onProgress: request.onCompileProgress,
+      },
     );
     const finalizedByPath = finalizeStagedFiles(wikiPath, stagedFiles, finalizedFiles);
     const committedSourceFile = finalizedByPath.get(sourceFile) || sourceFile;
@@ -146,7 +154,9 @@ export async function ingestWikiSource(
       graphErrors: graphErrors.length > 0 ? graphErrors : undefined,
     };
   } catch (error: unknown) {
-    stagedFiles.forEach((file) => discardWikiStagedFile(wikiPath, file));
+    if (!request.retainStagedFilesOnError) {
+      stagedFiles.forEach((file) => discardWikiStagedFile(wikiPath, file));
+    }
     finalizedFiles.forEach((file) => rollbackWikiSourceFile(wikiPath, file));
     throw error;
   }

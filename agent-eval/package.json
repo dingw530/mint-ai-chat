@@ -12,7 +12,12 @@
     "eval:wiki-rag:dry": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --dry-run",
     "eval:wiki-rag:ingest": "node ../scripts/with-node-version.cjs tsx src/cli.ts ingest --clean",
     "eval:wiki-rag:live": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live",
-    "eval:wiki-rag": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live"
+    "eval:wiki-rag": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live",
+    "eval:wiki-rag:judge": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live --judge",
+    "eval:calibration:export": "node ../scripts/with-node-version.cjs tsx src/cli.ts calibration:export",
+    "eval:calibration:compare": "node ../scripts/with-node-version.cjs tsx src/cli.ts calibration:compare",
+    "eval:pairwise": "node ../scripts/with-node-version.cjs tsx src/cli.ts pairwise",
+    "eval:pairwise:elo": "node ../scripts/with-node-version.cjs tsx src/cli.ts pairwise:elo"
   },
   "dependencies": {
     "mint-server": "1.0.0"

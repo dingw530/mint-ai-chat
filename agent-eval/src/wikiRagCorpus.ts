@@ -27,6 +27,14 @@ export interface IngestedCorpusReport {
   sources: Array<PreparedSource & { result: WikiIngestionResult }>;
 }
 
+export interface IngestionProgressUpdate {
+  phase: 'source_started' | 'source_completed';
+  completedSources: number;
+  totalSources: number;
+  sourceFile: string;
+  pageCount?: number;
+}
+
 interface SourceText {
   text: string;
   title: string;
@@ -211,7 +219,7 @@ export async function ingestWikiRagCorpus<TSettings>(
   outputDir: string,
   settings: TSettings,
   ingestSource: (settings: TSettings, wikiPath: string, request: WikiIngestionRequest) => Promise<WikiIngestionResult>,
-  options: { clean?: boolean } = {},
+  options: { clean?: boolean; onProgress?: (update: IngestionProgressUpdate) => void } = {},
 ): Promise<IngestedCorpusReport> {
   const files = await listSourceFiles(rawDir);
   if (options.clean) await clearIngestionDirectory(outputDir);
@@ -219,7 +227,8 @@ export async function ingestWikiRagCorpus<TSettings>(
   await fs.mkdir(outputDir, { recursive: true });
   await initializeWikiFixture(outputDir);
   const sources: Array<PreparedSource & { result: WikiIngestionResult }> = [];
-  for (const fileName of files) {
+  for (const [index, fileName] of files.entries()) {
+    options.onProgress?.({ phase: 'source_started', completedSources: index, totalSources: files.length, sourceFile: fileName });
     const sourcePath = path.join(rawDir, fileName);
     const buffer = await fs.readFile(sourcePath);
     const parsed = await readSource(sourcePath);
@@ -240,6 +249,7 @@ export async function ingestWikiRagCorpus<TSettings>(
       contentHash: crypto.createHash('sha256').update(buffer).digest('hex'),
       result,
     });
+    options.onProgress?.({ phase: 'source_completed', completedSources: index + 1, totalSources: files.length, sourceFile: fileName, pageCount: result.pages.length });
   }
   const report: IngestedCorpusReport = { rawDir, outputDir, ingestedAt: new Date().toISOString(), sources };
   await fs.writeFile(path.join(outputDir, 'ingested-manifest.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');

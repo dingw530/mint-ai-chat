@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { getSlashCommandSuggestions, parseSlashCommand, type SlashCommandDefinition } from '../commands/slashCommands';
 
 function SendIcon() {
   return (
@@ -16,6 +17,7 @@ interface InputBoxProps {
 
 export default function InputBox({ onSend, disabled, children }: InputBoxProps) {
   const [text, setText] = useState('');
+  const [commandError, setCommandError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isCompositing = useRef(false);
 
@@ -29,11 +31,24 @@ export default function InputBox({ onSend, disabled, children }: InputBoxProps) 
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
+    const command = parseSlashCommand(trimmed);
+    if (command && !command.input) {
+      setCommandError(`请补充参数：${command.definition.argumentHint}`);
+      return;
+    }
     onSend(trimmed);
+    setCommandError(null);
     setText('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
+  };
+
+  const suggestions = getSlashCommandSuggestions(text);
+  const selectCommand = (command: SlashCommandDefinition): void => {
+    setText(`${command.command} `);
+    setCommandError(null);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,6 +75,7 @@ export default function InputBox({ onSend, disabled, children }: InputBoxProps) 
             value={text}
             onChange={(e) => {
               setText(e.target.value);
+              setCommandError(null);
               adjustHeight();
             }}
             onKeyDown={handleKeyDown}
@@ -68,7 +84,32 @@ export default function InputBox({ onSend, disabled, children }: InputBoxProps) 
             placeholder={disabled ? '等待回复...' : '输入消息...'}
             rows={1}
             disabled={disabled}
+            aria-expanded={suggestions.length > 0}
+            aria-controls="chat-slash-command-list"
           />
+          {suggestions.length > 0 && (
+            <div id="chat-slash-command-list" className="slash-command-menu" role="listbox" aria-label="可用工具命令">
+              <div className="slash-command-menu-heading">快速调用工具</div>
+              {suggestions.map((command) => (
+                <button
+                  key={command.command}
+                  type="button"
+                  className="slash-command-option"
+                  role="option"
+                  aria-label={command.command}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectCommand(command)}
+                >
+                  <span className="slash-command-option-main">
+                    <strong>{command.label}</strong>
+                    <span>{command.description}</span>
+                  </span>
+                  <small>{command.argumentHint}</small>
+                </button>
+              ))}
+            </div>
+          )}
+          {commandError && <p className="input-box-command-error" role="alert">{commandError}</p>}
         </div>
         <div className="input-box-toolbar">
           <div className="input-box-context">{children}</div>

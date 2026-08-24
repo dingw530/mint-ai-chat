@@ -5,8 +5,12 @@ import { AI_REQUEST_TIMEOUT_MS, getAdapter } from './adapters/apiAdapter.js';
 import { createLogger } from '../utils/logger.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
-import { estimateMessagesTokens } from './utils/tokenEstimator.js';
 import { getErrorMessage } from '../utils/typeGuards.js';
+import { type AgentRun, agentRunRegistry, createDurableAgentRun } from './agentRun.js';
+import { ReactEventEmitter, subscribeReactEvents } from './reactEvents.js';
+import type { ReactEventPayload } from './reactEvents.js';
+import { estimateMessagesTokens } from './utils/tokenEstimator.js';
+import { randomUUID } from 'node:crypto';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
@@ -14,22 +18,6 @@ import './adapters/anthropicAdapter.js';
 import './adapters/openaiResponsesAdapter.js';
 
 const log = createLogger('ai-proxy');
-
-/**
- * 将本轮对话的 token 估算结果发送给客户端。
- * @param sink 流输出目标
- * @param messages 本轮发送给模型的上下文
- * @param result 本轮模型回复
- */
-function writeTokenUsage(sink: Sink, messages: HistoryMessage[], result: StreamResult): void {
-  sink.write(JSON.stringify({
-    type: 'token_usage',
-    estimatedTokens: estimateMessagesTokens([
-      ...messages,
-      { role: 'assistant', content: result.content, reasoning: result.reasoning },
-    ]),
-  }));
-}
 
 function getApiAdapter(settings: AiSettings): ApiAdapter {
   const adapter = getAdapter(settings.apiType || 'openai-chat');
@@ -44,7 +32,7 @@ export async function readStream(
   response: Response,
   adapter: ApiAdapter,
   sink?: Sink,
-  options?: { eventType?: string; signal?: AbortSignal },
+  options?: { eventType?: string; signal?: AbortSignal; emitEvent?: (event: ReactEventPayload) => void },
 ): Promise<StreamResult> {
   if (!response.ok) {
     const errorText = await response.text();
@@ -86,12 +74,36 @@ export async function streamChat(
   sink: Sink,
   agent?: string,
   conversationId?: string,
+  existingRun?: AgentRun,
 ): Promise<StreamResult> {
+  const run = existingRun || createDurableAgentRun({ runId: randomUUID(), conversationId });
+  if (!existingRun) agentRunRegistry.register(run);
+  const detachSink = subscribeReactEvents(run, sink);
+  const events = new ReactEventEmitter(run);
+  if (!existingRun) events.emit({ type: 'run_started', state: 'running' });
+  const complete = (messages: HistoryMessage[], result: StreamResult) => {
+    events.emit({
+      type: 'run_completed',
+      state: 'completed',
+      content: result.content,
+      reasoning: result.reasoning,
+      estimatedTokens: estimateMessagesTokens([
+        ...messages,
+        { role: 'assistant', content: result.content, reasoning: result.reasoning },
+      ]),
+    });
+    detachSink();
+    if (!sink.writableEnded) sink.end();
+  };
+  const fail = (error: unknown) => {
+    events.emit({ type: 'run_failed', state: 'failed', error: getErrorMessage(error) });
+    detachSink();
+    if (!sink.writableEnded) sink.end();
+  };
   const { apiUrl, apiKey } = settings;
 
   if (!apiUrl || !apiKey) {
-    sink.write(JSON.stringify({ error: 'API URL or API Key not configured' }));
-    sink.end();
+    fail(new Error('API URL or API Key not configured'));
     return { content: '', reasoning: '', toolCalls: null };
   }
 
@@ -108,15 +120,14 @@ export async function streamChat(
     const body = adapter.buildRequest(messages, settings);
     const response = await streamFromAPI(url, headers, body, 'streamChat-fast');
     try {
-      const result = await readStream(response, adapter, sink);
-      writeTokenUsage(sink, messages, result);
-      if (!sink.writableEnded) {
-        sink.end();
-      }
+      const result = await readStream(response, adapter, undefined, {
+        eventType: 'answer',
+        emitEvent: (event) => events.emit(event),
+      });
+      complete(messages, result);
       return result;
     } catch (err) {
-      sink.write(JSON.stringify({ error: getErrorMessage(err) }));
-      sink.end();
+      fail(err);
       return { content: '', reasoning: '', toolCalls: null };
     }
   }
@@ -128,21 +139,19 @@ export async function streamChat(
       { messages, settings, tools, adapter, label: 'streamChat-tool1' },
     );
   } catch (err) {
-    sink.write(JSON.stringify({ error: getErrorMessage(err) }));
-    sink.end();
+    fail(err);
     return { content: '', reasoning: '', toolCalls: null };
   }
 
   // 未触发工具调用 → 将缓存内容写入 sink
   if (!result.toolCalls) {
     if (result.content) {
-      sink.write(JSON.stringify({ content: result.content }));
+      events.emit({ type: 'answer', content: result.content });
     }
     if (result.reasoning) {
-      sink.write(JSON.stringify({ reasoning: result.reasoning }));
+      events.emit({ type: 'answer', reasoning: result.reasoning });
     }
-    writeTokenUsage(sink, messages, result);
-    sink.end();
+    complete(messages, result);
     return { content: result.content, reasoning: result.reasoning, toolCalls: null };
   }
 
@@ -161,17 +170,20 @@ export async function streamChat(
   let secondResult: StreamResult;
   try {
     secondResult = await toolLoopEngine.executeRound(
-      { messages: secondMessages, settings, adapter, label: 'streamChat-tool2' },
-      sink,
+      {
+        messages: secondMessages,
+        settings,
+        adapter,
+        label: 'react-answer',
+        emitEvent: (event) => events.emit(event),
+      },
     );
   } catch (err) {
-    sink.write(JSON.stringify({ error: getErrorMessage(err) }));
-    sink.end();
+    fail(err);
     return { content: '', reasoning: '', toolCalls: null };
   }
 
-  writeTokenUsage(sink, secondMessages, secondResult);
-  sink.end();
+  complete(secondMessages, secondResult);
   return { content: secondResult.content, reasoning: secondResult.reasoning, toolCalls: null };
 }
 

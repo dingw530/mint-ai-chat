@@ -1,5 +1,6 @@
 import type { PersistedUiBlock } from '../../types.js';
 import { WikiSourceReferenceProvider } from './wikiSourceProvider.js';
+import { findWikiCitationMarkers, normalizeWikiCitationMarkers } from '../utils/wikiCitationMarkers.js';
 import type {
   A2UIEmission,
   A2UIHandleResult,
@@ -9,8 +10,8 @@ import type {
 } from './types.js';
 
 function parseReferenceMarker(value: string): { refId: string; start: number; end: number } | null {
-  const match = /\[C(\d+)\]/.exec(value);
-  return match ? { refId: `C${match[1]}`, start: match.index, end: match.index + match[0].length } : null;
+  const marker = findWikiCitationMarkers(value)[0];
+  return marker ? { refId: marker.refId, start: marker.start, end: marker.end } : null;
 }
 
 /** 统一构造回答内 A2UI 的入口；Provider 通过构造参数扩展，核心循环无需感知具体业务。 */
@@ -66,12 +67,9 @@ export class A2UIComposer {
 
   /** 移除未被编译为组件的引用标记，防止前端显示孤立标记。 */
   sanitizeContent(content: string): string {
-    return content
-      .replace(/\[C(\d+)\]|\[C\d*\]?/g, (_marker, digits: string | undefined) => (
-        digits && this.findReference(`C${digits}`)
-          ? `[${this.getDisplayReferenceId(`C${digits}`)}]`
-          : ''
-      ))
+    return normalizeWikiCitationMarkers(content, (refId) => (
+      this.findReference(refId) ? `[${this.getDisplayReferenceId(refId)}]` : undefined
+    ))
       .replace(/[ \t]{2,}/g, ' ')
       .trim();
   }

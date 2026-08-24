@@ -8,6 +8,7 @@ export interface IngestionTaskCardModel {
   progress: number;
   step: string;
   fileCount: number;
+  canRetry?: boolean;
   result: { sourceFile?: string; error?: string; pageCount?: number; hasWarnings?: boolean } | null;
 }
 
@@ -31,6 +32,7 @@ export function toIngestionTaskCardModel(job: WikiJob): IngestionTaskCardModel {
     progress: job.progress,
     step: job.step,
     fileCount: job.fileCount || 1,
+    canRetry: job.canRetry,
     result: job.error ? { error: job.error } : job.result ? {
       sourceFile: job.result.sourceFile,
       pageCount: job.result.pages?.length || 0,

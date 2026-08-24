@@ -5,7 +5,7 @@ import { DynamicValueSchema } from '@a2ui/web_core/v0_9';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { BASE_URL, getElectronAPI, isElectron } from '@/services/api/_base';
-import { getWikiJob } from '@/services/api';
+import { getWikiJob, retryWikiJob } from '@/services/api';
 import type { UploadJob } from '@/services/api/wiki';
 import IngestionJobDetails from '@/shared/components/IngestionJobDetails';
 import {
@@ -24,6 +24,7 @@ interface IngestionTaskModel {
   progress: number;
   step: string;
   fileCount: number;
+  canRetry?: boolean;
   result: { sourceFile?: string; error?: string; pageCount?: number; hasWarnings?: boolean } | null;
 }
 
@@ -52,6 +53,10 @@ function requestIngestionDetails(jobId: string): void {
   window.dispatchEvent(new CustomEvent('mint:open-ingestion-detail', { detail: { jobId } }));
 }
 
+function requestIngestionRetry(jobId: string): void {
+  window.dispatchEvent(new CustomEvent('mint:retry-ingestion-job', { detail: { jobId } }));
+}
+
 /** 请求应用打开指定的 Wiki 文档。 */
 function requestWikiPage(filePath: string): void {
   window.dispatchEvent(new CustomEvent('mint:open-wiki-page', { detail: { filePath } }));
@@ -63,12 +68,14 @@ const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({
 
   const progress = Math.max(0, Math.min(100, model.progress));
   const tone = getStatusTone(model.status);
+  const currentStep = model.step || model.statusLabel || '处理中';
+  const isActive = tone === 'active';
   return (
-    <article className="ingestion-task-card">
+    <article className={`ingestion-task-card${isActive ? ' is-running' : ''}`} role={isActive ? 'status' : undefined} aria-label={isActive ? '知识摄入任务' : undefined} aria-live={isActive ? 'polite' : undefined}>
       <div className="ingestion-task-card-line">
         <span className={`ingestion-task-card-dot ${tone}`} aria-hidden="true" />
         <strong className="ingestion-task-card-title" title={model.title}>{model.title}</strong>
-        <span className={`ingestion-task-status ${tone}`}>{model.statusLabel}</span>
+        <span className={`ingestion-task-status ${tone}`}>{isActive ? `处理中 · ${currentStep}` : currentStep}</span>
         <strong className="ingestion-task-card-percent">{progress}%</strong>
       </div>
       <div className={`ingestion-task-card-progress ${tone}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
@@ -79,6 +86,7 @@ const ingestionTaskCard = createComponentImplementation(ingestionTaskCardApi, ({
           {model.result?.pageCount !== undefined && <span className="ingestion-task-card-result">已生成 {model.result.pageCount} 篇页面{model.result.hasWarnings ? ' · 有待检查项' : ''}</span>}
           {model.result?.error && <span className="ingestion-task-card-error" title={model.result.error}>{model.result.error}</span>}
         </div>
+        {model.canRetry && <button type="button" className="ingestion-task-card-retry" aria-label={`重试：${model.title}`} onClick={() => requestIngestionRetry(model.jobId)}>重试</button>}
         <button type="button" className="ingestion-task-card-detail" aria-label="查看详情" onClick={() => requestIngestionDetails(model.jobId)}>详情</button>
       </div>
     </article>
@@ -152,6 +160,8 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
   const processorRef = useRef(processor);
   const [isExpanded, setIsExpanded] = useState(true);
   const [detailJob, setDetailJob] = useState<UploadJob | null>(null);
+  const [retryingJobIds, setRetryingJobIds] = useState<Set<string>>(new Set());
+  const [actionError, setActionError] = useState<string | null>(null);
   const previousActiveCount = useRef(0);
   processorRef.current = processor;
 
@@ -238,6 +248,23 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
     }
   }, []);
 
+  const retryJob = useCallback(async (jobId: string): Promise<void> => {
+    setActionError(null);
+    setRetryingJobIds((previous) => new Set(previous).add(jobId));
+    try {
+      const updated = await retryWikiJob(jobId);
+      setDetailJob((previous) => (previous?.id === jobId ? updated : previous));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '任务重试失败，请稍后重试');
+    } finally {
+      setRetryingJobIds((previous) => {
+        const next = new Set(previous);
+        next.delete(jobId);
+        return next;
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const handleDetailRequest = (event: Event): void => {
       if (!(event instanceof CustomEvent) || !event.detail || typeof event.detail !== 'object') return;
@@ -247,6 +274,16 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
     window.addEventListener('mint:open-ingestion-detail', handleDetailRequest);
     return () => window.removeEventListener('mint:open-ingestion-detail', handleDetailRequest);
   }, [openDetails]);
+
+  useEffect(() => {
+    const handleRetryRequest = (event: Event): void => {
+      if (!(event instanceof CustomEvent) || !event.detail || typeof event.detail !== 'object') return;
+      const detail = event.detail as { jobId?: unknown };
+      if (typeof detail.jobId === 'string') void retryJob(detail.jobId);
+    };
+    window.addEventListener('mint:retry-ingestion-job', handleRetryRequest);
+    return () => window.removeEventListener('mint:retry-ingestion-job', handleRetryRequest);
+  }, [retryJob]);
 
   if (!conversationId || surfaces.length === 0) return null;
 
@@ -273,6 +310,7 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
             </svg>
           </button>
         </div>
+        {actionError && <p className="ingestion-task-action-error" role="alert">{actionError}</p>}
         <div className="ingestion-task-panel-body" aria-hidden={!isExpanded}>
           <div className="ingestion-task-cards-list">
             {surfaces.map((surface) => <A2uiSurface key={surface.id} surface={surface} />)}
@@ -284,6 +322,8 @@ export default function IngestionTaskCards({ conversationId }: { conversationId:
           job={detailJob}
           onClose={() => setDetailJob(null)}
           onOpenPage={(path) => navigate(`/wiki?path=${encodeURIComponent(path)}`)}
+          onRetry={() => retryJob(detailJob.id)}
+          retrying={retryingJobIds.has(detailJob.id)}
         />
       )}
     </section>

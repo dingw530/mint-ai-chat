@@ -289,6 +289,10 @@ export interface SendCallbacks {
 
 export interface SendOptions {
   regenerate?: boolean;
+  slashCommand?: {
+    command: string;
+    input: string;
+  };
   control?: {
     type: 'tool_approval';
     approvalId: string;
@@ -328,7 +332,7 @@ export interface ElectronAPI {
   platform?: string;
 
   // 流式对话
-  sendMessage: (convId: string, content: string, agent?: string, regenerate?: boolean) => void;
+  sendMessage: (convId: string, content: string, agent?: string, regenerate?: boolean, slashCommand?: SendOptions['slashCommand']) => void;
   onChunk: (conversationId: string, callback: (data: string) => void) => () => void;
   onDone: (conversationId: string, callback: () => void) => () => void;
   onError: (conversationId: string, callback: (err: string) => void) => () => void;

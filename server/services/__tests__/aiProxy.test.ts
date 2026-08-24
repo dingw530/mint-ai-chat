@@ -11,11 +11,17 @@ vi.mock('../adapters/apiAdapter.js', async (importOriginal) => ({
   })),
 }));
 
+vi.mock('../toolOrchestration.js', () => ({
+  getAllToolDefinitions: vi.fn(),
+}));
+
 import { streamChat, generateTitle } from '../aiProxy.js';
+import { getAllToolDefinitions } from '../toolOrchestration.js';
 
 describe('aiProxy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe('streamChat', () => {
@@ -30,6 +36,29 @@ describe('aiProxy', () => {
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
       const result = await streamChat([], { apiUrl: 'https://api.test.com', apiKey: '' } as any, sink);
       expect(result.content).toBe('');
+    });
+
+    it('uses one AgentRun event contract for ordinary streamed answers', async () => {
+      const adapter = vi.mocked((await import('../adapters/apiAdapter.js')).getAdapter)();
+      adapter.parseChunk = vi.fn((chunk) => chunk === 'answer-chunk' ? { content: 'hello' } : null);
+      vi.mocked((await import('../adapters/apiAdapter.js')).getAdapter).mockReturnValue(adapter);
+      vi.mocked(getAllToolDefinitions).mockResolvedValue([]);
+      vi.stubGlobal('fetch', vi.fn(async () => new Response('data: answer-chunk\n\ndata: [DONE]\n\n')));
+      const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+      const result = await streamChat(
+        [{ role: 'user', content: 'hi' }],
+        { apiUrl: 'https://api.test.com', apiKey: 'key', apiType: 'openai-chat' },
+        sink,
+        'general',
+        'conversation-1',
+      );
+
+      const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+      expect(result.content).toBe('hello');
+      expect(events.map((event) => event.type)).toEqual(['run_started', 'answer', 'run_completed']);
+      expect(events.map((event) => event.sequence)).toEqual([1, 2, 3]);
+      expect(new Set(events.map((event) => event.runId)).size).toBe(1);
     });
   });
 

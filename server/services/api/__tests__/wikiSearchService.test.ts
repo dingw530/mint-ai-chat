@@ -76,4 +76,21 @@ describe('wikiSearchService', () => {
     expect(result.results[0].snippet).toContain('SQLite');
     expect(result.total).toBe(1);
   });
+
+  it('adds sibling pages from the same source for a cross-topic question', async () => {
+    const wikiPath = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-search-source-family-'));
+    tempDirs.push(wikiPath);
+    fs.mkdirSync(path.join(wikiPath, 'pages', 'medical'), { recursive: true });
+    fs.writeFileSync(path.join(wikiPath, 'pages', 'medical', 'research.md'), '---\ntitle: 医疗 Agent 研发\nsource: medical.md\n---\n医疗 Agent 需要持续评测。');
+    fs.writeFileSync(path.join(wikiPath, 'pages', 'medical', 'safety.md'), '---\ntitle: 隐私与合规\nsource: medical.md\n---\n医疗数据需要审计和隐私合规。');
+    fs.writeFileSync(path.join(wikiPath, 'pages', 'medical', 'other.md'), '---\ntitle: 无关页面\nsource: other.md\n---\n其他领域内容。');
+
+    const result = await searchWiki(wikiPath, '医疗 Agent 工程化问题', 3, true);
+
+    expect(result.results.map((item) => item.file)).toEqual(expect.arrayContaining([
+      'pages/medical/research.md',
+      'pages/medical/safety.md',
+    ]));
+    expect(result.results.find((item) => item.file.endsWith('safety.md'))?.matchTypes).toContain('source-family');
+  });
 });

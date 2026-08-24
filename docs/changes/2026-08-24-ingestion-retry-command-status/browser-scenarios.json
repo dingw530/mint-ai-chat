@@ -1,0 +1,85 @@
+{
+  "scenarios": [
+    {
+      "id": "failed-ingestion-retry-from-task-center",
+      "acceptanceCriteria": ["AC-001", "AC-002", "AC-007", "AC-008"],
+      "route": "/wiki",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/wiki/list", "method": "GET", "body": {"tree": [], "total": 0}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/wiki/vector-health", "method": "GET", "body": {"coverage": 0, "vectorizedCount": 0, "documentCount": 0, "pendingCount": 0, "failedCount": 0, "orphanCount": 0}},
+          {"pattern": "**/api/wiki/jobs?*", "method": "GET", "body": {"jobs": [{"id": "retry-job-1", "status": "failed", "statusLabel": "处理失败", "phase": "error", "isTerminal": true, "isSuccessful": false, "canRetry": true, "fileName": "失败.md", "fileSize": 100, "progress": 100, "step": "处理失败", "updatedAt": "2026-08-24T01:03:00.000Z", "error": "AI 编译失败"}], "total": 1}},
+          {"pattern": "**/api/wiki/jobs/retry-job-1", "method": "GET", "body": {"job": {"id": "retry-job-1", "status": "queued", "statusLabel": "排队中", "phase": "active", "isTerminal": false, "isSuccessful": false, "canRetry": false, "fileName": "失败.md", "fileSize": 100, "progress": 0, "step": "等待重试"}}},
+          {"pattern": "**/api/wiki/jobs/retry-job-1/retry", "method": "POST", "body": {"job": {"id": "retry-job-1", "status": "queued", "statusLabel": "排队中", "phase": "active", "isTerminal": false, "isSuccessful": false, "canRetry": false, "fileName": "失败.md", "fileSize": 100, "progress": 0, "step": "等待重试"}}}
+        ]
+      },
+      "steps": [
+        {"action": "waitFor", "target": {"role": "button", "name": "打开摄入任务中心"}, "timeoutMs": 10000},
+        {"action": "click", "target": {"role": "button", "name": "打开摄入任务中心"}},
+        {"action": "waitFor", "target": {"role": "dialog", "name": "摄入任务中心"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "失败.md"},
+        {"action": "click", "target": {"role": "button", "name": "重试：失败.md"}},
+        {"action": "assertText", "text": "等待重试"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/api/wiki/jobs", "status": 200},
+        {"method": "POST", "contains": "/api/wiki/jobs/retry-job-1/retry", "status": 200}
+      ]
+    },
+    {
+      "id": "chat-ingestion-active-status-and-retry",
+      "acceptanceCriteria": ["AC-002", "AC-004", "AC-005", "AC-008"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": [{"id": "chat-1", "title": "测试对话", "type": "chat", "createdAt": "2026-08-24T01:00:00.000Z", "updatedAt": "2026-08-24T01:00:00.000Z", "lockedAgent": null, "routingMode": "auto"}]}},
+          {"pattern": "**/api/conversations/*/messages", "method": "GET", "body": {"messages": []}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"settings": {}}},
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/conversations/*/ingestion-events", "method": "GET", "body": "data: {\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"ingestion-task-chat-1\",\"catalogId\":\"mint\"}}\n\ndata: {\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"ingestion-task-chat-1\",\"components\":[{\"id\":\"root\",\"component\":\"IngestionTaskCard\",\"data\":{\"path\":\"/job\"}}]}}\n\ndata: {\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"ingestion-task-chat-1\",\"path\":\"/job\",\"value\":{\"jobId\":\"chat-1\",\"title\":\"知识.md\",\"status\":\"compiling\",\"statusLabel\":\"AI 编译中\",\"progress\":60,\"step\":\"正在核对原文\",\"fileCount\":1,\"result\":null}}}\n"}
+        ]
+      },
+      "steps": [
+        {"action": "waitFor", "target": {"role": "status", "name": "知识摄入任务"}, "timeoutMs": 10000},
+        {"action": "assertText", "text": "正在核对原文"},
+        {"action": "assertText", "text": "60%"},
+        {"action": "click", "target": {"role": "button", "name": "收起知识摄入任务"}},
+        {"action": "assertText", "text": "处理中"}
+      ],
+      "assertRequests": [
+        {"method": "GET", "contains": "/ingestion-events", "status": 200}
+      ]
+    },
+    {
+      "id": "chat-slash-command-edit-and-send",
+      "acceptanceCriteria": ["AC-006", "AC-007", "AC-008"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["frame-ancestors"],
+      "setup": {
+        "routes": [
+          {"pattern": "**/api/conversations", "method": "GET", "body": {"conversations": [{"id": "chat-1", "title": "测试对话", "type": "chat", "createdAt": "2026-08-24T01:00:00.000Z", "updatedAt": "2026-08-24T01:00:00.000Z", "lockedAgent": null, "routingMode": "auto"}]}},
+          {"pattern": "**/api/conversations/*/messages", "method": "GET", "body": {"messages": []}},
+          {"pattern": "**/api/endpoints", "method": "GET", "body": {"endpoints": []}},
+          {"pattern": "**/api/settings", "method": "GET", "body": {"settings": {}}},
+          {"pattern": "**/api/agents", "method": "GET", "body": {"agents": []}},
+          {"pattern": "**/api/conversations/*/messages", "method": "POST", "body": {}}
+        ]
+      },
+      "steps": [
+        {"action": "waitFor", "target": {"role": "textbox", "name": "输入消息..."}, "timeoutMs": 10000},
+        {"action": "fill", "target": {"role": "textbox", "name": "输入消息..."}, "value": "/wiki_search"},
+        {"action": "assertText", "text": "/wiki_search"},
+        {"action": "click", "target": {"role": "option", "name": "/wiki_search"}},
+        {"action": "fill", "target": {"role": "textbox", "name": "输入消息..."}, "value": "/wiki_search React 状态管理"},
+        {"action": "press", "target": {"role": "textbox", "name": "输入消息..."}, "key": "Enter"}
+      ],
+      "assertRequests": [
+        {"method": "POST", "contains": "/api/conversations/", "status": 200}
+      ]
+    }
+  ]
+}

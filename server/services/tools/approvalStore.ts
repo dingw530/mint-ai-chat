@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { AiSettings, HistoryMessage, ToolCall } from '../../types.js';
 
 export interface ApprovalResumeContext {
+  runId?: string;
   messages: HistoryMessage[];
   settings: AiSettings;
   agent?: string;

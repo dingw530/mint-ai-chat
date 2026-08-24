@@ -11,6 +11,8 @@ const snapshot = {
   elapsedMs: 1234.6,
   toolCount: 3,
   toolCounts: { wiki_search: 2, bash: 1 },
+  toolBudgets: { wiki_search: { limit: 2, used: 2, remaining: 0 } },
+  totalToolBudget: { limit: 3, used: 3, remaining: 0 },
   currentTool: 'wiki_search',
   retryCount: 1,
   lastError: 'temporary failure',
@@ -26,6 +28,7 @@ describe('agentStatusBar', () => {
     expect(message.content).toContain('<agent_status>');
     expect(message.content).toContain('Current round: 2/5');
     expect(message.content).toContain('wiki_search=2');
+    expect(message.content).toContain('Tool budgets: total=3/3 (remaining=0), wiki_search=2/2 (remaining=0)');
     expect(message.content).toContain('Retries: 1');
     expect(message.content).toContain('Strategy:');
     expect(message.content).toContain('</agent_status>');

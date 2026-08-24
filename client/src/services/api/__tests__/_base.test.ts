@@ -53,4 +53,18 @@ describe('API base helpers', () => {
     expect(callbacks.onToolApprovalRequired).toHaveBeenCalledWith({ type: 'approval_required', approvalId: 'approval-1', reason: 'confirm' });
     expect(callbacks.onA2ui).toHaveBeenCalledWith({ type: 'a2ui', segmentId: 'segment-1', surfaceId: 'surface-1', message: { version: 'v0.9' } });
   });
+
+  it('rejects incomplete AgentRun envelopes but keeps legacy chunks compatible', () => {
+    const callbacks = { onChunk: vi.fn() };
+    const lastThought = { value: '' };
+
+    parseSSEChunk({ type: 'answer', runId: 'run-1', content: 'missing sequence' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'answer', sequence: 1, content: 'missing run id' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'answer', runId: 'run-1', sequence: 1, content: 'valid' }, callbacks, lastThought);
+    parseSSEChunk({ type: 'answer', content: 'legacy' }, callbacks, lastThought);
+
+    expect(callbacks.onChunk).toHaveBeenCalledTimes(2);
+    expect(callbacks.onChunk).toHaveBeenNthCalledWith(1, 'valid');
+    expect(callbacks.onChunk).toHaveBeenNthCalledWith(2, 'legacy');
+  });
 });

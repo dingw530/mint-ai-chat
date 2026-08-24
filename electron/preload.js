@@ -6,8 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
 
   // ── 流式对话 ──
-  sendMessage: (convId, content, agent, regenerate) =>
-    ipcRenderer.invoke('chat:send', convId, content, agent, regenerate),
+  sendMessage: (convId, content, agent, regenerate, slashCommand) =>
+    ipcRenderer.invoke('chat:send', convId, content, agent, regenerate, slashCommand),
   onChunk: (conversationId, callback) => {
     const listener = (_event, eventConversationId, data) => {
       if (eventConversationId === conversationId) callback(data);

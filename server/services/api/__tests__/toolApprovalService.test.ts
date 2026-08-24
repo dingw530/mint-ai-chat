@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { BaseTool } from '../../tools/BaseTool.js';
 import { toolRegistry, toolApprovalStore } from '../../tools/index.js';
@@ -6,23 +6,31 @@ import { resolveToolApproval } from '../toolApprovalService.js';
 import { reactChat } from '../../reactLoopCore.js';
 import * as conversationRepo from '../../../repositories/conversationRepository.js';
 import { v4 as uuidv4 } from 'uuid';
+import { AgentRun, agentRunRegistry } from '../../agentRun.js';
 
 vi.mock('../../reactLoopCore.js', () => ({
-  reactChat: vi.fn(async (_messages, _settings, sink) => {
-    sink.writeEvent?.({
-      type: 'answer',
-      runId: 'resume-run',
-      sequence: 1,
-      content: 'continued answer',
-    });
-    sink.writeEvent?.({
-      type: 'run_completed',
-      runId: 'resume-run',
-      sequence: 2,
-      state: 'completed',
-      content: 'continued answer',
-      reasoning: '',
-    });
+  reactChat: vi.fn(async (_messages, _settings, sink, _agent, _signal, _conversationId, _policy, existingRun) => {
+    if (existingRun && typeof existingRun.publish === 'function') {
+      const detach = existingRun.subscribe((event: Record<string, unknown>) => sink.writeEvent?.(event));
+      existingRun.publish({ type: 'answer', content: 'continued answer', round: 2 });
+      existingRun.publish({ type: 'run_completed', state: 'completed', content: 'continued answer', reasoning: '' });
+      detach();
+    } else {
+      sink.writeEvent?.({
+        type: 'answer',
+        runId: 'resume-run',
+        sequence: 1,
+        content: 'continued answer',
+      });
+      sink.writeEvent?.({
+        type: 'run_completed',
+        runId: 'resume-run',
+        sequence: 2,
+        state: 'completed',
+        content: 'continued answer',
+        reasoning: '',
+      });
+    }
     sink.end();
     return { content: 'continued answer', reasoning: '', toolCalls: null };
   }),
@@ -40,6 +48,12 @@ class ApprovalServiceTool extends BaseTool<{ value: string }, string> {
 }
 
 describe('tool approval service', () => {
+  beforeEach(() => {
+    agentRunRegistry.clear();
+    toolApprovalStore.clear();
+    vi.clearAllMocks();
+  });
+
   it('executes an approved request once and rejects replay', async () => {
     const tool = new ApprovalServiceTool();
     toolRegistry.register(tool);
@@ -101,5 +115,124 @@ describe('tool approval service', () => {
       undefined,
       conversationId,
     );
+  });
+
+  it('continues the original AgentRun after approval without resetting its identity or sequence', async () => {
+    const tool = new ApprovalServiceTool();
+    toolRegistry.register(tool);
+    const conversationId = `agent-run-approval-${uuidv4()}`;
+    conversationRepo.create({ id: conversationId, title: 'AgentRun Approval', routingMode: 'manual' });
+    const approvalId = toolApprovalStore.create({
+      conversationId,
+      reason: '需要确认',
+      toolCall: {
+        id: 'agent-run-approval-call',
+        type: 'function',
+        function: { name: tool.name, arguments: '{"value":"resume"}' },
+      },
+      resume: {
+        runId: 'original-agent-run',
+        messages: [{ role: 'user', content: 'continue this task' }],
+        settings: { apiUrl: 'https://api.test', apiKey: 'test-key', modelId: 'test-model' },
+        agent: 'general',
+      },
+    });
+    const run = new AgentRun({ runId: 'original-agent-run', conversationId });
+    agentRunRegistry.register(run);
+    run.publish({ type: 'run_started', state: 'running' });
+    run.publish({
+      type: 'tool_call_start',
+      state: 'executing_tools',
+      round: 1,
+      callId: 'agent-run-approval-call',
+      toolName: tool.name,
+      arguments: { value: 'resume' },
+    });
+    run.publish({
+      type: 'approval_required',
+      round: 1,
+      callId: 'agent-run-approval-call',
+      toolName: tool.name,
+      approvalId,
+      reason: '需要确认',
+    });
+
+    const result = await resolveToolApproval(conversationId, approvalId, 'approve');
+
+    expect(result.continuation?.events.map((event) => event.runId)).toEqual([
+      'original-agent-run',
+      'original-agent-run',
+      'original-agent-run',
+    ]);
+    expect(result.continuation?.events.map((event) => event.sequence)).toEqual([4, 5, 6]);
+    expect(reactChat).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.any(Object),
+      expect.anything(),
+      'general',
+      undefined,
+      conversationId,
+      undefined,
+      run,
+    );
+    expect(agentRunRegistry.get('original-agent-run')).toBeUndefined();
+  });
+
+  it('ends the original AgentRun when approval is denied without executing the tool', async () => {
+    const tool = new ApprovalServiceTool();
+    toolRegistry.register(tool);
+    const conversationId = `agent-run-denial-${uuidv4()}`;
+    conversationRepo.create({ id: conversationId, title: 'AgentRun Denial', routingMode: 'manual' });
+    const approvalId = toolApprovalStore.create({
+      conversationId,
+      reason: '需要确认',
+      toolCall: {
+        id: 'agent-run-denial-call',
+        type: 'function',
+        function: { name: tool.name, arguments: '{"value":"deny"}' },
+      },
+      resume: {
+        runId: 'denied-agent-run',
+        messages: [{ role: 'user', content: 'do not execute this task' }],
+        settings: { apiUrl: 'https://api.test', apiKey: 'test-key', modelId: 'test-model' },
+        agent: 'general',
+      },
+    });
+    const run = new AgentRun({ runId: 'denied-agent-run', conversationId });
+    const events: Array<{ type: string; sequence: number }> = [];
+    agentRunRegistry.register(run);
+    run.subscribe((event) => events.push({ type: event.type, sequence: event.sequence }));
+    run.publish({ type: 'run_started', state: 'running' });
+    run.publish({
+      type: 'tool_call_start',
+      state: 'executing_tools',
+      round: 1,
+      callId: 'agent-run-denial-call',
+      toolName: tool.name,
+      arguments: { value: 'deny' },
+    });
+    run.publish({
+      type: 'approval_required',
+      round: 1,
+      callId: 'agent-run-denial-call',
+      toolName: tool.name,
+      approvalId,
+      reason: '需要确认',
+    });
+
+    await expect(resolveToolApproval(conversationId, approvalId, 'deny')).resolves.toMatchObject({
+      status: 'denied',
+      toolName: tool.name,
+    });
+
+    expect(tool.execute).not.toHaveBeenCalled();
+    expect(events).toEqual([
+      { type: 'run_started', sequence: 1 },
+      { type: 'tool_call_start', sequence: 2 },
+      { type: 'approval_required', sequence: 3 },
+      { type: 'tool_call_error', sequence: 4 },
+      { type: 'run_completed', sequence: 5 },
+    ]);
+    expect(agentRunRegistry.get('denied-agent-run')).toBeUndefined();
   });
 });

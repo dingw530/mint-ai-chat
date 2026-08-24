@@ -55,6 +55,21 @@ describe('compileSource', () => {
     expect(fs.readFileSync(path.join(wikiPath, '_index.md'), 'utf8')).toContain('Type Safety');
   });
 
+  it('reports real compilation stages in execution order', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/stages.md', title: 'Stages', tags: [], content: 'source text' }],
+      claims: [{ pageTitle: 'Stages', text: 'source text', evidenceQuote: 'source text' }],
+      relationships: [], summary: 'stages',
+    }));
+    const stages: string[] = [];
+
+    await compileSource(settings, wikiPath, 'source text', 'stages.md', {
+      onProgress: (stage) => stages.push(stage),
+    });
+
+    expect(stages).toEqual(['prepare', 'evidence', 'pages']);
+  });
+
   it('passes the larger output budget for long sources', async () => {
     adapter.call.mockResolvedValue(JSON.stringify({
       pages: [{ filename: 'pages/concepts/long.md', title: 'Long', tags: [], content: 'source text' }],
@@ -197,6 +212,23 @@ describe('compileSource', () => {
       .rejects.toThrow('Claim 指向不存在的页面');
     expect(fs.existsSync(path.join(wikiPath, 'pages', 'concepts', 'known.md'))).toBe(false);
     expect(fs.existsSync(path.join(wikiPath, '_index.md'))).toBe(false);
+  });
+
+  it('preserves uncovered lead facts in the most relevant compiled page', async () => {
+    adapter.call.mockResolvedValue(JSON.stringify({
+      pages: [{ filename: 'pages/concepts/dingtalk.md', title: '钉钉的敏捷与秩序', tags: ['钉钉'], content: '钉钉强调敏捷协作。' }],
+      claims: [{ pageTitle: '钉钉的敏捷与秩序', text: '钉钉强调敏捷协作', evidenceQuote: '钉钉强调敏捷协作。' }],
+      relationships: [], summary: '钉钉页面',
+    }));
+
+    const result = await compileSource(
+      settings,
+      wikiPath,
+      '钉钉的动物园形象钉三多，是一只尖尾雨燕。\n钉钉强调敏捷协作。',
+      'dingtalk.md',
+    );
+
+    expect(result.compiledPages[0].content).toContain('钉钉的动物园形象钉三多，是一只尖尾雨燕。');
   });
 
   it('rejects malformed AI output before writing pages', async () => {

@@ -15,6 +15,8 @@ export type WikiJobStatus =
 
 export type IngestionSourceType = 'upload' | 'chat';
 
+export type WikiCompileStage = 'prepare' | 'evidence' | 'pages';
+
 export interface WikiUploadInput {
   name: string;
   size: number;
@@ -91,6 +93,16 @@ export function getWikiJobStatusMeta(status: WikiJobStatus): Pick<WikiJob, 'stat
     committing: '提交 Wiki 中',
   };
   return { statusLabel: labels[status] || '处理中', phase: 'active', isTerminal: false, isSuccessful: false, canCancel: true, canRetry: false };
+}
+
+/** 将真实编译阶段转换为易理解的任务状态文案。 */
+export function getWikiCompileStageLabel(stage: WikiCompileStage): string {
+  const labels: Record<WikiCompileStage, string> = {
+    prepare: '正在整理资料',
+    evidence: '正在核对原文',
+    pages: '正在生成知识页面',
+  };
+  return labels[stage];
 }
 
 export type WikiJobUpdate = Partial<Omit<WikiJob, 'id' | 'createdAt'>>;

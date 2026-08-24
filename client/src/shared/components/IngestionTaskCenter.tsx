@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { getWikiJob, removeWikiJob } from '@/services/api';
+import { getWikiJob, removeWikiJob, retryWikiJob } from '@/services/api';
 import type { UploadJob } from '@/services/api/wiki';
 import IngestionJobDetails from './IngestionJobDetails';
 
@@ -24,9 +24,13 @@ function getTaskTone(job: UploadJob): 'active' | 'success' | 'error' | 'cancelle
 }
 
 function getTaskLabel(job: UploadJob): string {
-  if (!job.isTerminal) return job.statusLabel || job.step || '处理中';
+  if (!job.isTerminal) return job.step || job.statusLabel || '处理中';
   if (job.phase === 'cancelled' || job.status === 'cancelled') return '已取消';
   return job.isSuccessful ? '已完成' : job.statusLabel || '需处理';
+}
+
+function canRetryJob(job: UploadJob): boolean {
+  return Boolean(job.canRetry || ['failed', 'error', 'partial_failed'].includes(job.status || ''));
 }
 
 function filterJob(job: UploadJob, filter: TaskFilter): boolean {
@@ -55,6 +59,7 @@ export default function IngestionTaskCenter({
   const [query, setQuery] = useState('');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [removingKeys, setRemovingKeys] = useState<Set<string>>(new Set());
+  const [retryingKeys, setRetryingKeys] = useState<Set<string>>(new Set());
   const [detailJob, setDetailJob] = useState<UploadJob | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -97,13 +102,34 @@ export default function IngestionTaskCenter({
     setRemovingKeys(keys);
     try {
       await Promise.all(targets.filter((job) => job.id).map((job) => removeWikiJob(job.id)));
-    onJobsChange((previous) => previous.filter((job) => !keys.has(getJobKey(job))));
+      onJobsChange((previous) => previous.filter((job) => !keys.has(getJobKey(job))));
       setSelectedKeys((previous) => new Set([...previous].filter((key) => !keys.has(key))));
       if (detailJob && keys.has(detailJob.id)) setDetailJob(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : '任务移除失败，请稍后重试');
     } finally {
       setRemovingKeys(new Set());
+    }
+  };
+
+  const retryJob = async (jobId: string): Promise<void> => {
+    const target = jobs.find((job) => job.id === jobId);
+    if (!target) return;
+    const key = getJobKey(target);
+    setActionError(null);
+    setRetryingKeys((previous) => new Set(previous).add(key));
+    try {
+      const updated = await retryWikiJob(jobId);
+      onJobsChange((previous) => previous.map((job) => (job.id === jobId ? updated : job)));
+      setDetailJob((previous) => (previous?.id === jobId ? updated : previous));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '任务重试失败，请稍后重试');
+    } finally {
+      setRetryingKeys((previous) => {
+        const next = new Set(previous);
+        next.delete(key);
+        return next;
+      });
     }
   };
 
@@ -192,11 +218,12 @@ export default function IngestionTaskCenter({
               const tone = getTaskTone(job);
               const key = getJobKey(job);
               const isRemoving = removingKeys.has(key);
+              const isRetrying = retryingKeys.has(key);
               return (
                 <article className={`ingestion-task-center-item ${tone}`} key={key}>
                   <div className="ingestion-task-center-item-top">
                     <label className="ingestion-task-center-check">
-                      <input type="checkbox" checked={selectedKeys.has(key)} onChange={() => toggleSelection(job)} disabled={!job.isTerminal || isRemoving} aria-label={`选择任务 ${job.fileName}`} />
+                      <input type="checkbox" checked={selectedKeys.has(key)} onChange={() => toggleSelection(job)} disabled={!job.isTerminal || isRemoving || isRetrying} aria-label={`选择任务 ${job.fileName}`} />
                       <span className={`ingestion-task-center-dot ${tone}`} aria-hidden="true" />
                     </label>
                     <div className="ingestion-task-center-item-main">
@@ -208,8 +235,9 @@ export default function IngestionTaskCenter({
                   <div className={`ingestion-task-center-progress ${tone}`}><span style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} /></div>
                   {job.error && <p className="ingestion-task-center-item-error">{job.error}</p>}
                   <div className="ingestion-task-center-item-actions">
-                    {job.id && <button type="button" aria-label={`查看详情：${job.fileName}`} onClick={() => void openDetails(job)} disabled={isRemoving}>查看详情</button>}
-                    {job.isTerminal && <button type="button" className="danger" onClick={() => confirmRemove([job])} disabled={isRemoving}>{isRemoving ? '移除中…' : '移除'}</button>}
+                    {job.id && <button type="button" aria-label={`查看详情：${job.fileName}`} onClick={() => void openDetails(job)} disabled={isRemoving || isRetrying}>查看详情</button>}
+                    {job.id && canRetryJob(job) && <button type="button" className="ingestion-task-center-retry" aria-label={`重试：${job.fileName}`} onClick={() => void retryJob(job.id)} disabled={isRemoving || isRetrying}>{isRetrying ? '重试中…' : '重试'}</button>}
+                    {job.isTerminal && <button type="button" className="danger" onClick={() => confirmRemove([job])} disabled={isRemoving || isRetrying}>{isRemoving ? '移除中…' : '移除'}</button>}
                   </div>
                 </article>
               );
@@ -217,7 +245,7 @@ export default function IngestionTaskCenter({
           </div>
         </aside>
       </div>
-      {detailJob && <IngestionJobDetails job={detailJob} onClose={() => setDetailJob(null)} onOpenPage={onOpenPage} />}
+      {detailJob && <IngestionJobDetails job={detailJob} onClose={() => setDetailJob(null)} onOpenPage={onOpenPage} onRetry={() => retryJob(detailJob.id)} retrying={retryingKeys.has(getJobKey(detailJob))} />}
     </>
   );
 }

@@ -248,6 +248,52 @@ describe('reactChat', () => {
     expect(events.find((event) => event.type === 'tool_call_end' && event.callId === 'wiki-3')?.summary).toContain('预算');
   });
 
+  it('injects remaining tool budget and stops offering tools after exhaustion', async () => {
+    const calls = [1, 2].map((index) => ({
+      id: `wiki-budget-${index}`,
+      type: 'function' as const,
+      function: { name: 'wiki_search', arguments: JSON.stringify({ question: `q-${index}` }) },
+    }));
+    const seen: Array<{ messages: any[]; tools: unknown }> = [];
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockImplementationOnce(async ({ messages, tools }) => {
+        seen.push({ messages: [...messages], tools });
+        return { content: '', reasoning: '', toolCalls: [calls[0]] };
+      })
+      .mockImplementationOnce(async ({ messages, tools }) => {
+        seen.push({ messages: [...messages], tools });
+        return { content: '', reasoning: '', toolCalls: [calls[1]] };
+      })
+      .mockImplementationOnce(async ({ messages, tools }) => {
+        seen.push({ messages: [...messages], tools });
+        return { content: 'done', reasoning: '', toolCalls: null };
+      });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
+      assistantMsg: { role: 'assistant', content: '', tool_calls: [] },
+      toolMsg: { role: 'tool', tool_call_id: 'wiki-budget', content: '{}' },
+      succeeded: true,
+    });
+
+    await reactChat(
+      [{ role: 'user', content: 'hi' }],
+      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+      sink,
+      undefined,
+      undefined,
+      'eval:remaining-budget',
+      { maxToolCallsByName: { wiki_search: 2 } },
+    );
+
+    expect(seen).toHaveLength(3);
+    expect(seen[0].messages.at(-1)?.content).toContain('wiki_search=0/2 (remaining=2)');
+    expect(seen[1].messages.at(-1)?.content).toContain('wiki_search=1/2 (remaining=1)');
+    expect(seen[2].messages.at(-1)?.content).toContain('wiki_search=2/2 (remaining=0)');
+    expect(seen[2].tools).toBeUndefined();
+    expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(2);
+  });
+
   it('limits evaluator Wiki searches to one call per round', async () => {
     const calls = [1, 2].map((index) => ({
       id: `wiki-round-${index}`,

@@ -209,6 +209,7 @@ chore: bump express from 4.18 to 4.21
 
 - `feat` / `fix` 会出现在 changelog 中，`refactor` / `chore` 等不会
 - 一个 commit 只做一件事。如果不同目标混在一起，拆成多个 commit
+- **MUST NOT** 使用 `git commit --no-verify`。若 Hook 失败，必须修复 Hook/失败项，或手动完整执行被 Hook 覆盖的检查并记录原因后再提交；不得绕过验证。
 
 # Development Process
 
@@ -259,7 +260,7 @@ docs/
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **mint-ai-chat** (7638 symbols, 13612 relationships, 277 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **mint-ai-chat** (7959 symbols, 14193 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
