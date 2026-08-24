@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { AiSettings, HistoryMessage, PersistedUiBlock } from './types.js';
 import { reactChat } from './services/reactLoopCore.js';
@@ -8,6 +9,7 @@ import type { ReactEvent } from './services/reactEvents.js';
 import { AccumulatingSink } from './services/sink.js';
 import type { ReactExecutionPolicy } from './services/reactLoopCore.js';
 import { createDurableAgentRun, agentRunRegistry } from './services/agentRun.js';
+import { findWikiCitationMarkers } from './services/utils/wikiCitationMarkers.js';
 export type { WikiIngestionRequest, WikiIngestionResult } from './services/api/wikiIngestionService.js';
 export { ingestWikiSource } from './services/api/wikiIngestionService.js';
 
@@ -99,9 +101,8 @@ export function citationsFromReferenceMarkers(
     .filter((citation) => citation.refId)
     .map((citation) => [citation.refId!.toLocaleUpperCase(), citation]));
   const citations: EvalCitation[] = [];
-  const pattern = /(?:\[|【)(C?)(\d+)(?:\]|】)(?=\s*(?:[。！？.!?；;,:，、\n]|$))/gi;
-  for (const match of content.matchAll(pattern)) {
-    const referenceId = `C${match[2]}`.toLocaleUpperCase();
+  for (const marker of findWikiCitationMarkers(content)) {
+    const referenceId = marker.refId.toLocaleUpperCase();
     const existing = citationsById.get(referenceId);
     if (existing) {
       citations.push(existing);
@@ -159,6 +160,11 @@ function buildExecutionPolicy(evalCase: EvalCaseInput): ReactExecutionPolicy {
   };
 }
 
+/** 为每次评测执行创建唯一的持久化运行 ID，避免重复用例覆盖历史事件。 */
+export function createEvalRunId(caseId: string): string {
+  return `eval:${caseId}:${randomUUID()}`;
+}
+
 /** 为隔离评测数据库写入 AI 与 Wiki 配置，避免评测工具读取生产 Wiki。 */
 export function configureEvalSettings(input: EvalSettingsInput): AiSettings {
   settingsService.save({
@@ -173,7 +179,8 @@ export function configureEvalSettings(input: EvalSettingsInput): AiSettings {
 /** 创建供 agent-eval 使用的 Mint ReAct executor。 */
 export function createReactExecutor(settings: AiSettings) {
   return async (evalCase: EvalCaseInput) => {
-    const run = createDurableAgentRun({ runId: `eval:${evalCase.id}`, conversationId: `eval:${evalCase.id}` });
+    const conversationId = `eval:${evalCase.id}`;
+    const run = createDurableAgentRun({ runId: createEvalRunId(evalCase.id), conversationId });
     agentRunRegistry.register(run);
     const events: ReactEvent[] = [];
     run.subscribe((event) => events.push(event));
@@ -189,7 +196,7 @@ export function createReactExecutor(settings: AiSettings) {
       sink,
       evalCase.agent,
       undefined,
-      `eval:${evalCase.id}`,
+      conversationId,
       buildExecutionPolicy(evalCase),
       run,
     );

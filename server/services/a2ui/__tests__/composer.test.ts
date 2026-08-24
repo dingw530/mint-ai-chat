@@ -37,6 +37,24 @@ describe('A2UIComposer', () => {
     expect(composer.sanitizeContent('事实 [C1]。 [C99] [C')).toBe('事实 [C1]。');
   });
 
+  it('normalizes observed reference variants only when they resolve to this run evidence', () => {
+    const composer = new A2UIComposer();
+    composer.handle({
+      runId: 'run-1',
+      round: 1,
+      event: { kind: 'tool_result', toolName: 'wiki_search', result: { results: [{ file: 'pages/a.md', chunkId: 'a#0' }] } },
+    });
+
+    const first = composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_chunk', content: '第一项 [R' } });
+    expect(first.outputs).toEqual([{ kind: 'text', content: '第一项 ' }]);
+    const second = composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_chunk', content: '1]，第二项 [citation:1]，未知 [R9]。' } });
+    expect(second.outputs).toEqual([{ kind: 'text', content: '[C1]，第二项 [C1]，未知 。' }]);
+    composer.handle({ runId: 'run-1', round: 1, event: { kind: 'answer_completed', content: '' } });
+
+    expect(composer.getBlocks()).toHaveLength(1);
+    expect(composer.sanitizeContent('正文 [1]。\n[1] 这是有序步骤。 [citation:1] [R9] [C')).toBe('正文 [C1]。\n[1] 这是有序步骤。 [C1]');
+  });
+
   it('reuses one reference id for chunks from the same file', () => {
     const composer = new A2UIComposer();
     const result = composer.handle({

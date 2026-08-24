@@ -1,4 +1,4 @@
-import { citationsFromReferenceMarkers } from '../../eval.js';
+import { citationsFromReferenceMarkers, createEvalRunId } from '../../eval.js';
 
 const references = [
   {
@@ -31,6 +31,19 @@ describe('citationsFromReferenceMarkers', () => {
     ]);
   });
 
+  it('maps observed reference variants but rejects ordered list markers', () => {
+    const citations = citationsFromReferenceMarkers(
+      '',
+      '事实一。[R1] 事实二。[citation:2]\n[1] 这是步骤，不是引用。',
+      references,
+    );
+
+    expect(citations.map((citation) => citation.file)).toEqual([
+      'pages/eval/first.md',
+      'pages/eval/second.md',
+    ]);
+  });
+
   it('does not treat ordered-list markers as citations', () => {
     const citations = citationsFromReferenceMarkers(
       '',
@@ -50,5 +63,16 @@ describe('citationsFromReferenceMarkers', () => {
     );
 
     expect(citations).toEqual([{ file: 'pages/eval/displayed.md', refId: 'C1' }]);
+  });
+});
+
+describe('createEvalRunId', () => {
+  it('keeps a stable case prefix while making repeated evaluation runs unique', () => {
+    const first = createEvalRunId('rag-001');
+    const second = createEvalRunId('rag-001');
+
+    expect(first).toMatch(/^eval:rag-001:/);
+    expect(second).toMatch(/^eval:rag-001:/);
+    expect(second).not.toBe(first);
   });
 });

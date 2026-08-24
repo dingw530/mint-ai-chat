@@ -335,6 +335,47 @@ export function getWikiVectorHealth(config: EmbeddingConfig): searchRepo.WikiVec
   return searchRepo.getVectorHealth(config);
 }
 
+/**
+ * 首个命中页来自多页拆分的同一原始资料时，补足其兄弟页，帮助回答跨主题的综合问题。
+ */
+function expandSourceFamilyResults(
+  wikiPath: string,
+  results: WikiSearchResult[],
+  maxResults: number,
+  includeContent: boolean,
+): WikiSearchResult[] {
+  if (results.length === 0 || results.length >= maxResults) return results;
+  const leadPath = path.join(wikiPath, resultPath(results[0].file));
+  let source = '';
+  try { source = parseWikiPage(results[0].file, fs.readFileSync(leadPath, 'utf8')).source; } catch { return results; }
+  if (!source) return results;
+
+  const existing = new Set(results.map((result) => result.file));
+  for (const absolute of listMarkdownFiles(wikiPath)) {
+    if (results.length >= maxResults) break;
+    const file = path.relative(wikiPath, absolute).replaceAll(path.sep, '/');
+    if (existing.has(file)) continue;
+    let content: string;
+    let page: ReturnType<typeof parseWikiPage>;
+    try {
+      content = fs.readFileSync(absolute, 'utf8');
+      page = parseWikiPage(file, content);
+    } catch { continue; }
+    if (page.source !== source) continue;
+    const lifecycle = lifecycleRepo.findPageByPath(file);
+    if (lifecycle && ['deleted', 'superseded', 'archived'].includes(lifecycle.status)) continue;
+    results.push({
+      chunkId: `${file}#source-family`, file, title: page.title, heading: '',
+      content: includeContent ? content : '', snippet: `同源资料：${source}`,
+      score: Math.max(0, results[0].score - results.length * 0.01), matchTypes: ['source-family'],
+      pageStatus: lifecycle?.status ?? null, lastVerifiedAt: lifecycle?.lastConfirmedAt ?? null,
+      claimId: null, lexicalRank: null, vectorRank: null, distance: null,
+    });
+    existing.add(file);
+  }
+  return results;
+}
+
 /** 为指定搜索文档逐项回填向量，单项失败不会阻断后续页面。 */
 export async function backfillWikiEmbeddings(
   documents: searchRepo.WikiSearchDocument[],
@@ -435,6 +476,7 @@ export async function searchWiki(wikiPath: string, question: string, maxResults:
     if (!result) continue;
     results.push(result);
   }
+  expandSourceFamilyResults(wikiPath, results, maxResults, includeContent);
   results.sort((a, b) => b.score - a.score);
   for (const result of results) {
     const page = lifecycleRepo.findPageByPath(result.file);
