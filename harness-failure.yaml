@@ -1,0 +1,86 @@
+- generic [ref=e11]:
+  - complementary [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - img "Mint" [ref=e16]
+        - generic [ref=e17]: Mint
+        - button "设置" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
+      - generic [ref=e22]:
+        - link "对话" [ref=e23] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e24]
+        - link "助手" [ref=e26] [cursor=pointer]:
+          - /url: /agents
+          - img [ref=e27]
+        - link "知识库" [ref=e30] [cursor=pointer]:
+          - /url: /wiki
+          - img [ref=e31]
+    - generic [ref=e34]:
+      - button "新建对话" [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+        - text: 新建对话
+      - generic [ref=e40]:
+        - heading "今天" [level=3] [ref=e41]
+        - generic [ref=e42] [cursor=pointer]:
+          - img [ref=e44]
+          - generic [ref=e46]: 测试对话
+    - button "清空全部" [ref=e48] [cursor=pointer]:
+      - img [ref=e49]
+      - text: 清空全部
+  - generic [ref=e52]:
+    - heading "测试对话" [level=2] [ref=e54]
+    - generic [ref=e55]:
+      - generic [ref=e57]:
+        - img "Mint" [ref=e59]
+        - heading "Mint" [level=2] [ref=e60]
+        - paragraph [ref=e61]: Mint · 发送消息开始对话
+      - generic [ref=e63]:
+        - region "知识摄入任务":
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - strong [ref=e66]: 知识摄入
+              - generic "共 1 个任务" [ref=e67]:
+                - generic [ref=e68]: 1 个
+                - generic [ref=e69]: 1 处理中
+              - button "收起知识摄入任务" [expanded] [ref=e70] [cursor=pointer]:
+                - img [ref=e71]
+            - status "知识摄入任务" [ref=e75]:
+              - generic [ref=e76]:
+                - strong [ref=e78]: 知识.md
+                - generic [ref=e79]: 处理中 · 正在核对原文
+                - strong [ref=e80]: 60%
+              - progressbar [ref=e81]
+              - generic [ref=e83]:
+                - generic [ref=e84]: 当前：正在核对原文
+                - strong [ref=e85]: 60%
+              - button "查看详情" [ref=e87] [cursor=pointer]: 详情
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - textbox "输入消息..." [active] [ref=e93]: /wiki_search
+            - listbox "可用工具命令" [ref=e117]:
+              - generic [ref=e118]: 快速调用工具
+              - option "/wiki_search" [ref=e119] [cursor=pointer]:
+                - generic [ref=e120]:
+                  - strong [ref=e121]: /wiki_search
+                  - generic [ref=e122]: 搜索已有知识页面和来源
+                - generic [ref=e123]: 输入关键词或问题
+          - generic [ref=e94]:
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - img [ref=e99]
+                - combobox "选择 Agent" [disabled] [ref=e102]:
+                  - generic: general
+                  - img [ref=e104]
+              - combobox [disabled] [ref=e106]
+            - generic [ref=e107]:
+              - generic [ref=e108]:
+                - generic [ref=e109]: Enter
+                - text: 发送
+              - generic [ref=e110]:
+                - generic [ref=e111]: Shift
+                - generic [ref=e112]: +
+                - generic [ref=e113]: Enter
+                - text: 换行
+            - button "发送消息" [ref=e114] [cursor=pointer]:
+              - img [ref=e115]
