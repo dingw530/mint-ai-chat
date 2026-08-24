@@ -32,6 +32,9 @@ npm run eval:wiki-rag:dry
 | `MINT_EVAL_API_URL` | AI API 根地址，例如 `https://api.example.com` | `ingest` 必需 |
 | `MINT_EVAL_API_KEY` | AI API Key | `ingest` 必需 |
 | `MINT_EVAL_MODEL_ID` | 模型 ID | `ingest` 必需 |
+| `MINT_EVAL_JUDGE_API_URL` | Judge 的 OpenAI 兼容 API 根地址 | 使用 `--judge` 必需 |
+| `MINT_EVAL_JUDGE_API_KEY` | Judge API Key | 使用 `--judge` 必需 |
+| `MINT_EVAL_JUDGE_MODEL_ID` | Judge 模型 ID | 使用 `--judge` 必需 |
 | `MINT_EVAL_RAW_DIR` | 原始语料目录 | 可选 |
 | `MINT_EVAL_FIXTURE_PATH` | `prepare` 输出目录 | 可选 |
 | `MINT_EVAL_WIKI_PATH` | 正式摄入后的隔离 Wiki 目录 | `live` 必需 |
@@ -39,6 +42,8 @@ npm run eval:wiki-rag:dry
 | `EVAL_VIEWER_PORT` | 报告查看器端口，默认 `4174` | 可选 |
 
 OpenAI 兼容适配器会自动补充 `/v1/chat/completions`，因此 `MINT_EVAL_API_URL` 通常不要再写 `/v1`。
+
+Judge 与被测 Agent 配置分离。`--judge` 未显式开启时，评测不会发起 Judge 网络请求；建议使用与被测 Agent 不同模型家族的 Judge，并定期通过人工金标校准。
 
 ## 命令
 
@@ -177,6 +182,57 @@ node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
 ```
 
 Live 评测支持两种运行规模：`--runs 1` 用于快速验证，`--runs 3` 用于计算 Pass@3 和 Pass^3；未指定时默认运行 3 次。其他运行次数会被 CLI 拒绝。
+
+运行时默认输出 `[eval] 当前/总数 start|judge|done` 进度行，包含用例 ID、轮次、通过状态和耗时，但不输出回答、提示词或密钥。需要仅保留最终 JSON 汇总时传入 `--quiet`。
+
+## LLM-as-a-Judge
+
+确定性验证仍负责工具预算、审批边界、引用身份和最终状态。LLM Judge 只在这些硬门禁通过后，依据用例的 `expected.judgeRubric` 评估事实正确性、证据支撑、完整性和可观察轨迹质量；Judge 高分不会覆盖硬门禁失败。
+
+`judgeRubric` 包含 Essential / Important / Optional / Veto 维度。非 Veto 维度使用 1–4 分的可观察标准；Veto 使用 pass/fail。Judge 结果必须返回每个维度的证据 ID、理由、置信度和简短结论。为避免长度偏差，Rubric 可设置 `maxAnswerChars`，报告会记录答案字符数。
+
+运行真实 Judge：
+
+```bash
+npm run eval:wiki-rag:judge -w agent-eval
+
+# 或使用临时配置，不写入 .env
+node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
+  run --dataset wiki-rag --live --judge \
+  --judge-api-url https://api.example.com \
+  --judge-api-key "$MINT_EVAL_JUDGE_API_KEY" \
+  --judge-model "$MINT_EVAL_JUDGE_MODEL_ID"
+```
+
+报告额外给出 `judgePassAt1`、`averageJudgeScore`、`averageJudgeConfidence`、`judgeCriticalFailureRate` 和 `averageAnswerChars`。它们与确定性通过率并列，不压缩为单一总分。
+
+### 人工校准
+
+先从已生成的 Judge 报告导出模板，由人工填写 `passed` 和每个维度的 `score` / `passed`，再计算一致性：
+
+```bash
+npm run eval:calibration:export -w agent-eval -- --report /tmp/judged-report.json --output /tmp/judge-labels.json
+# 编辑 /tmp/judge-labels.json 后：
+npm run eval:calibration:compare -w agent-eval -- --report /tmp/judged-report.json --labels /tmp/judge-labels.json
+```
+
+比较结果包含总体通过一致率、维度精确一致率、平均绝对误差和待人工复核的分歧。建议积累 100–200 条覆盖成功、失败、边界和对抗样本的人工金标；Judge 模型或 Rubric 改动后重新校准。
+
+### A/B 配对评审与 Elo
+
+对两份相同数据集报告做模型或编排选型时，使用交换顺序的配对 Judge。若 A/B 在确定性硬门禁上结果不同，门禁结果直接判胜；否则 Judge 会将 A 在前和 B 在前分别评估，只有两次映射回原顺序后结论一致才计胜，分歧保守记为平局。
+
+```bash
+npm run eval:pairwise -w agent-eval -- \
+  --dataset wiki-rag \
+  --report-a /tmp/model-a.json --label-a model-a \
+  --report-b /tmp/model-b.json --label-b model-b \
+  --output /tmp/model-a-vs-b.json
+
+npm run eval:pairwise:elo -w agent-eval -- --input /tmp/model-a-vs-b.json
+```
+
+配对报告会输出胜负、平局和 `positionDisagreements`；Elo 仅表示此评测集上的相对能力，不能替代绝对 Rubric 分数或统计显著性分析。
 
 ## 数据集说明
 

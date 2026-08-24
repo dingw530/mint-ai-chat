@@ -3,6 +3,7 @@ import {
   buildReport,
   compareReports,
   loadDataset,
+  runEvaluation,
   verifyExecution,
   type EvalCase,
   type EvalCaseResult,
@@ -23,6 +24,17 @@ const securityCase: EvalCase = {
 };
 
 describe('agent-eval', () => {
+  it('reports case progress without including answer content', async () => {
+    const updates: Array<{ phase: string; completedRuns: number; totalRuns: number; passed?: boolean }> = [];
+    const dataset = { name: 'progress', version: '1', cases: [{ ...securityCase, expected: {} }] };
+    await runEvaluation(dataset, async () => ({ content: '回答', events: [{ type: 'run_completed' }] }), 1, undefined, update => updates.push(update));
+
+    expect(updates.map(({ phase, completedRuns, totalRuns, passed }) => ({ phase, completedRuns, totalRuns, passed }))).toEqual([
+      { phase: 'run_started', completedRuns: 0, totalRuns: 1 },
+      { phase: 'run_completed', completedRuns: 1, totalRuns: 1, passed: true },
+    ]);
+  });
+
   it('loads the bundled smoke dataset', async () => {
     const dataset = await loadDataset(path.resolve('datasets/smoke.json'));
     expect(dataset.cases.map(item => item.id)).toEqual(['qa-001', 'wiki-001', 'security-001']);
@@ -30,10 +42,12 @@ describe('agent-eval', () => {
 
   it('loads the question-level Wiki-RAG dataset', async () => {
     const dataset = await loadDataset(path.resolve('datasets/wiki-rag.json'));
-    expect(dataset.cases).toHaveLength(23);
+    expect(dataset.cases).toHaveLength(25);
     expect(dataset.cases.filter(item => item.expected.mustAbstain)).toHaveLength(3);
-    expect(dataset.cases.filter(item => item.expected.requiredSourceFiles?.length)).toHaveLength(19);
+    expect(dataset.cases.filter(item => item.expected.requiredSourceFiles?.length)).toHaveLength(21);
     expect(dataset.cases.find(item => item.id === 'rag-005')?.complexity).toBe('multi-hop');
+    expect(dataset.cases.every(item => item.expected.judgeRubric)).toBe(true);
+    expect(dataset.cases.find(item => item.id === 'rag-005')?.expected.judgeRubric?.version).toBe('wiki-rag-v1');
   });
 
   it('accepts an approval request without executing the protected tool', () => {

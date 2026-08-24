@@ -32,6 +32,7 @@ describe('wiki-rag corpus preparation', () => {
     const { root, rawDir } = await createCorpus();
     try {
       const outputDir = path.join(root, 'ingested');
+      const progress: string[] = [];
       const report = await ingestWikiRagCorpus(rawDir, outputDir, { mode: 'test' }, async (_settings, wikiPath, request) => {
         const filename = `pages/eval/${request.sourceFilenameHint?.replace(/\.[^.]+$/, '') || 'source'}.md`;
         await fs.mkdir(path.dirname(path.join(wikiPath, filename)), { recursive: true });
@@ -43,8 +44,9 @@ describe('wiki-rag corpus preparation', () => {
           summary: 'test ingestion',
           manifestId: `test-${request.sourceTitle}`,
         };
-      });
+      }, { onProgress: update => progress.push(`${update.phase}:${update.sourceFile}`) });
       expect(report.sources).toHaveLength(2);
+      expect(progress).toEqual(['source_started:one.md', 'source_completed:one.md', 'source_started:two.html', 'source_completed:two.html']);
       expect(report.sources.every(source => source.result.pages.length === 1)).toBe(true);
       expect(await fs.readFile(path.join(outputDir, 'ingested-manifest.json'), 'utf8')).toContain('test ingestion');
     } finally {
