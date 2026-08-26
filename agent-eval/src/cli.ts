@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url';
 import './loadEnv.js';
 import { compareReports, datasetPath, loadDataset, runEvaluation, writeReport } from './index.js';
 import type { AgentEvalExecutor, EvalProgressUpdate, EvalReport } from './index.js';
+import { createAutomaticVersionId, listResultVersions, readResultVersion, repairResultVersionIndex, saveResultVersion } from './resultVersions.js';
 import { ingestWikiRagCorpus, prepareWikiRagCorpus } from './wikiRagCorpus.js';
 import { resolveRuns } from './runOptions.js';
+import { appendEvalRunResult, createEvalRun, createEvalRunId, readEvalRun, type EvalRunCheckpoint } from './runPersistence.js';
 import { buildCalibrationTemplate, compareCalibration, type CalibrationLabel } from './calibration.js';
 import { createOpenAiJudge, createOpenAiPairwiseJudge } from './judge.js';
 import { calculateElo, runPairwiseComparison, type PairwiseReport } from './pairwise.js';
@@ -14,6 +16,8 @@ import { calculateElo, runPairwiseComparison, type PairwiseReport } from './pair
 const [, , command = 'list', ...args] = process.argv;
 const evalDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const datasetsDirectory = path.join(evalDirectory, 'datasets');
+const defaultVersionDirectory = path.join(evalDirectory, 'viewer/versions');
+const defaultRunDirectory = path.join(evalDirectory, 'viewer/runs');
 const smokeExecutor: AgentEvalExecutor = async evalCase => ({ content: evalCase.id === 'qa-001' ? '思考、行动、观察' : '', events: [{ type: 'run_completed' }] });
 const DATASET_NAMES = ['smoke', 'wiki-rag'];
 
@@ -55,6 +59,44 @@ function requiredOption(args: string[], name: string): string {
   return value;
 }
 
+function versionDirectory(args: string[]): string {
+  return path.resolve(optionValue(args, '--version-dir') || defaultVersionDirectory);
+}
+
+function resolveRunDirectory(args: string[], dataset: string): { directory: string; runId: string; resume: boolean } {
+  const runsDirectory = path.resolve(optionValue(args, '--runs-dir') || defaultRunDirectory);
+  const resumeValue = optionValue(args, '--resume');
+  if (resumeValue) {
+    const directory = path.isAbsolute(resumeValue) || resumeValue.includes(path.sep)
+      ? path.resolve(resumeValue)
+      : path.join(runsDirectory, resumeValue);
+    return { directory, runId: path.basename(directory), resume: true };
+  }
+  const runId = optionValue(args, '--run-id') || createEvalRunId(dataset);
+  const directory = path.resolve(optionValue(args, '--run-dir') || path.join(runsDirectory, runId));
+  return { directory, runId, resume: false };
+}
+
+function validateRunCheckpoint(checkpoint: EvalRunCheckpoint, dataset: string, datasetVersion: string, runsPerCase: number, totalRuns: number): void {
+  if (checkpoint.dataset !== dataset || checkpoint.datasetVersion !== datasetVersion || checkpoint.runsPerCase !== runsPerCase || checkpoint.totalRuns !== totalRuns) {
+    throw new Error(`Eval run checkpoint does not match dataset ${dataset}@${datasetVersion} runs=${runsPerCase}`);
+  }
+}
+
+async function assertOutputWritable(outputPath: string): Promise<void> {
+  const directory = path.dirname(path.resolve(outputPath));
+  await fs.mkdir(directory, { recursive: true });
+  const probePath = path.join(directory, `.eval-write-probe-${process.pid}-${Date.now()}`);
+  try {
+    await fs.writeFile(probePath, '');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Eval report output is not writable: ${outputPath}; ${message}`);
+  } finally {
+    await fs.unlink(probePath).catch(() => undefined);
+  }
+}
+
 function judgeConfig(args: string[]): { apiUrl: string; apiKey: string; modelId: string } {
   const apiUrl = optionValue(args, '--judge-api-url') || process.env.MINT_EVAL_JUDGE_API_URL;
   const apiKey = optionValue(args, '--judge-api-key') || process.env.MINT_EVAL_JUDGE_API_KEY;
@@ -68,6 +110,57 @@ function applyDatabaseOverride(args: string[]): string | undefined {
   const dbPath = cliPath ? path.resolve(cliPath) : envPath('MINT_EVAL_DB_PATH', '');
   if (dbPath) process.env.AI_CHAT_DB_PATH = dbPath;
   return dbPath || undefined;
+}
+
+interface EvalSearchConfig {
+  wikiSearchMode: 'keyword' | 'hybrid';
+  embeddingApiUrl: string;
+  embeddingModel: string;
+  embeddingDimensions: number;
+}
+
+function parseEmbeddingDimensions(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const dimensions = Number(value);
+  if (!Number.isInteger(dimensions) || dimensions !== 1024) {
+    throw new Error('--embedding-dimensions must be 1024 because sqlite-vec is configured for 1024 dimensions');
+  }
+  return dimensions;
+}
+
+function resolveEvalSearchConfig(args: string[], existing?: Partial<EvalSearchConfig>): EvalSearchConfig {
+  const mode = optionValue(args, '--wiki-search-mode')
+    || process.env.MINT_EVAL_WIKI_SEARCH_MODE
+    || 'hybrid';
+  if (mode !== 'keyword' && mode !== 'hybrid') throw new Error('--wiki-search-mode must be keyword or hybrid');
+  const embeddingDimensions = parseEmbeddingDimensions(
+    optionValue(args, '--embedding-dimensions') || process.env.MINT_EVAL_EMBEDDING_DIMENSIONS,
+  ) || existing?.embeddingDimensions || 1024;
+  if (embeddingDimensions !== 1024) throw new Error('Embedding dimensions must be 1024 because sqlite-vec is configured for 1024 dimensions');
+  return {
+    wikiSearchMode: mode,
+    embeddingApiUrl: optionValue(args, '--embedding-api-url')
+      || process.env.MINT_EVAL_EMBEDDING_API_URL
+      || existing?.embeddingApiUrl
+      || 'http://127.0.0.1:11434/v1',
+    embeddingModel: optionValue(args, '--embedding-model')
+      || process.env.MINT_EVAL_EMBEDDING_MODEL
+      || existing?.embeddingModel
+      || 'bge-m3',
+    embeddingDimensions,
+  };
+}
+
+function assertHybridVectorHealth(
+  health: { documentCount: number; vectorizedCount: number; coverage: number; failedCount: number },
+  phase: string,
+): void {
+  if (health.documentCount > 0 && health.coverage === 1 && health.failedCount === 0) return;
+  throw new Error(
+    `${phase} hybrid vector index is incomplete: documents=${health.documentCount}, `
+    + `vectorized=${health.vectorizedCount}, coverage=${health.coverage}, failed=${health.failedCount}. `
+    + 'Check MINT_EVAL_EMBEDDING_API_URL/MINT_EVAL_EMBEDDING_MODEL and rerun ingest.',
+  );
 }
 
 /** 输出不含提示词、回答或密钥的评测执行进度；`--quiet` 可关闭。 */
@@ -86,6 +179,27 @@ function logEvaluationProgress(update: EvalProgressUpdate): void {
 /** 执行评估 CLI 命令。 */
 async function main(): Promise<void> {
   if (command === 'list') { console.log(DATASET_NAMES.join('\n')); return; }
+  if (command === 'versions:list') {
+    const versions = await listResultVersions(versionDirectory(args), optionValue(args, '--dataset'));
+    console.log(JSON.stringify(versions, null, 2));
+    return;
+  }
+  if (command === 'versions:repair') {
+    const index = await repairResultVersionIndex(versionDirectory(args));
+    console.log(JSON.stringify(index, null, 2));
+    return;
+  }
+  if (command === 'versions:compare') {
+    const baselineId = requiredOption(args, '--baseline');
+    const currentId = requiredOption(args, '--current');
+    const baseline = await readResultVersion(baselineId, versionDirectory(args));
+    const current = await readResultVersion(currentId, versionDirectory(args));
+    const comparison = compareReports(current, baseline);
+    const output = path.resolve(optionValue(args, '--output') || path.join(evalDirectory, 'viewer/comparison.json'));
+    await writeReport(comparison, output);
+    console.log(JSON.stringify({ output, baseline: baselineId, current: currentId, comparison: comparison.comparison }, null, 2));
+    return;
+  }
   if (command === 'calibration:export') {
     const report = JSON.parse(await fs.readFile(path.resolve(requiredOption(args, '--report')), 'utf8')) as EvalReport;
     const output = path.resolve(optionValue(args, '--output') || path.join(evalDirectory, 'viewer/calibration-template.json'));
@@ -107,6 +221,10 @@ async function main(): Promise<void> {
       await fs.writeFile(outputPath, `${JSON.stringify(comparison, null, 2)}\n`, 'utf8');
     }
     console.log(JSON.stringify(comparison, null, 2));
+    if (args.includes('--require-calibrated') && !comparison.calibrated) {
+      process.exitCode = 2;
+      console.error('Judge calibration is below the P0 threshold; collect more representative human labels before using this Judge for regression decisions.');
+    }
     return;
   }
   if (command === 'pairwise') {
@@ -146,7 +264,8 @@ async function main(): Promise<void> {
     if (!apiUrl || !apiKey || !modelId) {
       throw new Error('Wiki ingestion requires --api-url, --api-key and --model (or MINT_EVAL_API_* environment variables)');
     }
-    const settings = server.configureEvalSettings({ apiUrl, apiKey, modelId, wikiPath: path.resolve(outputDir) });
+    const searchConfig = resolveEvalSearchConfig(args, existing);
+    const settings = server.configureEvalSettings({ apiUrl, apiKey, modelId, wikiPath: path.resolve(outputDir), ...searchConfig });
     const report = await ingestWikiRagCorpus(rawDir, outputDir, settings, server.ingestWikiSource, {
       clean: args.includes('--clean'),
       onProgress: (update) => {
@@ -155,35 +274,55 @@ async function main(): Promise<void> {
         else console.log(`[ingest] ${position} done ${update.sourceFile} pages=${update.pageCount}`);
       },
     });
+    const vectorHealth = server.getEvalVectorHealth(settings);
+    if (settings.wikiSearchMode === 'hybrid') assertHybridVectorHealth(vectorHealth, 'ingest');
     const pageCount = report.sources.reduce((sum, source) => sum + source.result.pages.length, 0);
-    console.log(JSON.stringify({ outputDir: report.outputDir, dbPath: path.resolve(dbPath), sourceCount: report.sources.length, pageCount }, null, 2));
+    console.log(JSON.stringify({ outputDir: report.outputDir, dbPath: path.resolve(dbPath), sourceCount: report.sources.length, pageCount, wikiSearchMode: settings.wikiSearchMode, vectorHealth }, null, 2));
     return;
   }
   if (command !== 'run') throw new Error(`Unknown eval command: ${command}`);
-  const datasetName = optionValue(args, '--dataset'); const runsValue = optionValue(args, '--runs'); const outputPath = optionValue(args, '--output'); const baselinePath = optionValue(args, '--baseline');
+  const datasetName = optionValue(args, '--dataset'); const runsValue = optionValue(args, '--runs'); const outputPath = optionValue(args, '--output'); const baselinePath = optionValue(args, '--baseline'); const versionId = optionValue(args, '--version');
   const live = args.includes('--live');
   const name = datasetName || 'smoke'; const runs = resolveRuns(runsValue, live);
   const output = outputPath || path.join(evalDirectory, 'viewer/report.json');
   const dbPath = applyDatabaseOverride(args);
   const dataset = await loadDataset(datasetPath(datasetsDirectory, name));
+  await repairResultVersionIndex(versionDirectory(args));
+  await assertOutputWritable(output);
+  const totalRuns = dataset.cases.length * runs;
+  const runLocation = resolveRunDirectory(args, name);
+  const checkpoint = runLocation.resume
+    ? await readEvalRun(runLocation.directory)
+    : await createEvalRun(runLocation.directory, { runId: runLocation.runId, dataset: dataset.name, datasetVersion: dataset.version, runsPerCase: runs, totalRuns });
+  validateRunCheckpoint(checkpoint, dataset.name, dataset.version, runs, totalRuns);
+  const needsExecution = checkpoint.results.length < totalRuns;
   let executor = smokeExecutor;
   if (args.includes('--dry-run')) executor = dryRunExecutor;
-  if (live) {
+  if (needsExecution && live) {
     const server = await import('mint-server/eval');
     const wikiPath = optionValue(args, '--wiki') || envPath('MINT_EVAL_WIKI_PATH', '');
     if (wikiPath && !dbPath) throw new Error('--wiki requires --db or MINT_EVAL_DB_PATH so the Wiki path remains isolated from production settings');
     const existing = server.getAiSettings();
     const settings = wikiPath
-      ? server.configureEvalSettings({ apiUrl: existing.apiUrl, apiKey: existing.apiKey, modelId: existing.modelId, wikiPath: path.resolve(wikiPath) })
+      ? server.configureEvalSettings({ apiUrl: existing.apiUrl, apiKey: existing.apiKey, modelId: existing.modelId, wikiPath: path.resolve(wikiPath), ...resolveEvalSearchConfig(args, existing) })
       : existing;
     if (!settings.wikiPath) throw new Error('Live Wiki-RAG evaluation requires --wiki <isolated-wiki-path> or a configured wikiPath');
+    if (settings.wikiSearchMode === 'hybrid') assertHybridVectorHealth(server.getEvalVectorHealth(settings), 'live evaluation');
     executor = server.createReactExecutor(settings);
   }
-  const judge = args.includes('--judge') ? createOpenAiJudge(judgeConfig(args)) : undefined;
-  const report = await runEvaluation(dataset, executor, runs, judge, args.includes('--quiet') ? undefined : logEvaluationProgress);
+  const judge = needsExecution && args.includes('--judge') ? createOpenAiJudge(judgeConfig(args)) : undefined;
+  const report = await runEvaluation(dataset, executor, runs, judge, args.includes('--quiet') ? undefined : logEvaluationProgress, {
+    initialResults: checkpoint.results,
+    onResult: async result => { await appendEvalRunResult(runLocation.directory, result); },
+  });
+  const resultVersion = versionId || createAutomaticVersionId(name, new Date(report.generatedAt));
+  const versionedReport = { ...report, resultVersion };
+  await writeReport(versionedReport, output);
+  await saveResultVersion(versionedReport, resultVersion, versionDirectory(args));
   const finalReport = baselinePath
-    ? compareReports(report, JSON.parse(await fs.readFile(path.resolve(baselinePath), 'utf8')) as EvalReport)
-    : report;
-  await writeReport(finalReport, output); console.log(JSON.stringify(finalReport.summary, null, 2));
+    ? compareReports(versionedReport, JSON.parse(await fs.readFile(path.resolve(baselinePath), 'utf8')) as EvalReport)
+    : versionedReport;
+  if (baselinePath) await writeReport(finalReport, output);
+  console.log(JSON.stringify(finalReport.summary, null, 2));
 }
 main().catch(error => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; });

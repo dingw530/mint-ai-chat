@@ -1,0 +1,29 @@
+{
+  "scenarios": [
+    {
+      "id": "eval-report-layered-gates",
+      "acceptanceCriteria": ["AC-5"],
+      "route": "/",
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/report.json",
+            "body": {
+              "dataset": "smoke",
+              "version": "dataset-v1",
+              "resultVersion": "layered-gates-v1",
+              "runsPerCase": 1,
+              "generatedAt": "2026-08-25T10:00:00.000Z",
+              "summary": {"totalRuns": 1, "passedRuns": 1, "queryPassedRuns": 1, "answerPassedRuns": 1, "passAt1": 1, "queryPassAt1": 1, "answerPassAt1": 1, "answerGatePassAt1": 1, "evidenceGatePassAt1": 0.8, "qualityPassAt1": 0.8, "passAtK": 1, "passAtKValue": 1, "passPowerK": 1, "passPowerKValue": 1, "toolSuccessRate": 1, "toolBudgetPassRate": 1, "wikiSearchBudgetPassRate": 1, "averageRounds": 1, "averageToolCalls": 0, "averageAttemptedToolCalls": 0, "averageBlockedToolCalls": 0, "averageWikiSearchCalls": 0, "averageAttemptedWikiSearchCalls": 0, "averageBlockedWikiSearchCalls": 0, "unrelatedToolRate": 0, "retryRate": 0, "loopRate": 0, "averageLatencyMs": 10, "p50LatencyMs": 10, "p95LatencyMs": 10, "averageInputTokens": 0, "averageOutputTokens": 0, "averageReasoningTokens": 0, "averageTtftMs": 0, "citationCoverageRate": 1, "citationAccuracyRate": 0.8, "citationGroundingRate": 0.8, "retrievalCoverageRate": 1, "abstentionAccuracy": 1, "essentialPassRate": 1, "importantPassRate": 1, "optionalPassRate": 1, "answerJudgePassAt1": 1, "evidenceJudgePassAt1": 0.8, "judgeRuns": 1, "judgePassAt1": 0.8, "averageJudgeScore": 0.85, "averageJudgeConfidence": 0.9, "judgeCriticalFailureRate": 0, "averageAnswerChars": 24},
+              "caseStats": [],
+              "results": []
+            }
+          },
+          {"pattern": "**/versions/index.json", "status": 200, "body": {"schemaVersion": 1, "versions": []}}
+        ]
+      },
+      "markers": ["答案 Gate", "证据 Gate", "质量通过率"],
+      "steps": []
+    }
+  ]
+}

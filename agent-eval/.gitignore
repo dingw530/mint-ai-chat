@@ -1,2 +1,4 @@
 .env
 dist
+viewer/versions/
+viewer/runs/

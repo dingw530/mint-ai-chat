@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildCalibrationTemplate, compareCalibration } from './calibration.js';
 import { assessJudgeResult, runEvaluation, validateCase, type EvalCase, type EvalJudgeResult } from './index.js';
-import { buildJudgePrompt, parseJudgeResponse } from './judge.js';
+import { buildJudgePrompt, createOpenAiJudge, parseJudgeResponse } from './judge.js';
 
 const judgeCase: EvalCase = {
   id: 'judge-001',
@@ -11,15 +11,16 @@ const judgeCase: EvalCase = {
     mustContain: ['检索'],
     requiredSourceFiles: ['rag.md'],
     minCitations: 1,
+    rubric: { essential: [{ type: 'answer_contains', value: '检索' }] },
     judgeRubric: {
       version: 'test-v1',
       pitfalls: ['只堆砌关键词'],
       edgeCases: ['资料不足时应拒答'],
       dimensions: [
-        { id: 'correctness', name: '正确性', importance: 'essential', scoring: { '1': '错误', '2': '部分正确', '3': '正确', '4': '准确完整' } },
-        { id: 'completeness', name: '完整性', importance: 'important', scoring: { '1': '遗漏核心', '2': '遗漏部分', '3': '覆盖核心', '4': '覆盖全部' } },
-        { id: 'style', name: '简洁性', importance: 'optional', scoring: { '1': '冗长', '2': '偏长', '3': '简洁', '4': '精炼' } },
-        { id: 'hallucination', name: '幻觉', importance: 'veto', veto: { pass: '均有证据', fail: '编造事实' } },
+        { id: 'correctness', name: '正确性', importance: 'essential', gate: 'answer', scoring: { '1': '错误', '2': '部分正确', '3': '正确', '4': '准确完整' } },
+        { id: 'completeness', name: '完整性', importance: 'important', gate: 'answer', scoring: { '1': '遗漏核心', '2': '遗漏部分', '3': '覆盖核心', '4': '覆盖全部' } },
+        { id: 'style', name: '简洁性', importance: 'optional', gate: 'both', scoring: { '1': '冗长', '2': '偏长', '3': '简洁', '4': '精炼' } },
+        { id: 'hallucination', name: '幻觉', importance: 'veto', gate: 'both', veto: { pass: '均有证据', fail: '编造事实' } },
       ],
     },
   },
@@ -54,6 +55,11 @@ describe('LLM Judge evaluation', () => {
       return approvedJudge;
     });
     expect(report.results[0]?.judgePassed).toBe(true);
+    expect(report.results[0]?.judge?.answerGatePassed).toBe(true);
+    expect(report.results[0]?.judge?.evidenceGatePassed).toBe(true);
+    expect(report.results[0]?.answerGate?.passed).toBe(true);
+    expect(report.results[0]?.evidenceGate?.passed).toBe(true);
+    expect(report.results[0]?.qualityPassed).toBe(true);
     expect(report.results[0]?.judge?.weightedScore).toBeCloseTo(0.875);
     expect(report.summary.judgePassAt1).toBe(1);
     expect(report.summary.averageAnswerChars).toBeGreaterThan(0);
@@ -67,6 +73,24 @@ describe('LLM Judge evaluation', () => {
     expect(report.results[0]?.judgePassed).toBe(false);
   });
 
+  it('sends keyword-only answer failures to Judge instead of treating them as final quality failures', async () => {
+    let called = false;
+    const report = await runEvaluation({ name: 'judge', version: '1', cases: [judgeCase] }, async () => ({
+      content: '资料支持 RAG 可以降低回答风险。',
+      events: [{ type: 'run_completed' }],
+      citations: [{ file: 'rag.md', refId: 'C1' }],
+    }), 1, async input => {
+      called = true;
+      expect(input.deterministic.answerPassed).toBe(false);
+      expect(input.deterministic.answerGate?.hardPassed).toBe(true);
+      return approvedJudge;
+    });
+    expect(called).toBe(true);
+    expect(report.results[0]?.qualityPassed).toBe(true);
+    expect(report.results[0]?.answerGate?.signalPassed).toBe(false);
+    expect(report.results[0]?.answerGate?.judgePassed).toBe(true);
+  });
+
   it('rejects missing judge dimensions and veto failures', () => {
     const rubric = judgeCase.expected.judgeRubric!;
     expect(() => assessJudgeResult(rubric, { ...approvedJudge, dimensions: approvedJudge.dimensions.slice(0, 3) })).toThrow('dimensions do not match');
@@ -78,10 +102,15 @@ describe('LLM Judge evaluation', () => {
     const report = await runEvaluation({ name: 'judge', version: '1', cases: [judgeCase] }, async () => ({ content: 'RAG 通过检索资料降低回答风险。', events: [{ type: 'run_completed' }], citations: [{ file: 'rag.md', refId: 'C1' }] }), 1, async () => approvedJudge);
     const template = buildCalibrationTemplate(report);
     template.labels[0]!.passed = true;
+    template.labels[0]!.answerGatePassed = true;
+    template.labels[0]!.evidenceGatePassed = true;
     template.labels[0]!.dimensions = approvedJudge.dimensions;
     const comparison = compareCalibration(report, template.labels);
     expect(comparison.matched).toBe(1);
     expect(comparison.passAgreementRate).toBe(1);
+    expect(comparison.answerGateAgreementRate).toBe(1);
+    expect(comparison.evidenceGateAgreementRate).toBe(1);
+    expect(comparison.calibrated).toBe(false);
     expect(comparison.dimensionExactAgreementRate).toBe(1);
   });
 
@@ -96,5 +125,27 @@ describe('LLM Judge evaluation', () => {
     const parsed = parseJudgeResponse({ choices: [{ message: { content: JSON.stringify({ ...approvedJudge, dimensions: undefined, scores: approvedJudge.dimensions, confidence: '0.8', summary: '兼容响应', shortReason: undefined }) } }] }, { apiUrl: 'https://example.test', apiKey: 'key', modelId: 'judge-model' });
     expect(parsed).toMatchObject({ confidence: 0.8, shortReason: '兼容响应', judgeModel: 'judge-model' });
     expect(parsed.dimensions).toHaveLength(4);
+  });
+
+  it('retries when an OpenAI-compatible provider returns an empty assistant message', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls += 1;
+      const body = calls === 1
+        ? { choices: [{ message: { content: null, reasoning_content: 'not an answer payload' }, finish_reason: 'stop' }] }
+        : { choices: [{ message: { content: JSON.stringify(approvedJudge) }, finish_reason: 'stop' }] };
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+    try {
+      const report = await runEvaluation({ name: 'judge', version: '1', cases: [judgeCase] }, async () => ({
+        content: 'RAG 先检索资料，再用检索结果生成回答。',
+        events: [{ type: 'run_completed' }],
+        citations: [{ file: 'rag.md', refId: 'C1' }],
+      }), 1, createOpenAiJudge({ apiUrl: 'https://example.test', apiKey: 'key', modelId: 'judge-model' }));
+      expect(calls).toBe(2);
+      expect(report.results[0]?.judgePassed).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

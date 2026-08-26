@@ -1,4 +1,4 @@
-import type { EvalJudgeInput, EvalJudgeResult, JudgeExecutor } from './index.js';
+import { getJudgeDimensionGate, type EvalJudgeInput, type EvalJudgeResult, type JudgeExecutor } from './index.js';
 import type { PairwiseJudgeExecutor, PairwiseJudgment } from './pairwise.js';
 
 export interface OpenAiJudgeConfig {
@@ -8,7 +8,44 @@ export interface OpenAiJudgeConfig {
 }
 
 interface ChatCompletionResponse {
-  choices?: Array<{ message?: { content?: string } }>;
+  choices?: Array<{
+    message?: { content?: unknown; refusal?: unknown };
+    text?: unknown;
+    finish_reason?: unknown;
+  }>;
+  output_text?: unknown;
+}
+
+function textFromContent(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (!Array.isArray(value)) return undefined;
+  const text = value.map((part) => {
+    if (!part || typeof part !== 'object') return '';
+    const candidate = (part as { text?: unknown }).text;
+    return typeof candidate === 'string' ? candidate : '';
+  }).join('');
+  return text.trim() ? text : undefined;
+}
+
+function extractJudgeContent(payload: unknown): string | undefined {
+  const response = payload as ChatCompletionResponse;
+  const choice = response.choices?.[0];
+  return textFromContent(choice?.message?.content)
+    || textFromContent(choice?.text)
+    || textFromContent(response.output_text);
+}
+
+function responseShape(payload: unknown): string {
+  const response = payload as ChatCompletionResponse;
+  const choice = response.choices?.[0];
+  const message = choice?.message;
+  return JSON.stringify({
+    topLevelKeys: payload && typeof payload === 'object' ? Object.keys(payload) : [],
+    choiceKeys: choice ? Object.keys(choice) : [],
+    messageKeys: message ? Object.keys(message) : [],
+    finishReason: choice?.finish_reason,
+    refusal: message?.refusal,
+  });
 }
 
 function completionUrl(apiUrl: string): string {
@@ -23,7 +60,7 @@ export function buildJudgePrompt(input: EvalJudgeInput): string {
   return JSON.stringify({
     task: 'Evaluate the agent result only from the supplied observable evidence. Do not reward length, style, keyword repetition, or unsupported claims. Do not infer hidden reasoning.',
     outputContract: {
-      dimensions: rubric.dimensions.map(dimension => ({ id: dimension.id, importance: dimension.importance, score: dimension.importance === 'veto' ? 'omit and set passed boolean' : 'integer 1-4', passed: dimension.importance === 'veto' ? 'boolean' : 'omit', evidenceIds: 'string[] using provided citation refId/chunkId/file when available', reason: 'short, evidence-based explanation' })),
+      dimensions: rubric.dimensions.map(dimension => ({ id: dimension.id, gate: getJudgeDimensionGate(dimension), importance: dimension.importance, score: dimension.importance === 'veto' ? 'omit and set passed boolean' : 'integer 1-4', passed: dimension.importance === 'veto' ? 'boolean' : 'omit', evidenceIds: 'string[] using provided citation refId/chunkId/file when available', reason: 'short, evidence-based explanation' })),
       criticalFailure: 'optional string',
       confidence: 'number 0-1',
       shortReason: 'short string',
@@ -49,7 +86,7 @@ export function buildJudgePrompt(input: EvalJudgeInput): string {
 
 /** 解析 OpenAI 兼容 Chat Completions 中的结构化 Judge 结果。 */
 export function parseJudgeResponse(payload: unknown, config: OpenAiJudgeConfig): EvalJudgeResult {
-  const content = (payload as ChatCompletionResponse).choices?.[0]?.message?.content;
+  const content = extractJudgeContent(payload);
   if (!content) throw new Error('Judge response does not contain message content');
   let parsed: unknown;
   try { parsed = JSON.parse(content); } catch { throw new Error('Judge response is not valid JSON'); }
@@ -76,12 +113,6 @@ async function requestJudge(config: OpenAiJudgeConfig, messages: Array<{ role: s
   return response.json();
 }
 
-function judgeContent(payload: unknown): string {
-  const content = (payload as ChatCompletionResponse).choices?.[0]?.message?.content;
-  if (!content) throw new Error('Judge response does not contain message content');
-  return content;
-}
-
 /** 创建显式调用 OpenAI 兼容 JSON Judge 的执行器。 */
 export function createOpenAiJudge(config: OpenAiJudgeConfig): JudgeExecutor {
   if (!config.apiUrl || !config.apiKey || !config.modelId) throw new Error('Judge requires apiUrl, apiKey and modelId');
@@ -91,12 +122,18 @@ export function createOpenAiJudge(config: OpenAiJudgeConfig): JudgeExecutor {
       { role: 'system', content: 'You are a strict evaluation judge. Return only valid JSON that follows the requested contract.' },
       { role: 'user', content: prompt },
     ];
-    const payload = await requestJudge(config, messages);
-    try { return parseJudgeResponse(payload, config); } catch (error) {
-      const correction = `Your previous JSON did not match the contract. Return a corrected JSON object only; preserve the evaluation, do not add fields. Contract and previous output:\n${JSON.stringify({ contract: JSON.parse(prompt).outputContract, previous: judgeContent(payload).slice(0, 12000) })}`;
-      const retry = await requestJudge(config, [...messages, { role: 'user', content: correction }]);
-      try { return parseJudgeResponse(retry, config); } catch { throw error; }
+    let payload = await requestJudge(config, messages);
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try { return parseJudgeResponse(payload, config); } catch (error) {
+        lastError = error;
+        const previous = extractJudgeContent(payload)?.slice(0, 12000)
+          || `No usable assistant content was returned. Response shape: ${responseShape(payload)}`;
+        const correction = `Your previous JSON did not match the contract. Return a corrected JSON object only; preserve the evaluation, do not add fields. Contract and previous output:\n${JSON.stringify({ contract: JSON.parse(prompt).outputContract, previous })}`;
+        payload = await requestJudge(config, [...messages, { role: 'user', content: correction }]);
+      }
     }
+    throw lastError instanceof Error ? lastError : new Error('Judge response could not be parsed');
   };
 }
 
@@ -118,7 +155,7 @@ export function createOpenAiPairwiseJudge(config: OpenAiJudgeConfig): PairwiseJu
       }),
     });
     if (!response.ok) throw new Error(`Pairwise judge request failed: ${response.status} ${await response.text()}`);
-    const content = (await response.json() as ChatCompletionResponse).choices?.[0]?.message?.content;
+    const content = extractJudgeContent(await response.json());
     if (!content) throw new Error('Pairwise judge response does not contain message content');
     let parsed: unknown;
     try { parsed = JSON.parse(content); } catch { throw new Error('Pairwise judge response is not valid JSON'); }

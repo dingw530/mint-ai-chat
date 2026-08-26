@@ -32,6 +32,10 @@ npm run eval:wiki-rag:dry
 | `MINT_EVAL_API_URL` | AI API 根地址，例如 `https://api.example.com` | `ingest` 必需 |
 | `MINT_EVAL_API_KEY` | AI API Key | `ingest` 必需 |
 | `MINT_EVAL_MODEL_ID` | 模型 ID | `ingest` 必需 |
+| `MINT_EVAL_WIKI_SEARCH_MODE` | Wiki 检索模式：`keyword` 或 `hybrid`，live 默认 `hybrid` | 可选 |
+| `MINT_EVAL_EMBEDDING_API_URL` | OpenAI 兼容 Embedding API 根地址 | hybrid 必需 |
+| `MINT_EVAL_EMBEDDING_MODEL` | Embedding 模型，默认 `bge-m3` | hybrid 必需 |
+| `MINT_EVAL_EMBEDDING_DIMENSIONS` | 向量维度，当前必须为 `1024` | hybrid 必需 |
 | `MINT_EVAL_JUDGE_API_URL` | Judge 的 OpenAI 兼容 API 根地址 | 使用 `--judge` 必需 |
 | `MINT_EVAL_JUDGE_API_KEY` | Judge API Key | 使用 `--judge` 必需 |
 | `MINT_EVAL_JUDGE_MODEL_ID` | Judge 模型 ID | 使用 `--judge` 必需 |
@@ -42,6 +46,8 @@ npm run eval:wiki-rag:dry
 | `EVAL_VIEWER_PORT` | 报告查看器端口，默认 `4174` | 可选 |
 
 OpenAI 兼容适配器会自动补充 `/v1/chat/completions`，因此 `MINT_EVAL_API_URL` 通常不要再写 `/v1`。
+
+Wiki hybrid 检索会额外调用 `${MINT_EVAL_EMBEDDING_API_URL}/embeddings`，并使用 FTS 关键词结果与向量结果做 RRF 融合。当前 Embedding 客户端不发送认证 Header，因此默认配置适用于本机 Ollama 等无认证服务；远程需要认证的服务暂不能直接用于该命令。`ingest` 完成后会强制校验向量覆盖率为 100%，向量化失败不会静默降级为关键词评测。
 
 Judge 与被测 Agent 配置分离。`--judge` 未显式开启时，评测不会发起 Judge 网络请求；建议使用与被测 Agent 不同模型家族的 Judge，并定期通过人工金标校准。
 
@@ -106,6 +112,29 @@ npm run eval:wiki-rag:live -w agent-eval
 npm run eval:wiki-rag -w agent-eval
 ```
 
+每次运行都会自动保存一个不可覆盖的结果版本；版本 ID 默认按“数据集-时间-随机后缀”生成。需要人工指定稳定名称时，可以传 `--version`：
+
+```bash
+npm run eval:wiki-rag:dry -w agent-eval -- \
+  --version prompt-v1 \
+  --version-dir /tmp/mint-agent-eval-versions
+
+npm run eval:versions:list -w agent-eval -- \
+  --version-dir /tmp/mint-agent-eval-versions
+
+npm run eval:versions:repair -w agent-eval -- \
+  --version-dir /tmp/mint-agent-eval-versions
+
+npm run eval:versions:compare -w agent-eval -- \
+  --baseline prompt-v1 --current prompt-v2 \
+  --version-dir /tmp/mint-agent-eval-versions \
+  --output /tmp/mint-agent-eval-comparison.json
+```
+
+`--version` 只用于自定义版本名，保存完整报告并拒绝覆盖已有 ID；不传时仍会自动保存。默认版本库为 `agent-eval/viewer/versions/`，可用 `--version-dir` 隔离 CI 或临时评测。`versions:list` 输出版本摘要，`versions:compare` 输出与现有 `--baseline <报告路径>` 相同的指标差值。启动 `npm run viewer -w agent-eval` 后，报告页会自动发现 `versions/index.json`，可以在页面上切换当前版本、选择基线并查看对比。
+
+评测会在默认 `agent-eval/viewer/runs/<run-id>/checkpoint.json` 中原子保存每个已完成 run。长任务中断后可使用 `--resume <run-id 或检查点目录>` 继续，已完成的 run 不会再次调用 Agent/Judge；也可以用 `--run-dir`、`--runs-dir` 指定检查点位置。启动评测前会预检并规范化版本索引；如果最终索引写入失败，已生成的报告会保留在主输出或 `versions/recovery/`，不会被删除。`versions:repair` 可手动重建索引。
+
 报告默认写入 `agent-eval/viewer/report.json`，包含：
 
 - `passAt1`：单次通过率
@@ -122,8 +151,11 @@ npm run eval:wiki-rag -w agent-eval
 - `essentialPassRate` / `importantPassRate` / `optionalPassRate`：分层 Rubric 通过率；Veto 中描述的是禁止出现的条件，命中后会直接否决用例
 - `citationCoverageRate`：引用断言覆盖率
 - `citationAccuracyRate`：来源引用准确率
+- `citationGroundingRate`：最终答案引用能在本次检索证据中找到对应身份的比例
 - `retrievalCoverageRate`：工具检索结果对目标来源断言的覆盖率；它与最终答案展示的引用覆盖率分开统计
 - `abstentionAccuracy`：无答案拒答准确率
+- `answerGatePassAt1` / `evidenceGatePassAt1`：答案 Gate / 证据 Gate 的最终通过率；答案 Gate 会区分硬条件和关键词等弱信号
+- `qualityPassAt1`：答案 Gate 与证据 Gate 同时通过率
 
 多次运行并与历史报告比较：
 
@@ -173,12 +205,20 @@ node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
   --db /tmp/mint-wiki-rag-agent-eval.db \
   --api-url https://api.example.com \
   --api-key "$MINT_EVAL_API_KEY" \
-  --model "$MINT_EVAL_MODEL_ID"
+  --model "$MINT_EVAL_MODEL_ID" \
+  --wiki-search-mode hybrid \
+  --embedding-api-url "$MINT_EVAL_EMBEDDING_API_URL" \
+  --embedding-model "$MINT_EVAL_EMBEDDING_MODEL" \
+  --embedding-dimensions "$MINT_EVAL_EMBEDDING_DIMENSIONS"
 
 node scripts/with-node-version.cjs tsx agent-eval/src/cli.ts \
   run --dataset wiki-rag --live --runs 3 \
   --wiki /tmp/mint-wiki-rag-ingested \
-  --db /tmp/mint-wiki-rag-agent-eval.db
+  --db /tmp/mint-wiki-rag-agent-eval.db \
+  --wiki-search-mode hybrid \
+  --embedding-api-url "$MINT_EVAL_EMBEDDING_API_URL" \
+  --embedding-model "$MINT_EVAL_EMBEDDING_MODEL" \
+  --embedding-dimensions "$MINT_EVAL_EMBEDDING_DIMENSIONS"
 ```
 
 Live 评测支持两种运行规模：`--runs 1` 用于快速验证，`--runs 3` 用于计算 Pass@3 和 Pass^3；未指定时默认运行 3 次。其他运行次数会被 CLI 拒绝。
@@ -187,9 +227,9 @@ Live 评测支持两种运行规模：`--runs 1` 用于快速验证，`--runs 3`
 
 ## LLM-as-a-Judge
 
-确定性验证仍负责工具预算、审批边界、引用身份和最终状态。LLM Judge 只在这些硬门禁通过后，依据用例的 `expected.judgeRubric` 评估事实正确性、证据支撑、完整性和可观察轨迹质量；Judge 高分不会覆盖硬门禁失败。
+确定性验证仍负责工具预算、审批边界、引用身份、检索覆盖和最终状态。答案关键词只作为可审计的弱信号；当安全、状态、工具预算和证据结构硬条件满足时，即使关键词信号失败也会进入 LLM Judge。Judge 依据用例的 `expected.judgeRubric` 分别评估答案 Gate 与证据 Gate；Judge 高分不会覆盖安全、审批、引用身份或检索覆盖失败。
 
-`judgeRubric` 包含 Essential / Important / Optional / Veto 维度。非 Veto 维度使用 1–4 分的可观察标准；Veto 使用 pass/fail。Judge 结果必须返回每个维度的证据 ID、理由、置信度和简短结论。为避免长度偏差，Rubric 可设置 `maxAnswerChars`，报告会记录答案字符数。
+`judgeRubric` 包含 Essential / Important / Optional / Veto 维度。非 Veto 维度使用 1–4 分的可观察标准；Veto 使用 pass/fail。每个维度可声明 `gate: answer | evidence | both`，旧 Rubric 未声明时按维度 ID 兼容映射。Judge 结果必须返回每个维度的证据 ID、理由、置信度和简短结论。为避免长度偏差，Rubric 可设置 `maxAnswerChars`，报告会记录答案字符数。
 
 运行真实 Judge：
 
@@ -216,7 +256,14 @@ npm run eval:calibration:export -w agent-eval -- --report /tmp/judged-report.jso
 npm run eval:calibration:compare -w agent-eval -- --report /tmp/judged-report.json --labels /tmp/judge-labels.json
 ```
 
-比较结果包含总体通过一致率、维度精确一致率、平均绝对误差和待人工复核的分歧。建议积累 100–200 条覆盖成功、失败、边界和对抗样本的人工金标；Judge 模型或 Rubric 改动后重新校准。
+比较结果包含总体通过一致率、答案 Gate 一致率、证据 Gate 一致率、维度精确一致率、平均绝对误差、样本是否充足和 `calibrated` 结论。P0 默认要求至少 20 条同题同轮人工标注，且总体/答案 Gate/证据 Gate/维度一致率均达到 80%；可用 `--require-calibrated` 让校准不足的命令以非零状态退出。建议继续积累 100–200 条覆盖成功、失败、边界和对抗样本的人工金标；Judge 模型或 Rubric 改动后重新校准。
+
+```bash
+npm run eval:calibration:compare -w agent-eval -- \
+  --report /tmp/judged-report.json \
+  --labels /tmp/judge-labels.json \
+  --require-calibrated
+```
 
 ### A/B 配对评审与 Elo
 

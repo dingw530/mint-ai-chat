@@ -35,6 +35,23 @@ describe('agent-eval', () => {
     ]);
   });
 
+  it('persists each completed run and resumes without re-executing it', async () => {
+    const dataset = { name: 'resume', version: '1', cases: [{ ...securityCase, expected: {} }] };
+    const persisted: EvalCaseResult[] = [];
+    let executions = 0;
+    const first = await runEvaluation(dataset, async () => {
+      executions += 1;
+      return { content: '回答', events: [{ type: 'run_completed' }] };
+    }, 2, undefined, undefined, { onResult: result => { persisted.push(result); } });
+    expect(first.summary.totalRuns).toBe(2);
+    expect(executions).toBe(2);
+    const resumed = await runEvaluation(dataset, async () => {
+      throw new Error('resumed runs must not execute again');
+    }, 2, undefined, undefined, { initialResults: persisted });
+    expect(resumed.summary.totalRuns).toBe(2);
+    expect(resumed.results).toHaveLength(2);
+  });
+
   it('loads the bundled smoke dataset', async () => {
     const dataset = await loadDataset(path.resolve('datasets/smoke.json'));
     expect(dataset.cases.map(item => item.id)).toEqual(['qa-001', 'wiki-001', 'security-001']);
@@ -135,6 +152,24 @@ describe('agent-eval', () => {
     expect(result.queryPassed).toBe(false);
     expect(result.passed).toBe(false);
     expect(result.reasons).toContain('missing required source: source-rag.md');
+  });
+
+  it('rejects final citations that are not grounded in retrieved evidence', () => {
+    const evalCase: EvalCase = {
+      id: 'wiki-citation-grounding-001',
+      input: '问题',
+      tags: ['wiki', 'citation'],
+      expected: { minCitations: 1 },
+    };
+    const result = verifyExecution(evalCase, {
+      content: '回答',
+      events: [{ type: 'run_completed' }],
+      citations: [{ file: 'pages/other.md', refId: 'wrong' }],
+      retrievedCitations: [{ file: 'pages/rag.md', refId: 'retrieved' }],
+    }, 1, 10);
+    expect(result.citationGroundingPassed).toBe(false);
+    expect(result.evidenceGate?.hardPassed).toBe(false);
+    expect(result.qualityPassed).toBe(false);
   });
 
   it('requires an explicit abstention for unanswerable questions', () => {
