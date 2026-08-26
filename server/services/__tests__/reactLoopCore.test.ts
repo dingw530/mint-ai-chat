@@ -101,6 +101,47 @@ describe('reactChat', () => {
     expect(events.some((event) => event.type === 'thought' && event.content === 'final answer')).toBe(false);
   });
 
+  it('adds a transparent Wiki source footer when the final answer omits citations', async () => {
+    const wikiCall = {
+      id: 'wiki-call-1',
+      type: 'function' as const,
+      function: { name: 'wiki_search', arguments: '{"question":"RAG"}' },
+    };
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockResolvedValueOnce({ content: '', reasoning: '', toolCalls: [wikiCall] })
+      .mockResolvedValueOnce({ content: 'RAG 通过检索外部知识降低幻觉。', reasoning: '', toolCalls: null });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
+      assistantMsg: { role: 'assistant', content: '', tool_calls: [wikiCall] },
+      toolMsg: { role: 'tool', tool_call_id: wikiCall.id, content: '{}' },
+      succeeded: true,
+      rawResult: {
+        results: [{
+          file: 'pages/rag.md',
+          title: 'RAG',
+          heading: 'Overview',
+          chunkId: 'pages/rag.md#chunk:0',
+          granularity: 'chunk',
+          content: 'RAG evidence',
+        }],
+      },
+    });
+
+    const result = await reactChat(
+      [{ role: 'user', content: 'RAG 是什么？' }],
+      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+      sink,
+    );
+
+    expect(result.content).toContain('参考来源（模型未逐句标注）：[C1]');
+    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
+    expect(events.some((event) => event.type === 'a2ui')).toBe(true);
+    expect(result.wikiReferences).toEqual([
+      expect.objectContaining({ file: 'pages/rag.md', refId: 'C1', granularity: 'chunk' }),
+    ]);
+  });
+
   it('preserves tool call order while correlating same-name calls by callId', async () => {
     const firstCall = {
       id: 'call-1',

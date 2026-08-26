@@ -20,6 +20,8 @@ import {
   type AgentStatusSnapshot,
 } from './agentStatusBar.js';
 import { A2UIComposer } from './a2ui/composer.js';
+import { buildMissingWikiCitationFooter } from './utils/wikiCitationGate.js';
+import { withLangfuseAgentContext } from './observability/langfuse.js';
 
 // ── 编辑距离相似度（用于循环检测） ──
 function levenshteinSimilarity(a: string, b: string): number {
@@ -555,8 +557,11 @@ export async function executeReactRun(
       if (!answerStreamedThisRound && result.content) {
         emitComposedAnswer(a2uiComposer, events, runId, round, result.content);
       }
+      const citationFooter = buildMissingWikiCitationFooter(result.content, a2uiComposer.getReferences());
+      if (citationFooter) emitComposedAnswer(a2uiComposer, events, runId, round, citationFooter);
+      const finalContent = `${result.content}${citationFooter}`;
       emitComposedAnswer(a2uiComposer, events, runId, round, '', true);
-      state.finalContent = a2uiComposer.sanitizeContent(result.content);
+      state.finalContent = a2uiComposer.sanitizeContent(finalContent);
       state.finalReasoning = result.reasoning;
       state.streamedAsAnswer = true;
       events.emit({
@@ -608,11 +613,16 @@ export async function executeReactRun(
           event: {
             kind: 'tool_result',
             toolName: toolCall.function.name,
+            toolCallId: toolCall.id,
             result: toolResult.toolMsg.content,
           },
         });
         if (toolResult.rawResult !== undefined) {
-          a2uiComposer.captureToolResult(toolCall.function.name, toolResult.rawResult);
+          a2uiComposer.captureToolResult(toolCall.function.name, toolResult.rawResult, {
+            runId,
+            round,
+            toolCallId: toolCall.id,
+          });
         }
         if (uiResult.contextResult) toolResult.toolMsg.content = uiResult.contextResult;
         currentMessages.push(toolResult.assistantMsg, toolResult.toolMsg);
@@ -695,7 +705,15 @@ export async function reactChat(
   const detachSink = subscribeReactEvents(run, sink);
   if (run.getSnapshot().sequence === 0) new ReactEventEmitter(run).emit({ type: 'run_started', state: 'running' });
   try {
-    return await executeReactRun(messages, settings, run, agent, signal, conversationId, executionPolicy);
+    return await withLangfuseAgentContext(run, () => executeReactRun(
+      messages,
+      settings,
+      run,
+      agent,
+      signal,
+      conversationId,
+      executionPolicy,
+    ));
   } finally {
     detachSink();
     if (!sink.writableEnded) sink.end();

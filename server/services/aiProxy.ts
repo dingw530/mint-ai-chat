@@ -1,8 +1,7 @@
 import { getAllToolDefinitions } from './toolOrchestration.js';
 import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
-import type { ApiAdapter} from './adapters/apiAdapter.js';
-import { AI_REQUEST_TIMEOUT_MS, getAdapter } from './adapters/apiAdapter.js';
-import { createLogger } from '../utils/logger.js';
+import type { AdapterStream, ApiAdapter } from './adapters/apiAdapter.js';
+import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
 import type { Sink } from './sink.js';
 import { getErrorMessage } from '../utils/typeGuards.js';
@@ -11,13 +10,12 @@ import { ReactEventEmitter, subscribeReactEvents } from './reactEvents.js';
 import type { ReactEventPayload } from './reactEvents.js';
 import { estimateMessagesTokens } from './utils/tokenEstimator.js';
 import { randomUUID } from 'node:crypto';
+import { withLangfuseAgentContext } from './observability/langfuse.js';
 
 // 导入 Adapter 实现（触发 registerAdapter 自注册）
 import './adapters/openaiChatAdapter.js';
 import './adapters/anthropicAdapter.js';
 import './adapters/openaiResponsesAdapter.js';
-
-const log = createLogger('ai-proxy');
 
 function getApiAdapter(settings: AiSettings): ApiAdapter {
   const adapter = getAdapter(settings.apiType || 'openai-chat');
@@ -29,42 +27,13 @@ function getApiAdapter(settings: AiSettings): ApiAdapter {
 
 // ── 兼容层：读取 SSE 流，可选择实时写入 Sink ──
 export async function readStream(
-  response: Response,
+  stream: AdapterStream,
   adapter: ApiAdapter,
   sink?: Sink,
   options?: { eventType?: string; signal?: AbortSignal; emitEvent?: (event: ReactEventPayload) => void },
 ): Promise<StreamResult> {
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw Object.assign(new Error(`AI API error (${response.status}): ${errorText}`), {
-      status: response.status,
-    });
-  }
-
-  const result = await parseSSEStream(response, adapter, sink, options);
+  const result = await parseSSEStream(stream, adapter, sink, options);
   return result;
-}
-
-// ── 调用 AI API，返回 fetch Response ──
-export async function streamFromAPI(url: string, headers: Record<string, string>, body: Record<string, unknown>, label?: string): Promise<Response> {
-  const bodyPreview = JSON.stringify(body).substring(0, 500);
-  log.debug('streamFromAPI', { label: label || 'unnamed', url, method: 'POST', bodyPreview });
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    log.error('streamFromAPI failed', { label: label || 'unnamed', url, status: response.status, errorText: errorText.substring(0, 1000) });
-  } else {
-    log.debug('streamFromAPI success', { label: label || 'unnamed', url, status: response.status });
-  }
-
-  return response;
 }
 
 // 核心入口：发起 AI 流式对话，支持无工具/有工具两条路径
@@ -108,22 +77,18 @@ export async function streamChat(
   }
 
   const adapter = getApiAdapter(settings);
-  const url = adapter.getUrl(apiUrl);
-  const headers = adapter.getHeaders(apiKey);
-
   // 获取 Agent 可用的工具列表
   const tools = await getAllToolDefinitions(agent);
   const hasTools = tools.length > 0;
 
   // 快速路径：无工具调用，直接将 AI SSE 流透传到前端
   if (!hasTools) {
-    const body = adapter.buildRequest(messages, settings);
-    const response = await streamFromAPI(url, headers, body, 'streamChat-fast');
+    const stream = await withLangfuseAgentContext(run, () => adapter.stream(messages, settings, apiUrl, apiKey));
     try {
-      const result = await readStream(response, adapter, undefined, {
-        eventType: 'answer',
-        emitEvent: (event) => events.emit(event),
-      });
+      const result = await withLangfuseAgentContext(run, () => readStream(stream, adapter, undefined, {
+          eventType: 'answer',
+          emitEvent: (event) => events.emit(event),
+        }));
       complete(messages, result);
       return result;
     } catch (err) {
@@ -135,9 +100,9 @@ export async function streamChat(
   // 工具路径：先通过引擎执行首轮，判断是否触发 tool_call
   let result: StreamResult;
   try {
-    result = await toolLoopEngine.executeRound(
+    result = await withLangfuseAgentContext(run, () => toolLoopEngine.executeRound(
       { messages, settings, tools, adapter, label: 'streamChat-tool1' },
-    );
+    ));
   } catch (err) {
     fail(err);
     return { content: '', reasoning: '', toolCalls: null };
@@ -169,15 +134,15 @@ export async function streamChat(
 
   let secondResult: StreamResult;
   try {
-    secondResult = await toolLoopEngine.executeRound(
-      {
-        messages: secondMessages,
-        settings,
-        adapter,
-        label: 'react-answer',
-        emitEvent: (event) => events.emit(event),
-      },
-    );
+    secondResult = await withLangfuseAgentContext(run, () => toolLoopEngine.executeRound(
+        {
+          messages: secondMessages,
+          settings,
+          adapter,
+          label: 'react-answer',
+          emitEvent: (event) => events.emit(event),
+        },
+      ));
   } catch (err) {
     fail(err);
     return { content: '', reasoning: '', toolCalls: null };

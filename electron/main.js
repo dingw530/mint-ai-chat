@@ -15,6 +15,16 @@ const isDev = !app.isPackaged;
 // ── 尽早初始化日志（在 app ready 之前就准备好日志路径） ──
 
 const MINT_DIR = path.join(os.homedir(), '.mint');
+const MINT_ENV_KEYS = new Set([
+  'AI_CHAT_ENCRYPTION_KEY',
+  'LANGFUSE_PUBLIC_KEY',
+  'LANGFUSE_SECRET_KEY',
+  'LANGFUSE_BASE_URL',
+  'MINT_LANGFUSE_ENABLED',
+  'MINT_LANGFUSE_ENVIRONMENT',
+  'MINT_LANGFUSE_CAPTURE_CONTENT',
+  'LANGFUSE_DEBUG'
+]);
 
 function getLogDir() {
   try {
@@ -70,27 +80,40 @@ function getEnvFilePath() {
 
 function loadOrCreateEncryptionKey() {
   const envPath = getEnvFilePath();
+  const providedByProcess = Boolean(process.env.AI_CHAT_ENCRYPTION_KEY);
 
+  loadMintEnvironment(envPath);
   if (process.env.AI_CHAT_ENCRYPTION_KEY) {
-    logger.info('AI_CHAT_ENCRYPTION_KEY loaded from system environment');
+    logger.info(`AI_CHAT_ENCRYPTION_KEY loaded from ${providedByProcess ? 'system environment' : '.env file'}`);
     return;
-  }
-
-  if (fs.existsSync(envPath)) {
-    const content = fs.readFileSync(envPath, 'utf-8');
-    const match = content.match(/^AI_CHAT_ENCRYPTION_KEY=(.+)$/m);
-    if (match) {
-      process.env.AI_CHAT_ENCRYPTION_KEY = match[1].trim();
-      logger.info('AI_CHAT_ENCRYPTION_KEY loaded from .env file');
-      return;
-    }
   }
 
   const key = crypto.randomBytes(32).toString('hex');
   logger.info('Generated new encryption key');
-  fs.writeFileSync(envPath, `AI_CHAT_ENCRYPTION_KEY=${key}\n`, 'utf-8');
+  const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8').trimEnd() : '';
+  fs.writeFileSync(envPath, `${existing}${existing ? '\n' : ''}AI_CHAT_ENCRYPTION_KEY=${key}\n`, 'utf-8');
   logger.info(`Encryption key saved to: ${envPath}`);
   process.env.AI_CHAT_ENCRYPTION_KEY = key;
+}
+
+/** Loads only approved Mint runtime variables from the user's ~/.mint/.env file. */
+function loadMintEnvironment(envPath) {
+  if (!fs.existsSync(envPath)) return;
+
+  logger.info(`Minting environment: ${envPath}`);
+  const content = fs.readFileSync(envPath, 'utf-8');
+  for (const line of content.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || !MINT_ENV_KEYS.has(match[1]) || process.env[match[1]]) continue;
+    process.env[match[1]] = unquoteEnvValue(match[2]);
+  }
+}
+
+function unquoteEnvValue(value) {
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 // ── Server 生命周期（in-process：导入 ESM 模块启动 Express） ──

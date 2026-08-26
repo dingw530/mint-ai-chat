@@ -3,7 +3,7 @@
 // 不依赖 Express，可单元测试
 
 import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
-import type { ApiAdapter } from './adapters/apiAdapter.js';
+import type { AdapterStream, ApiAdapter, ParsedChunk } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { executeTool, getToolResultSummary } from './toolOrchestration.js';
 import { createLogger } from '../utils/logger.js';
@@ -50,12 +50,12 @@ export interface ToolExecutionResult {
   rawResult?: unknown;
 }
 
-// ── SSE 流解析（无 Express 依赖） ──
-// 从 fetch Response 中读取 SSE data，通过 sink 实时回传，同时累加返回结构化结果
+// ── 模型流解析（无 Express 依赖） ──
+// AI SDK 已负责 Provider 协议解析，这里只累加统一 chunk 并转发 Mint 事件。
 
 export async function parseSSEStream(
-  response: Response,
-  adapter: ApiAdapter,
+  stream: AdapterStream,
+  _adapter?: ApiAdapter,
   sink?: Sink,
   options?: {
     eventType?: string;
@@ -63,99 +63,75 @@ export async function parseSSEStream(
     emitEvent?: (event: ReactEventPayload) => void;
   },
 ): Promise<ToolRoundResult> {
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw Object.assign(new Error(`AI API error (${response.status}): ${errorText}`), {
-      status: response.status,
-    });
-  }
-
-  const reader = (response.body as ReadableStream<Uint8Array>).getReader();
-  const decoder = new TextDecoder();
   let fullContent = '';
   let fullReasoning = '';
   const toolCalls: (ToolCall | null)[] = [];
-  let buffer = '';
 
-  try {
-    while (true) {
-      if (options?.signal?.aborted) break;
+  for await (const chunk of stream) {
+    if (options?.signal?.aborted) break;
+    if (chunk.isFinished) break;
 
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-
-        const chunk = adapter.parseChunk(data);
-        if (!chunk) continue;
-
-        if (chunk.isFinished) {
-          break;
-        }
-
-        if (chunk.toolCallDelta) {
-          const tc = chunk.toolCallDelta;
-          if (!toolCalls[tc.index]) {
-            toolCalls[tc.index] = {
-              id: '',
-              type: 'function',
-              function: { name: '', arguments: '' },
-            };
-          }
-          if (tc.id) toolCalls[tc.index]!.id = tc.id;
-          if (tc.type) toolCalls[tc.index]!.type = tc.type;
-          if (tc.function) {
-            if (tc.function.name) toolCalls[tc.index]!.function.name += tc.function.name;
-            if (tc.function.arguments)
-              toolCalls[tc.index]!.function.arguments += tc.function.arguments;
-          }
-        }
-
-        if (chunk.content) {
-          fullContent += chunk.content;
-          const event = {
-            content: chunk.content,
-            ...(options?.eventType ? { type: options.eventType } : {}),
-          };
-          if (
-            options?.emitEvent &&
-            (options.eventType === 'thought' || options.eventType === 'answer')
-          )
-            options.emitEvent(event as ReactEventPayload);
-          else sink?.write(JSON.stringify(event));
-        }
-
-        if (chunk.reasoning) {
-          fullReasoning += chunk.reasoning;
-          const event = {
-            reasoning: chunk.reasoning,
-            ...(options?.eventType ? { type: options.eventType } : {}),
-          };
-          if (
-            options?.emitEvent &&
-            (options.eventType === 'thought' || options.eventType === 'answer')
-          )
-            options.emitEvent(event as ReactEventPayload);
-          else sink?.write(JSON.stringify(event));
-        }
-      }
+    if (chunk.toolCallDelta) {
+      appendToolCall(toolCalls, chunk.toolCallDelta);
     }
-  } finally {
-    reader.releaseLock();
+
+    if (chunk.content) {
+      fullContent += chunk.content;
+      writeChunk({ content: chunk.content, ...(options?.eventType ? { type: options.eventType } : {}) }, sink, options);
+    }
+
+    if (chunk.reasoning) {
+      fullReasoning += chunk.reasoning;
+      writeChunk({ reasoning: chunk.reasoning, ...(options?.eventType ? { type: options.eventType } : {}) }, sink, options);
+    }
   }
 
   const hasToolCalls = toolCalls.length > 0;
   return {
     content: fullContent,
     reasoning: fullReasoning,
-    toolCalls: hasToolCalls ? (toolCalls as ToolCall[]) : null,
+    toolCalls: hasToolCalls ? toolCalls.filter((toolCall): toolCall is ToolCall => toolCall !== null) : null,
   };
+}
+
+function appendToolCall(toolCalls: (ToolCall | null)[], delta: ParsedChunk['toolCallDelta']): void {
+  if (!delta) return;
+  if (!toolCalls[delta.index]) {
+    toolCalls[delta.index] = {
+      id: '',
+      type: 'function',
+      function: { name: '', arguments: '' },
+    };
+  }
+  const toolCall = toolCalls[delta.index]!;
+  if (delta.id) toolCall.id = delta.id;
+  if (delta.type) toolCall.type = delta.type;
+  if (delta.function?.name) toolCall.function.name += delta.function.name;
+  if (delta.function?.arguments) toolCall.function.arguments += delta.function.arguments;
+}
+
+function writeChunk(
+  event: { content?: string; reasoning?: string; type?: string },
+  sink: Sink | undefined,
+  options: { eventType?: string; emitEvent?: (event: ReactEventPayload) => void } | undefined,
+): void {
+  if (options?.emitEvent && options.eventType === 'thought') {
+    options.emitEvent({
+      type: 'thought',
+      ...(event.content ? { content: event.content } : {}),
+      ...(event.reasoning ? { reasoning: event.reasoning } : {}),
+    });
+    return;
+  }
+  if (options?.emitEvent && options.eventType === 'answer') {
+    options.emitEvent({
+      type: 'answer',
+      ...(event.content ? { content: event.content } : {}),
+      ...(event.reasoning ? { reasoning: event.reasoning } : {}),
+    });
+    return;
+  }
+  sink?.write(JSON.stringify(event));
 }
 
 // ── Tool 循环引擎 ──
@@ -175,15 +151,13 @@ export class ToolLoopEngine {
       throw new Error(`Unsupported API type: ${settings.apiType}`);
     }
 
-    const url = adapter.getUrl(apiUrl);
+    log.debug('executeRound', { label: label || 'unnamed', toolCount: tools?.length || 0 });
 
-    log.debug('executeRound', { label: label || 'unnamed', url, toolCount: tools?.length || 0 });
-
-    const response = await adapter.stream(messages, settings, apiUrl, apiKey, tools, { signal });
+    const stream = await adapter.stream(messages, settings, apiUrl, apiKey, tools, { signal });
 
     const eventType =
       label === 'react-answer' ? 'answer' : label === 'react-thought' ? 'thought' : undefined;
-    return await parseSSEStream(response, adapter, sink, {
+    return await parseSSEStream(stream, adapter, sink, {
       eventType,
       signal,
       emitEvent: input.emitEvent,
