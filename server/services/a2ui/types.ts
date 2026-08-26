@@ -11,9 +11,16 @@ export interface A2UIInput {
   runId: string;
   round: number;
   event:
-    | { kind: 'tool_result'; toolName: string; result: unknown }
+    | { kind: 'tool_result'; toolName: string; toolCallId?: string; result: unknown }
     | { kind: 'answer_chunk'; content: string }
     | { kind: 'answer_completed'; content: string };
+}
+
+/** Identifies the tool result that produced one immutable evidence snapshot. */
+export interface A2UIReferenceContext {
+  runId: string;
+  round: number;
+  toolCallId?: string;
 }
 
 export interface A2UIEmission {
@@ -24,12 +31,15 @@ export interface A2UIEmission {
 }
 
 export interface A2UIReference {
+  evidenceId: string;
   refId: string;
   title: string;
   file: string;
   heading: string;
   snippet: string;
   chunkId: string;
+  granularity: 'chunk' | 'page' | 'source-family';
+  contentHash: string;
   score?: number;
   matchTypes?: string[];
   pageStatus?: string | null;
@@ -46,7 +56,11 @@ export interface A2UIProviderResult {
 
 export interface A2UIProvider {
   readonly toolName: string;
-  handleToolResult(rawResult: unknown, nextReferenceIndex: number): A2UIProviderResult;
+  handleToolResult(
+    rawResult: unknown,
+    nextReferenceIndex: number,
+    context?: A2UIReferenceContext,
+  ): A2UIProviderResult;
   findReference(refId: string): A2UIReference | null;
   createEmission(reference: A2UIReference, blockIndex: number, textOffset: number): A2UIEmission | null;
   getReferences?(): A2UIReference[];

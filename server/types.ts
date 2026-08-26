@@ -180,11 +180,14 @@ export interface StreamResult {
   toolCalls: ToolCall[] | null;
   uiBlocks?: PersistedUiBlock[];
   wikiReferences?: Array<{
+    evidenceId: string;
     refId: string;
     title: string;
     file: string;
     heading: string;
     chunkId: string;
+    granularity: 'chunk' | 'page' | 'source-family';
+    contentHash: string;
   }>;
 }
 

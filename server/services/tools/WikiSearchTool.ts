@@ -16,7 +16,7 @@ const WikiSearchInputSchema = z.object({
   question: z.string().optional().describe('搜索问题或关键词（二选一：question 或 paths）'),
   paths: z.array(z.string()).optional().describe('直接读取指定文件路径（相对 Wiki 根目录），跳过搜索（二选一：question 或 paths）'),
   maxResults: z.coerce.number().optional().default(5).describe('搜索时返回 top N 结果，默认 5'),
-  includeContent: z.coerce.boolean().optional().default(true).describe('是否返回完整文件内容，默认 true'),
+  includeContent: z.coerce.boolean().optional().default(true).describe('是否返回当前证据粒度的完整内容，默认 true'),
 });
 
 type WikiSearchInput = z.infer<typeof WikiSearchInputSchema>;
@@ -25,6 +25,7 @@ interface WikiSearchResult {
   chunkId?: string;
   file: string;
   content: string;
+  granularity?: 'chunk' | 'page' | 'source-family';
   score: number;
   title?: string;
   heading?: string;
@@ -47,7 +48,7 @@ interface WikiSearchOutput {
  */
 export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> {
   readonly name = 'wiki_search';
-  readonly description = '搜索并读取 Wiki 知识库。支持 paths 批量读取多个文件（一次传入任意数量路径），也支持 question 关键词搜索返回匹配页面。原始结果提供 chunkId；聊天编排层会在返回给模型的工具结果中追加本轮 refId（如 C1），回答引用时只能使用实际返回的 refId。所有 Wiki 文件访问必须通过此工具，禁止使用 bash。当你需要多个文件时，把所有路径放入 paths 一次读完，不要分多次调用；先完成一次搜索并检查证据是否足够，再决定是否补充搜索。';
+  readonly description = '搜索并读取 Wiki 知识库。question 模式返回与 chunkId 对齐的章节证据，paths 模式返回 page 粒度的完整文件。原始结果提供 chunkId 和 granularity；聊天编排层会在返回给模型的工具结果中追加本轮 refId（如 C1），回答引用时只能使用实际返回的 refId。所有 Wiki 文件访问必须通过此工具，禁止使用 bash。当你需要多个文件时，把所有路径放入 paths 一次读完，不要分多次调用；先完成一次搜索并检查证据是否足够，再决定是否补充搜索。';
   readonly inputSchema = WikiSearchInputSchema;
 
   isReadOnly(): boolean { return true; }
@@ -93,7 +94,7 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
       throw new Error('question 或 paths 至少需要提供一个');
     }
 
-    // 搜索模式：关键词搜索 + 返回完整内容
+    // 搜索模式：关键词搜索 + 返回与 chunkId 对齐的证据内容
     log.info('[wiki_search] mode=question', {
       question: normalizedInput.question.substring(0, 100),
       maxResults: normalizedInput.maxResults,
@@ -114,13 +115,13 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
 
     for (const filePath of paths) {
       if (!isPathSafe(wikiPath, filePath)) {
-        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[路径不安全: ${filePath}]`, score: 0, title: filePath, snippet: '' });
+        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[路径不安全: ${filePath}]`, granularity: 'page', score: 0, title: filePath, snippet: '' });
         continue;
       }
 
       const resolvedPath = path.resolve(wikiPath, filePath);
       if (!fs.existsSync(resolvedPath)) {
-        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[文件不存在: ${filePath}]`, score: 0, title: filePath, snippet: '' });
+        results.push({ chunkId: `${filePath}#file`, file: filePath, content: `[文件不存在: ${filePath}]`, granularity: 'page', score: 0, title: filePath, snippet: '' });
         continue;
       }
 
@@ -133,11 +134,11 @@ export class WikiSearchTool extends BaseTool<WikiSearchInput, WikiSearchOutput> 
           const isDir = fs.statSync(full).isDirectory();
           return `${isDir ? '[DIR]' : '[FILE]'} ${e}`;
         }).join('\n');
-        results.push({ chunkId: `${filePath}#listing`, file: filePath, content: listing, score: 1, title: filePath, snippet: '' });
+        results.push({ chunkId: `${filePath}#listing`, file: filePath, content: listing, granularity: 'page', score: 1, title: filePath, snippet: '' });
       } else {
         const content = fs.readFileSync(resolvedPath, 'utf-8');
         const parsed = parseWikiPage(filePath, content);
-        results.push({ chunkId: `${filePath}#file`, file: filePath, content: content.substring(0, 100000), score: 1, title: parsed.title, snippet: '' });
+        results.push({ chunkId: `${filePath}#file`, file: filePath, content: content.substring(0, 100000), granularity: 'page', score: 1, title: parsed.title, snippet: '' });
       }
     }
 

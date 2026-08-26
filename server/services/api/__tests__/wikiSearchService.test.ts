@@ -24,6 +24,7 @@ describe('wikiSearchService', () => {
       file: 'pages/guides/mcp.md',
       title: 'MCP 配置',
       heading: 'MCP 配置',
+      granularity: 'chunk',
     });
     expect(result.results[0].matchTypes).toContain('title');
     expect(result.results[0].snippet).toContain('URL');
@@ -92,5 +93,19 @@ describe('wikiSearchService', () => {
       'pages/medical/safety.md',
     ]));
     expect(result.results.find((item) => item.file.endsWith('safety.md'))?.matchTypes).toContain('source-family');
+    expect(result.results.find((item) => item.file.endsWith('safety.md'))?.granularity).toBe('source-family');
+  });
+
+  it('returns model content at chunk granularity when full evidence is requested', async () => {
+    const wikiPath = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-search-granularity-'));
+    tempDirs.push(wikiPath);
+    fs.mkdirSync(path.join(wikiPath, 'pages'), { recursive: true });
+    fs.writeFileSync(path.join(wikiPath, 'pages', 'sections.md'), '# Overview\n\nSQLite is the default database.\n\n## Operations\n\nSQLite needs regular backups.');
+
+    const result = await searchWiki(wikiPath, 'SQLite default database', 5, true);
+
+    expect(result.results[0]).toMatchObject({ granularity: 'chunk', heading: 'Overview' });
+    expect(result.results[0].content).toContain('SQLite is the default database.');
+    expect(result.results[0].content).not.toContain('SQLite needs regular backups.');
   });
 });

@@ -552,6 +552,21 @@ describe('WikiSearchTool', () => {
     expect(result.results.length).toBeGreaterThan(0);
     expect(result.results[0].file).toContain('react.md');
     expect(result.results[0].content.length).toBeGreaterThan(0);
+    expect(result.results[0].granularity).toBe('chunk');
+  });
+
+  it('should keep question content aligned with the returned chunk', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'pages'), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, 'pages', 'sections.md'),
+      '# Overview\n\nSQLite is the default database.\n\n## Operations\n\nSQLite needs regular backups.',
+    );
+
+    const result = await tool.execute({ question: 'SQLite default database', includeContent: true }, ctx);
+
+    expect(result.results[0]).toMatchObject({ granularity: 'chunk', heading: 'Overview' });
+    expect(result.results[0].content).toContain('SQLite is the default database.');
+    expect(result.results[0].content).not.toContain('SQLite needs regular backups.');
   });
 
   it('should read files via paths parameter', async () => {
@@ -562,6 +577,7 @@ describe('WikiSearchTool', () => {
     expect(result.results[0].content).toContain('Hello world');
     expect(result.results[0].title).toBe('Test page');
     expect(result.results[0].snippet).toBe('');
+    expect(result.results[0].granularity).toBe('page');
   });
 
   it('should apply default search options when execute is called directly', async () => {

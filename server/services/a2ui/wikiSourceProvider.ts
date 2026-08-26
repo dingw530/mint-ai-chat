@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import * as a2uiRepository from '../../repositories/a2uiRepository.js';
 import type { PersistedUiBlock } from '../../types.js';
@@ -7,11 +8,13 @@ import type {
   A2UIProvider,
   A2UIProviderResult,
   A2UIReference,
+  A2UIReferenceContext,
   A2uiMessage,
 } from './types.js';
 
 interface WikiResult {
   file?: string;
+  content?: string;
   title?: string;
   heading?: string;
   snippet?: string;
@@ -23,6 +26,7 @@ interface WikiResult {
   lexicalRank?: number | null;
   vectorRank?: number | null;
   distance?: number | null;
+  granularity?: A2UIReference['granularity'];
 }
 
 interface WikiSearchPayload {
@@ -41,6 +45,35 @@ function isWikiPayload(value: unknown): value is WikiSearchPayload {
 /** 判断来源是否绑定了搜索命中的具体 chunk，而不是整页读取结果。 */
 function isChunkReference(chunkId: string): boolean {
   return chunkId.includes('#chunk:') || chunkId.includes('#claim:');
+}
+
+function inferGranularity(chunkId: string): A2UIReference['granularity'] {
+  if (chunkId.includes('#source-family')) return 'source-family';
+  if (isChunkReference(chunkId)) return 'chunk';
+  return 'page';
+}
+
+function hashEvidence(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function buildEvidenceKey(
+  result: WikiResult,
+  index: number,
+  context?: A2UIReferenceContext,
+): string {
+  const scope = context
+    ? `${context.runId}|${context.round}|${context.toolCallId || 'unknown'}`
+    : 'legacy';
+  return `${scope}|${index}|${result.file || ''}|${result.chunkId || ''}`;
+}
+
+function buildEvidenceId(
+  result: WikiResult,
+  index: number,
+  context?: A2UIReferenceContext,
+): string {
+  return `wiki-evidence:${buildEvidenceKey(result, index, context)}`;
 }
 
 function makeMessages(registration: A2UIComponentRegistration, surfaceId: string, data: A2UIReference): A2uiMessage[] {
@@ -76,31 +109,36 @@ function createBlock(reference: A2UIReference, blockIndex: number, textOffset: n
 export class WikiSourceReferenceProvider implements A2UIProvider {
   readonly toolName = 'wiki_search';
   private readonly references = new Map<string, A2UIReference>();
-  private readonly referenceIdsByFile = new Map<string, string>();
+  private readonly referenceIdsByEvidenceKey = new Map<string, string>();
   private readonly emittedFiles = new Set<string>();
 
-  handleToolResult(rawResult: unknown, nextReferenceIndex: number): A2UIProviderResult {
+  handleToolResult(
+    rawResult: unknown,
+    nextReferenceIndex: number,
+    context?: A2UIReferenceContext,
+  ): A2UIProviderResult {
     const parsed = parseJson(rawResult);
     if (!isWikiPayload(parsed)) return { nextReferenceIndex };
 
-    const enrichedResults = (parsed.results || []).map((result) => {
-      const fileKey = result.file?.trim();
-      const existingRefId = fileKey ? this.referenceIdsByFile.get(fileKey) : undefined;
+    const enrichedResults = (parsed.results || []).map((result, index) => {
+      const evidenceKey = buildEvidenceKey(result, index, context);
+      const evidenceId = buildEvidenceId(result, index, context);
+      const existingRefId = this.referenceIdsByEvidenceKey.get(evidenceKey);
       const refId = existingRefId || `C${nextReferenceIndex++}`;
       const existingReference = existingRefId ? this.references.get(existingRefId) : undefined;
-      const shouldStoreReference = Boolean(
-        result.file
-        && result.chunkId
-        && (!existingReference || !isChunkReference(existingReference.chunkId) || isChunkReference(result.chunkId)),
-      );
+      const shouldStoreReference = Boolean(result.file && result.chunkId);
       if (shouldStoreReference && result.file && result.chunkId) {
+        const evidenceText = result.content || result.snippet || '';
         this.references.set(refId, {
+          evidenceId: existingReference?.evidenceId || evidenceId,
           refId,
           title: result.title || result.file,
           file: result.file,
           heading: result.heading || '',
           snippet: result.snippet || '',
           chunkId: result.chunkId,
+          granularity: result.granularity || inferGranularity(result.chunkId),
+          contentHash: hashEvidence(evidenceText),
           score: result.score,
           matchTypes: result.matchTypes,
           pageStatus: result.pageStatus,
@@ -109,9 +147,9 @@ export class WikiSourceReferenceProvider implements A2UIProvider {
           vectorRank: result.vectorRank,
           distance: result.distance,
         });
-        if (fileKey) this.referenceIdsByFile.set(fileKey, refId);
+        this.referenceIdsByEvidenceKey.set(evidenceKey, refId);
       }
-      return { ...result, refId };
+      return { ...result, evidenceId, refId };
     });
     return { nextReferenceIndex, contextResult: JSON.stringify({ ...parsed, results: enrichedResults }) };
   }
