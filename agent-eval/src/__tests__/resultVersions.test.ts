@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildReport, type EvalCase, type EvalCaseResult, type EvalReport } from './index.js';
-import { createAutomaticVersionId, listResultVersions, readResultVersion, saveResultVersion } from './resultVersions.js';
+import { buildReport, type EvalCase, type EvalCaseResult, type EvalReport } from '../index.js';
+import { createAutomaticVersionId, listResultVersions, readResultVersion, saveResultVersion } from '../resultVersions.js';
 
 const temporaryDirectories: string[] = [];
 const evalCase: EvalCase = { id: 'version-case', input: '测试', tags: ['qa'], expected: {} };

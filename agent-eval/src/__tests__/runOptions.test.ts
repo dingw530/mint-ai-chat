@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveRuns } from './runOptions.js';
+import { resolveRuns } from '../runOptions.js';
 
 describe('resolveRuns', () => {
   it('defaults live evaluation to three runs', () => {

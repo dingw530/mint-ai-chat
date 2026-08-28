@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildCalibrationTemplate, compareCalibration } from './calibration.js';
-import { assessJudgeResult, runEvaluation, validateCase, type EvalCase, type EvalJudgeResult } from './index.js';
-import { buildJudgePrompt, createOpenAiJudge, parseJudgeResponse } from './judge.js';
+import { buildCalibrationTemplate, compareCalibration } from '../calibration.js';
+import { assessJudgeResult, runEvaluation, validateCase, type EvalCase, type EvalJudgeResult } from '../index.js';
+import { buildJudgePrompt, createOpenAiJudge, parseJudgeResponse } from '../judge.js';
 
 const judgeCase: EvalCase = {
   id: 'judge-001',
@@ -59,6 +59,9 @@ describe('LLM Judge evaluation', () => {
     expect(report.results[0]?.judge?.evidenceGatePassed).toBe(true);
     expect(report.results[0]?.answerGate?.passed).toBe(true);
     expect(report.results[0]?.evidenceGate?.passed).toBe(true);
+    expect(report.results[0]?.answerPassed).toBe(true);
+    expect(report.results[0]?.queryPassed).toBe(true);
+    expect(report.results[0]?.passed).toBe(true);
     expect(report.results[0]?.qualityPassed).toBe(true);
     expect(report.results[0]?.judge?.weightedScore).toBeCloseTo(0.875);
     expect(report.summary.judgePassAt1).toBe(1);
@@ -81,13 +84,15 @@ describe('LLM Judge evaluation', () => {
       citations: [{ file: 'rag.md', refId: 'C1' }],
     }), 1, async input => {
       called = true;
-      expect(input.deterministic.answerPassed).toBe(false);
+      expect(input.deterministic.answerPassed).toBe(true);
       expect(input.deterministic.answerGate?.hardPassed).toBe(true);
       return approvedJudge;
     });
     expect(called).toBe(true);
     expect(report.results[0]?.qualityPassed).toBe(true);
-    expect(report.results[0]?.answerGate?.signalPassed).toBe(false);
+    expect(report.results[0]?.passed).toBe(true);
+    expect(report.results[0]?.queryPassed).toBe(true);
+    expect(report.results[0]?.answerGate?.signalPassed).toBe(true);
     expect(report.results[0]?.answerGate?.judgePassed).toBe(true);
   });
 
@@ -116,7 +121,7 @@ describe('LLM Judge evaluation', () => {
 
   it('builds and validates an OpenAI-compatible structured judge response', () => {
     const prompt = buildJudgePrompt({ evalCase: judgeCase, execution: { content: '回答', events: [], citations: [], retrievedCitations: [] }, deterministic: { caseId: 'judge-001', runIndex: 1, passed: true, queryPassed: true, answerPassed: true, retrievalPassed: true, toolBudgetPassed: true, abstentionPassed: true, vetoed: false, reasons: [], content: '回答', citations: [], citationCount: 0, retrievedCitationCount: 0, citationCoverage: 0, retrievalCoverage: 0, abstained: false, rounds: 0, toolCalls: 0, attemptedToolCalls: 0, blockedToolCalls: 0, wikiSearchCalls: 0, attemptedWikiSearchCalls: 0, blockedWikiSearchCalls: 0, unrelatedToolCalls: 0, successfulToolCalls: 0, retries: 0, loopDetected: false, approvalRequired: false, latencyMs: 1 } });
-    expect(prompt).toContain('Do not reward length');
+    expect(prompt).toContain('不要因为答案更长');
     const parsed = parseJudgeResponse({ choices: [{ message: { content: JSON.stringify(approvedJudge) } }] }, { apiUrl: 'https://example.test', apiKey: 'key', modelId: 'judge-model' });
     expect(parsed.judgeModel).toBe('judge-model');
   });

@@ -1,5 +1,6 @@
 import { getJudgeDimensionGate, type EvalJudgeInput, type EvalJudgeResult, type JudgeExecutor } from './index.js';
 import type { PairwiseJudgeExecutor, PairwiseJudgment } from './pairwise.js';
+import { buildJudgeCorrectionPrompt, JUDGE_EVALUATION_TASK, JUDGE_SYSTEM_PROMPT, PAIRWISE_JUDGE_SYSTEM_PROMPT } from './judgePrompts.js';
 
 export interface OpenAiJudgeConfig {
   apiUrl: string;
@@ -58,12 +59,12 @@ export function buildJudgePrompt(input: EvalJudgeInput): string {
   const rubric = input.evalCase.expected.judgeRubric;
   if (!rubric) throw new Error(`Case ${input.evalCase.id} has no judge rubric`);
   return JSON.stringify({
-    task: 'Evaluate the agent result only from the supplied observable evidence. Do not reward length, style, keyword repetition, or unsupported claims. Do not infer hidden reasoning.',
+    task: JUDGE_EVALUATION_TASK,
     outputContract: {
-      dimensions: rubric.dimensions.map(dimension => ({ id: dimension.id, gate: getJudgeDimensionGate(dimension), importance: dimension.importance, score: dimension.importance === 'veto' ? 'omit and set passed boolean' : 'integer 1-4', passed: dimension.importance === 'veto' ? 'boolean' : 'omit', evidenceIds: 'string[] using provided citation refId/chunkId/file when available', reason: 'short, evidence-based explanation' })),
-      criticalFailure: 'optional string',
-      confidence: 'number 0-1',
-      shortReason: 'short string',
+      dimensions: rubric.dimensions.map(dimension => ({ id: dimension.id, gate: getJudgeDimensionGate(dimension), importance: dimension.importance, score: dimension.importance === 'veto' ? '省略并设置 passed 布尔值' : '整数 1 到 4', passed: dimension.importance === 'veto' ? '布尔值' : '省略', evidenceIds: '字符串数组；有可用证据时使用 citation 的 refId、chunkId 或 file', reason: '简短且基于证据的解释' })),
+      criticalFailure: '可选字符串',
+      confidence: '0 到 1 之间的数字',
+      shortReason: '简短字符串',
     },
     input: {
       question: input.evalCase.input,
@@ -119,7 +120,7 @@ export function createOpenAiJudge(config: OpenAiJudgeConfig): JudgeExecutor {
   return async input => {
     const prompt = buildJudgePrompt(input);
     const messages = [
-      { role: 'system', content: 'You are a strict evaluation judge. Return only valid JSON that follows the requested contract.' },
+      { role: 'system', content: JUDGE_SYSTEM_PROMPT },
       { role: 'user', content: prompt },
     ];
     let payload = await requestJudge(config, messages);
@@ -128,8 +129,8 @@ export function createOpenAiJudge(config: OpenAiJudgeConfig): JudgeExecutor {
       try { return parseJudgeResponse(payload, config); } catch (error) {
         lastError = error;
         const previous = extractJudgeContent(payload)?.slice(0, 12000)
-          || `No usable assistant content was returned. Response shape: ${responseShape(payload)}`;
-        const correction = `Your previous JSON did not match the contract. Return a corrected JSON object only; preserve the evaluation, do not add fields. Contract and previous output:\n${JSON.stringify({ contract: JSON.parse(prompt).outputContract, previous })}`;
+          || `未返回可用的助手内容。响应结构：${responseShape(payload)}`;
+        const correction = buildJudgeCorrectionPrompt(JSON.parse(prompt).outputContract, previous);
         payload = await requestJudge(config, [...messages, { role: 'user', content: correction }]);
       }
     }
@@ -149,7 +150,7 @@ export function createOpenAiPairwiseJudge(config: OpenAiJudgeConfig): PairwiseJu
         temperature: 0,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: 'You are a strict pairwise evaluation judge. Return only JSON with winner (a, b, or tie), confidence (0-1), and short evidence-based reason. Do not reward length or style.' },
+          { role: 'system', content: PAIRWISE_JUDGE_SYSTEM_PROMPT },
           { role: 'user', content: JSON.stringify({ question: input.evalCase.input, rubric: input.evalCase.expected.judgeRubric, candidateA: { answer: input.first.content, citations: input.first.citations, trace: input.first.reasons }, candidateB: { answer: input.second.content, citations: input.second.citations, trace: input.second.reasons } }) },
         ],
       }),

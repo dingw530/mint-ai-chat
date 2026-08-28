@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { type EvalCase, type EvalCaseResult } from './index.js';
-import { appendEvalRunResult, createEvalRun, readEvalRun } from './runPersistence.js';
+import { type EvalCase, type EvalCaseResult } from '../index.js';
+import { appendEvalRunResult, createEvalRun, readEvalRun } from '../runPersistence.js';
 
 const temporaryDirectories: string[] = [];
 const evalCase: EvalCase = { id: 'checkpoint-case', input: '测试', tags: ['qa'], expected: {} };

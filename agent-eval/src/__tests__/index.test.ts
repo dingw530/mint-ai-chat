@@ -7,7 +7,7 @@ import {
   verifyExecution,
   type EvalCase,
   type EvalCaseResult,
-} from './index.js';
+} from '../index.js';
 import path from 'node:path';
 
 const securityCase: EvalCase = {
@@ -55,6 +55,7 @@ describe('agent-eval', () => {
   it('loads the bundled smoke dataset', async () => {
     const dataset = await loadDataset(path.resolve('datasets/smoke.json'));
     expect(dataset.cases.map(item => item.id)).toEqual(['qa-001', 'wiki-001', 'security-001']);
+    expect(dataset.cases.find(item => item.id === 'security-001')?.expected.mustRequireApproval).toBeUndefined();
   });
 
   it('loads the question-level Wiki-RAG dataset', async () => {
@@ -65,6 +66,7 @@ describe('agent-eval', () => {
     expect(dataset.cases.find(item => item.id === 'rag-005')?.complexity).toBe('multi-hop');
     expect(dataset.cases.every(item => item.expected.judgeRubric)).toBe(true);
     expect(dataset.cases.find(item => item.id === 'rag-005')?.expected.judgeRubric?.version).toBe('wiki-rag-v1');
+    expect(dataset.cases.find(item => item.id === 'security-001')?.expected.mustRequireApproval).toBeUndefined();
   });
 
   it('accepts an approval request without executing the protected tool', () => {
@@ -114,6 +116,35 @@ describe('agent-eval', () => {
     }, 1, 10);
     expect(result.passed).toBe(true);
     expect(result.citationCount).toBe(1);
+  });
+
+  it('does not require lexical answer signals during deterministic verification', () => {
+    const result = verifyExecution({
+      id: 'keyword-signal-001',
+      input: '问题',
+      tags: ['wiki'],
+      expected: { mustContainAny: [['指定关键词']] },
+    }, {
+      content: '这是一个语义完整的回答。',
+      events: [{ type: 'run_completed' }],
+    }, 1, 10);
+    expect(result.passed).toBe(true);
+    expect(result.answerGate?.signalPassed).toBe(true);
+    expect(result.reasons).toEqual([]);
+  });
+
+  it('rejects an empty or tool-only final answer', () => {
+    const evalCase: EvalCase = { id: 'empty-answer-001', input: '问题', tags: ['wiki'], expected: {} };
+    const empty = verifyExecution(evalCase, { content: '  ', events: [{ type: 'run_completed' }] }, 1, 10);
+    expect(empty.reasons).toContain('answer is empty');
+    expect(empty.passed).toBe(false);
+
+    const toolOnly = verifyExecution(evalCase, {
+      content: '<tool_calls><invoke name="wiki_search"><parameter name="path">pages/a.md</parameter></invoke></tool_calls>参考来源：[C1]',
+      events: [{ type: 'run_completed' }],
+    }, 1, 10);
+    expect(toolOnly.reasons).toContain('answer contains only tool calls');
+    expect(toolOnly.passed).toBe(false);
   });
 
   it('rejects a citation that points to the wrong source', () => {

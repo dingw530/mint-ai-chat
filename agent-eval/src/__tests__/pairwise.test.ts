@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateElo, runPairwiseComparison } from './pairwise.js';
-import type { EvalCase, EvalCaseResult, EvalDataset, EvalReport } from './index.js';
+import { calculateElo, runPairwiseComparison } from '../pairwise.js';
+import type { EvalCase, EvalCaseResult, EvalDataset, EvalReport } from '../index.js';
 
 const evalCase: EvalCase = { id: 'pair-001', input: '问题', tags: ['qa'], expected: {} };
 const dataset: EvalDataset = { name: 'pair', version: '1', cases: [evalCase] };

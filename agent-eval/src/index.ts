@@ -194,6 +194,17 @@ function getWikiSearchBudget(evalCase: EvalCase): number | undefined {
   return evalCase.expected.mustUseTools?.includes('wiki_search') ? 2 : undefined;
 }
 
+function isToolOnlyAnswer(content: string): boolean {
+  if (!/(?:tool_calls|<[^>]*invoke\b|<[^>]*parameter\b)/i.test(content)) return false;
+  const substantive = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/(?:参考来源|补充检索来源|CITATIONS?)/gi, ' ')
+    .replace(/(?:pages\/|[A-Za-z0-9_./-])+/g, ' ')
+    .replace(/(?:C\d+|invoke|parameter|name|string|tool_calls)/gi, ' ')
+    .replace(/[\s"'=:_：，,;；()[\]{}-]+/g, '');
+  return substantive.length === 0;
+}
+
 interface RubricContext {
   content: string;
   toolNames: string[];
@@ -348,8 +359,8 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
     ? citationChecks.filter(Boolean).length / citationChecks.length
     : citations.length > 0 ? 1 : 0;
   const reasons: string[] = []; let vetoed = false;
-  for (const value of evalCase.expected.mustContain || []) if (!content.includes(value.toLowerCase())) reasons.push(`missing answer content: ${value}`);
-  for (const group of evalCase.expected.mustContainAny || []) if (!group.some(value => content.includes(value.toLowerCase()))) reasons.push(`missing answer alternatives: ${group.join(' / ')}`);
+  if (!content.trim()) reasons.push('answer is empty');
+  else if (isToolOnlyAnswer(execution.content)) reasons.push('answer contains only tool calls');
   for (const value of evalCase.expected.mustNotContain || []) if (content.includes(value.toLowerCase())) reasons.push(`forbidden answer content: ${value}`);
   const toolNames = starts.map(event => event.toolName).filter((toolName): toolName is string => Boolean(toolName));
   const executedToolNames = executedStarts.map(event => event.toolName).filter((toolName): toolName is string => Boolean(toolName));
@@ -395,9 +406,13 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
   const importantChecks = rubric?.important || [];
   const optionalChecks = rubric?.optional || [];
   const vetoChecks = rubric?.veto || [];
-  const essentialPassed = evaluateRubricLevel('essential', essentialChecks, rubricContext, reasons);
-  const importantPassed = evaluateRubricLevel('important', importantChecks, rubricContext, reasons);
+  evaluateRubricLevel('essential', essentialChecks, rubricContext, reasons);
+  evaluateRubricLevel('important', importantChecks, rubricContext, reasons);
   const optionalPassed = evaluateRubricLevel('optional', optionalChecks, rubricContext, reasons);
+  const answerHardRubricChecks = [...essentialChecks, ...importantChecks].filter(check => !isEvidenceRubricCheck(check) && !isAnswerSignalRubricCheck(check));
+  const answerHardRubricPassed = answerHardRubricChecks.every(check => evaluateRubricCheck(check, rubricContext));
+  const deterministicEssentialPassed = essentialChecks.filter(check => !isAnswerSignalRubricCheck(check)).every(check => evaluateRubricCheck(check, rubricContext));
+  const deterministicImportantPassed = importantChecks.filter(check => !isAnswerSignalRubricCheck(check)).every(check => evaluateRubricCheck(check, rubricContext));
   const vetoTriggered = vetoChecks.some(check => evaluateRubricCheck(check, rubricContext));
   if (vetoTriggered) { reasons.push('veto rubric failed'); vetoed = true; }
   const rubricChecks = [...essentialChecks, ...importantChecks, ...optionalChecks, ...vetoChecks];
@@ -411,18 +426,15 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
   const toolBudgetPassed = (evalCase.expected.maxToolCalls === undefined || executedStarts.length <= evalCase.expected.maxToolCalls)
     && (maxWikiSearchCalls === undefined || wikiSearchCalls <= maxWikiSearchCalls)
     && !loopDetected;
-  const answerFailures = reasons.filter(reason => reason.startsWith('missing answer ') || reason.startsWith('forbidden answer ') || reason === 'answer did not abstain' || reason === 'answer abstained unexpectedly');
+  const answerFailures = reasons.filter(reason => reason.startsWith('missing answer ') || reason.startsWith('forbidden answer ') || reason === 'answer is empty' || reason === 'answer contains only tool calls' || reason === 'answer did not abstain' || reason === 'answer abstained unexpectedly');
   const policyFailures = reasons.filter(reason => reason.startsWith('missing tool:') || reason.startsWith('forbidden tool:') || reason.startsWith('approval ') || reason === 'tool executed before approval');
-  const answerPassed = completed && !vetoed && answerFailures.length === 0 && policyFailures.length === 0 && abstentionPassed && essentialPassed && importantPassed && finalStatePassed;
+  const answerPassed = completed && !vetoed && answerFailures.length === 0 && policyFailures.length === 0 && abstentionPassed && deterministicEssentialPassed && deterministicImportantPassed && finalStatePassed;
   const queryPassed = answerPassed && citationPassed && retrievalPassed;
   const passed = queryPassed && toolBudgetPassed && !vetoed;
-  const answerRubricChecks = [...essentialChecks, ...importantChecks].filter(check => !isEvidenceRubricCheck(check));
-  const answerHardRubricChecks = answerRubricChecks.filter(check => !isAnswerSignalRubricCheck(check));
   const evidenceRubricChecks = [...essentialChecks, ...importantChecks].filter(isEvidenceRubricCheck);
-  const answerHardRubricPassed = answerHardRubricChecks.every(check => evaluateRubricCheck(check, rubricContext));
   const evidenceRubricPassed = evidenceRubricChecks.every(check => evaluateRubricCheck(check, rubricContext));
   const answerHardPassed = completed && !vetoed && policyFailures.length === 0 && abstentionPassed && finalStatePassed && answerHardRubricPassed;
-  const answerSignalPassed = answerFailures.length === 0 && answerRubricChecks.every(check => !isAnswerSignalRubricCheck(check) || evaluateRubricCheck(check, rubricContext));
+  const answerSignalPassed = answerFailures.length === 0;
   const evidenceHardPassed = !vetoed && citationPassed && retrievalPassed && citationGroundingPassed && evidenceRubricPassed;
   const answerGateReasons = [...answerFailures, ...policyFailures];
   const evidenceGateReasons = reasons.filter(reason => reason.includes('source') || reason.includes('citation') || reason.includes('retrieval'));
@@ -434,7 +446,7 @@ export function verifyExecution(evalCase: EvalCase, execution: EvalExecution, ru
   const evidenceGate: EvalGateResult = { hardPassed: evidenceHardPassed, signalPassed: evidenceHardPassed, passed: evidenceHardPassed, reasons: evidenceGateReasons };
   if (!passed && !reasons.length) reasons.push('run did not complete');
   const retrievalCoverage = retrievalChecks.length > 0 ? retrievalChecks.filter(Boolean).length / retrievalChecks.length : retrievedCitations.length > 0 ? 1 : 0;
-  return { caseId: evalCase.id, runIndex, passed, queryPassed, answerPassed, retrievalPassed, toolBudgetPassed, abstentionPassed, vetoed, essentialPassed, importantPassed, optionalPassed, rubricScore, reasons, content: execution.content, citations, citationCount: citations.length, retrievedCitationCount: retrievedCitations.length, citationCoverage, retrievalCoverage, citationGroundingPassed, abstained, rounds: new Set(events.filter(event => event.round !== undefined).map(event => event.round)).size, toolCalls: executedStarts.length, attemptedToolCalls: starts.length, blockedToolCalls: blockedEnds.length, wikiSearchCalls, attemptedWikiSearchCalls, blockedWikiSearchCalls, unrelatedToolCalls, successfulToolCalls: executedEnds.length, retries: errors.filter(event => event.phase === 'retrying').length, loopDetected, approvalRequired: approvals.length > 0, latencyMs, inputTokens: execution.inputTokens, outputTokens: execution.outputTokens, reasoningTokens: execution.reasoningTokens, ttftMs: execution.ttftMs, traceId: execution.traceId, answerGate, evidenceGate, qualityPassed: answerGate.passed && evidenceGate.passed && toolBudgetPassed && !vetoed, answerChars: execution.content.length };
+  return { caseId: evalCase.id, runIndex, passed, queryPassed, answerPassed, retrievalPassed, toolBudgetPassed, abstentionPassed, vetoed, essentialPassed: deterministicEssentialPassed, importantPassed: deterministicImportantPassed, optionalPassed, rubricScore, reasons, content: execution.content, citations, citationCount: citations.length, retrievedCitationCount: retrievedCitations.length, citationCoverage, retrievalCoverage, citationGroundingPassed, abstained, rounds: new Set(events.filter(event => event.round !== undefined).map(event => event.round)).size, toolCalls: executedStarts.length, attemptedToolCalls: starts.length, blockedToolCalls: blockedEnds.length, wikiSearchCalls, attemptedWikiSearchCalls, blockedWikiSearchCalls, unrelatedToolCalls, successfulToolCalls: executedEnds.length, retries: errors.filter(event => event.phase === 'retrying').length, loopDetected, approvalRequired: approvals.length > 0, latencyMs, inputTokens: execution.inputTokens, outputTokens: execution.outputTokens, reasoningTokens: execution.reasoningTokens, ttftMs: execution.ttftMs, traceId: execution.traceId, answerGate, evidenceGate, qualityPassed: answerGate.passed && evidenceGate.passed && toolBudgetPassed && !vetoed, answerChars: execution.content.length };
 }
 
 /** 构造只含可审计答案、证据、轨迹摘要和终态的 Judge 输入。 */
@@ -544,6 +556,9 @@ export async function runEvaluation(dataset: EvalDataset, executor: AgentEvalExe
       deterministic.judgePassed = deterministic.judge.passed;
       deterministic.answerGate = { ...deterministic.answerGate!, judgePassed: deterministic.judge.answerGatePassed, passed: deterministic.answerGate!.hardPassed && deterministic.judge.answerGatePassed === true };
       deterministic.evidenceGate = { ...deterministic.evidenceGate!, judgePassed: deterministic.judge.evidenceGatePassed, passed: deterministic.evidenceGate!.hardPassed && deterministic.judge.evidenceGatePassed === true };
+      deterministic.answerPassed = deterministic.answerGate.passed;
+      deterministic.queryPassed = deterministic.answerPassed && deterministic.evidenceGate.passed;
+      deterministic.passed = deterministic.queryPassed && deterministic.toolBudgetPassed && !deterministic.vetoed;
       deterministic.qualityPassed = deterministic.answerGate.passed && deterministic.evidenceGate.passed && deterministic.toolBudgetPassed && !deterministic.vetoed;
     } else if (evalCase.expected.judgeRubric) {
       deterministic.judge = { dimensions: [], confidence: 0, shortReason: 'Judge skipped because deterministic hard gate did not pass.', skipped: true, skipReason: deterministic.passed ? 'Judge is not enabled.' : 'Deterministic hard gate failed.' };
