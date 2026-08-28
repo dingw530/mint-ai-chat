@@ -1,200 +1,173 @@
-import { describe, it, expect } from 'vitest';
-import { openaiChatAdapter } from '../openaiChatAdapter.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { anthropicAdapter } from '../anthropicAdapter.js';
+import { openaiChatAdapter } from '../openaiChatAdapter.js';
 import { openaiResponsesAdapter } from '../openaiResponsesAdapter.js';
+import { toModelMessages, toModelTools } from '../aiSdkAdapter.js';
 
-const mockSettings = {
+const settings = {
   modelId: 'test-model',
   thinkingMode: false,
-  systemPrompt: 'You are a helpful assistant.',
+  systemPrompt: 'You are helpful.',
 };
 
-// ── OpenAI Chat Adapter ──
-
-describe('OpenAI Chat Adapter', () => {
-  it('should build URL with /v1/chat/completions suffix', () => {
-    expect(openaiChatAdapter.getUrl('https://api.openai.com/v1')).toBe('https://api.openai.com/v1/v1/chat/completions');
-    expect(openaiChatAdapter.getUrl('https://api.openai.com/v1/')).toBe('https://api.openai.com/v1/v1/chat/completions');
+describe('AI SDK adapters', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it('should use Bearer auth header', () => {
-    const headers = openaiChatAdapter.getHeaders('sk-test');
-    expect(headers.Authorization).toBe('Bearer sk-test');
-    expect(headers['Content-Type']).toBe('application/json');
+  it('converts history messages while preserving tool call context', () => {
+    const messages = toModelMessages([
+      { role: 'system', content: 'System' },
+      { role: 'user', content: 'Search Mint' },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [{
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'wiki_search', arguments: '{"query":"Mint"}' },
+        }],
+      },
+      { role: 'tool', tool_call_id: 'call-1', content: '{"results":[]}' },
+    ], 'Fallback system');
+
+    expect(messages).toEqual([
+      { role: 'system', content: 'System' },
+      { role: 'user', content: 'Search Mint' },
+      {
+        role: 'assistant',
+        content: [{
+          type: 'tool-call',
+          toolCallId: 'call-1',
+          toolName: 'wiki_search',
+          input: { query: 'Mint' },
+        }],
+      },
+      {
+        role: 'tool',
+        content: [{
+          type: 'tool-result',
+          toolCallId: 'call-1',
+          toolName: 'wiki_search',
+          output: { type: 'text', value: '{"results":[]}' },
+        }],
+      },
+    ]);
   });
 
-  it('should build request body with messages and stream', () => {
-    const body = openaiChatAdapter.buildRequest(
-      [{ role: 'user', content: 'Hello' }],
-      mockSettings,
-    );
-    expect(body.model).toBe('test-model');
-    expect(body.stream).toBe(true);
-    expect(body.messages).toHaveLength(1);
-    expect(body.messages[0]).toEqual({ role: 'user', content: 'Hello' });
+  it('converts tool definitions without installing an executor', () => {
+    const tools = toModelTools([{
+      type: 'function',
+      function: {
+        name: 'wiki_search',
+        description: 'Search Wiki',
+        parameters: {
+          type: 'object',
+          properties: { query: { type: 'string' } },
+          required: ['query'],
+        },
+      },
+    }]);
+
+    expect(tools?.wiki_search.description).toBe('Search Wiki');
+    expect(tools?.wiki_search.execute).toBeUndefined();
   });
 
-  it('should include tools in request body when provided', () => {
-    const tools = [{ type: 'function' as const, function: { name: 'test_tool', description: 'Test', parameters: {} } }];
-    const body = openaiChatAdapter.buildRequest(
-      [{ role: 'user', content: 'Use a tool' }],
-      mockSettings,
-      tools,
-    );
-    expect(body.tools).toHaveLength(1);
-    expect(body.tool_choice).toBe('auto');
-  });
+  it('uses AI SDK fullStream for OpenAI-compatible chat', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('https://api.test.com/v1/chat/completions');
+      const body = JSON.parse(String(init?.body));
+      expect(body.model).toBe('test-model');
+      expect(body.stream).toBe(true);
+      return new Response([
+        'data: {"choices":[{"delta":{"reasoning_content":"plan"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ].join(''));
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
-  it('should parse content delta chunk', () => {
-    const result = openaiChatAdapter.parseChunk(JSON.stringify({ choices: [{ delta: { content: 'Hello' } }] }));
-    expect(result).not.toBeNull();
-    expect(result!.content).toBe('Hello');
-  });
-
-  it('should parse tool call delta chunk', () => {
-    const data = JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_123', function: { name: 'get_external_data' } }] } }] });
-    const result = openaiChatAdapter.parseChunk(data);
-    expect(result).not.toBeNull();
-    expect(result!.toolCallDelta).toBeDefined();
-    expect(result!.toolCallDelta!.index).toBe(0);
-    expect(result!.toolCallDelta!.id).toBe('call_123');
-  });
-
-  it('should detect [DONE] as finished', () => {
-    const result = openaiChatAdapter.parseChunk('[DONE]');
-    expect(result).not.toBeNull();
-    expect(result!.isFinished).toBe(true);
-  });
-
-  it('should return null for empty delta', () => {
-    const result = openaiChatAdapter.parseChunk(JSON.stringify({ choices: [{ delta: {} }] }));
-    expect(result).toBeNull();
-  });
-});
-
-// ── Anthropic Adapter ──
-
-describe('Anthropic Adapter', () => {
-  it('should append /v1/messages to base URL', () => {
-    expect(anthropicAdapter.getUrl('https://api.anthropic.com/v1')).toBe('https://api.anthropic.com/v1/messages');
-    expect(anthropicAdapter.getUrl('https://api.anthropic.com/v1/')).toBe('https://api.anthropic.com/v1/messages');
-    expect(anthropicAdapter.getUrl('https://api.deepseek.com/anthropic')).toBe('https://api.deepseek.com/anthropic/v1/messages');
-    expect(anthropicAdapter.getUrl('https://api.deepseek.com/anthropic/')).toBe('https://api.deepseek.com/anthropic/v1/messages');
-  });
-
-  it('should use x-api-key header', () => {
-    const headers = anthropicAdapter.getHeaders('sk-ant-test');
-    expect(headers['x-api-key']).toBe('sk-ant-test');
-    expect(headers['anthropic-version']).toBe('2023-06-01');
-    expect(headers['Content-Type']).toBe('application/json');
-  });
-
-  it('should build request with system prompt and messages', () => {
-    const body = anthropicAdapter.buildRequest(
+    const stream = await openaiChatAdapter.stream(
       [{ role: 'user', content: 'Hi' }],
-      { ...mockSettings, systemPrompt: 'Be helpful.' },
+      settings,
+      'https://api.test.com',
+      'sk-test',
     );
-    expect(body.model).toBe('test-model');
-    expect(body.system).toBe('Be helpful.');
-    expect(body.messages).toHaveLength(1);
-    expect(body.messages[0]).toEqual({ role: 'user', content: 'Hi' });
-    expect(body.max_tokens).toBe(4096);
-    expect(body.stream).toBe(true);
+    const chunks: Array<{ content?: string; reasoning?: string; isFinished?: boolean }> = [];
+    for await (const chunk of stream) chunks.push(chunk);
+
+    expect(chunks).toEqual([
+      { reasoning: 'plan' },
+      { content: 'Hello' },
+      { isFinished: true },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('should build request with anthropic tool format', () => {
-    const tools = [{ type: 'function' as const, function: { name: 'get_external_data', description: 'Get external data', parameters: { type: 'object', properties: { query: { type: 'string' } } } } }];
-    const body = anthropicAdapter.buildRequest(
-      [{ role: 'user', content: 'External data?' }],
-      mockSettings,
-      tools,
+  it('normalizes AI SDK tool calls without executing Mint tools', async () => {
+    const fetchMock = vi.fn(async () => new Response([
+      'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1","type":"function","function":{"name":"wiki_search","arguments":"{\\"query\\":\\"Mint\\"}"}}]}}]}\n\n',
+      'data: [DONE]\n\n',
+    ].join('')));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const stream = await openaiChatAdapter.stream(
+      [{ role: 'user', content: 'Search Mint' }],
+      settings,
+      'https://api.test.com',
+      'sk-test',
+      [{
+        type: 'function',
+        function: {
+          name: 'wiki_search',
+          description: 'Search Wiki',
+          parameters: { type: 'object', properties: { query: { type: 'string' } } },
+        },
+      }],
     );
-    expect(body.tools).toHaveLength(1);
-    expect(body.tools[0]).toHaveProperty('name', 'get_external_data');
-    expect(body.tools[0]).toHaveProperty('input_schema');
-    expect(body.tools[0]).not.toHaveProperty('type');
+    const chunks: Array<{ toolCallDelta?: unknown; isFinished?: boolean }> = [];
+    for await (const chunk of stream) chunks.push(chunk);
+
+    expect(chunks).toEqual([
+      {
+        toolCallDelta: {
+          index: 0,
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'wiki_search', arguments: '{"query":"Mint"}' },
+        },
+      },
+      { isFinished: true },
+    ]);
   });
 
-  it('should parse text delta chunk', () => {
-    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello' } }));
-    expect(result).not.toBeNull();
-    expect(result!.content).toBe('Hello');
+  it('creates the configured Responses and Anthropic models', () => {
+    expect(openaiResponsesAdapter.createModel('https://api.test.com', 'key', settings).provider)
+      .toBe('openai.responses');
+    expect(anthropicAdapter.createModel('https://api.test.com/anthropic', 'key', settings).provider)
+      .toBe('anthropic.messages');
   });
 
-  it('should parse tool_use content_block_start', () => {
-    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_123', name: 'get_external_data', input: {} } }));
-    expect(result).not.toBeNull();
-    expect(result!.toolCallDelta).toBeDefined();
-    expect(result!.toolCallDelta!.index).toBe(0);
-    expect(result!.toolCallDelta!.id).toBe('toolu_123');
-    expect(result!.toolCallDelta!.function!.name).toBe('get_external_data');
-  });
+  it('uses generateText for non-streaming calls', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      expect(body.thinking).toEqual({ type: 'disabled' });
+      expect(body.enable_thinking).toBe(false);
+      expect(body.return_reasoning).toBe(true);
 
-  it('should parse input_json_delta for tool arguments', () => {
-    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"loc": "NYC"}' } }));
-    expect(result).not.toBeNull();
-    expect(result!.toolCallDelta).toBeDefined();
-    expect(result!.toolCallDelta!.function!.arguments).toBe('{"loc": "NYC"}');
-  });
+      return new Response(JSON.stringify({
+      choices: [{ message: { content: 'Generated title' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+      }), { headers: { 'Content-Type': 'application/json' } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
-  it('should handle message_stop as finished', () => {
-    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'message_stop' }));
-    expect(result).not.toBeNull();
-    expect(result!.isFinished).toBe(true);
-  });
-
-  it('should ignore ping events', () => {
-    const result = anthropicAdapter.parseChunk(JSON.stringify({ type: 'ping' }));
-    expect(result).toBeNull();
-  });
-});
-
-// ── OpenAI Responses Adapter ──
-
-describe('OpenAI Responses Adapter', () => {
-  it('should build URL with /v1/responses suffix', () => {
-    expect(openaiResponsesAdapter.getUrl('https://api.openai.com/v1')).toBe('https://api.openai.com/v1/v1/responses');
-  });
-
-  it('should use Bearer auth header', () => {
-    const headers = openaiResponsesAdapter.getHeaders('sk-test');
-    expect(headers.Authorization).toBe('Bearer sk-test');
-  });
-
-  it('should build request with input array instead of messages', () => {
-    const body = openaiResponsesAdapter.buildRequest(
-      [{ role: 'user', content: 'Hello' }],
-      { ...mockSettings, systemPrompt: 'Be helpful.' },
-    );
-    expect(body.model).toBe('test-model');
-    expect(body.input).toHaveLength(1);
-    expect(body.input[0]).toEqual({ role: 'user', content: 'Hello' });
-    expect(body.instructions).toBe('Be helpful.');
-    expect(body.stream).toBe(true);
-  });
-
-  it('should parse output_text.delta chunk', () => {
-    const result = openaiResponsesAdapter.parseChunk(JSON.stringify({ type: 'response.output_text.delta', delta: 'Hello' }));
-    expect(result).not.toBeNull();
-    expect(result!.content).toBe('Hello');
-  });
-
-  it('should parse function_call_arguments.delta chunk', () => {
-    const result = openaiResponsesAdapter.parseChunk(JSON.stringify({ type: 'response.function_call_arguments.delta', output_index: 0, delta: '{"loc":' }));
-    expect(result).not.toBeNull();
-    expect(result!.toolCallDelta).toBeDefined();
-    expect(result!.toolCallDelta!.index).toBe(0);
-    expect(result!.toolCallDelta!.function!.arguments).toBe('{"loc":');
-  });
-
-  it('should handle response.completed as finished', () => {
-    const result = openaiResponsesAdapter.parseChunk(JSON.stringify({ type: 'response.completed' }));
-    expect(result).not.toBeNull();
-    expect(result!.isFinished).toBe(true);
-  });
-
-  it('should ignore response.created event', () => {
-    const result = openaiResponsesAdapter.parseChunk(JSON.stringify({ type: 'response.created' }));
-    expect(result).toBeNull();
+    await expect(openaiChatAdapter.call(
+      [{ role: 'user', content: 'Make a title' }],
+      { modelId: 'test-model' },
+      'https://api.test.com',
+      'sk-test',
+      { thinking: false },
+    )).resolves.toBe('Generated title');
   });
 });

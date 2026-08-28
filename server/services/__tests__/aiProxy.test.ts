@@ -3,10 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 vi.mock('../adapters/apiAdapter.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../adapters/apiAdapter.js')>()),
   getAdapter: vi.fn(() => ({
-    getUrl: vi.fn(() => 'https://api.test.com/v1/chat/completions'),
-    getHeaders: vi.fn(() => ({ 'Authorization': 'Bearer sk-key' })),
-    buildRequest: vi.fn(() => ({ model: 'gpt-4', messages: [] })),
-    parseChunk: vi.fn(),
+    stream: vi.fn(),
     call: vi.fn(),
   })),
 }));
@@ -40,10 +37,12 @@ describe('aiProxy', () => {
 
     it('uses one AgentRun event contract for ordinary streamed answers', async () => {
       const adapter = vi.mocked((await import('../adapters/apiAdapter.js')).getAdapter)();
-      adapter.parseChunk = vi.fn((chunk) => chunk === 'answer-chunk' ? { content: 'hello' } : null);
+      adapter.stream = vi.fn(async () => (async function* () {
+        yield { content: 'hello' };
+        yield { isFinished: true };
+      })());
       vi.mocked((await import('../adapters/apiAdapter.js')).getAdapter).mockReturnValue(adapter);
       vi.mocked(getAllToolDefinitions).mockResolvedValue([]);
-      vi.stubGlobal('fetch', vi.fn(async () => new Response('data: answer-chunk\n\ndata: [DONE]\n\n')));
       const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
 
       const result = await streamChat(

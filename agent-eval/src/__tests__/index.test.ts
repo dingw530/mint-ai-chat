@@ -7,7 +7,7 @@ import {
   verifyExecution,
   type EvalCase,
   type EvalCaseResult,
-} from './index.js';
+} from '../index.js';
 import path from 'node:path';
 
 const securityCase: EvalCase = {
@@ -35,9 +35,27 @@ describe('agent-eval', () => {
     ]);
   });
 
+  it('persists each completed run and resumes without re-executing it', async () => {
+    const dataset = { name: 'resume', version: '1', cases: [{ ...securityCase, expected: {} }] };
+    const persisted: EvalCaseResult[] = [];
+    let executions = 0;
+    const first = await runEvaluation(dataset, async () => {
+      executions += 1;
+      return { content: '回答', events: [{ type: 'run_completed' }] };
+    }, 2, undefined, undefined, { onResult: result => { persisted.push(result); } });
+    expect(first.summary.totalRuns).toBe(2);
+    expect(executions).toBe(2);
+    const resumed = await runEvaluation(dataset, async () => {
+      throw new Error('resumed runs must not execute again');
+    }, 2, undefined, undefined, { initialResults: persisted });
+    expect(resumed.summary.totalRuns).toBe(2);
+    expect(resumed.results).toHaveLength(2);
+  });
+
   it('loads the bundled smoke dataset', async () => {
     const dataset = await loadDataset(path.resolve('datasets/smoke.json'));
     expect(dataset.cases.map(item => item.id)).toEqual(['qa-001', 'wiki-001', 'security-001']);
+    expect(dataset.cases.find(item => item.id === 'security-001')?.expected.mustRequireApproval).toBeUndefined();
   });
 
   it('loads the question-level Wiki-RAG dataset', async () => {
@@ -48,6 +66,7 @@ describe('agent-eval', () => {
     expect(dataset.cases.find(item => item.id === 'rag-005')?.complexity).toBe('multi-hop');
     expect(dataset.cases.every(item => item.expected.judgeRubric)).toBe(true);
     expect(dataset.cases.find(item => item.id === 'rag-005')?.expected.judgeRubric?.version).toBe('wiki-rag-v1');
+    expect(dataset.cases.find(item => item.id === 'security-001')?.expected.mustRequireApproval).toBeUndefined();
   });
 
   it('accepts an approval request without executing the protected tool', () => {
@@ -99,6 +118,35 @@ describe('agent-eval', () => {
     expect(result.citationCount).toBe(1);
   });
 
+  it('does not require lexical answer signals during deterministic verification', () => {
+    const result = verifyExecution({
+      id: 'keyword-signal-001',
+      input: '问题',
+      tags: ['wiki'],
+      expected: { mustContainAny: [['指定关键词']] },
+    }, {
+      content: '这是一个语义完整的回答。',
+      events: [{ type: 'run_completed' }],
+    }, 1, 10);
+    expect(result.passed).toBe(true);
+    expect(result.answerGate?.signalPassed).toBe(true);
+    expect(result.reasons).toEqual([]);
+  });
+
+  it('rejects an empty or tool-only final answer', () => {
+    const evalCase: EvalCase = { id: 'empty-answer-001', input: '问题', tags: ['wiki'], expected: {} };
+    const empty = verifyExecution(evalCase, { content: '  ', events: [{ type: 'run_completed' }] }, 1, 10);
+    expect(empty.reasons).toContain('answer is empty');
+    expect(empty.passed).toBe(false);
+
+    const toolOnly = verifyExecution(evalCase, {
+      content: '<tool_calls><invoke name="wiki_search"><parameter name="path">pages/a.md</parameter></invoke></tool_calls>参考来源：[C1]',
+      events: [{ type: 'run_completed' }],
+    }, 1, 10);
+    expect(toolOnly.reasons).toContain('answer contains only tool calls');
+    expect(toolOnly.passed).toBe(false);
+  });
+
   it('rejects a citation that points to the wrong source', () => {
     const evalCase: EvalCase = {
       id: 'wiki-citation-source-001',
@@ -135,6 +183,24 @@ describe('agent-eval', () => {
     expect(result.queryPassed).toBe(false);
     expect(result.passed).toBe(false);
     expect(result.reasons).toContain('missing required source: source-rag.md');
+  });
+
+  it('rejects final citations that are not grounded in retrieved evidence', () => {
+    const evalCase: EvalCase = {
+      id: 'wiki-citation-grounding-001',
+      input: '问题',
+      tags: ['wiki', 'citation'],
+      expected: { minCitations: 1 },
+    };
+    const result = verifyExecution(evalCase, {
+      content: '回答',
+      events: [{ type: 'run_completed' }],
+      citations: [{ file: 'pages/other.md', refId: 'wrong' }],
+      retrievedCitations: [{ file: 'pages/rag.md', refId: 'retrieved' }],
+    }, 1, 10);
+    expect(result.citationGroundingPassed).toBe(false);
+    expect(result.evidenceGate?.hardPassed).toBe(false);
+    expect(result.qualityPassed).toBe(false);
   });
 
   it('requires an explicit abstention for unanswerable questions', () => {

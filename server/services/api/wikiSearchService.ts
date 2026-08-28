@@ -15,6 +15,7 @@ export interface WikiSearchResult {
   title: string;
   heading: string;
   content: string;
+  granularity: 'chunk' | 'page' | 'source-family';
   snippet: string;
   score: number;
   matchTypes: string[];
@@ -308,16 +309,17 @@ function toSearchResult(
     + (matchTypes.includes('claim') ? 3 : 0)
     + (page ? lifecycleRepo.getSearchRelevanceBoost(page) : 0);
   const snippet = `${document.heading ? `## ${document.heading}\n` : ''}${buildSnippet(document.body, terms)}`;
-  let fullContent = document.body;
-  if (includeContent) {
-    try { fullContent = fs.readFileSync(path.join(wikiPath, resultPath(document.sourcePath)), 'utf8'); } catch { /* 保留证据片段 */ }
-  }
+  const evidenceContent = document.heading
+    ? `## ${document.heading}\n${document.body}`
+    : document.body;
   return {
     chunkId: document.id,
     file: document.sourcePath,
     title: document.title,
     heading: document.heading,
-    content: includeContent ? fullContent : snippet,
+    // Keep model-visible content at the same granularity as document.id.
+    content: includeContent ? evidenceContent : snippet,
+    granularity: 'chunk',
     snippet,
     score,
     matchTypes,
@@ -367,7 +369,7 @@ function expandSourceFamilyResults(
     results.push({
       chunkId: `${file}#source-family`, file, title: page.title, heading: '',
       content: includeContent ? content : '', snippet: `同源资料：${source}`,
-      score: Math.max(0, results[0].score - results.length * 0.01), matchTypes: ['source-family'],
+      granularity: 'source-family', score: Math.max(0, results[0].score - results.length * 0.01), matchTypes: ['source-family'],
       pageStatus: lifecycle?.status ?? null, lastVerifiedAt: lifecycle?.lastConfirmedAt ?? null,
       claimId: null, lexicalRank: null, vectorRank: null, distance: null,
     });

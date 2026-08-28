@@ -28,18 +28,21 @@ describe('ToolLoopEngine', () => {
     ).rejects.toThrow('API Key');
   });
 
-  it('delegates the streaming LLM request to the adapter', async () => {
+  it('delegates the model stream to the adapter and parses it', async () => {
     const adapter = {
-      getUrl: vi.fn(() => 'https://api.test.com/v1/chat/completions'),
-      stream: vi.fn().mockResolvedValue({ ok: false, status: 503, text: vi.fn().mockResolvedValue('down') }),
+      stream: vi.fn().mockResolvedValue((async function* () {
+        yield { content: 'answer' };
+        yield { isFinished: true };
+      })()),
     };
 
-    await expect(engine.executeRound({
+    const result = await engine.executeRound({
       messages: [],
       settings: { apiUrl: 'https://api.test.com', apiKey: 'key', apiType: 'test' } as any,
       adapter: adapter as any,
-    })).rejects.toThrow('AI API error');
+    });
 
+    expect(result.content).toBe('answer');
     expect(adapter.stream).toHaveBeenCalledWith(
       [],
       expect.anything(),
@@ -52,90 +55,54 @@ describe('ToolLoopEngine', () => {
 });
 
 describe('parseSSEStream', () => {
-  it('throws on non-ok response', async () => {
-    const response = {
-      ok: false,
-      status: 401,
-      text: vi.fn().mockResolvedValue('Unauthorized'),
-    } as any;
-    await expect(parseSSEStream(response, {} as any)).rejects.toThrow('AI API error');
-  });
+  it('accumulates content from normalized model chunks', async () => {
+    const result = await parseSSEStream((async function* () {
+      yield { content: 'Hello ' };
+      yield { content: 'World!' };
+      yield { isFinished: true };
+    })());
 
-  it('accumulates content from SSE chunks', async () => {
-    const adapter = {
-      parseChunk: vi.fn((data: string) => {
-        if (data === 'h') return { content: 'Hello ' };
-        if (data === 'w') return { content: 'World!' };
-        if (data === '[DONE]') return { isFinished: true };
-        return null;
-      }),
-    };
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode('data: h\n\n'));
-        controller.enqueue(encoder.encode('data: w\n\n'));
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        controller.close();
-      },
-    });
-
-    const result = await parseSSEStream(
-      { ok: true, body: stream, status: 200 } as any,
-      adapter as any,
-    );
     expect(result.content).toBe('Hello World!');
   });
 
+  it('accumulates tool call chunks', async () => {
+    const result = await parseSSEStream((async function* () {
+      yield {
+        toolCallDelta: {
+          index: 0,
+          id: 'call-1',
+          type: 'function',
+          function: { name: 'wiki_search', arguments: '{"query":"Mint"}' },
+        },
+      };
+      yield { isFinished: true };
+    })());
+
+    expect(result.toolCalls).toEqual([{
+      id: 'call-1',
+      type: 'function',
+      function: { name: 'wiki_search', arguments: '{"query":"Mint"}' },
+    }]);
+  });
+
   it('writes to sink', async () => {
-    const adapter = {
-      parseChunk: vi.fn((data: string) => {
-        if (data === 't') return { content: 'test' };
-        if (data === '[DONE]') return { isFinished: true };
-        return null;
-      }),
-    };
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode('data: t\n\n'));
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        controller.close();
-      },
-    });
-
     const sink = { write: vi.fn() };
-    await parseSSEStream(
-      { ok: true, body: stream, status: 200 } as any,
-      adapter as any,
-      sink as any,
-    );
+    await parseSSEStream((async function* () {
+      yield { content: 'test' };
+      yield { isFinished: true };
+    })(), undefined, sink as any);
+
     expect(sink.write).toHaveBeenCalledWith(expect.stringContaining('test'));
   });
 
   it('emits typed stream events when an event callback is provided', async () => {
-    const adapter = {
-      parseChunk: vi.fn((data: string) => {
-        if (data === 't') return { content: 'typed' };
-        if (data === '[DONE]') return { isFinished: true };
-        return null;
-      }),
-    };
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode('data: t\n\n'));
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        controller.close();
-      },
-    });
     const events: unknown[] = [];
-
     await parseSSEStream(
-      { ok: true, body: stream, status: 200 } as any,
-      adapter as any,
+      (async function* () {
+        yield { content: 'typed' };
+        yield { isFinished: true };
+      })(),
+      undefined,
       undefined,
       { eventType: 'thought', emitEvent: (event) => events.push(event) },
     );

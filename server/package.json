@@ -30,8 +30,15 @@
     "node": "20.19.4"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.0",
+    "@ai-sdk/openai": "^3.0.30",
+    "@ai-sdk/openai-compatible": "^2.0.0",
+    "@langfuse/otel": "^5.10.1",
+    "@langfuse/tracing": "^5.10.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@modelcontextprotocol/server-everything": "^2026.1.26",
+    "@opentelemetry/sdk-node": "^0.221.0",
+    "ai": "^6.0.95",
     "better-sqlite3": "^12.11.1",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",

@@ -7,6 +7,7 @@ import type {
   A2UIInput,
   A2UIOutput,
   A2UIProvider,
+  A2UIReferenceContext,
 } from './types.js';
 
 function parseReferenceMarker(value: string): { refId: string; start: number; end: number } | null {
@@ -30,7 +31,13 @@ export class A2UIComposer {
   }
 
   handle(input: A2UIInput): A2UIHandleResult {
-    if (input.event.kind === 'tool_result') return this.handleToolResult(input.event.toolName, input.event.result);
+    if (input.event.kind === 'tool_result') {
+      return this.handleToolResult(input.event.toolName, input.event.result, {
+        runId: input.runId,
+        round: input.round,
+        toolCallId: input.event.toolCallId,
+      });
+    }
     if (input.event.kind === 'answer_completed') {
       const result = this.handleAnswerChunk(input.event.content);
       return { outputs: [...result.outputs, ...this.flushPendingEmissions()] };
@@ -45,24 +52,30 @@ export class A2UIComposer {
 
   /** 返回本轮已从 Wiki 搜索结果解析出的全部结构化引用。 */
   getReferences(): Array<{
+    evidenceId: string;
     refId: string;
     title: string;
     file: string;
     heading: string;
     chunkId: string;
+    granularity: 'chunk' | 'page' | 'source-family';
+    contentHash: string;
   }> {
     return this.providers.flatMap((provider) => (provider.getReferences?.() || []).map((reference) => ({
+      evidenceId: reference.evidenceId,
       refId: reference.refId,
       title: reference.title,
       file: reference.file,
       heading: reference.heading,
       chunkId: reference.chunkId,
+      granularity: reference.granularity,
+      contentHash: reference.contentHash,
     })));
   }
 
   /** 仅登记原始工具结果中的引用，不改变已经发送给模型的上下文内容。 */
-  captureToolResult(toolName: string, result: unknown): void {
-    this.handleToolResult(toolName, result);
+  captureToolResult(toolName: string, result: unknown, context?: A2UIReferenceContext): void {
+    this.handleToolResult(toolName, result, context);
   }
 
   /** 移除未被编译为组件的引用标记，防止前端显示孤立标记。 */
@@ -83,10 +96,14 @@ export class A2UIComposer {
     return displayRefId;
   }
 
-  private handleToolResult(toolName: string, rawResult: unknown): A2UIHandleResult {
+  private handleToolResult(
+    toolName: string,
+    rawResult: unknown,
+    context: A2UIReferenceContext = { runId: 'capture', round: 0 },
+  ): A2UIHandleResult {
     const provider = this.providers.find((candidate) => candidate.toolName === toolName);
     if (!provider) return { outputs: [] };
-    const result = provider.handleToolResult(rawResult, this.nextReferenceIndex);
+    const result = provider.handleToolResult(rawResult, this.nextReferenceIndex, context);
     this.nextReferenceIndex = result.nextReferenceIndex;
     return { outputs: [], contextResult: result.contextResult };
   }

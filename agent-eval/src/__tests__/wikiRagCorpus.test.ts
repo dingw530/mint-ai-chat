@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ingestWikiRagCorpus, prepareWikiRagCorpus } from './wikiRagCorpus.js';
+import { ingestWikiRagCorpus, prepareWikiRagCorpus } from '../wikiRagCorpus.js';
 
 async function createCorpus(): Promise<{ root: string; rawDir: string }> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mint-wiki-rag-test-'));

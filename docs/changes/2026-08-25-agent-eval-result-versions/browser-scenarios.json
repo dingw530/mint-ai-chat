@@ -1,0 +1,66 @@
+{
+  "scenarios": [
+    {
+      "id": "eval-report-version-switch-and-compare",
+      "acceptanceCriteria": ["AC-7"],
+      "route": "/",
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/report.json",
+            "body": {
+              "dataset": "smoke",
+              "version": "dataset-v1",
+              "resultVersion": "prompt-v2",
+              "runsPerCase": 1,
+              "generatedAt": "2026-08-25T10:00:00.000Z",
+              "summary": {"totalRuns": 1, "passedRuns": 1, "queryPassedRuns": 1, "answerPassedRuns": 1, "passAt1": 1, "queryPassAt1": 1, "answerPassAt1": 1, "passAtK": 1, "passAtKValue": 1, "passPowerK": 1, "passPowerKValue": 1, "toolSuccessRate": 1, "toolBudgetPassRate": 1, "wikiSearchBudgetPassRate": 1, "averageRounds": 1, "averageToolCalls": 0, "averageAttemptedToolCalls": 0, "averageBlockedToolCalls": 0, "averageWikiSearchCalls": 0, "averageAttemptedWikiSearchCalls": 0, "averageBlockedWikiSearchCalls": 0, "unrelatedToolRate": 0, "retryRate": 0, "loopRate": 0, "averageLatencyMs": 10, "p50LatencyMs": 10, "p95LatencyMs": 10, "averageInputTokens": 0, "averageOutputTokens": 0, "averageReasoningTokens": 0, "averageTtftMs": 0, "citationCoverageRate": 1, "citationAccuracyRate": 1, "retrievalCoverageRate": 1, "abstentionAccuracy": 1, "essentialPassRate": 1, "importantPassRate": 1, "optionalPassRate": 1, "judgeRuns": 0, "judgePassAt1": 0, "averageJudgeScore": 0, "averageJudgeConfidence": 0, "judgeCriticalFailureRate": 0, "averageAnswerChars": 12},
+              "caseStats": [],
+              "results": []
+            }
+          },
+          {
+            "pattern": "**/versions/index.json",
+            "body": {"schemaVersion": 1, "versions": [
+              {"id": "prompt-v2", "dataset": "smoke", "datasetVersion": "dataset-v1", "generatedAt": "2026-08-25T10:00:00.000Z", "reportFile": "prompt-v2.json", "totalRuns": 1, "passAt1": 1, "queryPassAt1": 1, "answerPassAt1": 1},
+              {"id": "prompt-v1", "dataset": "smoke", "datasetVersion": "dataset-v1", "generatedAt": "2026-08-24T10:00:00.000Z", "reportFile": "prompt-v1.json", "totalRuns": 1, "passAt1": 0, "queryPassAt1": 0, "answerPassAt1": 0}
+            ]}
+          },
+          {
+            "pattern": "**/versions/prompt-v2.json",
+            "body": {
+              "dataset": "smoke",
+              "version": "dataset-v1",
+              "resultVersion": "prompt-v2",
+              "runsPerCase": 1,
+              "generatedAt": "2026-08-25T10:00:00.000Z",
+              "summary": {"totalRuns": 1, "passedRuns": 1, "queryPassedRuns": 1, "answerPassedRuns": 1, "passAt1": 1, "queryPassAt1": 1, "answerPassAt1": 1, "passAtK": 1, "passAtKValue": 1, "passPowerK": 1, "passPowerKValue": 1, "toolSuccessRate": 1, "toolBudgetPassRate": 1, "wikiSearchBudgetPassRate": 1, "averageRounds": 1, "averageToolCalls": 0, "averageAttemptedToolCalls": 0, "averageBlockedToolCalls": 0, "averageWikiSearchCalls": 0, "averageAttemptedWikiSearchCalls": 0, "averageBlockedWikiSearchCalls": 0, "unrelatedToolRate": 0, "retryRate": 0, "loopRate": 0, "averageLatencyMs": 10, "p50LatencyMs": 10, "p95LatencyMs": 10, "averageInputTokens": 0, "averageOutputTokens": 0, "averageReasoningTokens": 0, "averageTtftMs": 0, "citationCoverageRate": 1, "citationAccuracyRate": 1, "retrievalCoverageRate": 1, "abstentionAccuracy": 1, "essentialPassRate": 1, "importantPassRate": 1, "optionalPassRate": 1, "judgeRuns": 0, "judgePassAt1": 0, "averageJudgeScore": 0, "averageJudgeConfidence": 0, "judgeCriticalFailureRate": 0, "averageAnswerChars": 12},
+              "caseStats": [],
+              "results": []
+            }
+          },
+          {
+            "pattern": "**/versions/prompt-v1.json",
+            "body": {
+              "dataset": "smoke",
+              "version": "dataset-v1",
+              "resultVersion": "prompt-v1",
+              "runsPerCase": 1,
+              "generatedAt": "2026-08-24T10:00:00.000Z",
+              "summary": {"totalRuns": 1, "passedRuns": 0, "queryPassedRuns": 0, "answerPassedRuns": 0, "passAt1": 0, "queryPassAt1": 0, "answerPassAt1": 0, "passAtK": 0, "passAtKValue": 1, "passPowerK": 0, "passPowerKValue": 1, "toolSuccessRate": 0, "toolBudgetPassRate": 0, "wikiSearchBudgetPassRate": 0, "averageRounds": 1, "averageToolCalls": 0, "averageAttemptedToolCalls": 0, "averageBlockedToolCalls": 0, "averageWikiSearchCalls": 0, "averageAttemptedWikiSearchCalls": 0, "averageBlockedWikiSearchCalls": 0, "unrelatedToolRate": 0, "retryRate": 0, "loopRate": 0, "averageLatencyMs": 10, "p50LatencyMs": 10, "p95LatencyMs": 10, "averageInputTokens": 0, "averageOutputTokens": 0, "averageReasoningTokens": 0, "averageTtftMs": 0, "citationCoverageRate": 0, "citationAccuracyRate": 0, "retrievalCoverageRate": 0, "abstentionAccuracy": 0, "essentialPassRate": 0, "importantPassRate": 0, "optionalPassRate": 0, "judgeRuns": 0, "judgePassAt1": 0, "averageJudgeScore": 0, "averageJudgeConfidence": 0, "judgeCriticalFailureRate": 0, "averageAnswerChars": 12},
+              "caseStats": [],
+              "results": []
+            }
+          }
+        ]
+      },
+      "markers": ["Agent 能力评测报告", "当前版本"],
+      "steps": [
+        {"action": "click", "target": {"label": "基线版本"}},
+        {"action": "click", "target": {"role": "button", "name": "比较两个版本"}},
+        {"action": "assertText", "text": "与历史报告相比"},
+        {"action": "assertText", "text": "passAt1"}
+      ]
+    }
+  ]
+}

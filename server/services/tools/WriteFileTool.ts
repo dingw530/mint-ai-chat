@@ -19,7 +19,7 @@ interface WriteFileOutput {
 
 export class WriteFileTool extends BaseTool<WriteFileInput, WriteFileOutput> {
   readonly name = 'write_file';
-  readonly description = '写入文件到 Wiki 知识库。路径相对于 Wiki 根目录，会自动创建不存在的子目录。';
+  readonly description = '请求写入文件到 Wiki 知识库。调用本工具会先触发审批，未获得用户批准不会执行写入；路径相对于 Wiki 根目录，会自动创建不存在的子目录。';
   readonly inputSchema = WriteFileInputSchema;
 
   isReadOnly(): boolean {

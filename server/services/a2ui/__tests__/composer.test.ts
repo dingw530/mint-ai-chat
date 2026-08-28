@@ -55,7 +55,7 @@ describe('A2UIComposer', () => {
     expect(composer.sanitizeContent('正文 [1]。\n[1] 这是有序步骤。 [citation:1] [R9] [C')).toBe('正文 [C1]。\n[1] 这是有序步骤。 [C1]');
   });
 
-  it('reuses one reference id for chunks from the same file', () => {
+  it('allocates distinct reference ids for chunks from the same file', () => {
     const composer = new A2UIComposer();
     const result = composer.handle({
       runId: 'run-1',
@@ -73,7 +73,7 @@ describe('A2UIComposer', () => {
     });
 
     expect(result.contextResult).toContain('"refId":"C1"');
-    expect(result.contextResult).not.toContain('"refId":"C2"');
+    expect(result.contextResult).toContain('"refId":"C2"');
   });
 
   it('places references after the paragraph containing the marker', () => {
@@ -169,6 +169,45 @@ describe('A2UIComposer', () => {
     expect(result('b.md').contextResult).toContain('"refId":"C2"');
   });
 
+  it('keeps a repeated tool result bound to the same immutable evidence', () => {
+    const composer = new A2UIComposer();
+    const context = { runId: 'run-1', round: 1, toolCallId: 'call-1' };
+    const result = { results: [{ file: 'pages/a.md', chunkId: 'pages/a.md#chunk:0', content: 'fact' }] };
+
+    const first = composer.handle({ runId: context.runId, round: context.round, event: { kind: 'tool_result', toolName: 'wiki_search', toolCallId: context.toolCallId, result } });
+    const repeated = composer.captureToolResult('wiki_search', result, context);
+
+    expect(first.contextResult).toContain('"refId":"C1"');
+    expect(composer.getReferences()).toHaveLength(1);
+    expect(composer.getReferences()[0]).toMatchObject({
+      evidenceId: 'wiki-evidence:run-1|1|call-1|0|pages/a.md|pages/a.md#chunk:0',
+      refId: 'C1',
+      granularity: 'chunk',
+      contentHash: expect.any(String),
+    });
+    expect(repeated).toBeUndefined();
+  });
+
+  it('allocates a new immutable evidence id for a later chunk from the same file', () => {
+    const composer = new A2UIComposer();
+    composer.handle({
+      runId: 'run-1',
+      round: 1,
+      event: { kind: 'tool_result', toolName: 'wiki_search', toolCallId: 'call-1', result: { results: [{ file: 'pages/a.md', chunkId: 'pages/a.md#chunk:0', content: 'first' }] } },
+    });
+    const later = composer.handle({
+      runId: 'run-1',
+      round: 2,
+      event: { kind: 'tool_result', toolName: 'wiki_search', toolCallId: 'call-2', result: { results: [{ file: 'pages/a.md', chunkId: 'pages/a.md#chunk:1', content: 'second' }] } },
+    });
+
+    expect(later.contextResult).toContain('"refId":"C2"');
+    expect(composer.getReferences().map((reference) => reference.chunkId)).toEqual([
+      'pages/a.md#chunk:0',
+      'pages/a.md#chunk:1',
+    ]);
+  });
+
   it('carries hybrid evidence metadata into the persisted source block', () => {
     const composer = new A2UIComposer();
     composer.handle({
@@ -210,11 +249,14 @@ describe('A2UIComposer', () => {
     });
 
     expect(composer.getReferences()).toEqual([{
+      evidenceId: 'wiki-evidence:capture|0|unknown|0|pages/raw.md|pages/raw.md#file',
       refId: 'C1',
       file: 'pages/raw.md',
       title: 'Raw page',
       heading: '',
       chunkId: 'pages/raw.md#file',
+      granularity: 'page',
+      contentHash: expect.any(String),
     }]);
     expect(composer.getBlocks()).toHaveLength(0);
   });

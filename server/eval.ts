@@ -10,6 +10,7 @@ import { AccumulatingSink } from './services/sink.js';
 import type { ReactExecutionPolicy } from './services/reactLoopCore.js';
 import { createDurableAgentRun, agentRunRegistry } from './services/agentRun.js';
 import { findWikiCitationMarkers } from './services/utils/wikiCitationMarkers.js';
+import { getWikiVectorHealth } from './services/api/wikiSearchService.js';
 export type { WikiIngestionRequest, WikiIngestionResult } from './services/api/wikiIngestionService.js';
 export { ingestWikiSource } from './services/api/wikiIngestionService.js';
 
@@ -35,6 +36,10 @@ export interface EvalSettingsInput {
   apiKey: string;
   modelId: string;
   wikiPath: string;
+  wikiSearchMode?: 'keyword' | 'hybrid';
+  embeddingApiUrl?: string;
+  embeddingModel?: string;
+  embeddingDimensions?: number;
 }
 
 const EVAL_WIKI_QUERY_PROTOCOL = [
@@ -45,6 +50,8 @@ const EVAL_WIKI_QUERY_PROTOCOL = [
   '4. 不要调用 discover_tools、invoke_skill 或 bash 来完成 Wiki 查询；不要为了确认已经获得的内容重复搜索。',
   '5. 最多进行两次 wiki_search，然后必须回答；如果证据不足，明确说明知识库没有足够信息，不要猜测。',
   '6. 每个基于 Wiki 事实的段落都必须在句末使用实际存在的 [C#] 引用；不得使用 [1]、[2] 这类无 C 前缀的编号，也不得编造引用编号。',
+  '7. 如果问题要求多个要点、要素或原因，先列出完整清单，再解释各项关系；不要只给泛化总结。',
+  '8. 对 write_file 等有副作用工具，发起工具调用本身就是请求审批；运行时会在真正写入前拦截。不要只用文字询问审批，也不要在批准前重复调用或执行其他写入工具。',
 ].join('\n');
 
 function readCitationSource(wikiPath: string, file: string): string | undefined {
@@ -172,8 +179,21 @@ export function configureEvalSettings(input: EvalSettingsInput): AiSettings {
     apiKey: input.apiKey,
     modelId: input.modelId,
     wikiPath: input.wikiPath,
+    wikiSearchMode: input.wikiSearchMode,
+    embeddingApiUrl: input.embeddingApiUrl,
+    embeddingModel: input.embeddingModel,
+    embeddingDimensions: input.embeddingDimensions,
   });
   return settingsService.getAiSettings();
+}
+
+/** 返回隔离评测库当前向量索引的覆盖率和失败统计。 */
+export function getEvalVectorHealth(settings: AiSettings): ReturnType<typeof getWikiVectorHealth> {
+  return getWikiVectorHealth({
+    apiUrl: settings.embeddingApiUrl,
+    model: settings.embeddingModel,
+    dimensions: settings.embeddingDimensions,
+  });
 }
 
 /** 创建供 agent-eval 使用的 Mint ReAct executor。 */

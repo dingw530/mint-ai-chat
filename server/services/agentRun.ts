@@ -1,5 +1,6 @@
 import type { ReactEvent, ReactEventBase, ReactEventPayload } from './reactEvents.js';
 import { agentRunEventRepository, type AgentRunEventWriter, type PersistedAgentRunEvent } from '../repositories/agentRunEventRepository.js';
+import { attachLangfuseObserver } from './observability/langfuse.js';
 
 export type AgentRunPhase =
   | 'running'
@@ -199,7 +200,9 @@ function toPersistedEvent(payload: ReactEventPayload, runId: string, conversatio
 
 /** Creates a production AgentRun with the durable event writer enabled. */
 export function createDurableAgentRun(options: Omit<AgentRunOptions, 'eventRepository'>): AgentRun {
-  return new AgentRun({ ...options, eventRepository: agentRunEventRepository });
+  const run = new AgentRun({ ...options, eventRepository: agentRunEventRepository });
+  attachLangfuseObserver(run);
+  return run;
 }
 
 function withEventIdentity<T extends ReactEventPayload>(
