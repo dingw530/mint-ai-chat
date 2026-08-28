@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "versions": [
+    {
+      "id": "report",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.1.0",
+      "generatedAt": "2026-08-25T09:04:39.381Z",
+      "reportFile": "report.json",
+      "totalRuns": 75,
+      "passAt1": 0,
+      "queryPassAt1": 0,
+      "answerPassAt1": 0
+    },
+    {
+      "id": "wiki-rag-20260825090439-13eaecbd",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.1.0",
+      "generatedAt": "2026-08-25T09:04:39.381Z",
+      "reportFile": "wiki-rag-20260825090439-13eaecbd.json",
+      "totalRuns": 75,
+      "passAt1": 0,
+      "queryPassAt1": 0,
+      "answerPassAt1": 0
+    },
+    {
+      "id": "wiki-rag-20260825132830-814f6808",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.1.0",
+      "generatedAt": "2026-08-25T13:28:30.467Z",
+      "reportFile": "wiki-rag-20260825132830-814f6808.json",
+      "totalRuns": 25,
+      "passAt1": 0.68,
+      "queryPassAt1": 0.68,
+      "answerPassAt1": 0.68
+    },
+    {
+      "id": "wiki-rag-20260826142909-91238229",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.1.0",
+      "generatedAt": "2026-08-26T14:29:09.741Z",
+      "reportFile": "wiki-rag-20260826142909-91238229.json",
+      "totalRuns": 75,
+      "passAt1": 0.76,
+      "queryPassAt1": 0.76,
+      "answerPassAt1": 0.76
+    },
+    {
+      "id": "wiki-rag-20260827215558-6ecf274b",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.2.0",
+      "generatedAt": "2026-08-27T21:55:58.924Z",
+      "reportFile": "wiki-rag-20260827215558-6ecf274b.json",
+      "totalRuns": 25,
+      "passAt1": 0.84,
+      "queryPassAt1": 0.84,
+      "answerPassAt1": 0.84
+    }
+  ]
+}
