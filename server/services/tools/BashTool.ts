@@ -1,24 +1,12 @@
 import { z } from 'zod';
-import { exec } from 'child_process';
-import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
-import { promisify } from 'util';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
 import { checkCommand } from '../api/bashSecurityService.js';
 import * as path from 'path';
 import { getWikiPath } from '../utils/pathSecurity.js';
 import { getMintWorkspacePath } from '../utils/mintWorkspace.js';
-
-const execAsync = promisify(exec);
-
-/**
- * 获取当前运行环境可用的 POSIX shell。
- * @returns {string} Bash 或 POSIX shell 的可执行路径
- */
-function getShellPath(): string {
-  return existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
-}
+import { isHighRiskBashCommand } from './toolPolicy.js';
+import { sandboxRunner, type SandboxMetadata } from './sandbox/SandboxRunner.js';
 
 // ── 输入 Schema ──
 
@@ -32,11 +20,12 @@ type BashInput = z.infer<typeof BashInputSchema>;
 
 // ── 输出类型 ──
 
-interface BashOutput {
+export interface BashOutput {
   stdout: string;
   stderr: string;
   exitCode: number | null;
   duration: number;
+  sandbox: SandboxMetadata;
 }
 
 // ── Bash 工具 ──
@@ -84,49 +73,21 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
   }
 
   async execute(input: BashInput, context: ToolContext): Promise<BashOutput> {
-    const startTime = Date.now();
-
-    try {
-      const cwd = input.cwd ?? getMintWorkspacePath();
-      if (!input.cwd) await mkdir(cwd, { recursive: true });
-      const { stdout, stderr } = await execAsync(input.command, {
-        cwd,
-        timeout: input.timeout,
-        maxBuffer: 1024 * 1024,
-        shell: getShellPath(),
-        signal: context.signal,
-      });
-
+    if (isHighRiskBashCommand(input.command) && !context.approvalGranted) {
       return {
-        stdout: stdout.length > 10000 ? stdout.substring(0, 10000) + '\n...(output truncated)' : stdout,
-        stderr: stderr.length > 5000 ? stderr.substring(0, 5000) + '\n...(stderr truncated)' : stderr,
-        exitCode: 0,
-        duration: Date.now() - startTime,
-      };
-    } catch (err: unknown) {
-      const duration = Date.now() - startTime;
-      const details = typeof err === 'object' && err !== null ? err as {
-        code?: string | number;
-        stdout?: string;
-        stderr?: string;
-        message?: string;
-      } : {};
-
-      if (details.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
-        return {
-          stdout: details.stdout?.substring(0, 10000) || '',
-          stderr: details.stderr?.substring(0, 5000) || '',
-          exitCode: null,
-          duration,
-        };
-      }
-
-      return {
-        stdout: details.stdout || '',
-        stderr: details.stderr || details.message || String(err),
-        exitCode: typeof details.code === 'number' ? details.code : null,
-        duration,
+        stdout: '', stderr: 'Approval required: high-risk Bash command', exitCode: null, duration: 0,
+        sandbox: { state: 'denied', sandboxed: false, backend: 'none', reason: 'high-risk Bash command requires approval' },
       };
     }
+    const startTime = Date.now();
+
+    const result = await sandboxRunner.run({
+      command: input.command,
+      cwd: input.cwd ?? getMintWorkspacePath(),
+      timeoutMs: input.timeout ?? 30000,
+      invocationId: `${context.conversationId}-${startTime}`,
+      allowHostFallback: !isHighRiskBashCommand(input.command),
+    }, context);
+    return { ...result, sandbox: result.metadata };
   }
 }

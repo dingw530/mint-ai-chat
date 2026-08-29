@@ -33,6 +33,7 @@
     "@ai-sdk/anthropic": "^3.0.0",
     "@ai-sdk/openai": "^3.0.30",
     "@ai-sdk/openai-compatible": "^2.0.0",
+    "@anthropic-ai/sandbox-runtime": "0.0.74",
     "@langfuse/otel": "^5.10.1",
     "@langfuse/tracing": "^5.10.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
