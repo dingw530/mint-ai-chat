@@ -17,6 +17,7 @@
     "eval:versions:list": "node ../scripts/with-node-version.cjs tsx src/cli.ts versions:list",
     "eval:versions:repair": "node ../scripts/with-node-version.cjs tsx src/cli.ts versions:repair",
     "eval:versions:compare": "node ../scripts/with-node-version.cjs tsx src/cli.ts versions:compare",
+    "eval:langfuse:upload": "node ../scripts/with-node-version.cjs tsx src/cli.ts langfuse:upload",
     "eval:calibration:export": "node ../scripts/with-node-version.cjs tsx src/cli.ts calibration:export",
     "eval:calibration:compare": "node ../scripts/with-node-version.cjs tsx src/cli.ts calibration:compare",
     "eval:pairwise": "node ../scripts/with-node-version.cjs tsx src/cli.ts pairwise",

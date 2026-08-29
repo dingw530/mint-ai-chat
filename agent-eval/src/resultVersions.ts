@@ -24,6 +24,8 @@ export interface EvalVersionRecord {
   passAt1: number;
   queryPassAt1: number;
   answerPassAt1: number;
+  langfuseUploadedAt?: string;
+  langfuseScoreCount?: number;
 }
 
 export interface EvalVersionIndex {
@@ -49,7 +51,9 @@ function isVersionRecord(value: unknown): value is EvalVersionRecord {
     && isNumber(value.totalRuns)
     && isNumber(value.passAt1)
     && isNumber(value.queryPassAt1)
-    && isNumber(value.answerPassAt1);
+    && isNumber(value.answerPassAt1)
+    && (value.langfuseUploadedAt === undefined || typeof value.langfuseUploadedAt === 'string')
+    && (value.langfuseScoreCount === undefined || isNumber(value.langfuseScoreCount));
 }
 
 function isLegacyVersionRecord(value: unknown): value is Pick<EvalVersionRecord, 'id' | 'dataset' | 'datasetVersion' | 'reportFile'> {
@@ -193,6 +197,30 @@ export async function listResultVersions(directory: string, dataset?: string): P
   return index.versions
     .filter(version => !dataset || version.dataset === dataset)
     .sort((left, right) => right.generatedAt.localeCompare(left.generatedAt) || right.id.localeCompare(left.id));
+}
+
+/** 记录结果版本已成功上传到 Langfuse，保留报告文件本身不可变。 */
+export async function markResultVersionLangfuseUploaded(
+  directory: string,
+  versionId: string,
+  uploadedAt: string,
+  scoreCount: number,
+): Promise<EvalVersionRecord> {
+  validateVersionId(versionId);
+  const root = path.resolve(directory);
+  const indexPath = path.join(root, INDEX_FILE);
+  const index = await readIndex(root);
+  const versionIndex = index.versions.findIndex(version => version.id === versionId);
+  if (versionIndex < 0) throw new Error(`Eval result version not found: ${versionId}`);
+  const updated: EvalVersionRecord = {
+    ...index.versions[versionIndex],
+    langfuseUploadedAt: uploadedAt,
+    langfuseScoreCount: scoreCount,
+  };
+  const versions = [...index.versions];
+  versions[versionIndex] = updated;
+  await writeJsonAtomically(indexPath, { ...index, versions });
+  return updated;
 }
 
 /** 从版本库读取一个完整评测报告。 */

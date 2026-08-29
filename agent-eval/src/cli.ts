@@ -5,13 +5,14 @@ import { fileURLToPath } from 'node:url';
 import './loadEnv.js';
 import { compareReports, datasetPath, loadDataset, runEvaluation, writeReport } from './index.js';
 import type { AgentEvalExecutor, EvalProgressUpdate, EvalReport } from './index.js';
-import { createAutomaticVersionId, listResultVersions, readResultVersion, repairResultVersionIndex, saveResultVersion } from './resultVersions.js';
+import { createAutomaticVersionId, listResultVersions, markResultVersionLangfuseUploaded, readResultVersion, repairResultVersionIndex, saveResultVersion } from './resultVersions.js';
 import { ingestWikiRagCorpus, prepareWikiRagCorpus } from './wikiRagCorpus.js';
 import { resolveRuns } from './runOptions.js';
 import { appendEvalRunResult, createEvalRun, createEvalRunId, readEvalRun, type EvalRunCheckpoint } from './runPersistence.js';
 import { buildCalibrationTemplate, compareCalibration, type CalibrationLabel } from './calibration.js';
 import { createOpenAiJudge, createOpenAiPairwiseJudge } from './judge.js';
 import { calculateElo, runPairwiseComparison, type PairwiseReport } from './pairwise.js';
+import { readEvalReport, uploadEvalReport } from './langfuseUpload.js';
 
 const [, , command = 'list', ...args] = process.argv;
 const evalDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -187,6 +188,25 @@ async function main(): Promise<void> {
   if (command === 'versions:repair') {
     const index = await repairResultVersionIndex(versionDirectory(args));
     console.log(JSON.stringify(index, null, 2));
+    return;
+  }
+  if (command === 'langfuse:upload') {
+    const reportOption = optionValue(args, '--report');
+    const versionOption = optionValue(args, '--version');
+    if (reportOption && versionOption) throw new Error('langfuse:upload accepts either --report or --version, not both');
+    if (!reportOption && !versionOption) throw new Error('langfuse:upload requires --report or --version');
+    const reportPath = reportOption
+      ? path.resolve(reportOption)
+      : path.join(versionDirectory(args), `${versionOption === 'report' ? 'report' : versionOption}.json`);
+    const report = await readEvalReport(reportPath);
+    const baseUrl = optionValue(args, '--langfuse-base-url') || process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
+    const publicKey = optionValue(args, '--langfuse-public-key') || process.env.LANGFUSE_PUBLIC_KEY;
+    const secretKey = optionValue(args, '--langfuse-secret-key') || process.env.LANGFUSE_SECRET_KEY;
+    if (!publicKey || !secretKey) throw new Error('Langfuse upload requires LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY (or matching --langfuse-* options)');
+    const result = await uploadEvalReport(report, { baseUrl, publicKey, secretKey });
+    const reportVersionId = versionOption || (path.basename(reportPath) === 'report.json' ? 'report' : result.reportVersion);
+    const version = await markResultVersionLangfuseUploaded(path.dirname(reportPath), reportVersionId, new Date().toISOString(), result.scoreCount);
+    console.log(JSON.stringify({ ...result, baseUrl, contentUploaded: false, langfuseUploadedAt: version.langfuseUploadedAt, viewerMarked: true }, null, 2));
     return;
   }
   if (command === 'versions:compare') {

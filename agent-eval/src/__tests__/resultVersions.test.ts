@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildReport, type EvalCase, type EvalCaseResult, type EvalReport } from '../index.js';
-import { createAutomaticVersionId, listResultVersions, readResultVersion, saveResultVersion } from '../resultVersions.js';
+import { createAutomaticVersionId, listResultVersions, markResultVersionLangfuseUploaded, readResultVersion, saveResultVersion } from '../resultVersions.js';
 
 const temporaryDirectories: string[] = [];
 const evalCase: EvalCase = { id: 'version-case', input: '测试', tags: ['qa'], expected: {} };
@@ -66,6 +66,19 @@ describe('eval result versions', () => {
     await fs.mkdir(directory, { recursive: true });
     await fs.writeFile(path.join(directory, 'index.json'), '{"schemaVersion":99,"versions":[]}', 'utf8');
     await expect(listResultVersions(directory)).rejects.toThrow('Invalid eval version index');
+  });
+
+  it('records Langfuse upload status in the version index without changing the report', async () => {
+    const directory = await createDirectory();
+    const saved = { ...report(true, '2026-08-25T10:00:00.000Z'), resultVersion: 'langfuse-v1' };
+    await saveResultVersion(saved, 'langfuse-v1', directory);
+
+    const marked = await markResultVersionLangfuseUploaded(directory, 'langfuse-v1', '2026-08-28T12:00:00.000Z', 12);
+
+    expect(marked.langfuseUploadedAt).toBe('2026-08-28T12:00:00.000Z');
+    expect(marked.langfuseScoreCount).toBe(12);
+    expect((await listResultVersions(directory))[0]).toMatchObject({ langfuseUploadedAt: '2026-08-28T12:00:00.000Z', langfuseScoreCount: 12 });
+    expect(await readResultVersion('langfuse-v1', directory)).toEqual(saved);
   });
 
   it('normalizes the legacy report alias before saving a new version', async () => {
