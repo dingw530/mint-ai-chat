@@ -59,6 +59,19 @@
       "answerPassAt1": 0.84,
       "langfuseUploadedAt": "2026-08-28T05:32:50.117Z",
       "langfuseScoreCount": 29
+    },
+    {
+      "id": "wiki-rag-20260831122231-b6465b9d",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.2.0",
+      "generatedAt": "2026-08-31T12:22:31.512Z",
+      "reportFile": "wiki-rag-20260831122231-b6465b9d.json",
+      "totalRuns": 25,
+      "passAt1": 0.88,
+      "queryPassAt1": 0.88,
+      "answerPassAt1": 0.88,
+      "langfuseUploadedAt": "2026-08-31T12:40:02.002Z",
+      "langfuseScoreCount": 29
     }
   ]
 }
