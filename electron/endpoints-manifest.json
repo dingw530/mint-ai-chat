@@ -609,7 +609,7 @@
       }
     ],
     "result": "direct",
-    "async": false
+    "async": true
   },
   {
     "id": "wiki:getJob",
@@ -624,7 +624,7 @@
       }
     ],
     "result": "job",
-    "async": false
+    "async": true
   },
   {
     "id": "wiki:retryJob",
@@ -639,7 +639,7 @@
       }
     ],
     "result": "job",
-    "async": false
+    "async": true
   },
   {
     "id": "wiki:cancelJob",
@@ -654,7 +654,7 @@
       }
     ],
     "result": "job",
-    "async": false
+    "async": true
   },
   {
     "id": "wiki:removeJob",
@@ -669,7 +669,7 @@
       }
     ],
     "result": "direct",
-    "async": false
+    "async": true
   },
   {
     "id": "wiki:startVectorBackfill",
