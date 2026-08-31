@@ -20,7 +20,6 @@ import {
   type AgentStatusSnapshot,
 } from './agentStatusBar.js';
 import { A2UIComposer } from './a2ui/composer.js';
-import { buildMissingWikiCitationFooter } from './utils/wikiCitationGate.js';
 import { withLangfuseAgentContext } from './observability/langfuse.js';
 
 // ── 编辑距离相似度（用于循环检测） ──
@@ -157,10 +156,12 @@ function getToolBudgets(
   executionPolicy?: ReactExecutionPolicy,
 ): Record<string, AgentToolBudget> {
   const limits = executionPolicy?.maxToolCallsByName || {};
-  return Object.fromEntries(Object.entries(limits).map(([name, limit]) => {
-    const used = Math.min(state.toolCounts[name] || 0, limit);
-    return [name, { limit, used, remaining: Math.max(0, limit - used) }];
-  }));
+  return Object.fromEntries(
+    Object.entries(limits).map(([name, limit]) => {
+      const used = Math.min(state.toolCounts[name] || 0, limit);
+      return [name, { limit, used, remaining: Math.max(0, limit - used) }];
+    }),
+  );
 }
 
 function getTotalToolBudget(
@@ -173,10 +174,18 @@ function getTotalToolBudget(
   return { limit, used, remaining: Math.max(0, limit - used) };
 }
 
-function hasExhaustedToolBudget(state: ReactRunState, executionPolicy?: ReactExecutionPolicy): boolean {
-  if (executionPolicy?.maxToolCalls !== undefined && state.toolCount >= executionPolicy.maxToolCalls) return true;
-  return Object.entries(executionPolicy?.maxToolCallsByName || {})
-    .some(([name, limit]) => (state.toolCounts[name] || 0) >= limit);
+function hasExhaustedToolBudget(
+  state: ReactRunState,
+  executionPolicy?: ReactExecutionPolicy,
+): boolean {
+  if (
+    executionPolicy?.maxToolCalls !== undefined &&
+    state.toolCount >= executionPolicy.maxToolCalls
+  )
+    return true;
+  return Object.entries(executionPolicy?.maxToolCallsByName || {}).some(
+    ([name, limit]) => (state.toolCounts[name] || 0) >= limit,
+  );
 }
 
 /** 在每轮请求模型前压缩上下文，摘要提示词明确要求保留后续工具执行所需的事实。 */
@@ -241,7 +250,12 @@ async function executeToolCalls(
       const callId = originalCall.id || `${context.runId}:r${context.round}:c${index}`;
       const toolCall = { ...originalCall, id: callId };
       const startedAt = Date.now();
-      const canExecute = reserveToolCall(toolCall.function.name, state, context.executionPolicy, context.round);
+      const canExecute = reserveToolCall(
+        toolCall.function.name,
+        state,
+        context.executionPolicy,
+        context.round,
+      );
       events.emit({
         type: 'tool_call_start',
         state: 'executing_tools',
@@ -280,7 +294,12 @@ async function executeToolCalls(
         state.budgetExhausted = true;
         return {
           index,
-          assistantMsg: { role: 'assistant', content: '', tool_calls: [toolCall], reasoning: result.reasoning || undefined },
+          assistantMsg: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [toolCall],
+            reasoning: result.reasoning || undefined,
+          },
           toolMsg: { role: 'tool', tool_call_id: toolCall.id, content: message },
         };
       }
@@ -388,7 +407,12 @@ async function executeToolCalls(
 }
 
 /** 预留一次工具调用名额；被拒绝的调用不计入已消耗预算。 */
-function reserveToolCall(toolName: string, state: ReactRunState, policy?: ReactExecutionPolicy, round?: number): boolean {
+function reserveToolCall(
+  toolName: string,
+  state: ReactRunState,
+  policy?: ReactExecutionPolicy,
+  round?: number,
+): boolean {
   const totalAllowed = policy?.maxToolCalls === undefined || state.toolCount < policy.maxToolCalls;
   const nameLimit = policy?.maxToolCallsByName?.[toolName];
   const nameAllowed = nameLimit === undefined || (state.toolCounts[toolName] || 0) < nameLimit;
@@ -505,12 +529,26 @@ export async function executeReactRun(
     currentMessages = [
       ...removeAgentStatusMessages(currentMessages),
       buildAgentStatusMessage(
-        getAgentStatus(state, 'awaiting_model', round, maxIterations, runStartedAt, executionPolicy),
+        getAgentStatus(
+          state,
+          'awaiting_model',
+          round,
+          maxIterations,
+          runStartedAt,
+          executionPolicy,
+        ),
       ),
     ];
     events.emit({
       type: 'agent_status',
-      ...getAgentStatus(state, 'awaiting_model', round, maxIterations, runStartedAt, executionPolicy),
+      ...getAgentStatus(
+        state,
+        'awaiting_model',
+        round,
+        maxIterations,
+        runStartedAt,
+        executionPolicy,
+      ),
     });
     events.emit({ type: 'round_started', state: 'awaiting_model', round });
 
@@ -557,11 +595,8 @@ export async function executeReactRun(
       if (!answerStreamedThisRound && result.content) {
         emitComposedAnswer(a2uiComposer, events, runId, round, result.content);
       }
-      const citationFooter = buildMissingWikiCitationFooter(result.content, a2uiComposer.getReferences());
-      if (citationFooter) emitComposedAnswer(a2uiComposer, events, runId, round, citationFooter);
-      const finalContent = `${result.content}${citationFooter}`;
       emitComposedAnswer(a2uiComposer, events, runId, round, '', true);
-      state.finalContent = a2uiComposer.sanitizeContent(finalContent);
+      state.finalContent = a2uiComposer.sanitizeContent(result.content);
       state.finalReasoning = result.reasoning;
       state.streamedAsAnswer = true;
       events.emit({
@@ -649,7 +684,14 @@ export async function executeReactRun(
         state.forceFinalAnswer = true;
         events.emit({
           type: 'agent_status',
-          ...getAgentStatus(state, 'finalizing', round, maxIterations, runStartedAt, executionPolicy),
+          ...getAgentStatus(
+            state,
+            'finalizing',
+            round,
+            maxIterations,
+            runStartedAt,
+            executionPolicy,
+          ),
         });
         events.emit({
           type: 'loop_detected',
@@ -679,11 +721,11 @@ export async function executeReactRun(
   }
 
   return {
-    content: a2uiComposer.sanitizeContent(state.finalContent),
+    content: state.finalContent,
     reasoning: state.finalReasoning,
     toolCalls: null,
     uiBlocks: a2uiComposer.getBlocks(),
-    wikiReferences: a2uiComposer.getReferences(),
+    wikiReferences: a2uiComposer.getDisplayReferences(),
   };
 }
 
@@ -703,17 +745,12 @@ export async function reactChat(
   const run = existingRun || createDurableAgentRun({ runId: uuidv4(), conversationId });
   if (!existingRun) agentRunRegistry.register(run);
   const detachSink = subscribeReactEvents(run, sink);
-  if (run.getSnapshot().sequence === 0) new ReactEventEmitter(run).emit({ type: 'run_started', state: 'running' });
+  if (run.getSnapshot().sequence === 0)
+    new ReactEventEmitter(run).emit({ type: 'run_started', state: 'running' });
   try {
-    return await withLangfuseAgentContext(run, () => executeReactRun(
-      messages,
-      settings,
-      run,
-      agent,
-      signal,
-      conversationId,
-      executionPolicy,
-    ));
+    return await withLangfuseAgentContext(run, () =>
+      executeReactRun(messages, settings, run, agent, signal, conversationId, executionPolicy),
+    );
   } finally {
     detachSink();
     if (!sink.writableEnded) sink.end();

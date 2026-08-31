@@ -1,6 +1,9 @@
 import type { PersistedUiBlock } from '../../types.js';
 import { WikiSourceReferenceProvider } from './wikiSourceProvider.js';
-import { findWikiCitationMarkers, normalizeWikiCitationMarkers } from '../utils/wikiCitationMarkers.js';
+import {
+  findWikiCitationMarkers,
+  normalizeWikiCitationMarkers,
+} from '../utils/wikiCitationMarkers.js';
 import type {
   A2UIEmission,
   A2UIHandleResult,
@@ -61,16 +64,26 @@ export class A2UIComposer {
     granularity: 'chunk' | 'page' | 'source-family';
     contentHash: string;
   }> {
-    return this.providers.flatMap((provider) => (provider.getReferences?.() || []).map((reference) => ({
-      evidenceId: reference.evidenceId,
-      refId: reference.refId,
-      title: reference.title,
-      file: reference.file,
-      heading: reference.heading,
-      chunkId: reference.chunkId,
-      granularity: reference.granularity,
-      contentHash: reference.contentHash,
-    })));
+    return this.providers.flatMap((provider) =>
+      (provider.getReferences?.() || []).map((reference) => ({
+        evidenceId: reference.evidenceId,
+        refId: reference.refId,
+        title: reference.title,
+        file: reference.file,
+        heading: reference.heading,
+        chunkId: reference.chunkId,
+        granularity: reference.granularity,
+        contentHash: reference.contentHash,
+      })),
+    );
+  }
+
+  /** 返回与最终回答展示编号一致的引用，供落库、评测和其他结果消费者使用。 */
+  getDisplayReferences(): ReturnType<A2UIComposer['getReferences']> {
+    return this.getReferences().map((reference) => ({
+      ...reference,
+      refId: this.getDisplayReferenceId(reference.refId),
+    }));
   }
 
   /** 仅登记原始工具结果中的引用，不改变已经发送给模型的上下文内容。 */
@@ -80,9 +93,9 @@ export class A2UIComposer {
 
   /** 移除未被编译为组件的引用标记，防止前端显示孤立标记。 */
   sanitizeContent(content: string): string {
-    return normalizeWikiCitationMarkers(content, (refId) => (
-      this.findReference(refId) ? `[${this.getDisplayReferenceId(refId)}]` : undefined
-    ))
+    return normalizeWikiCitationMarkers(content, (refId) =>
+      this.findReference(refId) ? `[${this.getDisplayReferenceId(refId)}]` : undefined,
+    )
       .replace(/[ \t]{2,}/g, ' ')
       .trim();
   }
@@ -108,7 +121,10 @@ export class A2UIComposer {
     return { outputs: [], contextResult: result.contextResult };
   }
 
-  private findReference(refId: string): { provider: A2UIProvider; reference: NonNullable<ReturnType<A2UIProvider['findReference']>> } | null {
+  private findReference(refId: string): {
+    provider: A2UIProvider;
+    reference: NonNullable<ReturnType<A2UIProvider['findReference']>>;
+  } | null {
     for (const provider of this.providers) {
       const reference = provider.findReference(refId);
       if (reference) return { provider, reference };
@@ -147,7 +163,8 @@ export class A2UIComposer {
     }
 
     const lastOpenBracket = value.lastIndexOf('[', value.length - 1);
-    const hasPartialMarker = lastOpenBracket >= cursor && !value.slice(lastOpenBracket).includes(']');
+    const hasPartialMarker =
+      lastOpenBracket >= cursor && !value.slice(lastOpenBracket).includes(']');
     const textEnd = hasPartialMarker ? lastOpenBracket : value.length;
     if (textEnd > cursor) {
       this.appendText(value.slice(cursor, textEnd), outputs);

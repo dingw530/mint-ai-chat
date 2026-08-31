@@ -97,11 +97,15 @@ describe('reactChat', () => {
     expect(result.content).toBe('final answer');
     expect(result.reasoning).toBe('some reasoning');
     const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
-    expect(events.filter((event) => event.type === 'answer' && event.content === 'final answer')).toHaveLength(1);
-    expect(events.some((event) => event.type === 'thought' && event.content === 'final answer')).toBe(false);
+    expect(
+      events.filter((event) => event.type === 'answer' && event.content === 'final answer'),
+    ).toHaveLength(1);
+    expect(
+      events.some((event) => event.type === 'thought' && event.content === 'final answer'),
+    ).toBe(false);
   });
 
-  it('adds a transparent Wiki source footer when the final answer omits citations', async () => {
+  it('does not append uncited Wiki references to the final answer', async () => {
     const wikiCall = {
       id: 'wiki-call-1',
       type: 'function' as const,
@@ -111,20 +115,26 @@ describe('reactChat', () => {
 
     vi.mocked(toolLoopEngine.executeRound)
       .mockResolvedValueOnce({ content: '', reasoning: '', toolCalls: [wikiCall] })
-      .mockResolvedValueOnce({ content: 'RAG 通过检索外部知识降低幻觉。', reasoning: '', toolCalls: null });
+      .mockResolvedValueOnce({
+        content: 'RAG 通过检索外部知识降低幻觉。',
+        reasoning: '',
+        toolCalls: null,
+      });
     vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
       assistantMsg: { role: 'assistant', content: '', tool_calls: [wikiCall] },
       toolMsg: { role: 'tool', tool_call_id: wikiCall.id, content: '{}' },
       succeeded: true,
       rawResult: {
-        results: [{
-          file: 'pages/rag.md',
-          title: 'RAG',
-          heading: 'Overview',
-          chunkId: 'pages/rag.md#chunk:0',
-          granularity: 'chunk',
-          content: 'RAG evidence',
-        }],
+        results: [
+          {
+            file: 'pages/rag.md',
+            title: 'RAG',
+            heading: 'Overview',
+            chunkId: 'pages/rag.md#chunk:0',
+            granularity: 'chunk',
+            content: 'RAG evidence',
+          },
+        ],
       },
     });
 
@@ -134,11 +144,52 @@ describe('reactChat', () => {
       sink,
     );
 
-    expect(result.content).toContain('参考来源（模型未逐句标注）：[C1]');
-    const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
-    expect(events.some((event) => event.type === 'a2ui')).toBe(true);
+    expect(result.content).toBe('RAG 通过检索外部知识降低幻觉。');
+    expect(result.content).not.toContain('补充检索来源');
     expect(result.wikiReferences).toEqual([
       expect.objectContaining({ file: 'pages/rag.md', refId: 'C1', granularity: 'chunk' }),
+    ]);
+  });
+
+  it('returns Wiki references with the same display IDs used by the final answer', async () => {
+    const wikiCall = {
+      id: 'wiki-call-1',
+      type: 'function' as const,
+      function: { name: 'wiki_search', arguments: '{"question":"architecture"}' },
+    };
+    const sink = { write: vi.fn(), end: vi.fn(), writableEnded: false, headersSent: false };
+
+    vi.mocked(toolLoopEngine.executeRound)
+      .mockResolvedValueOnce({ content: '', reasoning: '', toolCalls: [wikiCall] })
+      .mockResolvedValueOnce({
+        content: '先说 C。[C3] 再说 A。[C1]',
+        reasoning: '',
+        toolCalls: null,
+      });
+    vi.mocked(toolLoopEngine.executeToolCallWithRetry).mockResolvedValue({
+      assistantMsg: { role: 'assistant', content: '', tool_calls: [wikiCall] },
+      toolMsg: { role: 'tool', tool_call_id: wikiCall.id, content: '{}' },
+      succeeded: true,
+      rawResult: {
+        results: [
+          { file: 'a.md', chunkId: 'a.md#chunk:0', content: 'A' },
+          { file: 'b.md', chunkId: 'b.md#chunk:0', content: 'B' },
+          { file: 'c.md', chunkId: 'c.md#chunk:0', content: 'C' },
+        ],
+      },
+    });
+
+    const result = await reactChat(
+      [{ role: 'user', content: '说明架构。' }],
+      { apiUrl: 'https://api.test.com', apiKey: 'sk-key', apiType: 'openai-chat' } as any,
+      sink,
+    );
+
+    expect(result.content).toContain('先说 C。[C1] 再说 A。[C2]');
+    expect(result.wikiReferences?.map(({ file, refId }) => ({ file, refId }))).toEqual([
+      { file: 'a.md', refId: 'C2' },
+      { file: 'b.md', refId: 'C3' },
+      { file: 'c.md', refId: 'C1' },
     ]);
   });
 
@@ -286,7 +337,9 @@ describe('reactChat', () => {
     const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
     expect(events.filter((event) => event.type === 'tool_call_start')).toHaveLength(3);
     expect(events.filter((event) => event.type === 'tool_call_end')).toHaveLength(3);
-    expect(events.find((event) => event.type === 'tool_call_end' && event.callId === 'wiki-3')?.summary).toContain('预算');
+    expect(
+      events.find((event) => event.type === 'tool_call_end' && event.callId === 'wiki-3')?.summary,
+    ).toContain('预算');
   });
 
   it('injects remaining tool budget and stops offering tools after exhaustion', async () => {
@@ -364,7 +417,10 @@ describe('reactChat', () => {
 
     expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(1);
     const events = sink.write.mock.calls.map(([data]) => JSON.parse(data));
-    expect(events.find((event) => event.type === 'tool_call_end' && event.callId === 'wiki-round-2')?.summary).toContain('预算');
+    expect(
+      events.find((event) => event.type === 'tool_call_end' && event.callId === 'wiki-round-2')
+        ?.summary,
+    ).toContain('预算');
   });
 
   it('emits a single cancelled terminal event and skips the model call', async () => {
