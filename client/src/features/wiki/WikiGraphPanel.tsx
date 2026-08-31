@@ -1,24 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { Network, type Edge as VisEdge, type Node as VisNode } from 'vis-network';
-import { DataSet } from 'vis-data';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Edge, Graph, GraphEvent, Node } from '@visactor/vgraph';
 import { getGraphData } from '@/services/api';
-import type { GraphNode, GraphEdge } from '@/services/api/wiki';
+import type { GraphEdge, GraphNode } from '@/services/api/wiki';
 import GraphCandidatePanel from './GraphCandidatePanel';
-
-// ── 节点类型样式 ──
-
-const NODE_PALETTE: Record<string, { bg: string; border: string; highlightBg: string }> = {
-  实践: { bg: '#FDE68A', border: '#F59E0B', highlightBg: '#FCD34D' },
-  思维模式: { bg: '#FBCFE8', border: '#DB2777', highlightBg: '#F9A8D4' },
-  方法论: { bg: '#BBF7D0', border: '#10B981', highlightBg: '#6EE7B7' },
-  概念: { bg: '#BFDBFE', border: '#3B82F6', highlightBg: '#93C5FD' },
-  // 兼容迁移前的旧节点，重建图谱后会统一为 Schema 分类名称。
-  concept: { bg: '#BFDBFE', border: '#3B82F6', highlightBg: '#93C5FD' },
-  practice: { bg: '#FDE68A', border: '#F59E0B', highlightBg: '#FCD34D' },
-  methodology: { bg: '#BBF7D0', border: '#10B981', highlightBg: '#6EE7B7' },
-};
-
-// ── 子组件：节点详情面板 ──
 
 interface NodeDetailProps {
   node: GraphNode | null;
@@ -30,9 +14,12 @@ interface NodeDetailProps {
 
 function NodeDetailPanel({ node, edges, allNodes, onClose, onOpenFile }: NodeDetailProps) {
   if (!node) return null;
-  const outgoingEdges = edges.filter((e) => e.sourceId === node.id);
-  const incomingEdges = edges.filter((e) => e.targetId === node.id);
-
+  const outgoing = edges.filter((edge) => edge.sourceId === node.id);
+  const incoming = edges.filter((edge) => edge.targetId === node.id);
+  const label = (edge: GraphEdge) =>
+    edge.properties.strength === 'weak' || edge.relation === 'references'
+      ? '关联（弱）'
+      : edge.relation;
   return (
     <div className="graph-node-detail">
       <div className="graph-node-detail-header">
@@ -66,98 +53,127 @@ function NodeDetailPanel({ node, edges, allNodes, onClose, onOpenFile }: NodeDet
           </div>
         )}
       </div>
-      {(outgoingEdges.length > 0 || incomingEdges.length > 0) && (
+      {(outgoing.length > 0 || incoming.length > 0) && (
         <div className="graph-node-detail-relations">
           <h4 className="graph-node-detail-section-title">关系</h4>
-          {outgoingEdges.map((e) => {
-            const target = allNodes.find((n) => n.id === e.targetId);
-            const weak = e.properties.strength === 'weak' || e.relation === 'references';
-            return (
-              <div key={e.id} className="graph-node-detail-relation">
-                <span className="graph-node-detail-relation-arrow">→</span>
-                <span className="graph-node-detail-relation-label">
-                  {weak ? '关联（弱）' : e.relation}
-                </span>
-                {target && (
-                  <span className="graph-node-detail-relation-node">→ {target.label}</span>
-                )}
-              </div>
-            );
-          })}
-          {incomingEdges.map((e) => {
-            const source = allNodes.find((n) => n.id === e.sourceId);
-            const weak = e.properties.strength === 'weak' || e.relation === 'references';
-            return (
-              <div key={e.id} className="graph-node-detail-relation">
-                <span className="graph-node-detail-relation-arrow">←</span>
-                <span className="graph-node-detail-relation-label">
-                  {weak ? '关联（弱）' : e.relation}
-                </span>
-                {source && (
-                  <span className="graph-node-detail-relation-node">← {source.label}</span>
-                )}
-              </div>
-            );
-          })}
+          {outgoing.map((edge) => (
+            <Relation
+              key={edge.id}
+              direction="→"
+              node={allNodes.find((item) => item.id === edge.targetId)}
+              label={label(edge)}
+            />
+          ))}
+          {incoming.map((edge) => (
+            <Relation
+              key={edge.id}
+              direction="←"
+              node={allNodes.find((item) => item.id === edge.sourceId)}
+              label={label(edge)}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-// ── 工具：获取节点的原始颜色 ──
+function Relation({
+  direction,
+  node,
+  label,
+}: {
+  direction: string;
+  node?: GraphNode;
+  label: string;
+}) {
+  return (
+    <div className="graph-node-detail-relation">
+      <span className="graph-node-detail-relation-arrow">{direction}</span>
+      <span className="graph-node-detail-relation-label">{label}</span>
+      {node && (
+        <span className="graph-node-detail-relation-node">
+          {direction} {node.label}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function getFadedColor(bg: string): string {
-  // 将 hex 转成半透明 rgba（~10% 不透明度）
   const hex = bg.replace('#', '');
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
   return `rgba(${r},${g},${b},0.12)`;
 }
-
 /** 画布优先保证图形可读性，完整标题由悬停提示和详情面板承载。 */
 export function getGraphNodeLabel(label: string): string {
-  const maxLength = 16;
-  return label.length > maxLength ? `${label.slice(0, maxLength)}...` : label;
+  return label.length > 16 ? `${label.slice(0, 16)}...` : label;
 }
-
-export function isWeakGraphEdge(edge: GraphEdge): boolean {
-  return edge.properties.strength === 'weak' || edge.relation === 'references';
+type GraphEdgeData = { relation?: string; properties?: GraphEdge['properties']; strength?: string };
+export function isWeakGraphEdge(edge: GraphEdgeData): boolean {
+  return (
+    edge.properties?.strength === 'weak' ||
+    edge.strength === 'weak' ||
+    edge.relation === 'references'
+  );
 }
-
-export function getGraphEdgeWidth(edge: GraphEdge): number {
+export function getGraphEdgeWidth(edge: GraphEdgeData): number {
   if (isWeakGraphEdge(edge)) return 0.6;
   const confidence =
-    typeof edge.properties.confidence === 'number' ? edge.properties.confidence : 0.55;
+    typeof edge.properties?.confidence === 'number' ? edge.properties.confidence : 0.55;
   return 0.7 + confidence * 0.4;
 }
 
-// ── 主组件 ──
+/** 移除没有任何关系的节点，避免图谱中出现无法探索的游离点。 */
+export function removeIsolatedGraphNodes(data: { nodes: GraphNode[]; edges: GraphEdge[] }): {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+} {
+  const connectedIds = new Set<string>();
+  data.edges.forEach((edge) => {
+    connectedIds.add(edge.sourceId);
+    connectedIds.add(edge.targetId);
+  });
+  const nodes = data.nodes.filter((node) => connectedIds.has(node.id));
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = data.edges.filter(
+    (edge) => nodeIds.has(edge.sourceId) && nodeIds.has(edge.targetId),
+  );
+  return { nodes, edges };
+}
+
+const NODE_COLORS = [
+  '#5678D6',
+  '#EB8D2F',
+  '#59A649',
+  '#E0BA2D',
+  '#A56AAD',
+  '#6DBEC9',
+  '#D95145',
+  '#A0A0AD',
+  '#94674E',
+  '#ED848F',
+  '#666',
+];
+
+function getNodeColor(category: unknown): string {
+  if (typeof category === 'number') return NODE_COLORS[Math.abs(category) % NODE_COLORS.length];
+  const value = String(category ?? 'concept');
+  const index = [...value].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return NODE_COLORS[index % NODE_COLORS.length];
+}
 
 interface WikiGraphPanelProps {
   onOpenFile?: (path: string) => void;
 }
 
-interface GraphClickEvent {
-  nodes?: string[];
-}
-
-interface GraphNodeEvent {
-  node: string;
-}
-
 export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const networkRef = useRef<Network | null>(null);
-  const nodesRef = useRef<DataSet<VisNode> | null>(null);
-  const edgesRef = useRef<DataSet<VisEdge> | null>(null);
+  const graphRef = useRef<Graph | null>(null);
   const allNodesRef = useRef<GraphNode[]>([]);
   const allEdgesRef = useRef<GraphEdge[]>([]);
-  const originalColorsRef = useRef<Map<string, { bg: string; border: string }>>(new Map());
-  const initialLayoutCompleteRef = useRef(false);
-  const userInteractedRef = useRef(false);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -166,432 +182,278 @@ export default function WikiGraphPanel({ onOpenFile }: WikiGraphPanelProps) {
   const [graphStats, setGraphStats] = useState({ nodes: 0, semanticEdges: 0, weakReferences: 0 });
   const [panel, setPanel] = useState<'graph' | 'candidates'>('graph');
 
-  useEffect(() => {
-    const edges = edgesRef.current;
-    if (!edges) return;
-
-    edges.forEach((edge) => {
-      const graphEdge = allEdgesRef.current.find((item) => item.id === edge.id);
-      if (!graphEdge || !isWeakGraphEdge(graphEdge)) return;
-      const isConnected =
-        !!selectedNode &&
-        (graphEdge.sourceId === selectedNode.id || graphEdge.targetId === selectedNode.id);
-      edges.update({ id: graphEdge.id, hidden: !isConnected });
-    });
-  }, [selectedNode]);
+  const selectNode = useCallback((event: GraphEvent) => {
+    const target = event.target;
+    if (!target || target.type !== 'node') return;
+    const node = allNodesRef.current.find((item) => item.id === target.get('id'));
+    if (!node) return;
+    setSelectedNode(node);
+    setSelectedNodeEdges(
+      allEdgesRef.current.filter((edge) => edge.sourceId === node.id || edge.targetId === node.id),
+    );
+  }, []);
 
   useEffect(() => {
-    if (panel !== 'graph') return;
-
-    let network: Network | null = null;
-
-    async function init() {
+    if (panel !== 'graph' || !containerRef.current) return;
+    let disposed = false;
+    async function loadGraph() {
       setLoading(true);
       setError(null);
-      initialLayoutCompleteRef.current = false;
-      userInteractedRef.current = false;
       try {
         const raw = await getGraphData();
-        allNodesRef.current = raw.nodes;
-        allEdgesRef.current = raw.edges;
-        const weakReferences = raw.edges.filter(
-          (edge) => edge.relation === 'references' || edge.properties.strength === 'weak',
-        ).length;
+        if (disposed) return;
+        const graphData = removeIsolatedGraphNodes(raw);
+        allNodesRef.current = graphData.nodes;
+        allEdgesRef.current = graphData.edges;
+        const weakReferences = graphData.edges.filter(isWeakGraphEdge).length;
         setGraphStats({
-          nodes: raw.nodes.length,
-          semanticEdges: raw.edges.length - weakReferences,
+          nodes: graphData.nodes.length,
+          semanticEdges: graphData.edges.length - weakReferences,
           weakReferences,
         });
-
-        if (raw.nodes.length === 0) {
-          setLoading(false);
-          return;
-        }
-
+        if (graphData.nodes.length === 0) return;
         const container = containerRef.current;
-        if (!container) {
-          setLoading(false);
-          return;
-        }
-        const parent = container.parentElement;
-        if (!parent) {
-          setLoading(false);
-          return;
-        }
-        // ── vis-network DataSet ──
-
-        const origColors = new Map<string, { bg: string; border: string }>();
-        const nodes = new DataSet<VisNode>(
-          raw.nodes.map((n) => {
-            const p = NODE_PALETTE[n.type] || {
-              bg: '#f0f0f0',
-              border: '#999',
-              highlightBg: '#ddd',
-            };
-            origColors.set(n.id, { bg: p.bg, border: p.bg });
-            return {
-              id: n.id,
-              label: getGraphNodeLabel(n.label),
-              title: n.label,
-              shape: 'dot',
-              size: 13,
-              color: {
-                background: p.bg,
-                border: p.bg,
-                highlight: { background: p.highlightBg, border: p.highlightBg },
-                hover: { background: p.highlightBg, border: p.highlightBg },
-              },
-              borderWidth: 0,
-              borderWidthSelected: 0,
-              shadow: false,
-              font: { size: 11, color: '#475569' },
-            };
-          }),
-        );
-        originalColorsRef.current = origColors;
-
-        const edges = new DataSet<VisEdge>(
-          raw.edges.map((e) => {
-            const weak = isWeakGraphEdge(e);
-            const confidence =
-              typeof e.properties.confidence === 'number'
-                ? e.properties.confidence
-                : weak
-                  ? 0.25
-                  : 0.55;
-            return {
-              id: e.id,
-              from: e.sourceId,
-              to: e.targetId,
-              hidden: weak,
-              label: '',
-              color: weak
-                ? { color: '#C3CBD3', opacity: 0.35, inherit: false }
-                : { color: '#7A8795', opacity: 0.45 + confidence * 0.35, inherit: false },
-              width: getGraphEdgeWidth(e),
-              dashes: weak ? [5, 5] : false,
-              smooth: { enabled: true, type: 'curvedCW', roundness: 0.15 },
-              arrows: { to: { enabled: !weak, scaleFactor: 0.8 } },
-              font: { size: 11, color: weak ? '#9AA5B1' : '#555', align: 'middle' },
-            };
-          }),
-        );
-
-        nodesRef.current = nodes;
-        edgesRef.current = edges;
-
-        // ── Network ──
-
-        network = new Network(
-          container,
-          { nodes, edges },
-          {
-            nodes: {
-              shape: 'dot',
-              size: 13,
-              borderWidth: 0,
-              borderWidthSelected: 0,
-              shadow: false,
-              font: { size: 11, color: '#475569' },
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const {
+          CategoryLegend,
+          Graph,
+          ForceCenter,
+          ForceCollision,
+          ForceLink,
+          ForceManyBody,
+          dragCanvas,
+          dragNode,
+          highlightRelations,
+          panZoom,
+          showDetails,
+        } = await import('@visactor/vgraph');
+        const graphRefForForces: { current: Graph | null } = { current: null };
+        const collisionForce = new ForceCollision({
+          options: {
+            width: (data: { id: string }) => {
+              const node = graphRefForForces.current?.getNodeById(data.id);
+              return node?.layer ? node.layer.getBBoxForHit().width + 3 : 20;
             },
-            edges: {
-              smooth: { enabled: true, type: 'curvedCW', roundness: 0.15 },
-              color: { color: '#b0b0b0', opacity: 0.55, inherit: false },
-              width: 1,
-              arrows: { to: { enabled: true, scaleFactor: 0.8 } },
-              font: { size: 11, color: '#555', align: 'middle' },
-            },
-            layout: {
-              improvedLayout: false,
-            },
-            physics: {
-              solver: 'forceAtlas2Based',
-              forceAtlas2Based: {
-                gravitationalConstant: -35,
-                centralGravity: 0.002,
-                springLength: 160,
-                springConstant: 0.04,
-                damping: 0.95,
-              },
-              stabilization: {
-                enabled: true,
-                iterations: 600,
-                updateInterval: 50,
-                fit: true,
-              },
-            },
-            interaction: {
-              hover: true,
-              tooltipDelay: 200,
-              dragNodes: true,
-              dragView: true,
-              zoomView: true,
+            height: (data: { id: string }) => {
+              const node = graphRefForForces.current?.getNodeById(data.id);
+              return node?.layer ? node.layer.getBBoxForHit().height + 3 : 20;
             },
           },
-        );
-
-        networkRef.current = network;
-        const handleStabilized = () => {
-          initialLayoutCompleteRef.current = true;
-          network?.fit({ animation: true, padding: 200 } as Parameters<typeof Network.prototype.fit>[0]);
-          network?.setOptions({
-            physics: {
-              enabled: true,
-              solver: 'forceAtlas2Based',
-              forceAtlas2Based: {
-                gravitationalConstant: -12,
-                centralGravity: 0.001,
-                springLength: 180,
-                springConstant: 0.005,
-                damping: 0.98,
-              },
-              stabilization: { enabled: false },
+        });
+        const forces = {
+          link: new ForceLink({ options: { distance: 50 } }),
+          charge: new ForceManyBody({ options: { strength: -60 } }),
+          collide: collisionForce,
+          center: new ForceCenter({ options: { x: rect.width / 2, y: rect.height / 2 } }),
+        };
+        const graph: Graph = new Graph({
+          container,
+          width: Math.max(rect.width, 320),
+          height: Math.max(rect.height, 320),
+          minRatio: 0.3,
+          maxRatio: 10,
+          layout: {
+            type: 'force',
+            options: {
+              forces,
+              maxIteration: 300,
+              tickIterations: 10,
+              onTick: () => graph.refresh(),
+              onEnd: () => graph.fitView(),
+              clearOnEndOnFirstCall: true,
             },
-          });
-          network?.off('stabilized', handleStabilized);
-        };
-        network.on('stabilized', handleStabilized);
-
-        const markUserInteraction = () => {
-          userInteractedRef.current = true;
-        };
-        network.on('dragStart', markUserInteraction);
-        network.on('zoom', markUserInteraction);
-
-        // ── 点击节点 ──
-        network.on('click', (params: GraphClickEvent) => {
-          const { nodes: clickedNodes } = params;
-          const nodeId = clickedNodes?.[0];
-
-          if (nodeId) {
-            const gn = allNodesRef.current.find((n) => n.id === nodeId);
-            if (gn) {
-              const nodeEdges = allEdgesRef.current.filter(
-                (e) => e.sourceId === nodeId || e.targetId === nodeId,
-              );
-              setSelectedNode(gn);
-              setSelectedNodeEdges(nodeEdges);
-            }
-          } else {
-            setSelectedNode(null);
-            setSelectedNodeEdges([]);
-          }
-        });
-
-        // ── 悬停高亮 ──
-        network.on('hoverNode', (params: GraphNodeEvent) => {
-          const nodeId = params.node;
-          const connectedNodes = network?.getConnectedNodes(nodeId).map(String) ?? [];
-          const connectedEdges = network?.getConnectedEdges(nodeId).map(String) ?? [];
-          const connectedSet = new Set([nodeId, ...connectedNodes]);
-
-          nodes.forEach((n) => {
-            const id = String(n.id);
-            if (!connectedSet.has(id)) {
-              const orig = originalColorsRef.current.get(id);
-              if (orig) {
-                nodes.update({
-                  id: n.id,
-                  color: {
-                    background: getFadedColor(orig.bg),
-                    border: getFadedColor(orig.border),
-                    highlight: {
-                      background: getFadedColor(orig.bg),
-                      border: getFadedColor(orig.border),
-                    },
-                    hover: {
-                      background: getFadedColor(orig.bg),
-                      border: getFadedColor(orig.border),
-                    },
-                  },
-                });
-              }
-            }
-          });
-          edges.forEach((e) => {
-            const id = String(e.id);
-            const connected = connectedEdges.includes(id);
-            edges.update({
-              id: e.id,
-              color: {
-                color: connected ? '#666' : '#e0e0e0',
-                opacity: connected ? 0.9 : 0.08,
-                inherit: false,
-              },
-              width: connected ? 1.2 : 0.5,
-            });
-          });
-        });
-
-        network.on('blurNode', () => {
-          nodes.forEach((n) => {
-            const id = String(n.id);
-            const orig = originalColorsRef.current.get(id);
-            const gn = allNodesRef.current.find((gn) => gn.id === id);
-            if (orig && gn) {
-              const p = NODE_PALETTE[gn.type] || {
-                bg: '#f0f0f0',
-                border: '#999',
-                highlightBg: '#ddd',
+          },
+          setDefaultNode: (data) => ({
+            type: 'circle',
+            width: 20,
+            height: 20,
+            fillStyle: getNodeColor(data.category),
+            strokeStyle: '#fff',
+            lineWidth: 1,
+            label: {
+              text: getGraphNodeLabel(data.label),
+              fontSize: 10,
+              textBaseline: 'top',
+              textAlign: 'center',
+              offsetY: 16,
+              fillStyle: '#333',
+              strokeStyle: '#fff',
+              opacity: 1,
+              originSize: 10,
+            },
+            cursor: 'pointer',
+          }),
+          setNodeStateStyles: (state) =>
+            state === 'active' ? { fillStyle: '#64b5cd' } : undefined,
+          setDefaultEdge: (data) => ({
+            type: 'quadratic',
+            styles: { curveOffset: -8, curvePosition: 0.5 },
+            lineWidth: getGraphEdgeWidth(data),
+            strokeStyle: isWeakGraphEdge(data) ? '#C3CBD3' : '#ccc',
+            label: {
+              text: data.relation,
+              position: 0.3,
+              textBaseline: 'middle',
+              textAlign: 'center',
+              fillStyle: '#4c72b0',
+              strokeStyle: '#fff',
+              opacity: 0,
+              autoRotate: true,
+              originSize: 11,
+            },
+            endArrow: !isWeakGraphEdge(data),
+          }),
+          setEdgeStateStyles: (
+            state: string,
+            data: GraphEdgeData,
+            edge: Edge,
+          ): Record<string, unknown> | undefined => {
+            const label = edge.getLabel();
+            if (state === 'show') {
+              label?.set('opacity', 1);
+              return {
+                endArrow: { width: 6 / graph.getZoomRatio(), height: 10 / graph.getZoomRatio() },
+                lineWidth: (edge.get('lineWidth') * 1.5) / graph.getZoomRatio(),
               };
-              nodes.update({
-                id: n.id,
-                color: {
-                  background: orig.bg,
-                  border: orig.border,
-                  highlight: { background: p.highlightBg, border: orig.border },
-                  hover: { background: p.highlightBg, border: orig.border },
-                },
-              });
             }
-          });
-          edges.forEach((e) => {
-            const graphEdge = allEdgesRef.current.find((item) => item.id === e.id);
-            edges.update({
-              id: e.id,
-              color: { color: '#b0b0b0', opacity: 0.55, inherit: false },
-              width: graphEdge ? getGraphEdgeWidth(graphEdge) : 1,
+            if (state === 'active') {
+              label?.set('opacity', 1);
+              return { endArrow: !isWeakGraphEdge(data), strokeStyle: '#64b5cd' };
+            }
+            return undefined;
+          },
+        });
+        graphRefForForces.current = graph;
+        graph.addBehavior(panZoom);
+        graph.addBehavior(dragCanvas);
+        graph.addBehavior(highlightRelations);
+        graph.addBehavior(showDetails, {
+          showEdgeState: 'show',
+          targets: ['node', 'edge'],
+          updateLabels: () => {
+            const ratio = graph.getZoomRatio();
+            graph
+              .getNodes()
+              .forEach((node) =>
+                node.getLabel()?.set('fontSize', node.getLabel()?.get('originSize') / ratio),
+              );
+            graph.getEdges().forEach((edge) => {
+              const label = edge.getLabel();
+              label?.set('fontSize', label.get('originSize') / ratio);
+              edge.removeState('show');
+              edge.setState('show');
             });
-          });
+            graph.draw();
+          },
         });
-
-        // ── Resize ──
-        const parentEl = container.parentElement;
-        const ro = new ResizeObserver((entries) => {
-          if (!network || !container) return;
-          const entry = entries[0];
-          if (!entry) return;
-          const { width: w, height: h } = entry.contentRect;
-          network.setSize(`${w}px`, `${Math.max(h - 40, 200)}px`);
+        graph.addBehavior(dragNode, {
+          delegate: false,
+          onDrag: (node: Node) => {
+            node.set('fx', node.get('x'));
+            node.set('fy', node.get('y'));
+            graph.layout();
+          },
+          onDrop: (node: Node) => {
+            node.set('fx', undefined);
+            node.set('fy', undefined);
+            graph.layout();
+          },
         });
-        if (parentEl) ro.observe(parentEl);
-
-        return () => {
-          ro.disconnect();
-        };
+        graph.on('node:click', selectNode);
+        graph.on('canvas:click', () => {
+          setSelectedNode(null);
+          setSelectedNodeEdges([]);
+        });
+        graph.data({
+          nodes: graphData.nodes.map((node) => ({
+            ...node,
+            id: node.id,
+            label: node.label,
+            category: node.type,
+          })),
+          edges: graphData.edges.map((edge) => ({
+            id: edge.id,
+            source: edge.sourceId,
+            target: edge.targetId,
+            relation: edge.relation,
+            strength: edge.properties.strength,
+          })),
+        });
+        graphRef.current = graph;
+        const legend = document.createElement('div');
+        legend.className = 'wiki-graph-legend';
+        container.append(legend);
+        new CategoryLegend(graph, {
+          container: legend,
+          encodeAttr: 'category',
+          target: 'node',
+          encodeStyles: (data) => ({
+            marker: { type: 'circle', fillStyle: getNodeColor(data.category) },
+          }),
+          click: { enable: true },
+          width: 120,
+          height: 180,
+        });
       } catch (err) {
-        setError((err as Error).message || '加载图谱失败');
+        if (!disposed) setError(err instanceof Error ? err.message : '加载图谱失败');
       } finally {
-        setLoading(false);
+        if (!disposed) setLoading(false);
       }
     }
-
-    const cleanupPromise = init();
+    void loadGraph();
     return () => {
-      cleanupPromise?.then((fn) => fn?.());
-      if (networkRef.current) {
-        networkRef.current.destroy();
-        networkRef.current = null;
-      }
+      disposed = true;
+      graphRef.current?.destroy();
+      graphRef.current = null;
     };
-  }, [panel]);
-
-  // ── 搜索过滤 ──
-
-  const handleSearch = useCallback(() => {
-    const nodes = nodesRef.current;
-    if (!nodes) return;
-    const q = searchQuery.trim().toLowerCase();
-    try {
-          nodes.forEach((n) => {
-            const id = String(n.id);
-            const gn = allNodesRef.current.find((gn) => gn.id === id);
-            if (!gn) return;
-            const orig = originalColorsRef.current.get(id);
-        if (!orig) return;
-        if (!q || gn.label.toLowerCase().includes(q)) {
-          const p = NODE_PALETTE[gn.type] || { bg: '#f0f0f0', border: '#999', highlightBg: '#ddd' };
-          nodes.update({
-            id: n.id,
-            color: {
-              background: orig.bg,
-              border: orig.border,
-              highlight: { background: p.highlightBg, border: orig.border },
-              hover: { background: p.highlightBg, border: orig.border },
-            },
-          });
-        } else {
-          nodes.update({
-            id: n.id,
-            color: {
-              background: getFadedColor(orig.bg),
-              border: getFadedColor(orig.border),
-              highlight: { background: getFadedColor(orig.bg), border: getFadedColor(orig.border) },
-              hover: { background: getFadedColor(orig.bg), border: getFadedColor(orig.border) },
-            },
-          });
-        }
-      });
-    } catch {
-      /* ignore */
-    }
-  }, [searchQuery]);
+  }, [panel, selectNode]);
 
   useEffect(() => {
-    const t = setTimeout(handleSearch, 200);
-    return () => clearTimeout(t);
-  }, [handleSearch]);
+    const graph = graphRef.current;
+    const query = searchQuery.trim().toLowerCase();
+    if (!graph) return;
+    const relatedIds = new Set<string>();
+    if (selectedNode)
+      allEdgesRef.current.forEach((edge) => {
+        if (edge.sourceId === selectedNode.id) relatedIds.add(edge.targetId);
+        if (edge.targetId === selectedNode.id) relatedIds.add(edge.sourceId);
+      });
+    graph.getNodes().forEach((node) => {
+      const id = String(node.get('id'));
+      const item = allNodesRef.current.find((candidate) => candidate.id === id);
+      if (!item) return;
+      graph.removeState(node, 'blur');
+      graph.removeState(node, 'active');
+      const unmatchedSearch = !!query && !item.label.toLowerCase().includes(query);
+      const unrelated = !!selectedNode && id !== selectedNode.id && !relatedIds.has(id);
+      if (unmatchedSearch || unrelated) graph.setState(node, 'blur', true);
+      else if (selectedNode) graph.setState(node, 'active', true);
+    });
+    graph.refresh();
+  }, [searchQuery, selectedNode]);
 
-  // ── 空状态 ──
-
-  if (!loading && !error && allNodesRef.current.length === 0) {
+  if (!loading && !error && allNodesRef.current.length === 0)
     return (
       <div className="wiki-graph-container">
         <div className="wiki-graph-empty">
-          <div className="wiki-graph-empty-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="48"
-              height="48"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <circle cx="5" cy="5" r="2" />
-              <circle cx="19" cy="5" r="2" />
-              <circle cx="5" cy="19" r="2" />
-              <circle cx="19" cy="19" r="2" />
-              <line x1="9" y1="9" x2="7" y2="7" />
-              <line x1="15" y1="9" x2="17" y2="7" />
-              <line x1="9" y1="15" x2="7" y2="17" />
-              <line x1="15" y1="15" x2="17" y2="17" />
-              <line x1="12" y1="15" x2="12" y2="12" />
-            </svg>
-          </div>
+          <div className="wiki-graph-empty-icon">◎</div>
           <h3>暂无图谱数据</h3>
           <p>可通过 AI 对话添加实体和关系，或通过 API 手动录入</p>
         </div>
       </div>
     );
-  }
-
   return (
     <div className="wiki-graph-container">
       <div className="wiki-graph-toolbar">
         <div className="wiki-graph-search-box">
-          <svg
-            className="wiki-graph-search-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            width="14"
-            height="14"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
+          <span className="wiki-graph-search-icon">⌕</span>
           <input
             type="text"
             className="wiki-graph-search-input"
             placeholder="搜索节点..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
           />
         </div>
         <div className="wiki-graph-stats" aria-label="图谱统计">

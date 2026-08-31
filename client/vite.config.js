@@ -28,8 +28,14 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
-          'markdown-vendor': ['react-markdown', 'remark-gfm', 'rehype-highlight', 'rehype-sanitize', 'hast-util-sanitize'],
-          'graph-vendor': ['vis-network', 'vis-data'],
+          'markdown-vendor': [
+            'react-markdown',
+            'remark-gfm',
+            'rehype-highlight',
+            'rehype-sanitize',
+            'hast-util-sanitize',
+          ],
+          'graph-vendor': ['@visactor/vgraph'],
         },
       },
     },
