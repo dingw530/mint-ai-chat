@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mkdir } from 'node:fs/promises';
 import { BaseTool } from './BaseTool.js';
 import type { ToolContext, PermissionResult } from './BaseTool.js';
 import { checkCommand } from '../api/bashSecurityService.js';
@@ -80,10 +81,14 @@ export class BashTool extends BaseTool<BashInput, BashOutput> {
       };
     }
     const startTime = Date.now();
+    const cwd = input.cwd ?? getMintWorkspacePath();
+    if (!input.cwd) {
+      await mkdir(cwd, { recursive: true });
+    }
 
     const result = await sandboxRunner.run({
       command: input.command,
-      cwd: input.cwd ?? getMintWorkspacePath(),
+      cwd,
       timeoutMs: input.timeout ?? 30000,
       invocationId: `${context.conversationId}-${startTime}`,
       allowHostFallback: !isHighRiskBashCommand(input.command),

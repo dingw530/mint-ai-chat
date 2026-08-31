@@ -41,6 +41,12 @@ interface SandboxWorker extends ChildProcess {
 }
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
+
+/** Returns the first available POSIX shell for host fallback execution. */
+function getShellPath(): string {
+  return existsSync('/bin/bash') ? '/bin/bash' : '/bin/sh';
+}
+
 /** Runs one Bash invocation in a disposable sandbox Worker. */
 export class SandboxRunner {
   private readonly workerPath: string;
@@ -116,7 +122,7 @@ export class SandboxRunner {
   private hostFallback(input: SandboxRunInput, reason: string, context: ToolContext): Promise<SandboxRunResult> {
     const startedAt = Date.now();
     return new Promise((resolve) => {
-      const child = spawn('/bin/bash', ['-c', input.command], {
+      const child = spawn(getShellPath(), ['-c', input.command], {
         cwd: input.cwd,
         env: process.env,
         detached: true,
