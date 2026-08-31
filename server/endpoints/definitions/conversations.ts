@@ -1,8 +1,19 @@
 import * as conversationService from '../../services/api/conversationService.js';
 import { httpError } from '../helpers.js';
-import { streamConversationIngestionEvents } from '../../services/api/ingestionEventsService.js';
+import type { Request, Response } from 'express';
 import type { EndpointDescriptor } from '../types.js';
-import { resolveToolApproval } from '../../services/api/toolApprovalService.js';
+
+/** 延迟加载摄入事件流，避免生成 endpoint manifest 时初始化摄入服务。 */
+async function streamIngestionEvents(conversationId: string, req: Request, res: Response): Promise<void> {
+  const module = await import('../../services/api/ingestionEventsService.js');
+  module.streamConversationIngestionEvents(conversationId, req, res);
+}
+
+/** 延迟加载审批服务，避免其工具注册依赖在生成 endpoint manifest 时初始化。 */
+async function resolveApproval(conversationId: string, approvalId: string, action: 'approve' | 'deny') {
+  const module = await import('../../services/api/toolApprovalService.js');
+  return module.resolveToolApproval(conversationId, approvalId, action);
+}
 
 export const conversationsEndpoints: EndpointDescriptor[] = [
   {
@@ -10,12 +21,12 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     method: 'POST',
     path: '/:id/tool-approvals/:approvalId',
     preloadMethod: 'resolveToolApproval',
-    service: (id: string, approvalId: string, data: Record<string, unknown>) => {
+    service: async (id: string, approvalId: string, data: Record<string, unknown>) => {
       const action = data?.action;
       if (action !== 'approve' && action !== 'deny') {
         throw httpError(400, 'Approval action must be "approve" or "deny"');
       }
-      return resolveToolApproval(id, approvalId, action);
+      return resolveApproval(id, approvalId, action);
     },
     args: [
       { from: 'path', name: 'id' },
@@ -29,8 +40,9 @@ export const conversationsEndpoints: EndpointDescriptor[] = [
     id: 'conversations:ingestionEvents',
     method: 'GET',
     path: '/:id/ingestion-events',
-    service: streamConversationIngestionEvents,
+    service: streamIngestionEvents,
     args: [{ from: 'path', name: 'id' }],
+    async: true,
     stream: true,
   },
   {

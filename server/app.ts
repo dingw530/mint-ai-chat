@@ -25,7 +25,7 @@ const defaultCorsOrigins = [
  * @param origin Browser Origin header, when present
  * @returns Whether the origin is allowed to receive CORS headers
  */
-function isAllowedCorsOrigin(origin: string | undefined): boolean {
+export function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
   const configuredOrigins = process.env.AI_CHAT_CORS_ORIGINS
     ?.split(',')

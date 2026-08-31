@@ -33,6 +33,11 @@ function isHighRiskBash(command: string): boolean {
   return /(^|\s)(rm|mv|chmod|chown|sudo|kill|pkill|shutdown|reboot)\b|\/etc\/|\/var\/|\/Users\/|\/home\//i.test(command);
 }
 
+/** Classifies Bash commands that must not use an unisolated fallback. */
+export function isHighRiskBashCommand(command: string): boolean {
+  return isHighRiskBash(command);
+}
+
 function bashPathsStayInDirectory(command: string, directory: string): boolean {
   const root = path.resolve(directory);
   const candidates = command.match(/(?:^|\s)(\/[^\s;|&]+|\.\.?\/[^\s;|&]+)/g) || [];

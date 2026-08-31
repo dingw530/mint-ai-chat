@@ -38,6 +38,9 @@
 | 2026-07-04 | fix | TP-009 | graphBuilder.ts | verify 发现 JSDOC 缺 @param/@returns 标记，design-doc 未说明 edgePairSet 去重行为 | 无影响 | 已补充 JSDOC 和 design-doc 描述 |
 | 2026-07-04 | fix | TP-007 / TP-009 | KnowledgeGraphTool.ts / graphBuilder.ts | 去重 key 从仅 label 改为 label + sourceFile 联合匹配 | 无影响 | 已同步修改两处去重逻辑；已更新 design-doc |
 | 2026-07-04 | fix | TP-010 | wikiIngestionService.ts | verify 发现使用 console.warn/error 而非项目的 createLogger | 无影响 | 已替换为 createLogger |
+| 2026-08-31 | refactor | TP-004 / TP-006 | WikiGraphPanel.tsx / client/package.json / vite.config.js / package-lock.json | 按需求将图谱渲染插件从 vis-network 替换为 VGraph，保持图谱数据契约和用户交互不变 | 渲染实现替换；后端与 Wiki 流程无影响 | 已通过客户端类型检查、Lint、单元测试和生产构建 |
+| 2026-08-31 | fix | TP-004 | WikiGraphPanel.tsx | 参考 VGraph ForceCollision 示例，按节点实际包围盒避免节点重叠，并固定/释放拖拽节点位置 | 仅调整图谱布局与拖拽行为 | 已通过客户端类型检查、Lint、单元测试和生产构建 |
+| 2026-08-31 | fix | TP-004 | WikiGraphPanel.tsx / wikiHelpers.test.ts | 移除 API 返回的游离节点，并在选中节点时弱化无关联节点 | 仅调整图谱数据预处理和视觉状态 | 已通过客户端类型检查、Lint、单元测试 |
 
 > 类型取值：fix / refactor / feature / scope-change
 > 影响评估取值：无影响 / 行为修正 / 范围扩展

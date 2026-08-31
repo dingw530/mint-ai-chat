@@ -46,6 +46,7 @@ h2 { margin: 0; }
 .meta, .section-head > span { color: var(--muted); font-size: 11px; }
 .header-meta { display: flex; flex: 0 1 520px; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; max-width: 520px; }
 .header-meta .meta { min-width: 0; max-width: 100%; overflow: hidden; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); text-overflow: ellipsis; white-space: nowrap; }
+.header-meta .meta-success { color: var(--green); border-color: #bce8d2; background: var(--green-soft); font-weight: 800; }
 .muted { color: var(--muted); font-size: 13px; }
 .number, .score strong, .metrics b, .run-summary strong, .metric-comparison > span, .metric-comparison small { font-family: "PingFang SC", "Hiragino Sans GB", -apple-system, BlinkMacSystemFont, sans-serif; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "zero" 1; letter-spacing: -.045em; }
 

@@ -231,6 +231,25 @@ Live 评测支持两种运行规模：`--runs 1` 用于快速验证，`--runs 3`
 
 `judgeRubric` 包含 Essential / Important / Optional / Veto 维度。非 Veto 维度使用 1–4 分的可观察标准；Veto 使用 pass/fail。每个维度可声明 `gate: answer | evidence | both`，旧 Rubric 未声明时按维度 ID 兼容映射。Judge 结果必须返回每个维度的证据 ID、理由、置信度和简短结论。为避免长度偏差，Rubric 可设置 `maxAnswerChars`，报告会记录答案字符数。
 
+### 上传评测分数到 Langfuse
+
+可以将已生成的本地报告上传为 Langfuse Scores。上传内容仅包含 Viewer 中的整体汇总指标、Judge 汇总分数和数据集元数据，不上传逐用例分数、答案、提示词或 Wiki 正文：
+
+```bash
+npm run eval:langfuse:upload -w agent-eval -- \
+  --report agent-eval/viewer/versions/<result-version>.json
+```
+
+也可以按版本 ID 逐条上传，默认从 `agent-eval/viewer/versions/` 读取：
+
+```bash
+npm run eval:langfuse:upload -w agent-eval -- \
+  --version <result-version>
+```
+
+命令使用 `LANGFUSE_BASE_URL`、`LANGFUSE_PUBLIC_KEY` 和 `LANGFUSE_SECRET_KEY`，也可以通过 `--langfuse-base-url`、`--langfuse-public-key` 和 `--langfuse-secret-key` 传入。由于 Langfuse Scores API 要求关联对象，没有 Trace 的本地报告会通过稳定的 `sessionId` 归入同一评测会话。
+上传使用 Langfuse Public Ingestion API 的 `score-create` 事件，事件 `timestamp` 使用报告的 `generatedAt`，因此历史版本会按评测生成时间展示，而不是按实际上传时间展示。
+
 运行真实 Judge：
 
 ```bash

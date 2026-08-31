@@ -1,7 +1,12 @@
 import * as wikiService from '../../services/api/wikiService.js';
-import { wikiIngestionJobService } from '../../services/api/wikiIngestionJobService.js';
 import { wikiVectorBackfillService } from '../../services/api/wikiVectorBackfillService.js';
 import type { EndpointDescriptor } from '../types.js';
+
+/** 延迟加载摄入服务，避免生成 endpoint manifest 时启动后台任务和访问数据库。 */
+async function getWikiIngestionJobService() {
+  const module = await import('../../services/api/wikiIngestionJobService.js');
+  return module.wikiIngestionJobService;
+}
 
 export const wikiEndpoints: EndpointDescriptor[] = [
   {
@@ -73,8 +78,9 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     method: 'GET',
     path: '/jobs',
     preloadMethod: 'listWikiJobs',
-    service: (status?: string, limit?: string) => wikiIngestionJobService.listForApi(status, limit ? Number(limit) : undefined),
+    service: async (status?: string, limit?: string) => (await getWikiIngestionJobService()).listForApi(status, limit ? Number(limit) : undefined),
     ipcServiceRef: { module: 'wikiIngestionJobService', method: 'listForApi' },
+    async: true,
     args: [
       { from: 'query', name: 'status', optional: true },
       { from: 'query', name: 'limit', optional: true },
@@ -86,8 +92,9 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     method: 'GET',
     path: '/jobs/:jobId',
     preloadMethod: 'getWikiJob',
-    service: (jobId: string) => wikiIngestionJobService.getRequiredStatus(jobId),
+    service: async (jobId: string) => (await getWikiIngestionJobService()).getRequiredStatus(jobId),
     ipcServiceRef: { module: 'wikiIngestionJobService', method: 'getRequiredStatus' },
+    async: true,
     args: [{ from: 'path', name: 'jobId' }],
     result: 'job',
   },
@@ -96,8 +103,9 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     method: 'POST',
     path: '/jobs/:jobId/retry',
     preloadMethod: 'retryWikiJob',
-    service: (jobId: string) => wikiIngestionJobService.retry(jobId),
+    service: async (jobId: string) => (await getWikiIngestionJobService()).retry(jobId),
     ipcServiceRef: { module: 'wikiIngestionJobService', method: 'retry' },
+    async: true,
     args: [{ from: 'path', name: 'jobId' }],
     result: 'job',
   },
@@ -106,8 +114,9 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     method: 'POST',
     path: '/jobs/:jobId/cancel',
     preloadMethod: 'cancelWikiJob',
-    service: (jobId: string) => wikiIngestionJobService.cancel(jobId),
+    service: async (jobId: string) => (await getWikiIngestionJobService()).cancel(jobId),
     ipcServiceRef: { module: 'wikiIngestionJobService', method: 'cancel' },
+    async: true,
     args: [{ from: 'path', name: 'jobId' }],
     result: 'job',
   },
@@ -116,8 +125,9 @@ export const wikiEndpoints: EndpointDescriptor[] = [
     method: 'DELETE',
     path: '/jobs/:jobId',
     preloadMethod: 'removeWikiJob',
-    service: (jobId: string) => wikiIngestionJobService.remove(jobId),
+    service: async (jobId: string) => (await getWikiIngestionJobService()).remove(jobId),
     ipcServiceRef: { module: 'wikiIngestionJobService', method: 'remove' },
+    async: true,
     args: [{ from: 'path', name: 'jobId' }],
     result: 'direct',
   },

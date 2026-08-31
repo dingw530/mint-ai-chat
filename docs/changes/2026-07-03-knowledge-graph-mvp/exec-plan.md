@@ -15,7 +15,7 @@
 - **目标**：在 wiki 模块内集成知识图谱视图，用户可交互式浏览概念间的三元关系
 - **完成定义**：
   - [x] WikiPanel 有 tab 切换（文件浏览 / 知识图谱）
-  - [x] 图谱正常渲染 vis-network 力导向图
+  - [x] 图谱正常渲染 VGraph 力导向图
   - [x] 节点可拖拽、点击可查看详情
   - [x] 后端 API 支持节点/边的 CRUD
   - [ ] 摄入完成后图谱自动填充节点和关系
@@ -43,7 +43,7 @@
 - **产出文件**：`server/endpoints/definitions/graph.ts`、`server/endpoints/definitions/index.ts`
 
 ### TP-004：前端图谱可视化组件（关联 DS-002 / US-002）
-- **描述**：新建 `client/src/features/wiki/WikiGraphPanel.tsx`，使用 vis-network 渲染力导向图，含 GraphToolbar（搜索过滤）和 NodeDetailPanel（点击详情）
+- **描述**：新建 `client/src/features/wiki/WikiGraphPanel.tsx`，使用 VGraph 渲染力导向图，含 GraphToolbar（搜索过滤）和 NodeDetailPanel（点击详情）
 - **验收**：图谱渲染正常，节点拖拽 + 悬停高亮 + 点击详情
 - **产出文件**：`client/src/features/wiki/WikiGraphPanel.tsx`
 
@@ -52,8 +52,8 @@
 - **验收**：tab 可切换，"知识图谱" tab 下显示图谱，"文件浏览" tab 下原有内容不变
 - **产出文件**：`client/src/features/wiki/WikiPage.tsx`、`client/src/features/wiki/WikiPanel.tsx`、`client/src/services/api/wiki.ts`
 
-### TP-006：安装 vis-network 依赖
-- **描述**：`cd client && npm install vis-network vis-data`
+### TP-006：安装 VGraph 依赖
+- **描述**：`npm install --workspace=mint-client @visactor/vgraph@0.1.0`
 - **验收**：`package.json` 中可见依赖
 - **产出文件**：`client/package.json`
 
@@ -129,7 +129,7 @@
 - 状态：已完成
 - 开始时间：2026-07-03
 - 完成时间：2026-07-03
-- 执行备注：新建 WikiGraphPanel.tsx，使用 vis-network 力导向图渲染，包含搜索工具栏、节点详情面板、空状态引导
+- 执行备注：新建 WikiGraphPanel.tsx，使用 VGraph Canvas 力导向图渲染，包含搜索工具栏、节点详情面板、空状态引导
 - 产出文件：`client/src/features/wiki/WikiGraphPanel.tsx`
 
 ### TP-005：WikiPanel Tab 集成
@@ -146,11 +146,11 @@
 - 执行备注：创建 KnowledgeGraphTool，支持 query_nodes/add_node/add_edge 三种操作；add_edge 通过 label 模糊查找节点而非 UUID；已在工具索引中注册
 - 产出文件：`server/services/tools/KnowledgeGraphTool.ts`、`server/services/tools/index.ts`
 
-### TP-006：安装 vis-network 依赖
+### TP-006：安装 VGraph 依赖
 - 状态：已完成
 - 开始时间：2026-07-03
 - 完成时间：2026-07-03
-- 执行备注：安装 vis-network@10.1.0 + vis-data@8.0.4，依赖被提升到 workspace root node_modules
+- 执行备注：移除 vis-network/vis-data，安装 @visactor/vgraph@0.1.0
 - 产出文件：`client/package.json`（自动更新）
 
 ### TP-008：graphRepository 添加事务支持（关联 DS-006）

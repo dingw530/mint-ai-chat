@@ -470,6 +470,8 @@ describe('BashTool', () => {
     const result = await tool.execute({ command: 'echo hello' }, ctx);
     expect(result.stdout.trim()).toBe('hello');
     expect(result.exitCode).toBe(0);
+    expect(result.sandbox.sandboxed).toBe(false);
+    expect(result.sandbox.state).toBe('host_fallback');
   });
 
   it('should use the Mint workspace by default', async () => {
