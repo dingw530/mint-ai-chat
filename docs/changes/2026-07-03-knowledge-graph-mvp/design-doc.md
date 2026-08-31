@@ -25,12 +25,12 @@
 ## 背景与目标
 - **当前现状**：wiki 模块仅支持文件树浏览 + Markdown 预览，概念间的关系只能通过 chat 查询
 - **核心问题**：缺少可视化的三元关系图谱，知识探索效率低
-- **目标**：在 wiki 模块内集成知识图谱视图，基于 vis-network 渲染力导向图，支持交互式探索
+- **目标**：在 wiki 模块内集成知识图谱视图，基于 VGraph 渲染力导向图，支持交互式探索
 - **非目标**：图谱编辑 UI、自动爬取提取
 
 ## 约束与前提
 - 集成在 WikiPanel 内，不新增路由/导航入口
-- 可视化使用 vis-network，不引入额外框架
+- 可视化使用 VGraph，不改变现有 React 页面和图谱数据契约
 - 后端新增 graph_nodes / graph_edges 表，不改现有表结构
 - 端点在 `endpoints/definitions/` 中声明式注册
 
@@ -63,14 +63,17 @@ WikiPage
 ```
 WikiGraphPanel
   ├── GraphToolbar（搜索框 + 类型过滤）
-  ├── vis-network 力导向图容器
+  ├── VGraph Canvas 力导向图容器
   └── NodeDetailPanel（点击节点滑出详情）
 ```
 
 交互细节：
 - **初始加载**：调用 `GET /api/graph/data` 获取全量节点 + 边 → 渲染
-- **拖拽**：vis-network 内置力导向 + drag 交互
-- **悬停**：vis-network 高亮邻接节点和边
+- **拖拽**：VGraph `dragNode` 行为 + force layout
+- **悬停**：VGraph `highlightRelations` 行为高亮邻接节点和边
+- **防重叠**：VGraph `ForceCollision` 根据节点实际命中包围盒动态计算碰撞宽高，并使用 `ForceManyBody` / `ForceCenter` 保持节点间距与画布居中
+- **游离节点**：绘图前过滤没有任何入边或出边的节点，并同步过滤无效边
+- **选中态**：选中节点及其直接关联节点保持高亮，其余节点使用 `blur` 状态弱化显示
 - **点击**：弹出 NodeDetailPanel，显示 label、type、properties
 - **搜索**：输入文本后高亮匹配节点
 
@@ -123,9 +126,9 @@ WikiGraphPanel
 | 规格规则 | 落地位置 | 实现口径 |
 |---|---|---|
 | AC-001 — tab 切换 | WikiPage + WikiPanel | viewMode state 控制 |
-| AC-002 — 图谱渲染 | WikiGraphPanel | vis-network `new Network()` |
+| AC-002 — 图谱渲染 | WikiGraphPanel | VGraph `new Graph()` |
 | AC-003 — 无数据引导 | WikiGraphPanel | edges.length === 0 时渲染引导文案 |
-| AC-004 — 拖拽 | vis-network | built-in `interaction: {dragNodes: true}` |
+| AC-004 — 拖拽 | VGraph | `dragNode` behavior |
 | AC-005 — 节点详情 | NodeDetailPanel | click 事件 → API 查询 → 滑出面板 |
 | AC-006 — API 增删 | graphService | INSERT/UPDATE/DELETE 操作 |
 | AC-007 — AI 添加节点 | KnowledgeGraphTool | 通过 AI tool 调用 add_node |
@@ -167,7 +170,7 @@ WikiGraphPanel
 | 维度 | 影响 |
 |------|------|
 | 影响范围 | WikiPanel.tsx（加 tab）、新增 WikiGraphPanel.tsx、新增 graphService.ts、新增端点、db.ts + 迁移 |
-| 风险 | vis-network 与 React 的集成需要注意组件卸载时销毁 Network 实例，避免内存泄漏 |
+| 风险 | VGraph 与 React 的集成需要注意组件卸载时销毁 Graph 实例，避免 Canvas/事件资源泄漏 |
 
 ## 发布与验证
 - **发布策略**：一次性发布

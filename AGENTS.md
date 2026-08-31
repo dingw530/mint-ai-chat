@@ -139,6 +139,8 @@ docs/exec-plans/README.md       执行计划索引
 - **MUST** 封装同作用域 ≥3 个 let 为状态对象 + 工厂函数，外传前做防御性副本
 - **MUST NOT** 函数超过 120 行；循环体 ≥30 行、分支 ≥20行必须提取为命名函数
 - **MUST NOT** 生产代码使用 as any / as unknown as T / as T 绕过类型系统
+- **MUST** 修改 TypeScript、TSX、CSS 或配置代码后执行可读性格式检查：对所有本次修改文件运行 `npx prettier --check <modified-files>`；发现格式问题必须先运行 `npx prettier --write <modified-files>` 修复
+- **MUST NOT** 提交包含异常超长单行的 JSX、TypeScript、CSS 或配置代码；格式化后仍需通过 `git diff --check`
 
 
 
