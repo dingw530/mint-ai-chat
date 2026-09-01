@@ -1,10 +1,10 @@
 # Mint
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Electron](https://img.shields.io/badge/Electron-33-47848f.svg?logo=electron)](https://www.electronjs.org/)
+[![Electron](https://img.shields.io/badge/Electron-41-47848f.svg?logo=electron)](https://www.electronjs.org/)
 [![Node](https://img.shields.io/badge/Node.js-20.19.4-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg?logo=react&logoColor=white)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-blue.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF.svg?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![GitHub Stars](https://img.shields.io/github/stars/dingw530/mint-ai-chat?style=social)](https://github.com/dingw530/mint-ai-chat)
 
@@ -30,11 +30,11 @@ Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构
 
 ## 技术栈
 
-- **桌面端**：Electron 33
-- **前端**：React 18、Vite 5、使用设计令牌的原生 CSS
-- **后端**：Express 4、TypeScript、better-sqlite3（SQLite）
+- **桌面端**：Electron 41.7.1
+- **前端**：React 18.2.0、Vite 5.1.0、使用设计令牌的原生 CSS
+- **后端**：Express 4.18.2、TypeScript 6.0.3、better-sqlite3 12.11.1（SQLite）
 - **IPC**：直接调用服务层（无 HTTP 开销）
-- **测试**：Vitest
+- **测试**：Vitest 1.6.1
 
 ## 快速开始
 
@@ -64,17 +64,50 @@ npm run electron:rebuild
 ### 安装
 
 ```bash
-cd server && npm install
-cd client && npm install
-cd electron && npm install
+# 在仓库根目录安装所有 workspace 依赖
+npm install
 ```
 
-### 开发模式运行
+### Web 开发模式
+
+HTTP 模式下，server 需要配置用于加密 API 密钥等敏感数据的
+`AI_CHAT_ENCRYPTION_KEY`。可以将它维护在 `server/.env` 中：
+
+```dotenv
+# server/.env
+AI_CHAT_ENCRYPTION_KEY=<openssl rand -hex 16 生成的值>
+```
+
+也可以通过 shell 环境变量临时设置：
 
 ```bash
-# 启动 Electron 应用（自动启动 server 和 client 开发服务器）
+export AI_CHAT_ENCRYPTION_KEY="$(openssl rand -hex 16)"
+npm run dev
+```
+
+默认访问地址：
+
+- 前端：<http://localhost:5800>
+- API：<http://localhost:3001>
+
+端口可通过 `PORT`（server）、`VITE_DEV_PORT`（前端）和
+`VITE_API_PROXY_TARGET`（前端 API 代理）覆盖。若 server 默认端口被占用，
+它会自动回退到随机端口；此时请以 server 日志中的实际端口为准，并同步调整
+`VITE_API_PROXY_TARGET`。
+
+### Electron 开发模式
+
+```bash
+# 启动完整的 Electron 开发环境（server、Vite 和 Electron）
+npm run electron:dev:server
+
+# 仅启动 Vite 和 Electron；要求已有 server 监听 3001
 npm run electron:dev
 ```
+
+Electron 主进程会在首次启动时于 `~/.mint/.env` 自动生成并持久化
+`AI_CHAT_ENCRYPTION_KEY`，无需手动导出密钥。Electron 开发模式默认使用
+`http://localhost:5800`，并假设 server 运行在 `3001` 端口。
 
 ### 构建桌面应用
 

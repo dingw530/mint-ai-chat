@@ -4,7 +4,7 @@ import path from 'path';
 
 const isElectronBuild = process.env.ELECTRON === 'true';
 const devPort = Number(process.env.VITE_DEV_PORT || 5800);
-const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:5600';
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3001';
 
 export default defineConfig({
   plugins: [react()],
