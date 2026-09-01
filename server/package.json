@@ -40,7 +40,7 @@
     "@modelcontextprotocol/server-everything": "^2026.1.26",
     "@opentelemetry/sdk-node": "^0.221.0",
     "ai": "^6.0.95",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "12.8.0",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",
     "cors": "^2.8.5",
