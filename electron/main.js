@@ -11,6 +11,7 @@ let serverBundlePromise = null;
 let electronServiceBootstrapPromise = null;
 
 const isDev = !app.isPackaged;
+if (isDev) process.env.NODE_ENV = 'development';
 
 // ── 尽早初始化日志（在 app ready 之前就准备好日志路径） ──
 
@@ -23,7 +24,7 @@ const MINT_ENV_KEYS = new Set([
   'MINT_LANGFUSE_ENABLED',
   'MINT_LANGFUSE_ENVIRONMENT',
   'MINT_LANGFUSE_CAPTURE_CONTENT',
-  'LANGFUSE_DEBUG'
+  'LANGFUSE_DEBUG',
 ]);
 
 function getLogDir() {
@@ -84,14 +85,20 @@ function loadOrCreateEncryptionKey() {
 
   loadMintEnvironment(envPath);
   if (process.env.AI_CHAT_ENCRYPTION_KEY) {
-    logger.info(`AI_CHAT_ENCRYPTION_KEY loaded from ${providedByProcess ? 'system environment' : '.env file'}`);
+    logger.info(
+      `AI_CHAT_ENCRYPTION_KEY loaded from ${providedByProcess ? 'system environment' : '.env file'}`,
+    );
     return;
   }
 
   const key = crypto.randomBytes(32).toString('hex');
   logger.info('Generated new encryption key');
   const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8').trimEnd() : '';
-  fs.writeFileSync(envPath, `${existing}${existing ? '\n' : ''}AI_CHAT_ENCRYPTION_KEY=${key}\n`, 'utf-8');
+  fs.writeFileSync(
+    envPath,
+    `${existing}${existing ? '\n' : ''}AI_CHAT_ENCRYPTION_KEY=${key}\n`,
+    'utf-8',
+  );
   logger.info(`Encryption key saved to: ${envPath}`);
   process.env.AI_CHAT_ENCRYPTION_KEY = key;
 }
@@ -110,7 +117,11 @@ function loadMintEnvironment(envPath) {
 }
 
 function unquoteEnvValue(value) {
-  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+  if (
+    value.length >= 2 &&
+    ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'")))
+  ) {
     return value.slice(1, -1);
   }
   return value;
