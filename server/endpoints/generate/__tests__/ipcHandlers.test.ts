@@ -55,7 +55,7 @@ describe('standard IPC handlers', () => {
     expect([...handlers.keys()]).toEqual(['settings:get', 'settings:save']);
   });
 
-  it('keeps service references and endpoint validation behavior', async () => {
+  it('keeps service references and validates explicitly provided legacy model fields', async () => {
     const handlers = new Map<string, RegisteredHandler>();
     const ipcMain = {
       handle(channel: string, handler: RegisteredHandler) {
@@ -70,8 +70,25 @@ describe('standard IPC handlers', () => {
       modelId: '',
     });
     await expect(handlers.get('settings:save')!({}, { apiUrl: '', modelId: '' })).rejects.toThrow(
-      'apiUrl and modelId are required',
+      'apiUrl must be a valid URL',
     );
+  });
+
+  it('allows saving general settings without legacy model fields', async () => {
+    const handlers = new Map<string, RegisteredHandler>();
+    const ipcMain = {
+      handle(channel: string, handler: RegisteredHandler) {
+        handlers.set(channel, handler);
+      },
+    };
+
+    registerIpcHandlers(settingsEndpoints, {}, ipcMain);
+
+    await expect(
+      handlers.get('settings:save')!({}, { systemPrompt: 'Be concise' }),
+    ).resolves.toEqual({
+      success: true,
+    });
   });
 
   it('registers the complete agents endpoint group with shared response shapes', async () => {

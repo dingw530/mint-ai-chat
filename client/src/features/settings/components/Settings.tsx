@@ -12,11 +12,7 @@ import type { VisibleSettings } from '@/types';
 
 function Toast({ toast }: { toast: { type: string; message: string } | null }) {
   if (!toast) return null;
-  return (
-    <div className={`toast ${toast.type}`}>
-      {toast.message}
-    </div>
-  );
+  return <div className={`toast ${toast.type}`}>{toast.message}</div>;
 }
 
 interface SettingsProps {
@@ -27,9 +23,6 @@ interface SettingsProps {
 
 export default function Settings({ onClose, theme, onThemeChange }: SettingsProps) {
   const [activeTab, setActiveTab] = useState('general');
-  const [apiUrl, setApiUrl] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [modelId, setModelId] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [thinkingMode, setThinkingMode] = useState(false);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
@@ -43,19 +36,12 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   const [embeddingApiUrl, setEmbeddingApiUrl] = useState('http://127.0.0.1:11434/v1');
   const [embeddingModel, setEmbeddingModel] = useState('bge-m3');
   const [embeddingDimensions, setEmbeddingDimensions] = useState(1024);
-  const [apiKeyDirty, setApiKeyDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
   useEffect(() => {
     getSettings()
       .then((data: VisibleSettings) => {
-        setApiUrl(data.apiUrl || '');
-        if (data.apiKeyMasked) {
-          setApiKey(data.apiKeyMasked);
-        }
-        setModelId(data.modelId || '');
         setSystemPrompt(data.systemPrompt || '');
         setThinkingMode(data.thinkingMode || false);
         setMemoryEnabled(data.memoryEnabled || false);
@@ -78,7 +64,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     if (localTheme !== theme) {
       onThemeChange(localTheme);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localTheme]);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -88,7 +74,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
       if (e.key === 'Escape') onClose();
       if (e.key === 'Tab' && modalRef.current) {
         const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         if (focusable.length === 0) return;
         const first = focusable[0];
@@ -110,7 +96,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     // Focus first element on open
     requestAnimationFrame(() => {
       const first = modalRef.current?.querySelector<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       );
       first?.focus();
     });
@@ -122,35 +108,10 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     setTimeout(() => setToast(null), 10000);
   }, []);
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!apiUrl.trim()) {
-      newErrors.apiUrl = 'API URL is required';
-    } else {
-      try {
-        new URL(apiUrl.trim());
-      } catch {
-        newErrors.apiUrl = 'Please enter a valid URL';
-      }
-    }
-    if (apiKeyDirty && !apiKey.trim()) {
-      newErrors.apiKey = 'API Key is required';
-    }
-    if (!modelId.trim()) {
-      newErrors.modelId = 'Model ID is required';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleSave = async () => {
-    if (!validate()) return;
     setSaving(true);
     try {
       await saveSettings({
-        apiUrl: apiUrl.trim(),
-        ...(apiKeyDirty ? { apiKey: apiKey.trim() } : {}),
-        modelId: modelId.trim(),
         systemPrompt: systemPrompt.trim(),
         thinkingMode,
         memoryEnabled,
@@ -223,7 +184,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     ),
     wiki: (
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 6H2v14a2 2 0 002 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H8V4h12v12zM10 9h8v2h-8V9zm0 4h6v2h-6v2H8v-2h2v-2z"/>
+        <path d="M4 6H2v14a2 2 0 002 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H8V4h12v12zM10 9h8v2h-8V9zm0 4h6v2h-6v2H8v-2h2v-2z" />
       </svg>
     ),
   };
@@ -231,12 +192,21 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   return (
     <div className="modal-overlay">
       <Toast toast={toast} />
-      <div className="modal modal-wide" role="dialog" aria-label="设置" onClick={(e) => e.stopPropagation()} ref={modalRef}>
+      <div
+        className="modal modal-wide"
+        role="dialog"
+        aria-label="设置"
+        onClick={(e) => e.stopPropagation()}
+        ref={modalRef}
+      >
         <div className="modal-header">
           <h2>设置</h2>
           <button className="modal-close-btn" onClick={onClose} title="关闭">
             <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/>
+              <path
+                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                fill="currentColor"
+              />
             </svg>
           </button>
         </div>
@@ -256,12 +226,6 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
           <div className="settings-tab-content">
             {activeTab === 'general' && (
               <GeneralTab
-                apiUrl={apiUrl}
-                setApiUrl={setApiUrl}
-                apiKey={apiKey}
-                setApiKey={setApiKey}
-                modelId={modelId}
-                setModelId={setModelId}
                 systemPrompt={systemPrompt}
                 setSystemPrompt={setSystemPrompt}
                 thinkingMode={thinkingMode}
@@ -270,9 +234,6 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
                 setMemoryEnabled={setMemoryEnabled}
                 routingMode={routingMode}
                 setRoutingMode={setRoutingMode}
-                errors={errors}
-                setErrors={setErrors}
-                setApiKeyDirty={setApiKeyDirty}
                 theme={localTheme}
                 setTheme={setLocalTheme}
                 reactMaxIterations={reactMaxIterations}
@@ -283,21 +244,11 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
                 setShowReactSteps={setShowReactSteps}
               />
             )}
-            {activeTab === 'mcp' && (
-              <McpServersPanel onToast={showToast} />
-            )}
-            {activeTab === 'agents' && (
-              <AgentsPanel onToast={showToast} />
-            )}
-            {activeTab === 'skills' && (
-              <SkillsPanel onToast={showToast} />
-            )}
-            {activeTab === 'bash' && (
-              <BashSecurityPanel onToast={showToast} />
-            )}
-            {activeTab === 'memories' && (
-              <MemoriesPanel onToast={showToast} />
-            )}
+            {activeTab === 'mcp' && <McpServersPanel onToast={showToast} />}
+            {activeTab === 'agents' && <AgentsPanel onToast={showToast} />}
+            {activeTab === 'skills' && <SkillsPanel onToast={showToast} />}
+            {activeTab === 'bash' && <BashSecurityPanel onToast={showToast} />}
+            {activeTab === 'memories' && <MemoriesPanel onToast={showToast} />}
             {activeTab === 'wiki' && (
               <WikiPanel
                 wikiPath={wikiPath}
@@ -313,21 +264,24 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
                 onToast={showToast}
               />
             )}
-            {activeTab === 'endpoints' && (
-              <EndpointsPanel onToast={showToast} />
-            )}
+            {activeTab === 'endpoints' && <EndpointsPanel onToast={showToast} />}
           </div>
         </div>
-        {activeTab !== 'endpoints' && activeTab !== 'mcp' && activeTab !== 'agents' && activeTab !== 'skills' && activeTab !== 'bash' && activeTab !== 'memories' && (
-          <div className="modal-actions">
-            <button className="btn-secondary" onClick={onClose}>
-              取消
-            </button>
-            <button className="btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-          </div>
-        )}
+        {activeTab !== 'endpoints' &&
+          activeTab !== 'mcp' &&
+          activeTab !== 'agents' &&
+          activeTab !== 'skills' &&
+          activeTab !== 'bash' &&
+          activeTab !== 'memories' && (
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={onClose}>
+                取消
+              </button>
+              <button className="btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? '保存中...' : '保存'}
+              </button>
+            </div>
+          )}
       </div>
     </div>
   );

@@ -16,7 +16,10 @@ process.env.AI_CHAT_DB_PATH = TEST_DB_PATH;
 
 type RequestFn = (url: string, options?: any) => Promise<Response>;
 
-const { server, request } = await (async (): Promise<{ server: Server | null; request: RequestFn | null }> => {
+const { server, request } = await (async (): Promise<{
+  server: Server | null;
+  request: RequestFn | null;
+}> => {
   try {
     const appModule = await import('../../app.js');
     const app = appModule.default;
@@ -26,7 +29,8 @@ const { server, request } = await (async (): Promise<{ server: Server | null; re
     await new Promise<void>((resolve, reject) => {
       srv = app.listen(0, () => {
         const address = srv.address();
-        if (!address || typeof address === 'string') throw new Error('Test server did not bind to a port');
+        if (!address || typeof address === 'string')
+          throw new Error('Test server did not bind to a port');
         const baseUrl = `http://localhost:${address.port}`;
         req = (url: string, options: any = {}) => {
           return fetch(`${baseUrl}${url}`, {
@@ -51,11 +55,20 @@ afterAll(() => {
     server.close();
   }
   if (fs.existsSync(TEST_DB_PATH)) {
-    try { fs.unlinkSync(TEST_DB_PATH); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(TEST_DB_PATH);
+    } catch {
+      /* ignore */
+    }
   }
   for (const ext of ['-wal', '-shm']) {
     const p = TEST_DB_PATH + ext;
-    if (fs.existsSync(p)) try { fs.unlinkSync(p); } catch { /* ignore */ }
+    if (fs.existsSync(p))
+      try {
+        fs.unlinkSync(p);
+      } catch {
+        /* ignore */
+      }
   }
 });
 
@@ -500,12 +513,12 @@ runIf(server)('AC-004: Settings — Configuration Persistence', () => {
     expect(res.status).toBe(200);
   });
 
-  it('should return 400 when apiUrl is missing', async () => {
+  it('should accept general settings without legacy model fields', async () => {
     const res = await request!('/api/settings', {
       method: 'PUT',
-      body: JSON.stringify({ apiKey: 'sk-test', modelId: 'gpt-4o' }),
+      body: JSON.stringify({ systemPrompt: 'general-only' }),
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
   });
 
   it('should persist settings across multiple read requests', async () => {
@@ -526,7 +539,14 @@ runIf(server)('AC-007/008/012: System Prompt and Thinking Mode Settings', () => 
   it('should include systemPrompt and thinkingMode in GET response shape', async () => {
     const res = await request!('/api/settings');
     const data = await res.json();
-    const allowedFields = ['apiUrl', 'apiKeyMasked', 'modelId', 'systemPrompt', 'thinkingMode', 'memoryEnabled'];
+    const allowedFields = [
+      'apiUrl',
+      'apiKeyMasked',
+      'modelId',
+      'systemPrompt',
+      'thinkingMode',
+      'memoryEnabled',
+    ];
     for (const field of allowedFields) {
       expect(data).toHaveProperty(field);
     }
@@ -1039,7 +1059,8 @@ runIf(server)('NF-002: API Key Security', () => {
     try {
       const Database = await import('better-sqlite3');
       const db = new Database(TEST_DB_PATH);
-      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('apiKey') as { value: string } | undefined;
+      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('apiKey') as
+        { value: string } | undefined;
       db.close();
 
       if (row && row.value) {

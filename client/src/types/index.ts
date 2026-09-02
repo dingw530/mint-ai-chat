@@ -136,9 +136,9 @@ export interface VisibleSettings {
 }
 
 export interface SettingsInput {
-  apiUrl: string;
+  apiUrl?: string;
   apiKey?: string;
-  modelId: string;
+  modelId?: string;
   systemPrompt?: string;
   thinkingMode?: boolean;
   memoryEnabled?: boolean;

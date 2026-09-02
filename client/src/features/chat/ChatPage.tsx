@@ -43,6 +43,7 @@ export default function ChatPage() {
       return false;
     }
   });
+  const [hadConversationsOnLoad, setHadConversationsOnLoad] = useState<boolean | null>(null);
   const [connectionMode, setConnectionMode] = useState<'onboarding' | 'repair' | null>(null);
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const location = useLocation();
@@ -77,6 +78,7 @@ export default function ChatPage() {
       setEndpoints(list);
       const active =
         list.find((ep: EndpointOutput) => ep.isActive && ep.category === 'text' && ep.verifiedAt) ||
+        list.find((ep: EndpointOutput) => ep.isActive && ep.category === 'text') ||
         null;
       setActiveEndpoint(active);
     } catch (err) {
@@ -90,8 +92,18 @@ export default function ChatPage() {
     fetchEndpoints();
   }, [fetchEndpoints]);
 
+  useEffect(() => {
+    if (loading || hadConversationsOnLoad !== null) return;
+    setHadConversationsOnLoad(conversations.length > 0);
+  }, [conversations.length, hadConversationsOnLoad, loading]);
+
   const chatEnabled = Boolean(activeEndpoint);
-  const onboardingRequired = !endpointsLoading && !onboardingCompleted && !chatEnabled;
+  const onboardingRequired =
+    !endpointsLoading &&
+    !loading &&
+    hadConversationsOnLoad === false &&
+    !onboardingCompleted &&
+    !chatEnabled;
 
   useEffect(() => {
     if (onboardingRequired) recordModelConnectionEventOnce('first_use_onboarding_shown');

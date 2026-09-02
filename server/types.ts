@@ -88,9 +88,9 @@ export interface RawSettings {
 
 // 前端传入的设置（apiKey 可选，更新时可以不传）
 export interface SettingsInput {
-  apiUrl: string;
+  apiUrl?: string;
   apiKey?: string;
-  modelId: string;
+  modelId?: string;
   systemPrompt?: string;
   thinkingMode?: boolean;
   memoryEnabled?: boolean;

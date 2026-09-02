@@ -25,12 +25,17 @@ const WIKI_INDEX_CONTENT = `# Wiki 首页
 
 ## 最近更新
 
-`
+`;
 
-const WIKI_MANIFEST_CONTENT = JSON.stringify({
-  version: 1,
-  entries: [],
-}, null, 2) + '\n';
+const WIKI_MANIFEST_CONTENT =
+  JSON.stringify(
+    {
+      version: 1,
+      entries: [],
+    },
+    null,
+    2,
+  ) + '\n';
 
 export const DEFAULT_EMBEDDING_API_URL = 'http://127.0.0.1:11434/v1';
 export const DEFAULT_EMBEDDING_MODEL = 'bge-m3';
@@ -41,7 +46,10 @@ function getSearchMode(raw: RawSettings): 'keyword' | 'hybrid' {
 }
 
 function getEmbeddingDimensions(raw: RawSettings): number {
-  const dimensions = Number.parseInt(raw.embeddingDimensions || String(DEFAULT_EMBEDDING_DIMENSIONS), 10);
+  const dimensions = Number.parseInt(
+    raw.embeddingDimensions || String(DEFAULT_EMBEDDING_DIMENSIONS),
+    10,
+  );
   return Number.isFinite(dimensions) && dimensions > 0 ? dimensions : DEFAULT_EMBEDDING_DIMENSIONS;
 }
 
@@ -92,7 +100,7 @@ export function get(): VisibleSettings {
     try {
       apiKeyMasked = maskApiKey(decrypt(raw.apiKey));
     } catch {
-      apiKeyMasked = '****';  // 解密失败（如密钥变更），显示掩码
+      apiKeyMasked = '****'; // 解密失败（如密钥变更），显示掩码
     }
   }
   const activeEndpoint = endpointRepo.getActive();
@@ -178,10 +186,25 @@ export function getAiSettings(): AiSettings {
 
 // 保存设置：API Key 加密后写入，仅在有新 key 时更新
 // @deprecated — 同步端点逻辑将在后续版本移除，前端直接操作 model_endpoints 接口
-export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memoryEnabled, routingMode, reactMaxIterations, toolMaxRetries, showReactSteps, wikiPath, wikiMaxFileSize, wikiSearchMode, embeddingApiUrl, embeddingModel, embeddingDimensions }: SettingsInput): void {
+export function save({
+  apiUrl,
+  apiKey,
+  modelId,
+  systemPrompt,
+  thinkingMode,
+  memoryEnabled,
+  routingMode,
+  reactMaxIterations,
+  toolMaxRetries,
+  showReactSteps,
+  wikiPath,
+  wikiMaxFileSize,
+  wikiSearchMode,
+  embeddingApiUrl,
+  embeddingModel,
+  embeddingDimensions,
+}: SettingsInput): void {
   const settings: Record<string, string> = {
-    apiUrl,
-    modelId,
     systemPrompt: systemPrompt || '',
     thinkingMode: thinkingMode ? 'true' : 'false',
     memoryEnabled: memoryEnabled ? 'true' : 'false',
@@ -196,6 +219,8 @@ export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memo
     embeddingModel: embeddingModel || DEFAULT_EMBEDDING_MODEL,
     embeddingDimensions: String(embeddingDimensions ?? DEFAULT_EMBEDDING_DIMENSIONS),
   };
+  if (apiUrl !== undefined) settings.apiUrl = apiUrl;
+  if (modelId !== undefined) settings.modelId = modelId;
   if (apiKey) {
     settings.apiKey = encrypt(apiKey);
   }
@@ -210,9 +235,9 @@ export function save({ apiUrl, apiKey, modelId, systemPrompt, thinkingMode, memo
   const activeEndpoint = endpointRepo.getActive();
   if (activeEndpoint) {
     const fields: Record<string, unknown> = {};
-    if (apiUrl) fields.apiUrl = apiUrl;
+    if (apiUrl !== undefined) fields.apiUrl = apiUrl;
     if (apiKey) fields.apiKey = encrypt(apiKey);
-    if (modelId) fields.modelId = modelId;
+    if (modelId !== undefined) fields.modelId = modelId;
     if (Object.keys(fields).length > 0) {
       endpointRepo.update(activeEndpoint.id, fields);
     }
