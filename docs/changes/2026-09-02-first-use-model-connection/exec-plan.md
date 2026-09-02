@@ -7,6 +7,7 @@
 - [x] 首条成功回复满足完整生成、无错误、成功保存；运行时失败可分类恢复且不重复用户消息。
 - [x] API Key 加密/脱敏、空 Key 鉴权头、省略日志敏感信息和本地事件记录通过测试。
 - [x] 所有 UI AC 的浏览器场景通过，unit、coverage、boundary 和项目完整验证通过。
+- [x] 通用设置不再提供模型连接配置，模型配置只在模型端点中提供，且通用设置保存不覆盖端点配置。
 - [x] Harness 证据已回写，traceability 和快捷索引同步；无 FAIL、blocked 或未解释的环境失败。
 
 ## 范围与保护路径
@@ -46,6 +47,7 @@
 | TP-004 | 实现真实发送失败会话、错误分类、重试和修复回流 | AC-006~009；DS-003                       | 已完成 | Chat run/retry/repair changes、tests                   |
 | TP-005 | 完成浏览器场景、项目验证和 Harness 反馈回路    | 全部                                     | 已完成 | browser evidence、test/build reports                   |
 | TP-006 | 证据回写、文档审计和交付                       | 全部                                     | 已完成 | writeback、traceability/index updates                  |
+| TP-007 | 收敛设置入口，移除通用设置中的模型配置         | AC-012、DS-002                           | 已完成 | settings UI、settings save compatibility、tests        |
 
 ## TP-001 执行记录
 
@@ -112,6 +114,7 @@ npm run harness:verify -- --change 2026-09-02-first-use-model-connection --write
 | AC-009 | TP-004/005     | 修复回流浏览器场景                           | 已通过 |
 | AC-010 | TP-002/005     | 加密、脱敏、空 Key 和日志单测                | 已通过 |
 | AC-011 | TP-003/005     | 本地事件记录单测和场景证据                   | 已通过 |
+| AC-012 | TP-007         | 通用设置/模型端点浏览器场景和保存兼容测试    | 已通过 |
 
 ## 风险、依赖与偏差
 
@@ -125,4 +128,19 @@ npm run harness:verify -- --change 2026-09-02-first-use-model-connection --write
 - TP：未指定
 - 轮次：1
 - 证据目录：.harness/runs/2026-09-02-first-use-model-connection/2026-09-02T05-46-56-746Z-38128
+- 检查结果：unit:passed, browser-ac:passed, coverage:passed, boundary:passed
+
+### 2026-09-02：TP-007 设置入口收敛
+
+- 状态：已完成
+- 产出文件：`client/src/features/settings/components/Settings.tsx`、`GeneralTab.tsx`、`client/src/types/index.ts`、`server/types.ts`、`server/endpoints/definitions/settings.ts`、`server/services/api/settingsService.ts`、相关测试和 AC-012 浏览器场景。
+- 结果：通用设置移除 API URL、API Key、API 类型和模型 ID；模型端点继续提供完整模型连接配置；未传旧模型字段的通用设置保存不会覆盖旧值或同步激活端点。
+- 局部验证：`npm run typecheck`、设置服务/IPC/端点面板定向测试和 AC-012 浏览器场景通过；Prettier、`git diff --check`、完整 Harness 和 `npm run verify:source` 均通过。
+
+### 2026-09-02：Harness run 2026-09-02T15-15-30-386Z-2581
+
+- 状态：completed
+- TP：未指定
+- 轮次：1
+- 证据目录：.harness/runs/2026-09-02-first-use-model-connection/2026-09-02T15-15-30-386Z-2581
 - 检查结果：unit:passed, browser-ac:passed, coverage:passed, boundary:passed

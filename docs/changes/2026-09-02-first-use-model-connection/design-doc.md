@@ -36,7 +36,9 @@
 2. 新增或更新端点时 `verified_at` 为空；成功连接测试后写入当前时间。
 3. 启动/Chat 初始化只读取端点是否存在 `verified_at`，不发请求。
 4. 首次引导完成状态保存于客户端本地存储；跳过和成功连接均结束引导，但端点未验证时 Chat 仍禁用。
-5. 旧端点没有 `verified_at`，升级后需要重新测试。
+5. 旧端点没有 `verified_at` 时，客户端优先使用已验证激活端点，否则以当前激活的文本端点作为历史兼容配置；实际请求失败时仍进入运行时错误恢复。
+6. 为兼容升级用户，首次加载会等待会话列表完成；若已有历史会话，即使本地没有引导标记，也按后续使用处理，不弹出首次引导且不写入隐式完成标记。
+7. 通用设置只保存通用运行参数；`apiUrl`、`apiKey`、`apiType` 和 `modelId` 由模型端点界面负责。旧 `settings:save` 接口对缺省模型字段保持兼容，未传字段不覆盖旧值，也不触发激活端点同步。
 
 ### 连接 API
 
@@ -119,6 +121,7 @@ Chat 首条发送
 | AC-009 | DS-003         | repair flow、connection form                | browser-ac                  | 待验证 |
 | AC-010 | DS-002/DS-004  | encryption/output、request headers、logging | unit/integration            | 待验证 |
 | AC-011 | DS-004         | local event recorder                        | unit/browser-ac             | 待验证 |
+| AC-012 | DS-002         | GeneralTab、EndpointsPanel、settings save   | browser-ac/unit             | 已通过 |
 
 ## 设计偏差补丁
 
