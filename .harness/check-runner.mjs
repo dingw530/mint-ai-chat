@@ -15,7 +15,9 @@ function tryParseStructuredOutput(stdout) {
     if (parsed && typeof parsed === 'object' && parsed.summary && Array.isArray(parsed.failures)) {
       return parsed;
     }
-  } catch { /* not JSON */ }
+  } catch {
+    /* not JSON */
+  }
   return null;
 }
 
@@ -44,11 +46,14 @@ export async function runCheck(check, { rootDir, artifactDir, signal, task }) {
       cwd,
       env: {
         ...process.env,
-        ...(task ? {
-          HARNESS_CHANGE_ID: task.changeId,
-          HARNESS_CHANGE_DIR: task.changeDir,
-          HARNESS_ACCEPTANCE_CRITERIA: task.acceptanceCriteria.join(','),
-        } : {}),
+        ...(task
+          ? {
+              HARNESS_CHANGE_ID: task.changeId,
+              HARNESS_CHANGE_DIR: task.changeDir,
+              HARNESS_ACCEPTANCE_CRITERIA: task.acceptanceCriteria.join(','),
+            }
+          : {}),
+        HARNESS_ARTIFACT_DIR: path.join(artifactDir, check.name),
         ...(check.env || {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -66,8 +71,12 @@ export async function runCheck(check, { rootDir, artifactDir, signal, task }) {
       finish({ exitCode: null, signal: 'SIGTERM' });
     }, timeoutMs);
 
-    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
     child.on('error', (error) => finish({ exitCode: null, error: error.message }));
     child.on('close', (exitCode, signalName) => finish({ exitCode, signal: signalName }));
     if (signal) {
@@ -78,9 +87,13 @@ export async function runCheck(check, { rootDir, artifactDir, signal, task }) {
 
   const durationMs = Math.round(performance.now() - startedAt);
   const status = result.exitCode === 0 && !timedOut ? 'passed' : 'failed';
-  const failure = status === 'failed'
-    ? (result.error || (timedOut ? `Timed out after ${timeoutMs}ms` : trimOutput(stderr || stdout || `Exited with code ${result.exitCode}`)))
-    : undefined;
+  const failure =
+    status === 'failed'
+      ? result.error ||
+        (timedOut
+          ? `Timed out after ${timeoutMs}ms`
+          : trimOutput(stderr || stdout || `Exited with code ${result.exitCode}`))
+      : undefined;
 
   // Try to parse structured test failures (scripts/test-runner.mjs output)
   const parsed = tryParseStructuredOutput(stdout);
