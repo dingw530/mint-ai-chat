@@ -1,4 +1,10 @@
-import type { HistoryMessage, AiSettings, StreamResult, ToolCall } from '../types.js';
+import type {
+  HistoryMessage,
+  AiSettings,
+  StreamResult,
+  ToolCall,
+  ToolDefinition,
+} from '../types.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine } from './toolRoundEngine.js';
 import { getAllToolDefinitions, getToolCallSummary } from './toolOrchestration.js';
@@ -20,7 +26,7 @@ import {
   type AgentStatusSnapshot,
 } from './agentStatusBar.js';
 import { A2UIComposer } from './a2ui/composer.js';
-import { withLangfuseAgentContext } from './observability/langfuse.js';
+import { withLangfuseAgentContext, withLangfuseRoundContext } from './observability/langfuse.js';
 
 // ── 编辑距离相似度（用于循环检测） ──
 function levenshteinSimilarity(a: string, b: string): number {
@@ -486,7 +492,7 @@ export async function executeReactRun(
   const maxIterations = Math.max(1, Math.min(20, settings.reactMaxIterations ?? 5));
   const maxRetries = Math.max(0, Math.min(10, settings.toolMaxRetries ?? 5));
 
-  let tools;
+  let tools: ToolDefinition[] = [];
   try {
     tools = await getAllToolDefinitions(agent);
   } catch (error) {
@@ -555,32 +561,34 @@ export async function executeReactRun(
     let result: StreamResult;
     let answerStreamedThisRound = false;
     try {
-      result = await toolLoopEngine.executeRound(
-        {
-          messages: currentMessages,
-          settings,
-          tools: isLast ? undefined : tools,
-          adapter,
-          signal,
-          label,
-          emitEvent: (event: ReactEventPayload) => {
-            if (event.type === 'answer' && event.content) {
-              answerStreamedThisRound = true;
-              emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
-              return;
-            }
-            if (event.type === 'thought' && event.content) {
-              answerStreamedThisRound = true;
-              emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
-              return;
-            }
-            events.emit({
-              ...event,
-              ...(event.type === 'thought' || event.type === 'answer' ? { round } : {}),
-            } as ReactEventPayload);
+      result = await withLangfuseRoundContext(run, round, () =>
+        toolLoopEngine.executeRound(
+          {
+            messages: currentMessages,
+            settings,
+            tools: isLast ? undefined : tools,
+            adapter,
+            signal,
+            label,
+            emitEvent: (event: ReactEventPayload) => {
+              if (event.type === 'answer' && event.content) {
+                answerStreamedThisRound = true;
+                emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
+                return;
+              }
+              if (event.type === 'thought' && event.content) {
+                answerStreamedThisRound = true;
+                emitComposedAnswer(a2uiComposer, events, runId, round, event.content);
+                return;
+              }
+              events.emit({
+                ...event,
+                ...(event.type === 'thought' || event.type === 'answer' ? { round } : {}),
+              } as ReactEventPayload);
+            },
           },
-        },
-        undefined,
+          undefined,
+        ),
       );
     } catch (error) {
       console.error('[reactChat] executeRound failed:', error);

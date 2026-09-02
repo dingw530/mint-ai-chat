@@ -18,16 +18,19 @@ let spanProcessor: LangfuseSpanProcessor | undefined;
 
 /** Returns whether production Langfuse tracing is explicitly enabled and configured. */
 export function isLangfuseEnabled(): boolean {
-  const enabled = process.env.MINT_LANGFUSE_ENABLED === 'true'
-    && Boolean(process.env.LANGFUSE_PUBLIC_KEY)
-    && Boolean(process.env.LANGFUSE_SECRET_KEY);
+  const enabled =
+    process.env.MINT_LANGFUSE_ENABLED === 'true' &&
+    Boolean(process.env.LANGFUSE_PUBLIC_KEY) &&
+    Boolean(process.env.LANGFUSE_SECRET_KEY);
   if (enabled) initializeLangfuseTracing();
   return enabled;
 }
 
 /** Returns whether model inputs and outputs may be sent to Langfuse. */
 export function shouldCaptureLangfuseContent(): boolean {
-  return process.env.MINT_LANGFUSE_CAPTURE_CONTENT === 'true';
+  return (
+    process.env.NODE_ENV === 'development' || process.env.MINT_LANGFUSE_CAPTURE_CONTENT === 'true'
+  );
 }
 
 /** Initializes the Langfuse OpenTelemetry exporter once for the server process. */
@@ -72,6 +75,13 @@ export function withLangfuseAgentContext<T>(run: AgentRun, operation: () => T): 
   return observer.withActiveContext(operation);
 }
 
+/** Runs one ReAct model round with its Langfuse round observation as parent. */
+export function withLangfuseRoundContext<T>(run: AgentRun, round: number, operation: () => T): T {
+  const observer = observers.get(run);
+  if (!observer) return operation();
+  return observer.withRoundContext(round, operation);
+}
+
 /** Flushes queued Langfuse spans during an explicit server shutdown. */
 export async function flushLangfuseTracing(): Promise<void> {
   if (!spanProcessor) return;
@@ -97,8 +107,11 @@ class LangfuseRunObserver {
       {
         metadata: {
           mintRunId: run.runId,
-          ...(run.getSnapshot().conversationId ? { conversationId: run.getSnapshot().conversationId } : {}),
-          environment: process.env.MINT_LANGFUSE_ENVIRONMENT || process.env.NODE_ENV || 'development',
+          ...(run.getSnapshot().conversationId
+            ? { conversationId: run.getSnapshot().conversationId }
+            : {}),
+          environment:
+            process.env.MINT_LANGFUSE_ENVIRONMENT || process.env.NODE_ENV || 'development',
         },
       },
       { asType: 'agent' },
@@ -153,20 +166,34 @@ class LangfuseRunObserver {
     return context.with(activeContext, operation);
   }
 
+  withRoundContext<T>(round: number, operation: () => T): T {
+    const parent = this.rounds.get(round);
+    if (!parent) return this.withActiveContext(operation);
+    const activeContext = trace.setSpan(context.active(), parent.otelSpan);
+    return context.with(activeContext, operation);
+  }
+
   private startRound(round: number): void {
     this.endPreviousRounds(round);
     this.roundCount = Math.max(this.roundCount, round);
-    this.rounds.set(round, this.agent.startObservation('react-round', {
-      metadata: { round },
-    }));
+    this.rounds.set(
+      round,
+      this.agent.startObservation('react-round', {
+        metadata: { round },
+      }),
+    );
   }
 
   private startTool(event: Extract<ReactEvent, { type: 'tool_call_start' }>): void {
     const parent = this.rounds.get(event.round) || this.agent;
-    const tool = parent.startObservation(`tool:${event.toolName}`, {
-      ...(shouldCaptureLangfuseContent() ? { input: safeLangfuseValue(event.arguments) } : {}),
-      metadata: { callId: event.callId, toolName: event.toolName, round: event.round },
-    }, { asType: 'tool' });
+    const tool = parent.startObservation(
+      `tool:${event.toolName}`,
+      {
+        ...(shouldCaptureLangfuseContent() ? { input: safeLangfuseValue(event.arguments) } : {}),
+        metadata: { callId: event.callId, toolName: event.toolName, round: event.round },
+      },
+      { asType: 'tool' },
+    );
     this.tools.set(event.callId, tool);
     log.info('langfuse_tool_observation_started', {
       runId: this.run.runId,
@@ -182,7 +209,10 @@ class LangfuseRunObserver {
     if (!tool) return;
     tool.update({
       ...(shouldCaptureLangfuseContent() ? { output: safeLangfuseValue(event.result) } : {}),
-      metadata: { status: event.status, ...(event.duration !== undefined ? { durationMs: event.duration } : {}) },
+      metadata: {
+        status: event.status,
+        ...(event.duration !== undefined ? { durationMs: event.duration } : {}),
+      },
     });
     tool.end();
     this.tools.delete(event.callId);
@@ -200,7 +230,12 @@ class LangfuseRunObserver {
     const tool = this.tools.get(event.callId);
     if (!tool) return;
     tool.update({
-      level: event.status === 'approval_required' ? 'WARNING' : event.phase === 'final' ? 'ERROR' : 'WARNING',
+      level:
+        event.status === 'approval_required'
+          ? 'WARNING'
+          : event.phase === 'final'
+            ? 'ERROR'
+            : 'WARNING',
       statusMessage: safeLangfuseText(event.error),
       metadata: { phase: event.phase, status: event.status, retryCount: event.retryCount },
     });
@@ -279,12 +314,17 @@ function safeLangfuseValue(value: unknown, depth = 0): unknown {
   if (depth > 4) return '[TRUNCATED]';
   if (value === null || typeof value === 'boolean' || typeof value === 'number') return value;
   if (typeof value === 'string') return safeLangfuseText(value);
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => safeLangfuseValue(item, depth + 1));
+  if (Array.isArray(value))
+    return value.slice(0, 20).map((item) => safeLangfuseValue(item, depth + 1));
   if (typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).slice(0, 50).map(([key, item]) => [
-      key,
-      isSensitiveKey(key) ? '[REDACTED]' : safeLangfuseValue(item, depth + 1),
-    ]));
+    return Object.fromEntries(
+      Object.entries(value)
+        .slice(0, 50)
+        .map(([key, item]) => [
+          key,
+          isSensitiveKey(key) ? '[REDACTED]' : safeLangfuseValue(item, depth + 1),
+        ]),
+    );
   }
   return '[UNSERIALIZABLE]';
 }

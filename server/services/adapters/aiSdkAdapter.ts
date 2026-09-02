@@ -79,7 +79,7 @@ export function createAiSdkAdapter(
         providerOptions: createProviderOptions?.(settings, options),
         experimental_telemetry: {
           isEnabled: isLangfuseEnabled(),
-          functionId: 'mint-title-generation',
+          functionId: 'mint-generate-text',
           recordInputs: shouldCaptureLangfuseContent(),
           recordOutputs: shouldCaptureLangfuseContent(),
           metadata: { modelId: settings.modelId },
@@ -116,12 +116,14 @@ export function toModelMessages(messages: HistoryMessage[], systemPrompt: string
       const toolCallId = message.tool_call_id || 'unknown-tool-call';
       modelMessages.push({
         role: 'tool',
-        content: [{
-          type: 'tool-result',
-          toolCallId,
-          toolName: toolNames.get(toolCallId) || 'unknown-tool',
-          output: { type: 'text', value: message.content },
-        }],
+        content: [
+          {
+            type: 'tool-result',
+            toolCallId,
+            toolName: toolNames.get(toolCallId) || 'unknown-tool',
+            output: { type: 'text', value: message.content },
+          },
+        ],
       });
       continue;
     }
@@ -133,19 +135,15 @@ export function toModelMessages(messages: HistoryMessage[], systemPrompt: string
 }
 
 /** Converts one assistant message while preserving reasoning and tool calls. */
-function toAssistantMessage(
-  message: HistoryMessage,
-  toolNames: Map<string, string>,
-): ModelMessage {
+function toAssistantMessage(message: HistoryMessage, toolNames: Map<string, string>): ModelMessage {
   if (!message.tool_calls || message.tool_calls.length === 0) {
     if (!message.reasoning) {
       return { role: 'assistant', content: message.content };
     }
 
-    const content: Array<
-      | { type: 'reasoning'; text: string }
-      | { type: 'text'; text: string }
-    > = [{ type: 'reasoning', text: message.reasoning }];
+    const content: Array<{ type: 'reasoning'; text: string } | { type: 'text'; text: string }> = [
+      { type: 'reasoning', text: message.reasoning },
+    ];
     if (message.content) content.push({ type: 'text', text: message.content });
     return {
       role: 'assistant',
