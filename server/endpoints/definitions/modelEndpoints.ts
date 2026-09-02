@@ -3,6 +3,7 @@ import * as settingsRepo from '../../repositories/settingsRepository.js';
 import type { EndpointDescriptor } from '../types.js';
 import type { EndpointInput } from '../../types.js';
 import { httpError } from '../helpers.js';
+import * as modelConnectionService from '../../services/api/modelConnectionService.js';
 
 function readEndpointCategory(value: unknown): 'text' | 'image' | undefined {
   if (value === undefined) return undefined;
@@ -21,7 +22,53 @@ function toEndpointInput(data: Record<string, unknown>): EndpointInput {
   };
 }
 
+function toConnectionInput(data: Record<string, unknown>): modelConnectionService.ConnectionInput {
+  return {
+    apiUrl: typeof data.apiUrl === 'string' ? data.apiUrl : '',
+    apiKey: typeof data.apiKey === 'string' ? data.apiKey : undefined,
+    modelId: typeof data.modelId === 'string' ? data.modelId : '',
+    apiType: typeof data.apiType === 'string' ? data.apiType : undefined,
+  };
+}
+
+async function testAndSaveConnection(data: Record<string, unknown>) {
+  const input = toConnectionInput(data);
+  const endpointId = typeof data.endpointId === 'string' ? data.endpointId : undefined;
+  const existing = endpointId ? endpointService.getById(endpointId) : null;
+  const keyForTest =
+    input.apiKey || (endpointId ? endpointService.getAiConfig(endpointId)?.apiKey : undefined);
+  const result = await modelConnectionService.testConnection({ ...input, apiKey: keyForTest });
+  if (!result.success) return result;
+
+  const endpointInput = toEndpointInput({ ...data, apiKey: input.apiKey });
+  const endpoint = existing
+    ? endpointService.updateEndpoint(endpointId!, endpointInput)
+    : endpointService.create(endpointInput);
+  return { success: true, endpoint: endpointService.markVerified(endpoint.id) };
+}
+
 export const modelEndpointsEndpoints: EndpointDescriptor[] = [
+  {
+    id: 'endpoints:listModels',
+    method: 'POST',
+    path: '/models',
+    preloadMethod: 'listEndpointModels',
+    service: (data: Record<string, unknown>) =>
+      modelConnectionService.listModels(toConnectionInput(data)),
+    args: [{ from: 'body' }],
+    result: 'direct',
+    async: true,
+  },
+  {
+    id: 'endpoints:testConnection',
+    method: 'POST',
+    path: '/test',
+    preloadMethod: 'testEndpointConnection',
+    service: testAndSaveConnection,
+    args: [{ from: 'body' }],
+    result: 'direct',
+    async: true,
+  },
   {
     id: 'endpoints:list',
     method: 'GET',
@@ -36,7 +83,9 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
           apiKey: legacy.apiKey,
           modelId: legacy.modelId,
         });
-      } catch { /* 迁移失败不影响列表返回 */ }
+      } catch {
+        /* 迁移失败不影响列表返回 */
+      }
       return endpointService.list();
     },
     result: 'direct',
@@ -62,10 +111,7 @@ export const modelEndpointsEndpoints: EndpointDescriptor[] = [
       const endpoint = endpointService.updateEndpoint(id, toEndpointInput(data));
       return { endpoint };
     },
-    args: [
-      { from: 'path', name: 'id' },
-      { from: 'body' },
-    ],
+    args: [{ from: 'path', name: 'id' }, { from: 'body' }],
     result: 'direct',
   },
   {

@@ -1,0 +1,208 @@
+{
+  "scenarios": [
+    {
+      "id": "first-use-skip-keeps-chat-disabled",
+      "acceptanceCriteria": ["AC-001", "AC-002"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["Content Security Policy directive 'frame-ancestors'"],
+      "setup": {
+        "routes": [
+          { "pattern": "**/api/endpoints", "method": "GET", "body": { "endpoints": [] } },
+          { "pattern": "**/api/conversations", "method": "GET", "body": { "conversations": [] } },
+          { "pattern": "**/api/agents", "method": "GET", "body": { "agents": [] } },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": { "showReactSteps": true, "routingMode": "manual" }
+          }
+        ]
+      },
+      "markers": ["Mint", "连接模型", "跳过"],
+      "steps": [
+        {
+          "action": "waitFor",
+          "target": { "role": "heading", "name": "连接模型" },
+          "timeoutMs": 10000
+        },
+        { "action": "assertText", "text": "连接模型" },
+        { "action": "click", "target": { "role": "button", "name": "跳过" } },
+        { "action": "waitFor", "text": "连接模型后开始对话", "timeoutMs": 10000 },
+        { "action": "assertText", "text": "连接模型后开始对话" },
+        { "action": "waitFor", "target": { "role": "link", "name": "知识库" }, "timeoutMs": 10000 },
+        { "action": "reload" },
+        { "action": "waitFor", "text": "连接模型后开始对话", "timeoutMs": 10000 },
+        { "action": "assertNotText", "text": "首次启动" }
+      ]
+    },
+    {
+      "id": "model-connection-list-fallback-and-success",
+      "acceptanceCriteria": ["AC-003", "AC-004", "AC-005", "AC-010", "AC-011"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["Content Security Policy directive 'frame-ancestors'"],
+      "setup": {
+        "routes": [
+          { "pattern": "**/api/endpoints", "method": "GET", "body": { "endpoints": [] } },
+          { "pattern": "**/api/conversations", "method": "GET", "body": { "conversations": [] } },
+          { "pattern": "**/api/agents", "method": "GET", "body": { "agents": [] } },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": { "showReactSteps": true, "routingMode": "manual" }
+          },
+          {
+            "pattern": "**/api/endpoints/models",
+            "method": "POST",
+            "status": 200,
+            "body": { "models": [] }
+          },
+          {
+            "pattern": "**/api/endpoints/test",
+            "method": "POST",
+            "status": 200,
+            "body": {
+              "success": true,
+              "endpoint": {
+                "id": "verified-1",
+                "name": "自定义模型",
+                "apiUrl": "http://localhost:11434",
+                "apiKeyMasked": "",
+                "modelId": "local-model",
+                "apiType": "openai-chat",
+                "category": "text",
+                "verifiedAt": "2026-09-02T00:00:00.000Z",
+                "isActive": true,
+                "sortOrder": 0,
+                "createdAt": "2026-09-02T00:00:00.000Z",
+                "updatedAt": "2026-09-02T00:00:00.000Z"
+              }
+            }
+          },
+          {
+            "pattern": "**/api/endpoints",
+            "method": "POST",
+            "status": 200,
+            "body": {
+              "endpoint": {
+                "id": "verified-1",
+                "name": "自定义模型",
+                "apiUrl": "http://localhost:11434",
+                "apiKeyMasked": "",
+                "modelId": "local-model",
+                "apiType": "openai-chat",
+                "category": "text",
+                "isActive": true,
+                "sortOrder": 0,
+                "createdAt": "2026-09-02T00:00:00.000Z",
+                "updatedAt": "2026-09-02T00:00:00.000Z"
+              }
+            }
+          }
+        ]
+      },
+      "markers": ["Mint", "连接模型"],
+      "steps": [
+        { "action": "click", "target": { "role": "button", "name": "连接模型" } },
+        {
+          "action": "waitFor",
+          "target": { "role": "heading", "name": "连接模型" },
+          "timeoutMs": 10000
+        },
+        { "action": "assertText", "text": "Chat Completions" },
+        { "action": "assertText", "text": "Responses" },
+        { "action": "assertText", "text": "Anthropic Messages" },
+        { "action": "fill", "target": { "label": "API URL" }, "value": "http://localhost:11434" },
+        {
+          "action": "fill",
+          "target": { "role": "combobox", "name": "模型" },
+          "value": "local-model"
+        },
+        { "action": "click", "target": { "role": "button", "name": "测试连接" } },
+        { "action": "waitFor", "target": { "placeholder": "输入消息..." }, "timeoutMs": 10000 },
+        { "action": "assertRequests", "contains": "/api/endpoints/test", "countAtLeast": 1 }
+      ]
+    },
+    {
+      "id": "first-message-runtime-failure-repair-and-retry",
+      "acceptanceCriteria": ["AC-006", "AC-007", "AC-008", "AC-009"],
+      "route": "/chat",
+      "ignoreConsoleErrors": ["Content Security Policy directive 'frame-ancestors'"],
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/endpoints",
+            "method": "GET",
+            "body": {
+              "endpoints": [
+                {
+                  "id": "verified-1",
+                  "name": "已验证模型",
+                  "apiUrl": "http://mock",
+                  "apiKeyMasked": "****1234",
+                  "modelId": "mock-model",
+                  "apiType": "openai-chat",
+                  "category": "text",
+                  "verifiedAt": "2026-09-02T00:00:00.000Z",
+                  "isActive": true,
+                  "sortOrder": 0,
+                  "createdAt": "2026-09-02T00:00:00.000Z",
+                  "updatedAt": "2026-09-02T00:00:00.000Z"
+                }
+              ]
+            }
+          },
+          { "pattern": "**/api/conversations", "method": "GET", "body": { "conversations": [] } },
+          {
+            "pattern": "**/api/conversations",
+            "method": "POST",
+            "body": {
+              "conversation": {
+                "id": "conv-failed",
+                "title": "New Conversation",
+                "type": "text",
+                "createdAt": "2026-09-02T00:00:00.000Z",
+                "updatedAt": "2026-09-02T00:00:00.000Z",
+                "lockedAgent": null,
+                "routingMode": "manual"
+              }
+            }
+          },
+          { "pattern": "**/api/agents", "method": "GET", "body": { "agents": [] } },
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": { "showReactSteps": true, "routingMode": "manual" }
+          },
+          {
+            "pattern": "**/api/conversations/conv-failed/messages",
+            "method": "GET",
+            "body": { "messages": [] }
+          },
+          {
+            "pattern": "**/api/conversations/conv-failed/messages",
+            "method": "POST",
+            "status": 200,
+            "contentType": "text/event-stream",
+            "responses": [
+              "data: {\"type\":\"run_started\",\"runId\":\"run-failed\",\"sequence\":1}\n\ndata: {\"type\":\"run_failed\",\"runId\":\"run-failed\",\"sequence\":2,\"error\":\"请求超时\"}\n\n",
+              "data: {\"type\":\"run_started\",\"runId\":\"run-success\",\"sequence\":1}\n\ndata: {\"type\":\"answer\",\"runId\":\"run-success\",\"sequence\":2,\"content\":\"重试成功\"}\n\ndata: {\"type\":\"run_completed\",\"runId\":\"run-success\",\"sequence\":3,\"state\":\"completed\",\"content\":\"重试成功\"}\n\n"
+            ]
+          }
+        ]
+      },
+      "markers": ["Mint", "输入消息"],
+      "steps": [
+        { "action": "fill", "target": { "placeholder": "输入消息..." }, "value": "测试运行时恢复" },
+        { "action": "click", "target": { "role": "button", "name": "发送消息" } },
+        { "action": "waitFor", "text": "请求超时", "timeoutMs": 10000 },
+        { "action": "click", "target": { "role": "button", "name": "重试" } },
+        { "action": "waitFor", "text": "重试成功", "timeoutMs": 10000 },
+        {
+          "action": "assertRequests",
+          "contains": "/api/conversations/conv-failed/messages",
+          "method": "POST",
+          "countAtLeast": 2
+        }
+      ]
+    }
+  ]
+}

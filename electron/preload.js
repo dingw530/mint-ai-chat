@@ -33,7 +33,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     if (callback) ipcRenderer.removeListener(channel, callback);
     else ipcRenderer.removeAllListeners(channel);
   },
-  subscribeIngestionEvents: (conversationId) => ipcRenderer.invoke('chat:a2ui:subscribe', conversationId),
+  subscribeIngestionEvents: (conversationId) =>
+    ipcRenderer.invoke('chat:a2ui:subscribe', conversationId),
   onA2ui: (callback) => {
     ipcRenderer.on('chat:a2ui', (_event, data) => callback(data));
   },
@@ -70,6 +71,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateEndpoint: (id, data) => ipcRenderer.invoke('endpoints:update', id, data),
   deleteEndpoint: (id) => ipcRenderer.invoke('endpoints:delete', id),
   activateEndpoint: (id) => ipcRenderer.invoke('endpoints:activate', id),
+  listEndpointModels: (data) => ipcRenderer.invoke('endpoints:listModels', data),
+  testEndpointConnection: (data) => ipcRenderer.invoke('endpoints:testConnection', data),
 
   // ── 记忆 ──
   getMemories: (category) => ipcRenderer.invoke('memories:list', category),
@@ -128,5 +131,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listGraphCandidates: (status) => ipcRenderer.invoke('graph:listCandidates', status),
   acceptGraphCandidate: (id) => ipcRenderer.invoke('graph:acceptCandidate', id),
   rejectGraphCandidate: (id, data) => ipcRenderer.invoke('graph:rejectCandidate', id, data),
-
 });

@@ -233,6 +233,34 @@
     "async": false
   },
   {
+    "id": "endpoints:listModels",
+    "ipcChannel": "endpoints:listModels",
+    "preloadMethod": "listEndpointModels",
+    "method": "POST",
+    "httpPath": "/endpoints/models",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "endpoints:testConnection",
+    "ipcChannel": "endpoints:testConnection",
+    "preloadMethod": "testEndpointConnection",
+    "method": "POST",
+    "httpPath": "/endpoints/test",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
     "id": "endpoints:list",
     "ipcChannel": "endpoints:list",
     "preloadMethod": "getEndpoints",

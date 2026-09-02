@@ -346,16 +346,16 @@ const migrations: Migration[] = [
     name: 'add-structured-memory-fields',
     up: (db) => {
       const columns = [
-        ["memory_key", "TEXT NOT NULL DEFAULT 'general'"],
+        ['memory_key', "TEXT NOT NULL DEFAULT 'general'"],
         ['value_json', 'TEXT'],
-        ["memory_type", "TEXT NOT NULL DEFAULT 'semantic'"],
-        ["subject", "TEXT NOT NULL DEFAULT 'user'"],
+        ['memory_type', "TEXT NOT NULL DEFAULT 'semantic'"],
+        ['subject', "TEXT NOT NULL DEFAULT 'user'"],
         ['relationship', 'TEXT'],
         ['confidence', 'REAL NOT NULL DEFAULT 0.5'],
         ['importance', 'REAL NOT NULL DEFAULT 0.5'],
         ['valid_from', 'TEXT'],
         ['valid_to', 'TEXT'],
-        ["status", "TEXT NOT NULL DEFAULT 'active'"],
+        ['status', "TEXT NOT NULL DEFAULT 'active'"],
         ['supersedes_id', 'TEXT'],
         ['source_message_id', 'TEXT'],
         ['last_accessed_at', 'TEXT'],
@@ -394,7 +394,9 @@ const migrations: Migration[] = [
     id: 19,
     name: 'retire-weather-agent',
     up: (db) => {
-      db.prepare("UPDATE conversations SET locked_agent = NULL WHERE locked_agent = 'weather'").run();
+      db.prepare(
+        "UPDATE conversations SET locked_agent = NULL WHERE locked_agent = 'weather'",
+      ).run();
       db.prepare("DELETE FROM agents WHERE id = 'weather'").run();
     },
   },
@@ -644,6 +646,13 @@ const migrations: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_agent_run_events_open_runs
           ON agent_run_events(run_id, sequence DESC);
       `);
+    },
+  },
+  {
+    id: 29,
+    name: 'add-model-endpoint-verification',
+    up: (db) => {
+      db.exec('ALTER TABLE model_endpoints ADD COLUMN verified_at TEXT');
     },
   },
 ];

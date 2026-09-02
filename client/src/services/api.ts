@@ -28,6 +28,8 @@ export {
   updateEndpoint,
   deleteEndpoint,
   activateEndpoint,
+  listEndpointModels,
+  testEndpointConnection,
 } from './api/endpoints';
 export { getSettings, saveSettings } from './api/settings';
 export { sendMessageStream } from './api/streaming';

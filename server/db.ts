@@ -48,15 +48,18 @@ export function getDb(): DatabaseConstructor.Database {
   if (!db) {
     mkdirSync(path.dirname(DB_PATH), { recursive: true });
     db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');   // WAL 模式提升并发读写性能
-    db.pragma('foreign_keys = ON');    // 启用外键约束
-    db.pragma('busy_timeout = 5000');  // 索引重建与生命周期写入并发时短暂等待写锁
+    db.pragma('journal_mode = WAL'); // WAL 模式提升并发读写性能
+    db.pragma('foreign_keys = ON'); // 启用外键约束
+    db.pragma('busy_timeout = 5000'); // 索引重建与生命周期写入并发时短暂等待写锁
     try {
       db.loadExtension(getSqliteVecExtensionPath());
       vectorExtensionLoaded = true;
     } catch (error) {
       vectorExtensionLoaded = false;
-      console.warn('[db] sqlite-vec unavailable; keyword search remains enabled:', error instanceof Error ? error.message : String(error));
+      console.warn(
+        '[db] sqlite-vec unavailable; keyword search remains enabled:',
+        error instanceof Error ? error.message : String(error),
+      );
     }
     createSchema();
     runMigrations(db);
@@ -208,6 +211,7 @@ function createSchema(): void {
       model_id TEXT NOT NULL,
       api_type TEXT NOT NULL DEFAULT 'openai-chat',
       category TEXT NOT NULL DEFAULT 'text',
+      verified_at TEXT,
       is_active INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -389,13 +393,23 @@ function seedData(): void {
 
   upsertAgent.run('general', '通用助手', '通用 AI 对话助手', 'general', null, '[]', 1, now, now);
 
-  db!.prepare(`
+  db!
+    .prepare(
+      `
     INSERT OR IGNORE INTO a2ui_component_registry
       (kind, catalog_id, component_name, data_schema_version, data_schema, enabled, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run('wiki_source_reference', 'mint', 'SourceReferenceCard', 1, '{}', 1, now, now);
+  `,
+    )
+    .run('wiki_source_reference', 'mint', 'SourceReferenceCard', 1, '{}', 1, now, now);
 
   // 确保内置 Agent 的名称始终最新（当旧 DB 已存在时，INSERT OR IGNORE 不会更新名称）
-  db!.prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?').run('通用助手', 'general', '通用助手');
-  db!.prepare('UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)').run('[]', 'general', '[]');
+  db!
+    .prepare('UPDATE agents SET name = ? WHERE id = ? AND name != ?')
+    .run('通用助手', 'general', '通用助手');
+  db!
+    .prepare(
+      'UPDATE agents SET trigger_keywords = ? WHERE id = ? AND (trigger_keywords IS NULL OR trigger_keywords = ?)',
+    )
+    .run('[]', 'general', '[]');
 }

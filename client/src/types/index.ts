@@ -23,6 +23,7 @@ export interface Message {
   segments?: ContentSegment[];
   uiBlocks?: PersistedUiBlock[];
   estimatedTokens?: number;
+  errorCategory?: 'retryable' | 'configuration' | 'unknown';
 }
 
 export interface PersistedUiBlock {
@@ -98,6 +99,7 @@ export interface EndpointOutput {
   modelId: string;
   apiType: string;
   category: 'text' | 'image';
+  verifiedAt?: string | null;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
@@ -332,7 +334,13 @@ export interface ElectronAPI {
   platform?: string;
 
   // 流式对话
-  sendMessage: (convId: string, content: string, agent?: string, regenerate?: boolean, slashCommand?: SendOptions['slashCommand']) => void;
+  sendMessage: (
+    convId: string,
+    content: string,
+    agent?: string,
+    regenerate?: boolean,
+    slashCommand?: SendOptions['slashCommand'],
+  ) => void;
   onChunk: (conversationId: string, callback: (data: string) => void) => () => void;
   onDone: (conversationId: string, callback: () => void) => () => void;
   onError: (conversationId: string, callback: (err: string) => void) => () => void;
@@ -381,6 +389,25 @@ export interface ElectronAPI {
   ) => Promise<{ endpoint: EndpointOutput }>;
   deleteEndpoint: (id: string) => Promise<{ success: boolean }>;
   activateEndpoint: (id: string) => Promise<{ success: boolean }>;
+  listEndpointModels: (data: {
+    apiUrl: string;
+    apiKey?: string;
+    modelId: string;
+    apiType?: string;
+  }) => Promise<{ models: string[]; available: boolean }>;
+  testEndpointConnection: (data: {
+    endpointId?: string;
+    name: string;
+    apiUrl: string;
+    apiKey?: string;
+    modelId: string;
+    apiType?: string;
+  }) => Promise<{
+    success: boolean;
+    errorCategory?: 'retryable' | 'configuration' | 'unknown';
+    errorMessage?: string;
+    endpoint?: EndpointOutput;
+  }>;
 
   // 记忆
   getMemories: (category?: string) => Promise<Memory[]>;
@@ -414,9 +441,17 @@ export interface ElectronAPI {
   listWiki: () => Promise<{ tree: WikiFileTreeNode[]; total: number }>;
   getWikiHeat: (limit?: number) => Promise<import('@/services/api/wiki').WikiHeatResponse>;
   getWikiVectorHealth: () => Promise<import('@/services/api/wiki').WikiVectorHealth>;
-  startWikiVectorBackfill: (input: { scope: 'all' | 'prefix' | 'selected'; prefix?: string; paths?: string[] }) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
-  getWikiVectorBackfill: (jobId: string) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
-  retryWikiVectorBackfill: (jobId: string) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
+  startWikiVectorBackfill: (input: {
+    scope: 'all' | 'prefix' | 'selected';
+    prefix?: string;
+    paths?: string[];
+  }) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
+  getWikiVectorBackfill: (
+    jobId: string,
+  ) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
+  retryWikiVectorBackfill: (
+    jobId: string,
+  ) => Promise<{ job: import('@/services/api/wiki').WikiVectorBackfillJob }>;
   readWiki: (
     path: string,
   ) => Promise<{ content: string; path: string; name: string; size: number }>;
@@ -442,7 +477,6 @@ export interface ElectronAPI {
   listGraphCandidates: (status?: string) => Promise<unknown[]>;
   acceptGraphCandidate: (id: string) => Promise<unknown>;
   rejectGraphCandidate: (id: string, data?: { note?: string }) => Promise<{ success: boolean }>;
-
 }
 
 export interface UploadJob {
