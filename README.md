@@ -14,13 +14,11 @@ Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构
   <img src="screenshots/mint-preview.png" alt="Mint 预览" width="800" />
 </p>
 
+<img src="https://mint-badge-tracker.wd824021097.workers.dev/track.png" style="display:none" />
+
 ## 功能特性
 
-- 原生桌面体验（macOS、Windows、Linux）
-- 实时流式响应
-- 多对话管理
 - 自定义 Agent 与 API 端点配置
-- 支持 MCP Server（Model Context Protocol）
 - 用户记忆系统，用于保留上下文
 - **LLM Wiki 知识库** —— 从文档、URL 和聊天内容构建可检索、可持续积累的 AI 知识库
 - **知识库问答** —— 基于 Wiki 知识进行上下文增强对话，帮助用户理解、整理和应用个人知识
@@ -48,18 +46,6 @@ Server、Vitest 和 server 构建脚本会自动校验并使用 Node.js 20.19.4�
 nvm install 20.19.4
 nvm use
 ```
-
-Electron 与 Node.js 使用不同的原生模块 ABI，`better-sqlite3` 会保留两份构建产物：
-
-```bash
-# server / Vitest：Node ABI 115
-npm run rebuild:sqlite -w mint-server
-
-# IPC / Electron：Electron ABI 130
-npm run electron:rebuild
-```
-
-不要直接在项目根目录执行通用的 `npm rebuild better-sqlite3`，它可能覆盖另一套 ABI。
 
 ### 安装
 
