@@ -30,5 +30,5 @@ server/coverage/
 architecture.png
 docs/harness-system.png
 
-# Local task board (interactive HTML kanban, data kept in browser localStorage)
-kanban.html
+harness-failure.png
+harness-failure.yaml
