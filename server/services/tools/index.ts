@@ -4,13 +4,24 @@
 
 // 基础设施
 export { BaseTool } from './BaseTool.js';
-export type { ToolContext, ToolAuditEvent, ValidationResult, PermissionResult, ToolResult, ToolExecutionMode } from './BaseTool.js';
+export type {
+  ToolContext,
+  ToolAuditEvent,
+  ValidationResult,
+  PermissionResult,
+  ToolResult,
+  ToolExecutionMode,
+} from './BaseTool.js';
 export { ToolRegistry, toolRegistry } from './ToolRegistry.js';
 export { ToolExecutor, toolExecutor } from './ToolExecutor.js';
 export type { ExecutionOptions, ExecutionResult } from './ToolExecutor.js';
 export { ToolApprovalStore, toolApprovalStore } from './approvalStore.js';
 export { getApprovalScopePath } from './approvalStore.js';
-export type { ApprovalAction, ApprovalResumeContext, PendingToolApproval } from './approvalStore.js';
+export type {
+  ApprovalAction,
+  ApprovalResumeContext,
+  PendingToolApproval,
+} from './approvalStore.js';
 export { McpToolAdapter } from './McpToolAdapter.js';
 export { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 
@@ -19,16 +30,12 @@ export { HttpFetchTool } from './HttpFetchTool.js';
 export { SkillTool } from './SkillTool.js';
 export { BashTool } from './BashTool.js';
 export { InvokeAgentTool } from './InvokeAgentTool.js';
-export { ReadFileTool } from './ReadFileTool.js';
 export { ReadArtifactTool } from './ReadArtifactTool.js';
 export { WriteFileTool } from './WriteFileTool.js';
-export { ListFilesTool } from './ListFilesTool.js';
 export { WikiIngestTool } from './WikiIngestTool.js';
-export { WikiQueryTool } from './WikiQueryTool.js';
 export { WikiLintTool } from './WikiLintTool.js';
 export { WikiSearchTool } from './WikiSearchTool.js';
 export { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
-export { CurrentTimeTool } from './CurrentTimeTool.js';
 
 // 工具实例（用于注册）
 import { HttpFetchTool } from './HttpFetchTool.js';
@@ -42,13 +49,11 @@ import { WikiIngestTool } from './WikiIngestTool.js';
 import { WikiLintTool } from './WikiLintTool.js';
 import { WikiSearchTool } from './WikiSearchTool.js';
 import { KnowledgeGraphTool } from './KnowledgeGraphTool.js';
-import { CurrentTimeTool } from './CurrentTimeTool.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { DiscoverToolsTool, LoadToolTool } from './McpDiscoveryTools.js';
 
 // 内置工具列表
 export const builtinTools = [
-  new CurrentTimeTool(),
   new HttpFetchTool(),
   new SkillTool(),
   new BashTool(),

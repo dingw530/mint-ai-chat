@@ -3,7 +3,12 @@ import * as path from 'node:path';
 import * as lifecycleRepo from '../../repositories/wikiLifecycleRepository.js';
 import * as searchRepo from '../../repositories/wikiSearchRepository.js';
 import { getAiSettings } from './settingsService.js';
-import { embedTexts, type EmbeddingConfig } from '../utils/embeddingService.js';
+import { createWikiVectorService, pruneWikiVectorOrphans } from '../vector/index.js';
+import type {
+  OpenAICompatibleEmbeddingConfig,
+  VectorHealth,
+  VectorSearchHit,
+} from '../vector/types.js';
 import { isSystemWikiPath, parseWikiPage } from '../utils/wikiShared.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -39,7 +44,7 @@ interface Chunk {
 }
 
 interface RankedDocument {
-  document: searchRepo.WikiSearchDocument;
+  document: searchRepo.WikiSearchDocumentInput;
   lexicalRank: number | null;
   vectorRank: number | null;
   vectorDistance: number | null;
@@ -83,7 +88,9 @@ function listMarkdownFiles(wikiPath: string): string[] {
   return files;
 }
 
-function embeddingConfig(settings: ReturnType<typeof getAiSettings>): EmbeddingConfig {
+function embeddingConfig(
+  settings: ReturnType<typeof getAiSettings>,
+): OpenAICompatibleEmbeddingConfig {
   return {
     apiUrl: settings.embeddingApiUrl,
     model: settings.embeddingModel,
@@ -93,25 +100,6 @@ function embeddingConfig(settings: ReturnType<typeof getAiSettings>): EmbeddingC
 
 function documentText(document: searchRepo.WikiSearchDocumentInput): string {
   return `${document.title}\n${document.heading}\n${document.body}`;
-}
-
-async function syncEmbeddings(documents: searchRepo.WikiSearchDocumentInput[], config: EmbeddingConfig): Promise<void> {
-  const pending = documents.filter((document) => {
-    const state = searchRepo.getEmbeddingState(document.id);
-    return !state
-      || state.model !== config.model
-      || state.dimensions !== config.dimensions
-      || state.contentHash !== document.contentHash;
-  });
-  if (pending.length === 0) return;
-  try {
-    const vectors = await embedTexts(pending.map(documentText), config);
-    pending.forEach((document, index) => searchRepo.saveEmbedding(document, vectors[index], config));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    pending.forEach((document) => searchRepo.recordEmbeddingFailure(document, message));
-    throw error;
-  }
 }
 
 function buildDocuments(relative: string, content: string): searchRepo.WikiSearchDocumentInput[] {
@@ -137,20 +125,25 @@ function addClaims(
 ): void {
   if (!page) return;
   const claims = lifecycleRepo.findActiveClaimsForPage(page.id);
-  documents.push(...claims.map((claim) => ({
-    id: `${relative}#claim:${claim.id}`,
-    pageId: page.id,
-    sourcePath: relative,
-    title,
-    heading: 'Claim',
-    body: claim.claimText,
-    documentType: 'claim' as const,
-    contentHash: searchRepo.hashSearchContent(claim.claimText),
-  })));
+  documents.push(
+    ...claims.map((claim) => ({
+      id: `${relative}#claim:${claim.id}`,
+      pageId: page.id,
+      sourcePath: relative,
+      title,
+      heading: 'Claim',
+      body: claim.claimText,
+      documentType: 'claim' as const,
+      contentHash: searchRepo.hashSearchContent(claim.claimText),
+    })),
+  );
 }
 
 /** 全量重建 Wiki FTS 索引，并按 hash 增量同步向量。 */
-export async function rebuildWikiSearchIndex(wikiPath: string, config?: EmbeddingConfig): Promise<void> {
+export async function rebuildWikiSearchIndex(
+  wikiPath: string,
+  config?: OpenAICompatibleEmbeddingConfig,
+): Promise<void> {
   const startedAt = performance.now();
   log.info('wiki search index rebuild started', {
     wikiPath,
@@ -160,22 +153,30 @@ export async function rebuildWikiSearchIndex(wikiPath: string, config?: Embeddin
   });
   try {
     const activeSourcePaths = new Set<string>();
+    const vectorService = config ? createWikiVectorService(config, documentText) : null;
     for (const absolute of listMarkdownFiles(wikiPath)) {
       const relative = path.relative(wikiPath, absolute).replaceAll(path.sep, '/');
       if (isSystemWikiPath(relative)) continue;
       let content: string;
-      try { content = fs.readFileSync(absolute, 'utf8'); } catch { continue; }
+      try {
+        content = fs.readFileSync(absolute, 'utf8');
+      } catch {
+        continue;
+      }
       const parsed = parseWikiPage(relative, content);
       const page = lifecycleRepo.findPageByPath(relative);
       if (page && ['deleted', 'superseded'].includes(page.status)) continue;
       activeSourcePaths.add(relative);
       const documents = buildDocuments(relative, content);
-      documents.forEach((document) => { document.pageId = page?.id ?? null; });
+      documents.forEach((document) => {
+        document.pageId = page?.id ?? null;
+      });
       addClaims(relative, documents, page, parsed.title);
-      searchRepo.replacePageDocuments(relative, documents);
-      if (config) {
+      const indexChange = searchRepo.replacePageDocuments(relative, documents);
+      vectorService?.removeDocuments(indexChange.removedDocumentIds);
+      if (vectorService) {
         try {
-          await syncEmbeddings(documents, config);
+          await vectorService.syncDocuments(documents);
         } catch (error) {
           log.warn('wiki vector indexing unavailable; FTS index retained', {
             sourcePath: relative,
@@ -185,8 +186,12 @@ export async function rebuildWikiSearchIndex(wikiPath: string, config?: Embeddin
       }
     }
     const removed = searchRepo.removeStaleSearchDocuments([...activeSourcePaths]);
-    const pruned = searchRepo.pruneOrphanVectors();
-    if (removed > 0 || pruned > 0) log.info('wiki search stale index entries removed', { removedDocuments: removed, orphanVectors: pruned });
+    const pruned = pruneWikiVectorOrphans();
+    if (removed > 0 || pruned > 0)
+      log.info('wiki search stale index entries removed', {
+        removedDocuments: removed,
+        orphanVectors: pruned,
+      });
   } finally {
     log.duration('wiki.search.index_rebuild', startedAt, {
       wikiPath,
@@ -203,7 +208,13 @@ function buildSnippet(body: string, terms: string[]): string {
     .replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, '')
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line && !/^---+$/.test(line) && !/^(title|tags|created|source)\s*:/i.test(line) && !/^#{1,6}\s+/.test(line))
+    .filter(
+      (line) =>
+        line &&
+        !/^---+$/.test(line) &&
+        !/^(title|tags|created|source)\s*:/i.test(line) &&
+        !/^#{1,6}\s+/.test(line),
+    )
     .join(' ')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
@@ -211,34 +222,56 @@ function buildSnippet(body: string, terms: string[]): string {
     .replace(/\s+/g, ' ')
     .trim();
   const lower = cleanedBody.toLocaleLowerCase();
-  const index = terms.map((term) => lower.indexOf(term.toLocaleLowerCase())).filter((value) => value >= 0).sort((a, b) => a - b)[0] ?? 0;
+  const index =
+    terms
+      .map((term) => lower.indexOf(term.toLocaleLowerCase()))
+      .filter((value) => value >= 0)
+      .sort((a, b) => a - b)[0] ?? 0;
   const start = Math.max(0, index - 160);
   const end = Math.min(cleanedBody.length, start + 520);
   return `${start > 0 ? '...' : ''}${cleanedBody.slice(start, end)}${end < cleanedBody.length ? '...' : ''}`;
 }
 
 function mergeCandidates(
-  lexical: searchRepo.WikiSearchDocument[],
-  vector: searchRepo.WikiSearchVectorDocument[],
+  lexical: searchRepo.WikiSearchDocumentInput[],
+  vector: VectorSearchHit<searchRepo.WikiSearchDocumentInput>[],
 ): RankedDocument[] {
   const candidates = new Map<string, RankedDocument>();
   lexical.forEach((document, index) => {
-    candidates.set(document.id, { document, lexicalRank: index + 1, vectorRank: null, vectorDistance: null });
+    candidates.set(document.id, {
+      document,
+      lexicalRank: index + 1,
+      vectorRank: null,
+      vectorDistance: null,
+    });
   });
-  vector.forEach((document, index) => {
-    const existing = candidates.get(document.id);
+  vector.forEach((hit, index) => {
+    const existing = candidates.get(hit.document.id);
     if (existing) {
       existing.vectorRank = index + 1;
-      existing.vectorDistance = document.distance;
-    } else candidates.set(document.id, { document, lexicalRank: null, vectorRank: index + 1, vectorDistance: document.distance });
+      existing.vectorDistance = hit.distance;
+    } else
+      candidates.set(hit.document.id, {
+        document: hit.document,
+        lexicalRank: null,
+        vectorRank: index + 1,
+        vectorDistance: hit.distance,
+      });
   });
   return [...candidates.values()];
 }
 
-function evidenceBoost(document: searchRepo.WikiSearchDocument, terms: string[]): number {
+function evidenceBoost(document: searchRepo.WikiSearchDocumentInput, terms: string[]): number {
   const lowerTerms = terms.map((term) => term.toLocaleLowerCase());
-  return (document.title && lowerTerms.some((term) => document.title.toLocaleLowerCase().includes(term)) ? 8 : 0)
-    + (document.heading && lowerTerms.some((term) => document.heading.toLocaleLowerCase().includes(term)) ? 5 : 0);
+  return (
+    (document.title && lowerTerms.some((term) => document.title.toLocaleLowerCase().includes(term))
+      ? 8
+      : 0) +
+    (document.heading &&
+    lowerTerms.some((term) => document.heading.toLocaleLowerCase().includes(term))
+      ? 5
+      : 0)
+  );
 }
 
 /** 将 chunk 级融合候选聚合为页面级结果，并保留最佳证据片段。 */
@@ -247,14 +280,28 @@ function aggregatePageCandidates(candidates: RankedDocument[], terms: string[]):
   for (const candidate of candidates) {
     const existing = pages.get(candidate.document.sourcePath);
     if (!existing) {
-      pages.set(candidate.document.sourcePath, { ...candidate, aggregateMatchTypes: resultMatchTypes(candidate.document, terms, candidate, false) });
+      pages.set(candidate.document.sourcePath, {
+        ...candidate,
+        aggregateMatchTypes: resultMatchTypes(candidate.document, terms, candidate, false),
+      });
       continue;
     }
-    existing.lexicalRank = Math.min(existing.lexicalRank ?? Number.POSITIVE_INFINITY, candidate.lexicalRank ?? Number.POSITIVE_INFINITY);
-    existing.vectorRank = Math.min(existing.vectorRank ?? Number.POSITIVE_INFINITY, candidate.vectorRank ?? Number.POSITIVE_INFINITY);
+    existing.lexicalRank = Math.min(
+      existing.lexicalRank ?? Number.POSITIVE_INFINITY,
+      candidate.lexicalRank ?? Number.POSITIVE_INFINITY,
+    );
+    existing.vectorRank = Math.min(
+      existing.vectorRank ?? Number.POSITIVE_INFINITY,
+      candidate.vectorRank ?? Number.POSITIVE_INFINITY,
+    );
     existing.lexicalRank = Number.isFinite(existing.lexicalRank) ? existing.lexicalRank : null;
     existing.vectorRank = Number.isFinite(existing.vectorRank) ? existing.vectorRank : null;
-    existing.aggregateMatchTypes = [...new Set([...(existing.aggregateMatchTypes || []), ...resultMatchTypes(candidate.document, terms, candidate, false)])];
+    existing.aggregateMatchTypes = [
+      ...new Set([
+        ...(existing.aggregateMatchTypes || []),
+        ...resultMatchTypes(candidate.document, terms, candidate, false),
+      ]),
+    ];
     const existingRank = rrfScore(existing) + evidenceBoost(existing.document, terms);
     const candidateRank = rrfScore(candidate) + evidenceBoost(candidate.document, terms);
     if (candidateRank > existingRank) {
@@ -275,14 +322,27 @@ function extractTerms(question: string): string[] {
   return question.match(/[A-Za-z0-9_]+|[\u4e00-\u9fff]{2,}/g) ?? [];
 }
 
-function resultMatchTypes(candidate: searchRepo.WikiSearchDocument, terms: string[], ranked: RankedDocument, fallback: boolean): string[] {
+function resultMatchTypes(
+  candidate: searchRepo.WikiSearchDocumentInput,
+  terms: string[],
+  ranked: RankedDocument,
+  fallback: boolean,
+): string[] {
   const tagLine = candidate.body.split('\n', 1)[0] || '';
   return [
     ranked.lexicalRank ? 'keyword' : '',
     ranked.vectorRank ? 'vector' : '',
-    candidate.title && terms.some((term) => candidate.title.toLocaleLowerCase().includes(term.toLocaleLowerCase())) ? 'title' : '',
-    candidate.heading && terms.some((term) => candidate.heading.toLocaleLowerCase().includes(term.toLocaleLowerCase())) ? 'heading' : '',
-    terms.some((term) => tagLine.toLocaleLowerCase().includes(term.toLocaleLowerCase())) ? 'tag' : '',
+    candidate.title &&
+    terms.some((term) => candidate.title.toLocaleLowerCase().includes(term.toLocaleLowerCase()))
+      ? 'title'
+      : '',
+    candidate.heading &&
+    terms.some((term) => candidate.heading.toLocaleLowerCase().includes(term.toLocaleLowerCase()))
+      ? 'heading'
+      : '',
+    terms.some((term) => tagLine.toLocaleLowerCase().includes(term.toLocaleLowerCase()))
+      ? 'tag'
+      : '',
     candidate.documentType === 'claim' ? 'claim' : 'body',
     fallback ? 'keyword-fallback' : '',
   ].filter(Boolean);
@@ -296,18 +356,23 @@ function toSearchResult(
   fallback: boolean,
 ): WikiSearchResult | null {
   const document = candidate.document;
-  const page = document.pageId ? lifecycleRepo.findPageById(document.pageId) : lifecycleRepo.findPageByPath(document.sourcePath);
+  const page = document.pageId
+    ? lifecycleRepo.findPageById(document.pageId)
+    : lifecycleRepo.findPageByPath(document.sourcePath);
   if (page && ['deleted', 'superseded', 'archived'].includes(page.status)) return null;
-  const matchTypes = [...new Set([
-    ...(candidate.aggregateMatchTypes || []),
-    ...resultMatchTypes(document, terms, candidate, fallback),
-  ])];
-  const score = rrfScore(candidate)
-    + (matchTypes.includes('title') ? 8 : 0)
-    + (matchTypes.includes('heading') ? 5 : 0)
-    + (matchTypes.includes('tag') ? 5 : 0)
-    + (matchTypes.includes('claim') ? 3 : 0)
-    + (page ? lifecycleRepo.getSearchRelevanceBoost(page) : 0);
+  const matchTypes = [
+    ...new Set([
+      ...(candidate.aggregateMatchTypes || []),
+      ...resultMatchTypes(document, terms, candidate, fallback),
+    ]),
+  ];
+  const score =
+    rrfScore(candidate) +
+    (matchTypes.includes('title') ? 8 : 0) +
+    (matchTypes.includes('heading') ? 5 : 0) +
+    (matchTypes.includes('tag') ? 5 : 0) +
+    (matchTypes.includes('claim') ? 3 : 0) +
+    (page ? lifecycleRepo.getSearchRelevanceBoost(page) : 0);
   const snippet = `${document.heading ? `## ${document.heading}\n` : ''}${buildSnippet(document.body, terms)}`;
   const evidenceContent = document.heading
     ? `## ${document.heading}\n${document.body}`
@@ -325,7 +390,7 @@ function toSearchResult(
     matchTypes,
     pageStatus: page?.status ?? null,
     lastVerifiedAt: page?.lastConfirmedAt ?? null,
-    claimId: document.documentType === 'claim' ? document.id.split('#claim:')[1] ?? null : null,
+    claimId: document.documentType === 'claim' ? (document.id.split('#claim:')[1] ?? null) : null,
     lexicalRank: candidate.lexicalRank,
     vectorRank: candidate.vectorRank,
     distance: candidate.vectorDistance,
@@ -333,8 +398,8 @@ function toSearchResult(
 }
 
 /** 返回当前 Wiki 搜索文档的向量健康度。 */
-export function getWikiVectorHealth(config: EmbeddingConfig): searchRepo.WikiVectorHealth {
-  return searchRepo.getVectorHealth(config);
+export function getWikiVectorHealth(config: OpenAICompatibleEmbeddingConfig): VectorHealth {
+  return createWikiVectorService(config, documentText).getHealth();
 }
 
 /**
@@ -349,7 +414,11 @@ function expandSourceFamilyResults(
   if (results.length === 0 || results.length >= maxResults) return results;
   const leadPath = path.join(wikiPath, resultPath(results[0].file));
   let source = '';
-  try { source = parseWikiPage(results[0].file, fs.readFileSync(leadPath, 'utf8')).source; } catch { return results; }
+  try {
+    source = parseWikiPage(results[0].file, fs.readFileSync(leadPath, 'utf8')).source;
+  } catch {
+    return results;
+  }
   if (!source) return results;
 
   const existing = new Set(results.map((result) => result.file));
@@ -362,16 +431,28 @@ function expandSourceFamilyResults(
     try {
       content = fs.readFileSync(absolute, 'utf8');
       page = parseWikiPage(file, content);
-    } catch { continue; }
+    } catch {
+      continue;
+    }
     if (page.source !== source) continue;
     const lifecycle = lifecycleRepo.findPageByPath(file);
     if (lifecycle && ['deleted', 'superseded', 'archived'].includes(lifecycle.status)) continue;
     results.push({
-      chunkId: `${file}#source-family`, file, title: page.title, heading: '',
-      content: includeContent ? content : '', snippet: `同源资料：${source}`,
-      granularity: 'source-family', score: Math.max(0, results[0].score - results.length * 0.01), matchTypes: ['source-family'],
-      pageStatus: lifecycle?.status ?? null, lastVerifiedAt: lifecycle?.lastConfirmedAt ?? null,
-      claimId: null, lexicalRank: null, vectorRank: null, distance: null,
+      chunkId: `${file}#source-family`,
+      file,
+      title: page.title,
+      heading: '',
+      content: includeContent ? content : '',
+      snippet: `同源资料：${source}`,
+      granularity: 'source-family',
+      score: Math.max(0, results[0].score - results.length * 0.01),
+      matchTypes: ['source-family'],
+      pageStatus: lifecycle?.status ?? null,
+      lastVerifiedAt: lifecycle?.lastConfirmedAt ?? null,
+      claimId: null,
+      lexicalRank: null,
+      vectorRank: null,
+      distance: null,
     });
     existing.add(file);
   }
@@ -381,31 +462,25 @@ function expandSourceFamilyResults(
 /** 为指定搜索文档逐项回填向量，单项失败不会阻断后续页面。 */
 export async function backfillWikiEmbeddings(
   documents: searchRepo.WikiSearchDocument[],
-  config: EmbeddingConfig,
-  onProgress?: (processed: number, indexed: number, skipped: number, failed: number, currentPath: string) => void,
+  config: OpenAICompatibleEmbeddingConfig,
+  onProgress?: (
+    processed: number,
+    indexed: number,
+    skipped: number,
+    failed: number,
+    currentPath: string,
+  ) => void,
 ): Promise<{ indexed: number; skipped: number; failed: number }> {
-  const counters = { indexed: 0, skipped: 0, failed: 0 };
-  for (const document of documents) {
-    const state = searchRepo.getEmbeddingState(document.id);
-    const current = state?.model === config.model && state.dimensions === config.dimensions && state.contentHash === document.contentHash;
-    if (current) {
-      counters.skipped += 1;
-      onProgress?.(counters.indexed + counters.skipped + counters.failed, counters.indexed, counters.skipped, counters.failed, document.sourcePath);
-      continue;
-    }
-    try {
-      await syncEmbeddings([document], config);
-      counters.indexed += 1;
-    } catch {
-      counters.failed += 1;
-    }
-    onProgress?.(counters.indexed + counters.skipped + counters.failed, counters.indexed, counters.skipped, counters.failed, document.sourcePath);
-  }
-  return { ...counters };
+  return createWikiVectorService(config, documentText).backfill(documents, onProgress);
 }
 
 /** 构建或复用 Wiki 索引，并执行 FTS + 向量 RRF 融合。 */
-export async function searchWiki(wikiPath: string, question: string, maxResults: number, includeContent: boolean): Promise<WikiSearchOutput> {
+export async function searchWiki(
+  wikiPath: string,
+  question: string,
+  maxResults: number,
+  includeContent: boolean,
+): Promise<WikiSearchOutput> {
   const startedAt = performance.now();
   const terms = extractTerms(question);
   const settings = getAiSettings();
@@ -434,12 +509,12 @@ export async function searchWiki(wikiPath: string, question: string, maxResults:
 
   const lexical = searchRepo.searchDocuments(question, Math.max(maxResults * 8, 30));
   log.debug('wiki lexical candidates ready', { count: lexical.length });
-  let vector: searchRepo.WikiSearchVectorDocument[] = [];
+  let vector: VectorSearchHit<searchRepo.WikiSearchDocumentInput>[] = [];
   let fallback = false;
   if (config) {
     try {
-      const [queryVector] = await embedTexts([question], config);
-      vector = searchRepo.searchVectorDocuments(queryVector, config, Math.max(maxResults * 8, 30));
+      const vectorService = createWikiVectorService(config, documentText);
+      vector = await vectorService.search(question, Math.max(maxResults * 8, 30));
       log.info('wiki vector candidates ready', {
         count: vector.length,
         model: config.model,
@@ -447,13 +522,13 @@ export async function searchWiki(wikiPath: string, question: string, maxResults:
       });
       log.info('wiki vector search results', {
         totalCandidates: vector.length,
-        results: vector.slice(0, maxResults).map((document, index) => ({
+        results: vector.slice(0, maxResults).map((hit, index) => ({
           rank: index + 1,
-          chunkId: document.id,
-          sourcePath: document.sourcePath,
-          title: document.title,
-          heading: document.heading,
-          distance: document.distance,
+          chunkId: hit.document.id,
+          sourcePath: hit.document.sourcePath,
+          title: hit.document.title,
+          heading: hit.document.heading,
+          distance: hit.distance,
         })),
       });
     } catch (error) {
@@ -499,9 +574,10 @@ export async function searchWiki(wikiPath: string, question: string, maxResults:
   return {
     results,
     total: pageCandidates.length,
-    message: results.length > 0
-      ? `找到 ${fusedCandidateCount} 个相关片段，聚合为 ${pageCandidates.length} 个页面，已返回 ${results.length} 个页面证据。${modeMessage}`
-      : `${modeMessage || '未找到相关内容'}`,
+    message:
+      results.length > 0
+        ? `找到 ${fusedCandidateCount} 个相关片段，聚合为 ${pageCandidates.length} 个页面，已返回 ${results.length} 个页面证据。${modeMessage}`
+        : `${modeMessage || '未找到相关内容'}`,
   };
 }
 
