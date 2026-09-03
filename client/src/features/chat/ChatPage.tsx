@@ -10,6 +10,10 @@ import { getEndpoints } from '@/services/api';
 import type { EndpointOutput } from '@/types';
 import { parseMintWikiLink } from '@/shared/utils/wikiLinks';
 import type { MouseEvent } from 'react';
+import {
+  recordModelConnectionEvent,
+  recordModelConnectionEventOnce,
+} from './modelConnectionEvents';
 
 type AppContext = { onOpenSettings: () => void; openWikiPage: (filePath: string) => void };
 
@@ -31,15 +35,28 @@ export default function ChatPage() {
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
   const [activeEndpoint, setActiveEndpoint] = useState<EndpointOutput | null>(null);
+  const [endpointsLoading, setEndpointsLoading] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
+    try {
+      return localStorage.getItem('mint-model-connection-onboarding-completed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [hadConversationsOnLoad, setHadConversationsOnLoad] = useState<boolean | null>(null);
+  const [connectionMode, setConnectionMode] = useState<'onboarding' | 'repair' | null>(null);
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
   const location = useLocation();
 
-  const handleWikiLinkClick = useCallback((href: string, event: MouseEvent<HTMLAnchorElement>) => {
-    const filePath = parseMintWikiLink(href);
-    if (!filePath) return;
-    event.preventDefault();
-    openWikiPage(filePath);
-  }, [openWikiPage]);
+  const handleWikiLinkClick = useCallback(
+    (href: string, event: MouseEvent<HTMLAnchorElement>) => {
+      const filePath = parseMintWikiLink(href);
+      if (!filePath) return;
+      event.preventDefault();
+      openWikiPage(filePath);
+    },
+    [openWikiPage],
+  );
 
   // Extract wiki jump params from URL and feed to ChatArea
   // Clears URL immediately so StrictMode re-mount won't double-fire
@@ -59,10 +76,15 @@ export default function ChatPage() {
       const data = await getEndpoints();
       const list = data.endpoints || [];
       setEndpoints(list);
-      const active = list.find((ep: EndpointOutput) => ep.isActive) || null;
+      const active =
+        list.find((ep: EndpointOutput) => ep.isActive && ep.category === 'text' && ep.verifiedAt) ||
+        list.find((ep: EndpointOutput) => ep.isActive && ep.category === 'text') ||
+        null;
       setActiveEndpoint(active);
     } catch (err) {
       console.error('Failed to fetch endpoints:', err);
+    } finally {
+      setEndpointsLoading(false);
     }
   }, []);
 
@@ -70,13 +92,60 @@ export default function ChatPage() {
     fetchEndpoints();
   }, [fetchEndpoints]);
 
+  useEffect(() => {
+    if (loading || hadConversationsOnLoad !== null) return;
+    setHadConversationsOnLoad(conversations.length > 0);
+  }, [conversations.length, hadConversationsOnLoad, loading]);
+
+  const chatEnabled = Boolean(activeEndpoint);
+  const onboardingRequired =
+    !endpointsLoading &&
+    !loading &&
+    hadConversationsOnLoad === false &&
+    !onboardingCompleted &&
+    !chatEnabled;
+
+  useEffect(() => {
+    if (onboardingRequired) recordModelConnectionEventOnce('first_use_onboarding_shown');
+  }, [onboardingRequired]);
+
+  const skipOnboarding = useCallback(() => {
+    try {
+      localStorage.setItem('mint-model-connection-onboarding-completed', 'true');
+    } catch {
+      /* ignore */
+    }
+    recordModelConnectionEvent('first_use_onboarding_skipped');
+    setOnboardingCompleted(true);
+    setConnectionMode(null);
+  }, []);
+
+  const openConnection = useCallback((mode: 'onboarding' | 'repair' = 'repair') => {
+    setConnectionMode(mode);
+  }, []);
+
+  const handleConnectionSuccess = useCallback(async (endpoint: EndpointOutput) => {
+    try {
+      localStorage.setItem('mint-model-connection-onboarding-completed', 'true');
+    } catch {
+      /* ignore */
+    }
+    setOnboardingCompleted(true);
+    setConnectionMode(null);
+    setEndpoints((previous) => [...previous.filter((item) => item.id !== endpoint.id), endpoint]);
+    setActiveEndpoint(endpoint);
+  }, []);
+
   const handleInitialMessageSent = useCallback(() => {
     setInitialMessage(null);
   }, []);
 
   return (
     <>
-      <aside className="sidebar sidebar--chat" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
+      <aside
+        className="sidebar sidebar--chat"
+        style={{ width: sidebarWidth, minWidth: sidebarWidth }}
+      >
         <SidebarHeader onOpenSettings={onOpenSettings} />
         <ChatSidebar
           conversations={conversations}
@@ -99,6 +168,15 @@ export default function ChatPage() {
         activeEndpoint={activeEndpoint}
         endpoints={endpoints}
         onEndpointChange={fetchEndpoints}
+        chatEnabled={chatEnabled}
+        connectionMode={onboardingRequired ? 'onboarding' : connectionMode}
+        repairEndpoint={
+          activeEndpoint || endpoints.find((endpoint) => endpoint.category === 'text') || null
+        }
+        onConnectModel={openConnection}
+        onSkipOnboarding={skipOnboarding}
+        onCloseConnection={() => setConnectionMode(null)}
+        onConnectionSuccess={handleConnectionSuccess}
         initialMessage={initialMessage}
         onInitialMessageSent={handleInitialMessageSent}
         onLinkClick={handleWikiLinkClick}

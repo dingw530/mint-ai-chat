@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { getDb } from '../../db.js';
 import * as repository from '../wikiSearchRepository.js';
+import * as vectorRepository from '../vectorRepository.js';
 
 const documentIds = ['vector-test-a', 'vector-test-b'];
 const config = { apiUrl: 'http://127.0.0.1:11434/v1', model: 'bge-m3', dimensions: 1024 };
@@ -36,12 +37,17 @@ function documents(bodySuffix = ''): repository.WikiSearchDocumentInput[] {
   ];
 }
 
-describe('wikiSearchRepository vectors', () => {
+describe('vectorRepository', () => {
   afterEach(() => {
     const db = getDb();
     for (const id of documentIds) {
-      const embedding = db.prepare('SELECT id FROM wiki_embeddings WHERE document_id = ?').get(id) as { id: number } | undefined;
-      if (embedding) db.prepare('DELETE FROM wiki_search_vectors WHERE rowid = CAST(? AS INTEGER)').run(embedding.id);
+      const embedding = db
+        .prepare('SELECT id FROM wiki_embeddings WHERE document_id = ?')
+        .get(id) as { id: number } | undefined;
+      if (embedding)
+        db.prepare('DELETE FROM wiki_search_vectors WHERE rowid = CAST(? AS INTEGER)').run(
+          embedding.id,
+        );
       db.prepare('DELETE FROM wiki_embeddings WHERE document_id = ?').run(id);
       db.prepare('DELETE FROM wiki_search_documents_fts WHERE document_id = ?').run(id);
       db.prepare('DELETE FROM wiki_search_documents WHERE id = ?').run(id);
@@ -53,18 +59,20 @@ describe('wikiSearchRepository vectors', () => {
     const change = repository.replacePageDocuments('pages/vector-a.md', [initial[0]]);
     repository.replacePageDocuments('pages/vector-b.md', [initial[1]]);
     expect(change.changedDocuments).toHaveLength(1);
-    repository.saveEmbedding(initial[0], vector(0), config);
-    repository.saveEmbedding(initial[1], vector(1), config);
+    vectorRepository.upsert(initial[0], vector(0), config);
+    vectorRepository.upsert(initial[1], vector(1), config);
 
-    const results = repository.searchVectorDocuments(vector(0), config, 5);
-    expect(results[0]).toMatchObject({ id: documentIds[0], distance: 0 });
-    expect(repository.getEmbeddingState(documentIds[0])).toMatchObject({ contentHash: initial[0].contentHash });
+    const results = vectorRepository.search(vector(0), config, 5);
+    expect(results[0]).toMatchObject({ document: { id: documentIds[0] }, distance: 0 });
+    expect(vectorRepository.getState(documentIds[0])).toMatchObject({
+      contentHash: initial[0].contentHash,
+    });
 
     const unchanged = repository.replacePageDocuments('pages/vector-a.md', [initial[0]]);
     expect(unchanged.changedDocuments).toHaveLength(0);
     const updated = documents('updated');
     const changed = repository.replacePageDocuments('pages/vector-a.md', [updated[0]]);
     expect(changed.changedDocuments).toHaveLength(1);
-    expect(repository.searchVectorDocuments(vector(0), config, 5)).toHaveLength(1);
+    expect(vectorRepository.search(vector(0), config, 5)).toHaveLength(1);
   });
 });

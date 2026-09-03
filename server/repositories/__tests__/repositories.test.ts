@@ -10,11 +10,23 @@ import * as imageService from '../../services/api/imageService.js';
 import { encrypt } from '../../services/utils/encryption.js';
 
 function cleanEndpoints() {
-  endpointRepo.getAll().forEach(e => { try { endpointRepo.del(e.id); } catch {} });
+  endpointRepo.getAll().forEach((e) => {
+    try {
+      endpointRepo.del(e.id);
+    } catch {}
+  });
 }
 function cleanGraph() {
-  graphRepo.getAllEdges().forEach(e => { try { graphRepo.deleteEdge(e.id); } catch {} });
-  graphRepo.getGraphData().nodes.forEach(n => { try { graphRepo.deleteNode(n.id); } catch {} });
+  graphRepo.getAllEdges().forEach((e) => {
+    try {
+      graphRepo.deleteEdge(e.id);
+    } catch {}
+  });
+  graphRepo.getGraphData().nodes.forEach((n) => {
+    try {
+      graphRepo.deleteNode(n.id);
+    } catch {}
+  });
 }
 
 // ── endpointRepository ──
@@ -28,8 +40,24 @@ describe('endpointRepository', () => {
     expect(endpointRepo.getActive()).toBeNull();
     expect(endpointRepo.getAll()).toEqual([]);
 
-    endpointRepo.insert({ id: 'er1', name: 'One', apiUrl: 'https://a.com', apiKey: 'sk-1', modelId: 'm1', isActive: true, sortOrder: 0 });
-    endpointRepo.insert({ id: 'er2', name: 'Two', apiUrl: 'https://b.com', apiKey: '', modelId: 'm2', isActive: false, sortOrder: 1 });
+    endpointRepo.insert({
+      id: 'er1',
+      name: 'One',
+      apiUrl: 'https://a.com',
+      apiKey: 'sk-1',
+      modelId: 'm1',
+      isActive: true,
+      sortOrder: 0,
+    });
+    endpointRepo.insert({
+      id: 'er2',
+      name: 'Two',
+      apiUrl: 'https://b.com',
+      apiKey: '',
+      modelId: 'm2',
+      isActive: false,
+      sortOrder: 1,
+    });
     expect(endpointRepo.count()).toBe(2);
     expect(endpointRepo.getById('er1')!.name).toBe('One');
     expect(endpointRepo.getById('nope')).toBeNull();
@@ -53,11 +81,24 @@ describe('endpointService', () => {
 
   it('validateInput', () => {
     expect(() => endpointService.create({} as any)).toThrow();
-    expect(() => endpointService.create({ name: '', apiUrl: 'https://v.com', modelId: 'm' })).toThrow();
+    expect(() =>
+      endpointService.create({ name: '', apiUrl: 'https://v.com', modelId: 'm' }),
+    ).toThrow();
     expect(() => endpointService.create({ name: 'x', apiUrl: 'bad', modelId: 'm' })).toThrow();
-    expect(() => endpointService.create({ name: 'x', apiUrl: 'https://v.com', modelId: '' })).toThrow();
-    expect(() => endpointService.create({ name: 'a'.repeat(51), apiUrl: 'https://v.com', modelId: 'm' })).toThrow();
-    expect(() => endpointService.create({ name: 'x', apiUrl: 'https://v.com', modelId: 'm', category: 'bad' as any })).toThrow();
+    expect(() =>
+      endpointService.create({ name: 'x', apiUrl: 'https://v.com', modelId: '' }),
+    ).toThrow();
+    expect(() =>
+      endpointService.create({ name: 'a'.repeat(51), apiUrl: 'https://v.com', modelId: 'm' }),
+    ).toThrow();
+    expect(() =>
+      endpointService.create({
+        name: 'x',
+        apiUrl: 'https://v.com',
+        modelId: 'm',
+        category: 'bad' as any,
+      }),
+    ).toThrow();
   });
 
   it('creates first as active, second inactive', () => {
@@ -69,7 +110,9 @@ describe('endpointService', () => {
   });
 
   it('duplicate name', () => {
-    expect(() => endpointService.create({ name: 'A1', apiUrl: 'https://x.com', modelId: 'm' })).toThrow();
+    expect(() =>
+      endpointService.create({ name: 'A1', apiUrl: 'https://x.com', modelId: 'm' }),
+    ).toThrow();
   });
 
   it('getById', () => {
@@ -79,14 +122,20 @@ describe('endpointService', () => {
   });
 
   it('update', () => {
-    const a1 = endpointService.list().endpoints.find(e => e.name === 'A1')!;
-    const u = endpointService.updateEndpoint(a1.id, { name: 'Renamed', apiUrl: 'https://new.com', modelId: 'm1' });
+    const a1 = endpointService.list().endpoints.find((e) => e.name === 'A1')!;
+    const u = endpointService.updateEndpoint(a1.id, {
+      name: 'Renamed',
+      apiUrl: 'https://new.com',
+      modelId: 'm1',
+    });
     expect(u.name).toBe('Renamed');
-    expect(() => endpointService.updateEndpoint('nope', { name: 'X', apiUrl: 'https://v.com', modelId: 'm' })).toThrow();
+    expect(() =>
+      endpointService.updateEndpoint('nope', { name: 'X', apiUrl: 'https://v.com', modelId: 'm' }),
+    ).toThrow();
   });
 
   it('activate', () => {
-    const a2 = endpointService.list().endpoints.find(e => e.name === 'A2')!;
+    const a2 = endpointService.list().endpoints.find((e) => e.name === 'A2')!;
     endpointService.activate(a2.id);
     expect(endpointService.getActiveEndpoint()!.id).toBe(a2.id);
     expect(() => endpointService.activate('nope')).toThrow();
@@ -96,6 +145,27 @@ describe('endpointService', () => {
     const c = endpointService.getActiveAiConfig();
     expect(c).not.toBeNull();
     expect(c!.modelId).toBe('m2');
+  });
+
+  it('tracks endpoint verification independently from activation', () => {
+    cleanEndpoints();
+    const endpoint = endpointService.create({
+      name: 'Verified',
+      apiUrl: 'https://verified.com',
+      modelId: 'm',
+    });
+    expect(endpointService.hasVerifiedTextEndpoint()).toBe(false);
+
+    const verified = endpointService.markVerified(endpoint.id);
+    expect(verified.verifiedAt).toBeTruthy();
+    expect(endpointService.hasVerifiedTextEndpoint()).toBe(true);
+
+    endpointService.updateEndpoint(endpoint.id, {
+      name: 'Verified',
+      apiUrl: 'https://changed.com',
+      modelId: 'm',
+    });
+    expect(endpointService.hasVerifiedTextEndpoint()).toBe(false);
   });
 
   it('remove: non-existent first, then last fails', () => {
@@ -166,7 +236,11 @@ describe('graphRepository', () => {
 
 describe('graphCandidates', () => {
   afterAll(() => {
-    candidateRepo.list().forEach(c => { try { candidateRepo.review(c.id, 'rejected'); } catch {} });
+    candidateRepo.list().forEach((c) => {
+      try {
+        candidateRepo.review(c.id, 'rejected');
+      } catch {}
+    });
     cleanGraph();
   });
 
@@ -175,9 +249,26 @@ describe('graphCandidates', () => {
     expect(candidateRepo.list()).toEqual([]);
 
     const PREFIX = `gc_${Date.now()}_`;
-    const n1 = graphRepo.createNode({ label: `${PREFIX}Src`, type: 'concept', sourceFile: 'cs.md' });
-    const n2 = graphRepo.createNode({ label: `${PREFIX}Tgt`, type: 'concept', sourceFile: 'ct.md' });
-    candidateRepo.create({ sourceId: n1.id, targetId: n2.id, relation: '基于', evidence: 'e', confidence: 0.8, candidateScore: 0.7, sourcePage: 'cs.md', targetPage: 'ct.md' });
+    const n1 = graphRepo.createNode({
+      label: `${PREFIX}Src`,
+      type: 'concept',
+      sourceFile: 'cs.md',
+    });
+    const n2 = graphRepo.createNode({
+      label: `${PREFIX}Tgt`,
+      type: 'concept',
+      sourceFile: 'ct.md',
+    });
+    candidateRepo.create({
+      sourceId: n1.id,
+      targetId: n2.id,
+      relation: '基于',
+      evidence: 'e',
+      confidence: 0.8,
+      candidateScore: 0.7,
+      sourcePage: 'cs.md',
+      targetPage: 'ct.md',
+    });
     expect(candidateRepo.list()).toHaveLength(1);
     expect(candidateRepo.list('pending')).toHaveLength(1);
 
@@ -187,10 +278,27 @@ describe('graphCandidates', () => {
     candidateRepo.review(c.id, 'accepted');
     expect(candidateRepo.get(c.id)!.status).toBe('accepted');
 
-    const n3 = graphRepo.createNode({ label: `${PREFIX}Src2`, type: 'concept', sourceFile: 'cs2.md' });
-    const n4 = graphRepo.createNode({ label: `${PREFIX}Tgt2`, type: 'concept', sourceFile: 'ct2.md' });
-    candidateRepo.create({ sourceId: n3.id, targetId: n4.id, relation: '约束', evidence: 'e', confidence: 0.6, candidateScore: 0.5, sourcePage: 'cs2.md', targetPage: 'ct2.md' });
-    const p = candidateRepo.list('pending').find(x => x.sourceId === n3.id)!;
+    const n3 = graphRepo.createNode({
+      label: `${PREFIX}Src2`,
+      type: 'concept',
+      sourceFile: 'cs2.md',
+    });
+    const n4 = graphRepo.createNode({
+      label: `${PREFIX}Tgt2`,
+      type: 'concept',
+      sourceFile: 'ct2.md',
+    });
+    candidateRepo.create({
+      sourceId: n3.id,
+      targetId: n4.id,
+      relation: '约束',
+      evidence: 'e',
+      confidence: 0.6,
+      candidateScore: 0.5,
+      sourcePage: 'cs2.md',
+      targetPage: 'ct2.md',
+    });
+    const p = candidateRepo.list('pending').find((x) => x.sourceId === n3.id)!;
     candidateRepo.review(p.id, 'rejected', 'no');
     expect(candidateRepo.get(p.id)!.reviewNote).toBe('no');
   });
@@ -202,12 +310,49 @@ describe('routingLogRepository', () => {
   it('CRUD lifecycle', () => {
     const uid = randomUUID().slice(0, 8);
     const cid = `c_${uid}`;
-    routingLogRepo.create({ id: `rl_${uid}_1`, conversation_id: cid, message_id: 'm1', agent_id: 'custom-agent', confidence: 0.95, method: 'keyword', latency_ms: 5, message_preview: '自定义请求', locked_agent: null, routing_mode: 'auto', created_at: new Date().toISOString() });
-    routingLogRepo.create({ id: `rl_${uid}_2`, conversation_id: cid, message_id: null, agent_id: 'general', confidence: 0, method: 'fallback', latency_ms: 0, message_preview: 'hi', locked_agent: null, routing_mode: 'manual', created_at: new Date().toISOString() });
+    routingLogRepo.create({
+      id: `rl_${uid}_1`,
+      conversation_id: cid,
+      message_id: 'm1',
+      agent_id: 'custom-agent',
+      confidence: 0.95,
+      method: 'keyword',
+      latency_ms: 5,
+      message_preview: '自定义请求',
+      locked_agent: null,
+      routing_mode: 'auto',
+      created_at: new Date().toISOString(),
+    });
+    routingLogRepo.create({
+      id: `rl_${uid}_2`,
+      conversation_id: cid,
+      message_id: null,
+      agent_id: 'general',
+      confidence: 0,
+      method: 'fallback',
+      latency_ms: 0,
+      message_preview: 'hi',
+      locked_agent: null,
+      routing_mode: 'manual',
+      created_at: new Date().toISOString(),
+    });
     expect(routingLogRepo.findAll({ conversationId: cid })).toHaveLength(2);
 
     const pgid = `pg_${uid}`;
-    for (let i = 0; i < 5; i++) routingLogRepo.create({ id: `rl_${uid}_pg_${i}`, conversation_id: pgid, message_id: null, agent_id: 'g', confidence: 0, method: 'f', latency_ms: 0, message_preview: `${i}`, locked_agent: null, routing_mode: 'a', created_at: new Date().toISOString() });
+    for (let i = 0; i < 5; i++)
+      routingLogRepo.create({
+        id: `rl_${uid}_pg_${i}`,
+        conversation_id: pgid,
+        message_id: null,
+        agent_id: 'g',
+        confidence: 0,
+        method: 'f',
+        latency_ms: 0,
+        message_preview: `${i}`,
+        locked_agent: null,
+        routing_mode: 'a',
+        created_at: new Date().toISOString(),
+      });
     expect(routingLogRepo.findAll({ conversationId: pgid, page: 1, pageSize: 3 })).toHaveLength(3);
     expect(routingLogRepo.findAll({ conversationId: pgid, page: 2, pageSize: 3 })).toHaveLength(2);
   });
@@ -217,29 +362,60 @@ describe('routingLogRepository', () => {
 
 describe('imageService', () => {
   afterAll(() => {
-    ['img-te1', 'img-te2'].forEach(id => { try { endpointRepo.del(id); } catch {} });
+    ['img-te1', 'img-te2'].forEach((id) => {
+      try {
+        endpointRepo.del(id);
+      } catch {}
+    });
   });
 
   it('empty prompt', async () => {
-    await expect(imageService.generateImage({ prompt: '', endpointId: 'e' })).rejects.toThrow('prompt');
-    await expect(imageService.generateImage({ prompt: '   ', endpointId: 'e' })).rejects.toThrow('prompt');
+    await expect(imageService.generateImage({ prompt: '', endpointId: 'e' })).rejects.toThrow(
+      'prompt',
+    );
+    await expect(imageService.generateImage({ prompt: '   ', endpointId: 'e' })).rejects.toThrow(
+      'prompt',
+    );
   });
 
   it('nonexistent endpoint', async () => {
-    await expect(imageService.generateImage({ prompt: 'cat', endpointId: 'nope' })).rejects.toThrow(/不存在/);
+    await expect(imageService.generateImage({ prompt: 'cat', endpointId: 'nope' })).rejects.toThrow(
+      /不存在/,
+    );
   });
 
   it('text endpoint', async () => {
-    endpointRepo.insert({ id: 'img-te1', name: 'TextM', apiUrl: 'https://a.com', apiKey: '', modelId: 'gpt-4o', isActive: true, sortOrder: 30 });
-    await expect(imageService.generateImage({ prompt: 'cat', endpointId: 'img-te1' })).rejects.toThrow(/不是图片/);
+    endpointRepo.insert({
+      id: 'img-te1',
+      name: 'TextM',
+      apiUrl: 'https://a.com',
+      apiKey: '',
+      modelId: 'gpt-4o',
+      isActive: true,
+      sortOrder: 30,
+    });
+    await expect(
+      imageService.generateImage({ prompt: 'cat', endpointId: 'img-te1' }),
+    ).rejects.toThrow(/不是图片/);
   });
 
   it('fetch error', async () => {
     const encKey = encrypt('sk-real-key');
-    endpointRepo.insert({ id: 'img-te2', name: 'ImgM', apiUrl: 'https://img.com', apiKey: encKey, modelId: 'dall-e-3', category: 'image', isActive: true, sortOrder: 31 });
+    endpointRepo.insert({
+      id: 'img-te2',
+      name: 'ImgM',
+      apiUrl: 'https://img.com',
+      apiKey: encKey,
+      modelId: 'dall-e-3',
+      category: 'image',
+      isActive: true,
+      sortOrder: 31,
+    });
     const orig = globalThis.fetch;
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network'));
-    await expect(imageService.generateImage({ prompt: 'cat', endpointId: 'img-te2' })).rejects.toThrow('network');
+    await expect(
+      imageService.generateImage({ prompt: 'cat', endpointId: 'img-te2' }),
+    ).rejects.toThrow('network');
     globalThis.fetch = orig;
   });
 });

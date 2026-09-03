@@ -26,7 +26,11 @@ export function sendMessageStream(
     const api = getElectronAPI()!;
     const lastThought = { value: '' };
     const onChunk = (raw: string) => {
-      try { parseSSEChunk(JSON.parse(raw), callbacks, lastThought); } catch { /* Ignore malformed chunks. */ }
+      try {
+        parseSSEChunk(JSON.parse(raw), callbacks, lastThought);
+      } catch {
+        /* Ignore malformed chunks. */
+      }
     };
     let cleanup = () => {};
     const onDone = () => {
@@ -73,7 +77,9 @@ export function sendMessageStream(
     .then(async (response) => {
       if (!response.ok) {
         const err = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(err.error || `HTTP ${response.status}`);
+        throw Object.assign(new Error(err.error || `HTTP ${response.status}`), {
+          status: response.status,
+        });
       }
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
@@ -91,14 +97,22 @@ export function sendMessageStream(
           if (!line.startsWith('data: ')) continue;
           const dataStr = line.slice(6).trim();
           if (dataStr === '[DONE]') continue;
-          try { parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought); } catch { /* Ignore malformed chunks. */ }
+          try {
+            parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought);
+          } catch {
+            /* Ignore malformed chunks. */
+          }
         }
       }
 
       if (buffer.startsWith('data: ')) {
         const dataStr = buffer.slice(6).trim();
         if (dataStr !== '[DONE]') {
-          try { parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought); } catch { /* Ignore malformed chunks. */ }
+          try {
+            parseSSEChunk(JSON.parse(dataStr), callbacks, lastThought);
+          } catch {
+            /* Ignore malformed chunks. */
+          }
         }
       }
 

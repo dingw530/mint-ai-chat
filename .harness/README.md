@@ -47,12 +47,12 @@ npm run harness:loop -- \
 
 `config.json` 中预置了四个检查项：
 
-| 名称 | 命令 | 用途 |
-|------|------|------|
-| `unit` | `node scripts/test-runner.mjs` | 运行 Vitest 单元测试，输出结构化 JSON 报告。失败时在迭代目录写入 `<check>-failures.json`，包含文件路径、测试名和断言差异。 |
-| `browser-ac` | `node .harness/browser-scenario.mjs` | 运行浏览器场景验证 AC |
-| `coverage` | `npm run --workspace=server test:coverage:check` | 运行 vitest --coverage 检查覆盖率阈值 |
-| `boundary` | `npm run --workspace=server test:boundary` | 运行架构层级边界测试 |
+| 名称         | 命令                                             | 用途                                                                                                                       |
+| ------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `unit`       | `node scripts/test-runner.mjs`                   | 运行 Vitest 单元测试，输出结构化 JSON 报告。失败时在迭代目录写入 `<check>-failures.json`，包含文件路径、测试名和断言差异。 |
+| `browser-ac` | `node .harness/browser-scenario.mjs`             | 运行浏览器场景验证 AC                                                                                                      |
+| `coverage`   | `npm run --workspace=server test:coverage:check` | 运行 vitest --coverage 检查覆盖率阈值                                                                                      |
+| `boundary`   | `npm run --workspace=server test:boundary`       | 运行架构层级边界测试                                                                                                       |
 
 ### 测试自修复闭环
 
@@ -79,7 +79,30 @@ npm run harness:loop -- \
 - `waitFor`：等待用户可见的状态或控件，不使用固定 sleep。
 - `assertText` / `assertNotText`：断言状态变化；折叠内容必须先执行 `click` 再断言。
 - `assertRequests`：校验 UI 操作产生的关键 HTTP 方法、路径和响应状态。
+- `assertLayout`：通过真实浏览器几何信息断言布局，支持 `alignedTop`、`alignedLeft`、`sameWidth`、`sameHeight` 和 `withinViewport`。
+- `assertScreenshot`：保存当前截图；提供 `baseline` 时比较 PNG 像素差异，可配置 `pixelThreshold` 和 `maxDiffPixels`。
+- `screenshot`：显式保存截图；每条场景成功后也会自动保存最终截图。
 
 场景应尽量声明完整的 API mock，并通过 `assertRequests` 校验关键请求，防止测试意外依赖本地真实数据。每个场景还会自动记录 tracing、console、network、失败截图和 snapshot；`run-code` 中的 Playwright 断言错误也会被 Harness 识别为失败。
+
+场景还可以声明视觉配置：
+
+```json
+{
+  "visual": {
+    "screenshot": { "filename": "chat.png", "fullPage": true },
+    "layout": [
+      {
+        "name": "同一行控件顶部对齐",
+        "type": "alignedTop",
+        "targets": [{ "label": "字段 A" }, { "label": "字段 B" }],
+        "tolerancePx": 1
+      }
+    ]
+  }
+}
+```
+
+成功截图和失败截图都写入 `.harness/runs/<change-id>/<run-id>/browser-ac/<scenario-id>/`。截图基线必须放在当前变更目录内，并通过 `assertScreenshot` 的 `baseline` 显式启用；没有基线时，截图作为可审阅证据保存，不会把环境差异误判为失败。
 
 场景应覆盖完整闭环：进入页面 → 用户输入 → 提交 → 等待异步 UI 状态 → 用户确认/拒绝 → 等待最终状态 → 校验关键请求与页面结果。静态 `markers` 只能作为页面启动健康检查，不能替代交互步骤。

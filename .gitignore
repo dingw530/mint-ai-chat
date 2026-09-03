@@ -29,3 +29,6 @@ server/coverage/
 # Large generated images (keep SVG, skip PNG)
 architecture.png
 docs/harness-system.png
+
+harness-failure.png
+harness-failure.yaml

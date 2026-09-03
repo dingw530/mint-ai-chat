@@ -44,7 +44,7 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   lockedAgent: string | null;
-  routingMode: string;       // 'auto' | 'manual', 默认 'auto'
+  routingMode: string; // 'auto' | 'manual', 默认 'auto'
 }
 
 export interface Message {
@@ -88,9 +88,9 @@ export interface RawSettings {
 
 // 前端传入的设置（apiKey 可选，更新时可以不传）
 export interface SettingsInput {
-  apiUrl: string;
+  apiUrl?: string;
   apiKey?: string;
-  modelId: string;
+  modelId?: string;
   systemPrompt?: string;
   thinkingMode?: boolean;
   memoryEnabled?: boolean;
@@ -202,10 +202,10 @@ export interface McpServerRow {
   id: string;
   name: string;
   command: string;
-  args: string;       // JSON array
-  env: string;         // JSON object
+  args: string; // JSON array
+  env: string; // JSON object
   url: string | null;
-  headers: string;     // JSON object
+  headers: string; // JSON object
   status: string;
   error_message: string | null;
   created_at: string;
@@ -231,12 +231,12 @@ export interface AgentRow {
   id: string;
   name: string;
   description: string;
-  type: string;       // 'general' | 'custom'
+  type: string; // 'general' | 'custom'
   system_prompt: string | null;
-  mcp_server_ids: string;    // JSON array ["serverName1", ...]
-  available: number;   // 0 or 1
+  mcp_server_ids: string; // JSON array ["serverName1", ...]
+  available: number; // 0 or 1
   error_message: string | null;
-  trigger_keywords: string | null;  // JSON array of keywords
+  trigger_keywords: string | null; // JSON array of keywords
   created_at: string;
   updated_at: string;
 }
@@ -250,7 +250,7 @@ export interface Agent {
   mcpServerIds: string[];
   available: boolean;
   errorMessage: string | null;
-  triggerKeywords: string[];  // 触发关键词
+  triggerKeywords: string[]; // 触发关键词
   createdAt: string;
   updatedAt: string;
 }
@@ -366,6 +366,7 @@ export interface EndpointRow {
   model_id: string;
   api_type: string;
   category: string;
+  verified_at?: string | null;
   is_active: number;
   sort_order: number;
   created_at: string;
@@ -380,6 +381,7 @@ export interface Endpoint {
   modelId: string;
   apiType: string;
   category: 'text' | 'image';
+  verifiedAt?: string | null;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
@@ -403,6 +405,7 @@ export interface EndpointOutput {
   modelId: string;
   apiType: string;
   category: 'text' | 'image';
+  verifiedAt?: string | null;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;

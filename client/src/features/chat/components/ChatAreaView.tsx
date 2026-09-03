@@ -9,9 +9,16 @@ import IngestionTaskCards from './IngestionTaskCards';
 import ModelSwitcher from '@/shared/components/ModelSwitcher';
 import type { MarkdownRendererProps } from '@/shared/components/MarkdownRenderer';
 import type { Agent, DecisionTraceItem, EndpointOutput, Message, ReActStep } from '@/types';
+import ModelConnectionPanel from './ModelConnectionPanel';
 
 function LoadingSpinner() {
-  return <div className="loading-spinner"><span /><span /><span /></div>;
+  return (
+    <div className="loading-spinner">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
 }
 
 export interface ChatAreaViewProps {
@@ -36,12 +43,20 @@ export interface ChatAreaViewProps {
   routingMode: string;
   onEndpointChange: () => Promise<void>;
   onRegenerate: () => void;
+  onRepair?: () => void;
   onLinkClick?: MarkdownRendererProps['onLinkClick'];
   onToolApproval: (approvalId: string, action: 'approve' | 'deny') => void;
   onSelectAgent: (agentId: string) => void;
   onUnlock: () => void;
   onStop: () => void;
   onSend: (content: string) => void;
+  chatEnabled: boolean;
+  connectionMode: 'onboarding' | 'repair' | null;
+  repairEndpoint: EndpointOutput | null;
+  onConnectModel: (mode?: 'onboarding' | 'repair') => void;
+  onSkipOnboarding: () => void;
+  onCloseConnection: () => void;
+  onConnectionSuccess: (endpoint: EndpointOutput) => Promise<void>;
 }
 
 /**
@@ -71,18 +86,24 @@ export default function ChatAreaView({
   routingMode,
   onEndpointChange,
   onRegenerate,
+  onRepair,
   onLinkClick,
   onToolApproval,
   onSelectAgent,
   onUnlock,
   onStop,
   onSend,
+  chatEnabled,
+  connectionMode,
+  repairEndpoint,
+  onConnectModel,
+  onSkipOnboarding,
+  onCloseConnection,
+  onConnectionSuccess,
 }: ChatAreaViewProps) {
   return (
     <div className="main-area">
-      <ChatHeader
-        title={title}
-      />
+      <ChatHeader title={title} />
       <div className="chat-area">
         {showReactSteps && (decisionTrace.length > 0 || agentRunStatus) && (
           <div className="chat-top-status">
@@ -90,14 +111,27 @@ export default function ChatAreaView({
             {decisionTrace.length > 0 && <DecisionTrace items={decisionTrace} />}
           </div>
         )}
+        {!chatEnabled && messages.length === 0 && !connectionMode && (
+          <div className="chat-model-gate">
+            <div className="chat-model-gate-icon">✦</div>
+            <h2>连接模型后开始对话</h2>
+            <p>当前 Chat 暂不可用，先连接一个可验证的模型端点。</p>
+            <button className="btn-primary" onClick={() => onConnectModel('repair')}>
+              连接模型
+            </button>
+          </div>
+        )}
         {loading ? (
-          <div className="messages-loading"><LoadingSpinner /></div>
+          <div className="messages-loading">
+            <LoadingSpinner />
+          </div>
         ) : (
           <MessageList
             messages={messages}
             streamingId={streamingId}
             scrollRef={messagesEndRef}
             onRegenerate={onRegenerate}
+            onRepair={onRepair}
             reactSteps={reactSteps}
             reactRunId={reactRunId}
             showReactSteps={showReactSteps}
@@ -112,13 +146,18 @@ export default function ChatAreaView({
               <div className="chat-input-main">
                 {sending ? (
                   <button className="stop-btn" onClick={onStop}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
                       <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
                     </svg>
                     停止生成
                   </button>
                 ) : (
-                  <InputBox onSend={onSend} disabled={sending}>
+                  <InputBox onSend={onSend} disabled={sending || !chatEnabled}>
                     <AgentBar
                       agents={agents}
                       activeAgent={activeAgent}
@@ -140,6 +179,15 @@ export default function ChatAreaView({
           </div>
         </div>
       </div>
+      {connectionMode && (
+        <ModelConnectionPanel
+          endpoint={repairEndpoint}
+          onboarding={connectionMode === 'onboarding'}
+          onClose={connectionMode === 'repair' ? onCloseConnection : undefined}
+          onSkip={connectionMode === 'onboarding' ? onSkipOnboarding : undefined}
+          onSuccess={onConnectionSuccess}
+        />
+      )}
     </div>
   );
 }

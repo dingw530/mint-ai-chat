@@ -13,7 +13,7 @@ import {
 } from './wikiFileService.js';
 import { registerCompiledKnowledge } from './wikiKnowledgeLifecycleService.js';
 import { rebuildWikiSearchIndex } from './wikiSearchService.js';
-import type { EmbeddingConfig } from '../utils/embeddingService.js';
+import type { OpenAICompatibleEmbeddingConfig } from '../vector/types.js';
 import type { WikiPageSummary } from './wikiIngestionTypes.js';
 import type { CompiledPage, Relationship } from '../utils/wikiShared.js';
 
@@ -118,17 +118,27 @@ export async function ingestWikiSource(
     const committedSourceFile = finalizedByPath.get(sourceFile) || sourceFile;
     const committedArchivedFiles = archivedFiles.map((file) => finalizedByPath.get(file) || file);
 
-    registerCompiledKnowledge(committedSourceFile, request.sourceText, compileResult.compiledPages, compileResult.claims);
-    const embeddingConfig: EmbeddingConfig | undefined = settings.wikiSearchMode === 'hybrid'
-      ? {
-        apiUrl: settings.embeddingApiUrl,
-        model: settings.embeddingModel,
-        dimensions: settings.embeddingDimensions,
-      }
-      : undefined;
+    registerCompiledKnowledge(
+      committedSourceFile,
+      request.sourceText,
+      compileResult.compiledPages,
+      compileResult.claims,
+    );
+    const embeddingConfig: OpenAICompatibleEmbeddingConfig | undefined =
+      settings.wikiSearchMode === 'hybrid'
+        ? {
+            apiUrl: settings.embeddingApiUrl,
+            model: settings.embeddingModel,
+            dimensions: settings.embeddingDimensions,
+          }
+        : undefined;
     await rebuildWikiSearchIndex(wikiPath, embeddingConfig);
 
-    const graphErrors = buildIngestionGraph(compileResult.compiledPages, compileResult.relationships, wikiPath);
+    const graphErrors = buildIngestionGraph(
+      compileResult.compiledPages,
+      compileResult.relationships,
+      wikiPath,
+    );
     try {
       await generateCrossBatchCandidates(settings, wikiPath, compileResult.compiledPages);
     } catch (err) {
@@ -183,7 +193,8 @@ function buildIngestionGraph(
 ): string[] {
   try {
     const graphResult = buildGraphFromPages(pages, relationships, wikiPath);
-    if (graphResult.errors.length > 0) log.warn('[graphBuilder] 部分构建失败:', { errors: graphResult.errors });
+    if (graphResult.errors.length > 0)
+      log.warn('[graphBuilder] 部分构建失败:', { errors: graphResult.errors });
     return graphResult.errors;
   } catch (err) {
     log.error('[graphBuilder] 构建异常:', { error: (err as Error).message });

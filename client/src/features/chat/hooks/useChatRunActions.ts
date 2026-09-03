@@ -1,13 +1,11 @@
-import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useRef, type SetStateAction } from 'react';
 import { generateTitle } from '@/services/api';
 import type { Conversation, Message, SendOptions } from '@/types';
 import { parseSlashCommand } from '../commands/slashCommands';
 import type { AgentRunStatusData } from '../components/AgentRunStatus';
 import type { ReactReducerEvent } from './useReactEventReducer';
-import {
-  createChatStreamCallbacks,
-  createToolApprovalCallbacks,
-} from './chatStreamCallbacks';
+import { recordModelConnectionEventOnce } from '../modelConnectionEvents';
+import { createChatStreamCallbacks, createToolApprovalCallbacks } from './chatStreamCallbacks';
 
 type MessageWithTempId = Message & { _tempId: string };
 type SendStream = (
@@ -18,6 +16,8 @@ type SendStream = (
   options?: SendOptions,
 ) => void;
 
+type ConversationSetter<T> = (value: T, conversationId?: string) => void;
+
 interface UseChatRunActionsOptions {
   activeConversation: string | null;
   conversations: Conversation[];
@@ -25,14 +25,14 @@ interface UseChatRunActionsOptions {
   activeAgent: string;
   onAutoCreate: (title?: string) => Promise<string | undefined>;
   onTitleUpdate: (id: string, title: string) => void;
-  setMessages: Dispatch<SetStateAction<Message[]>>;
-  setSending: (value: boolean) => void;
-  setStreamingId: (value: string | null) => void;
-  setActiveAgent: (value: string) => void;
-  setAutoRoutedAgent: (value: string | null) => void;
-  setAgentRunStatus: Dispatch<SetStateAction<AgentRunStatusData | null>>;
-  dispatchReactEvent: (event: ReactReducerEvent) => void;
-  resetReactEvents: () => void;
+  setMessages: ConversationSetter<SetStateAction<Message[]>>;
+  setSending: ConversationSetter<boolean>;
+  setStreamingId: ConversationSetter<string | null>;
+  setActiveAgent: ConversationSetter<string>;
+  setAutoRoutedAgent: ConversationSetter<string | null>;
+  setAgentRunStatus: ConversationSetter<SetStateAction<AgentRunStatusData | null>>;
+  dispatchReactEvent: (event: ReactReducerEvent, conversationId?: string) => void;
+  resetReactEvents: (conversationId?: string) => void;
   send: SendStream;
   abort: (conversationId?: string) => void;
 }
@@ -80,6 +80,17 @@ function getSendOptions(content: string): SendOptions | undefined {
   return parsed ? { slashCommand: { command: parsed.command, input: parsed.input } } : undefined;
 }
 
+function classifyChatError(error: Error): Message['errorCategory'] {
+  const status = 'status' in error && typeof error.status === 'number' ? error.status : undefined;
+  if (status === 401 || status === 403 || status === 404) return 'configuration';
+  if (status === 429 || (status !== undefined && status >= 500)) return 'retryable';
+  const message = error.message.toLowerCase();
+  if (/timeout|network|fetch failed|econn|enotfound|socket|超时|网络/.test(message))
+    return 'retryable';
+  if (/unauthor|forbidden|not found|model|api key|配置|鉴权/.test(message)) return 'configuration';
+  return 'unknown';
+}
+
 /** 管理消息流式运行、重新生成和工具审批动作。 */
 export default function useChatRunActions({
   activeConversation,
@@ -101,135 +112,242 @@ export default function useChatRunActions({
 }: UseChatRunActionsOptions) {
   const activeRunsRef = useRef(new Map<string, { tempId: string; finish: () => void }>());
 
-  const updateTempMessage = useCallback((tempId: string, update: (message: Message) => Message) => {
-    setMessages((previous) => previous.map((message) => (
-      getTempId(message) === tempId ? update(message) : message
-    )));
-  }, [setMessages]);
+  const updateTempMessage = useCallback(
+    (conversationId: string, tempId: string, update: (message: Message) => Message) => {
+      setMessages(
+        (previous) =>
+          previous.map((message) => (getTempId(message) === tempId ? update(message) : message)),
+        conversationId,
+      );
+    },
+    [setMessages],
+  );
 
-  const runConversation = useCallback((
-    conversationId: string,
-    content: string,
-    tempId: string,
-    agent?: string,
-    options?: SendOptions,
-    onCompleted?: () => void,
-  ) => {
-    const streamBufferRef = { current: { id: tempId, content: '' } };
-    let streamRaf = 0;
-    const flushStream = () => {
-      const buffer = streamBufferRef.current;
-      if (!buffer.content) return;
-      const contentToFlush = buffer.content;
-      buffer.content = '';
-      updateTempMessage(buffer.id, (message) => {
-        const segments = [...(message.segments || [])];
-        const last = segments[segments.length - 1];
-        if (last?.type === 'text') segments[segments.length - 1] = { ...last, content: last.content + contentToFlush };
-        else segments.push({ type: 'text', content: contentToFlush });
-        return { ...message, content: message.content + contentToFlush, segments };
-      });
-    };
-    const scheduleFlush = () => {
-      if (streamRaf) return;
-      streamRaf = requestAnimationFrame(() => { streamRaf = 0; flushStream(); });
-    };
-    const finishStream = (finishedTempId: string, error?: Error) => {
-      if (streamRaf) { cancelAnimationFrame(streamRaf); streamRaf = 0; }
-      flushStream();
-      if (error) updateTempMessage(finishedTempId, (message) => ({ ...message, role: 'error', content: `Error: ${error.message}` }));
-      setSending(false);
-      setStreamingId(null);
-      const activeRun = activeRunsRef.current.get(conversationId);
-      if (activeRun?.tempId === finishedTempId) activeRunsRef.current.delete(conversationId);
-    };
-    activeRunsRef.current.set(conversationId, { tempId, finish: () => finishStream(tempId) });
-    const conversation = conversations.find((item) => item.id === conversationId);
-    send(conversationId, content, createChatStreamCallbacks({
-      tempId,
-      isAutoRoute: isAutoRoute(conversation),
-      streamBufferRef,
-      flushStream,
-      scheduleFlush,
-      finishStream,
-      onCompleted,
-      updateTempMessage,
-      setActiveAgent,
-      setAutoRoutedAgent,
-      setAgentRunStatus,
+  const runConversation = useCallback(
+    (
+      conversationId: string,
+      content: string,
+      tempId: string,
+      agent?: string,
+      options?: SendOptions,
+      onCompleted?: () => void,
+    ) => {
+      const streamBufferRef = { current: { id: tempId, content: '' } };
+      let streamFailed = false;
+      let streamRaf = 0;
+      const flushStream = () => {
+        const buffer = streamBufferRef.current;
+        if (!buffer.content) return;
+        const contentToFlush = buffer.content;
+        buffer.content = '';
+        updateTempMessage(conversationId, buffer.id, (message) => {
+          const segments = [...(message.segments || [])];
+          const last = segments[segments.length - 1];
+          if (last?.type === 'text')
+            segments[segments.length - 1] = { ...last, content: last.content + contentToFlush };
+          else segments.push({ type: 'text', content: contentToFlush });
+          return { ...message, content: message.content + contentToFlush, segments };
+        });
+      };
+      const scheduleFlush = () => {
+        if (streamRaf) return;
+        streamRaf = requestAnimationFrame(() => {
+          streamRaf = 0;
+          flushStream();
+        });
+      };
+      const finishStream = (finishedTempId: string, error?: Error) => {
+        if (streamRaf) {
+          cancelAnimationFrame(streamRaf);
+          streamRaf = 0;
+        }
+        flushStream();
+        if (error) {
+          streamFailed = true;
+          updateTempMessage(conversationId, finishedTempId, (message) => ({
+            ...message,
+            role: 'error',
+            content: error.message,
+            errorCategory: classifyChatError(error),
+          }));
+        }
+        setSending(false, conversationId);
+        setStreamingId(null, conversationId);
+        const activeRun = activeRunsRef.current.get(conversationId);
+        if (activeRun?.tempId === finishedTempId) activeRunsRef.current.delete(conversationId);
+      };
+      activeRunsRef.current.set(conversationId, { tempId, finish: () => finishStream(tempId) });
+      const conversation = conversations.find((item) => item.id === conversationId);
+      send(
+        conversationId,
+        content,
+        createChatStreamCallbacks({
+          tempId,
+          isAutoRoute: isAutoRoute(conversation),
+          streamBufferRef,
+          flushStream,
+          scheduleFlush,
+          finishStream,
+          onCompleted: () => {
+            if (!streamFailed) {
+              recordModelConnectionEventOnce('first_response_completed_saved');
+              onCompleted?.();
+            }
+          },
+          updateTempMessage: (messageTempId, update) =>
+            updateTempMessage(conversationId, messageTempId, update),
+          setActiveAgent: (value) => setActiveAgent(value, conversationId),
+          setAutoRoutedAgent: (value) => setAutoRoutedAgent(value, conversationId),
+          setAgentRunStatus: (value) => setAgentRunStatus(value, conversationId),
+          dispatchReactEvent: (event) => dispatchReactEvent(event, conversationId),
+        }),
+        agent,
+        options,
+      );
+    },
+    [
+      conversations,
       dispatchReactEvent,
-    }), agent, options);
-  }, [conversations, dispatchReactEvent, send, setActiveAgent, setAgentRunStatus, setAutoRoutedAgent, setSending, setStreamingId, updateTempMessage]);
-
-  const handleToolApproval = useCallback((approvalId: string, action: 'approve' | 'deny') => {
-    if (!activeConversation) return;
-    const updateApprovalMessage = (update: (message: Message) => Message) => {
-      setMessages((previous) => previous.map((message) => (
-        message.segments?.some((segment) => segment.type === 'tool_call' && segment.approvalId === approvalId)
-          ? update(message)
-          : message
-      )));
-    };
-    setSending(true);
-    send(activeConversation, '', createToolApprovalCallbacks(
-      approvalId,
-      updateApprovalMessage,
+      send,
+      setActiveAgent,
+      setAgentRunStatus,
+      setAutoRoutedAgent,
       setSending,
       setStreamingId,
-      setAgentRunStatus,
-      dispatchReactEvent,
-    ), undefined, { control: { type: 'tool_approval', approvalId, action } });
-  }, [activeConversation, dispatchReactEvent, send, setAgentRunStatus, setMessages, setSending, setStreamingId]);
+      updateTempMessage,
+    ],
+  );
 
-  const handleSend = useCallback(async (content: string) => {
-    let conversationId = activeConversation;
-    let createdNow = false;
-    if (!conversationId) {
-      let newId: string | undefined;
-      try {
-        newId = await onAutoCreate();
-      } catch {
-        return;
+  const handleToolApproval = useCallback(
+    (approvalId: string, action: 'approve' | 'deny') => {
+      if (!activeConversation) return;
+      const updateApprovalMessage = (update: (message: Message) => Message) => {
+        setMessages(
+          (previous) =>
+            previous.map((message) =>
+              message.segments?.some(
+                (segment) => segment.type === 'tool_call' && segment.approvalId === approvalId,
+              )
+                ? update(message)
+                : message,
+            ),
+          activeConversation,
+        );
+      };
+      setSending(true, activeConversation);
+      send(
+        activeConversation,
+        '',
+        createToolApprovalCallbacks(
+          approvalId,
+          updateApprovalMessage,
+          (value) => setSending(value, activeConversation),
+          (value) => setStreamingId(value, activeConversation),
+          (value) => setAgentRunStatus(value, activeConversation),
+          (event) => dispatchReactEvent(event, activeConversation),
+        ),
+        undefined,
+        { control: { type: 'tool_approval', approvalId, action } },
+      );
+    },
+    [
+      activeConversation,
+      dispatchReactEvent,
+      send,
+      setAgentRunStatus,
+      setMessages,
+      setSending,
+      setStreamingId,
+    ],
+  );
+
+  const handleSend = useCallback(
+    async (content: string) => {
+      let conversationId = activeConversation;
+      let createdNow = false;
+      if (!conversationId) {
+        let newId: string | undefined;
+        try {
+          newId = await onAutoCreate();
+        } catch {
+          return;
+        }
+        if (!newId) return;
+        conversationId = newId;
+        createdNow = true;
       }
-      if (!newId) return;
-      conversationId = newId;
-      createdNow = true;
-    }
-    const conversation = conversations.find((item) => item.id === conversationId);
-    const userMessage = createUserMessage(conversationId, content);
-    const assistantMessage = createAssistantMessage(conversationId);
-    setMessages((previous) => [...previous, userMessage, assistantMessage]);
-    setSending(true);
-    setStreamingId(assistantMessage.id);
-    resetReactEvents();
-    const shouldGenerateTitle = needsGeneratedTitle(conversation, createdNow);
-    const onCompleted = shouldGenerateTitle
-      ? () => {
-        generateTitle(conversationId)
-          .then((data) => { if (data?.title) onTitleUpdate(conversationId, data.title); })
-          .catch(() => {});
-      }
-      : undefined;
-    runConversation(
-      conversationId,
-      content,
-      assistantMessage._tempId,
-      isAutoRoute(conversation) ? undefined : activeAgent,
-      getSendOptions(content),
-      onCompleted,
-    );
-  }, [activeAgent, activeConversation, conversations, onAutoCreate, onTitleUpdate, resetReactEvents, runConversation, setMessages, setSending, setStreamingId]);
+      const conversation = conversations.find((item) => item.id === conversationId);
+      const userMessage = createUserMessage(conversationId, content);
+      const assistantMessage = createAssistantMessage(conversationId);
+      setMessages((previous) => [...previous, userMessage, assistantMessage], conversationId);
+      setSending(true, conversationId);
+      recordModelConnectionEventOnce('first_message_sent');
+      setStreamingId(assistantMessage.id, conversationId);
+      resetReactEvents(conversationId);
+      const shouldGenerateTitle = needsGeneratedTitle(conversation, createdNow);
+      const onCompleted = shouldGenerateTitle
+        ? () => {
+            generateTitle(conversationId)
+              .then((data) => {
+                if (data?.title) onTitleUpdate(conversationId, data.title);
+              })
+              .catch(() => {});
+          }
+        : undefined;
+      runConversation(
+        conversationId,
+        content,
+        assistantMessage._tempId,
+        isAutoRoute(conversation) ? undefined : activeAgent,
+        getSendOptions(content),
+        onCompleted,
+      );
+    },
+    [
+      activeAgent,
+      activeConversation,
+      conversations,
+      onAutoCreate,
+      onTitleUpdate,
+      resetReactEvents,
+      runConversation,
+      setMessages,
+      setSending,
+      setStreamingId,
+    ],
+  );
 
   const handleRegenerate = useCallback(() => {
     const lastUserMessage = [...messages].reverse().find((message) => message.role === 'user');
     if (!lastUserMessage || !activeConversation) return;
+    const lastMessage = messages[messages.length - 1];
     const assistantMessage = createAssistantMessage(activeConversation);
-    setMessages((previous) => [...previous.slice(0, -1), assistantMessage]);
-    setSending(true);
-    setStreamingId(assistantMessage.id);
-    resetReactEvents();
-    runConversation(activeConversation, lastUserMessage.content, assistantMessage._tempId, undefined, { regenerate: true, ...getSendOptions(lastUserMessage.content) });
-  }, [activeConversation, messages, resetReactEvents, runConversation, setMessages, setSending, setStreamingId]);
+    setMessages(
+      (previous) => [
+        ...previous.filter((message) => message.id !== lastMessage?.id),
+        assistantMessage,
+      ],
+      activeConversation,
+    );
+    setSending(true, activeConversation);
+    setStreamingId(assistantMessage.id, activeConversation);
+    resetReactEvents(activeConversation);
+    runConversation(
+      activeConversation,
+      lastUserMessage.content,
+      assistantMessage._tempId,
+      undefined,
+      { regenerate: true, ...getSendOptions(lastUserMessage.content) },
+    );
+  }, [
+    activeConversation,
+    messages,
+    resetReactEvents,
+    runConversation,
+    setMessages,
+    setSending,
+    setStreamingId,
+  ]);
 
   const handleStop = useCallback(() => {
     if (!activeConversation) return;

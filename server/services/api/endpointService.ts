@@ -20,6 +20,7 @@ function toOutput(endpoint: Endpoint): EndpointOutput {
     modelId: endpoint.modelId,
     apiType: endpoint.apiType || 'openai-chat',
     category: endpoint.category || 'text',
+    verifiedAt: endpoint.verifiedAt ?? null,
     isActive: endpoint.isActive,
     sortOrder: endpoint.sortOrder,
     createdAt: endpoint.createdAt,
@@ -64,7 +65,7 @@ function validateInput(input: EndpointInput, existingId?: string): void {
   }
   // 检查名称唯一性
   const all = endpointRepo.getAll();
-  const duplicate = all.find(e => e.name === input.name.trim() && e.id !== existingId);
+  const duplicate = all.find((e) => e.name === input.name.trim() && e.id !== existingId);
   if (duplicate) {
     throw Object.assign(new Error('端点名称已存在'), { status: 409 });
   }
@@ -111,7 +112,8 @@ export function updateEndpoint(id: string, input: EndpointInput): EndpointOutput
   if (!updated) {
     throw Object.assign(new Error('更新失败'), { status: 500 });
   }
-  return toOutput(updated);
+  endpointRepo.clearVerification(id);
+  return toOutput(endpointRepo.getById(id) || updated);
 }
 
 export function remove(id: string): void {
@@ -141,7 +143,12 @@ export function activate(id: string): void {
 }
 
 // 获取当前激活端点用于 AI 调用的内部数据（apiKey 已解密）
-export function getActiveAiConfig(): { apiUrl: string; apiKey: string; modelId: string; apiType: string } | null {
+export function getActiveAiConfig(): {
+  apiUrl: string;
+  apiKey: string;
+  modelId: string;
+  apiType: string;
+} | null {
   const active = endpointRepo.getActive();
   if (!active) return null;
   let apiKey = '';
@@ -158,6 +165,40 @@ export function getActiveAiConfig(): { apiUrl: string; apiKey: string; modelId: 
     modelId: active.modelId,
     apiType: active.apiType || 'openai-chat',
   };
+}
+
+/** Returns whether a verified text endpoint is available for first-use gating. */
+export function hasVerifiedTextEndpoint(): boolean {
+  return endpointRepo.getVerifiedActive() !== null;
+}
+
+/** Returns one endpoint's decrypted connection configuration for internal verification only. */
+export function getAiConfig(
+  id: string,
+): { apiUrl: string; apiKey: string; modelId: string; apiType: string } | null {
+  const endpoint = endpointRepo.getById(id);
+  if (!endpoint) return null;
+  let apiKey = '';
+  if (endpoint.apiKey) {
+    try {
+      apiKey = decrypt(endpoint.apiKey);
+    } catch {
+      apiKey = '';
+    }
+  }
+  return {
+    apiUrl: endpoint.apiUrl,
+    apiKey,
+    modelId: endpoint.modelId,
+    apiType: endpoint.apiType || 'openai-chat',
+  };
+}
+
+/** Persists a successful live connection verification for one endpoint. */
+export function markVerified(id: string): EndpointOutput {
+  const verified = endpointRepo.markVerified(id, new Date().toISOString());
+  if (!verified) throw Object.assign(new Error('端点不存在'), { status: 404 });
+  return toOutput(verified);
 }
 
 // 迁移旧版配置（TP-006 调用）

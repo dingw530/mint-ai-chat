@@ -54,11 +54,12 @@ export function createChatStreamCallbacks({
     onRunCompleted: (data) => dispatchReactEvent({ type: 'run_completed', ...data }),
     onRunCancelled: (data) => {
       dispatchReactEvent({ type: 'run_cancelled', ...data });
-      setAgentRunStatus((previous) => previous ? { ...previous, phase: 'cancelled' } : previous);
+      setAgentRunStatus((previous) => (previous ? { ...previous, phase: 'cancelled' } : previous));
     },
     onTokenUsage: (data) => {
       const estimatedTokens = Number(data.estimatedTokens);
-      if (Number.isFinite(estimatedTokens)) updateTempMessage(tempId, (message) => ({ ...message, estimatedTokens }));
+      if (Number.isFinite(estimatedTokens))
+        updateTempMessage(tempId, (message) => ({ ...message, estimatedTokens }));
     },
     onChunk: (content) => {
       streamBufferRef.current.content += content;
@@ -71,15 +72,17 @@ export function createChatStreamCallbacks({
       flushStream();
       updateTempMessage(tempId, (current) => {
         const segments = [...(current.segments || [])];
-        const existing = segments.find((segment) => segment.type === 'a2ui' && segment.segmentId === segmentId);
+        const existing = segments.find(
+          (segment) => segment.type === 'a2ui' && segment.segmentId === segmentId,
+        );
         if (existing && existing.type === 'a2ui') {
           return {
             ...current,
-            segments: segments.map((segment) => (
+            segments: segments.map((segment) =>
               segment.type === 'a2ui' && segment.segmentId === segmentId
                 ? { ...segment, messages: [...segment.messages, message] }
-                : segment
-            )),
+                : segment,
+            ),
           };
         } else {
           segments.push({ type: 'a2ui', segmentId, messages: [message] });
@@ -87,13 +90,15 @@ export function createChatStreamCallbacks({
         return { ...current, segments };
       });
     },
-    onReasoning: (content) => updateTempMessage(tempId, (message) => {
-      const segments = [...(message.segments || [])];
-      const last = segments[segments.length - 1];
-      if (last?.type === 'thinking') segments[segments.length - 1] = { ...last, content: last.content + content };
-      else segments.push({ type: 'thinking', content });
-      return { ...message, reasoning: `${message.reasoning || ''}${content}`, segments };
-    }),
+    onReasoning: (content) =>
+      updateTempMessage(tempId, (message) => {
+        const segments = [...(message.segments || [])];
+        const last = segments[segments.length - 1];
+        if (last?.type === 'thinking')
+          segments[segments.length - 1] = { ...last, content: last.content + content };
+        else segments.push({ type: 'thinking', content });
+        return { ...message, reasoning: `${message.reasoning || ''}${content}`, segments };
+      }),
     onRouting: (agentId) => {
       setAutoRoutedAgent(agentId);
       if (isAutoRoute) setActiveAgent(agentId);
@@ -104,7 +109,8 @@ export function createChatStreamCallbacks({
       updateTempMessage(tempId, (message) => {
         const segments = [...(message.segments || [])];
         const last = segments[segments.length - 1];
-        if (last?.type === 'text') segments[segments.length - 1] = { ...last, content: last.content + content };
+        if (last?.type === 'text')
+          segments[segments.length - 1] = { ...last, content: last.content + content };
         else segments.push({ type: 'text', content });
         return { ...message, content: message.content + content, segments };
       });
@@ -113,65 +119,72 @@ export function createChatStreamCallbacks({
       dispatchReactEvent({ type: 'tool_call_start', ...data });
       updateTempMessage(tempId, (message) => ({
         ...message,
-        segments: [...(message.segments || []), {
-          type: 'tool_call',
-          callId: typeof data.callId === 'string' ? data.callId : undefined,
-          toolName: String(data.toolName || ''),
-          summary: typeof data.summary === 'string' ? data.summary : undefined,
-          status: 'running',
-          arguments: data.arguments,
-        }],
+        segments: [
+          ...(message.segments || []),
+          {
+            type: 'tool_call',
+            callId: typeof data.callId === 'string' ? data.callId : undefined,
+            toolName: String(data.toolName || ''),
+            summary: typeof data.summary === 'string' ? data.summary : undefined,
+            status: 'running',
+            arguments: data.arguments,
+          },
+        ],
       }));
     },
     onToolCallEnd: (data) => {
       dispatchReactEvent({ type: 'tool_call_end', ...data });
       updateTempMessage(tempId, (message) => ({
         ...message,
-        segments: message.segments?.map((segment) => (
-          segment.type === 'tool_call' && segment.status === 'running'
-            && (data.callId ? segment.callId === data.callId : segment.toolName === data.toolName)
+        segments: message.segments?.map((segment) =>
+          segment.type === 'tool_call' &&
+          segment.status === 'running' &&
+          (data.callId ? segment.callId === data.callId : segment.toolName === data.toolName)
             ? {
-              ...segment,
-              status: 'done' as const,
-              result: typeof data.result === 'string' ? data.result : String(data.result || ''),
-              duration: typeof data.duration === 'number' ? data.duration : undefined,
-              summary: typeof data.summary === 'string' ? data.summary : segment.summary,
-            }
-            : segment
-        )),
+                ...segment,
+                status: 'done' as const,
+                result: typeof data.result === 'string' ? data.result : String(data.result || ''),
+                duration: typeof data.duration === 'number' ? data.duration : undefined,
+                summary: typeof data.summary === 'string' ? data.summary : segment.summary,
+              }
+            : segment,
+        ),
       }));
     },
     onToolCallError: (data) => {
       dispatchReactEvent({ type: 'tool_call_error', ...data });
       updateTempMessage(tempId, (message) => ({
         ...message,
-        segments: message.segments?.map((segment) => (
-          segment.type === 'tool_call' && segment.status === 'running'
-            && (data.callId ? segment.callId === data.callId : segment.toolName === data.toolName)
+        segments: message.segments?.map((segment) =>
+          segment.type === 'tool_call' &&
+          segment.status === 'running' &&
+          (data.callId ? segment.callId === data.callId : segment.toolName === data.toolName)
             ? {
-              ...segment,
-              status: 'error' as const,
-              error: typeof data.error === 'string' ? data.error : String(data.error || ''),
-              retryCount: typeof data.retryCount === 'number' ? data.retryCount : undefined,
-            }
-            : segment
-        )),
+                ...segment,
+                status: 'error' as const,
+                error: typeof data.error === 'string' ? data.error : String(data.error || ''),
+                retryCount: typeof data.retryCount === 'number' ? data.retryCount : undefined,
+              }
+            : segment,
+        ),
       }));
     },
     onToolApprovalRequired: (data) => {
       dispatchReactEvent({ type: 'approval_required', ...data });
       updateTempMessage(tempId, (message) => ({
         ...message,
-        segments: message.segments?.map((segment) => (
-          segment.type === 'tool_call' && segment.status === 'running' && segment.callId === data.callId
+        segments: message.segments?.map((segment) =>
+          segment.type === 'tool_call' &&
+          segment.status === 'running' &&
+          segment.callId === data.callId
             ? {
-              ...segment,
-              status: 'approval_required' as const,
-              approvalId: typeof data.approvalId === 'string' ? data.approvalId : undefined,
-              approvalReason: typeof data.reason === 'string' ? data.reason : undefined,
-            }
-            : segment
-        )),
+                ...segment,
+                status: 'approval_required' as const,
+                approvalId: typeof data.approvalId === 'string' ? data.approvalId : undefined,
+                approvalReason: typeof data.reason === 'string' ? data.reason : undefined,
+              }
+            : segment,
+        ),
       }));
     },
     onAnswerReady: () => dispatchReactEvent({ type: 'answer_ready' }),
@@ -202,44 +215,57 @@ export function createToolApprovalCallbacks(
       const status = parseAgentRunStatusData(data);
       if (status) setAgentRunStatus(status);
     },
-    onChunk: (content) => updateApprovalMessage((message) => {
-      const segments = [...(message.segments || [])];
-      const last = segments[segments.length - 1];
-      if (last?.type === 'text') segments[segments.length - 1] = { ...last, content: last.content + content };
-      else segments.push({ type: 'text', content });
-      return { ...message, content: message.content + content, segments };
-    }),
-    onReasoning: (content) => updateApprovalMessage((message) => ({ ...message, reasoning: `${message.reasoning || ''}${content}` })),
-    onToolCallEnd: (data) => updateApprovalMessage((message) => ({
-      ...message,
-      segments: message.segments?.map((segment) => (
-        segment.type === 'tool_call' && (segment.approvalId === approvalId || segment.callId === data.callId)
-          ? { ...segment, status: 'done' as const, result: String(data.result || '') }
-          : segment
-      )),
-    })),
-    onToolCallError: (data) => updateApprovalMessage((message) => ({
-      ...message,
-      segments: message.segments?.map((segment) => (
-        segment.type === 'tool_call' && (segment.approvalId === approvalId || segment.callId === data.callId)
-          ? { ...segment, status: 'error' as const, error: String(data.error || '') }
-          : segment
-      )),
-    })),
+    onChunk: (content) =>
+      updateApprovalMessage((message) => {
+        const segments = [...(message.segments || [])];
+        const last = segments[segments.length - 1];
+        if (last?.type === 'text')
+          segments[segments.length - 1] = { ...last, content: last.content + content };
+        else segments.push({ type: 'text', content });
+        return { ...message, content: message.content + content, segments };
+      }),
+    onReasoning: (content) =>
+      updateApprovalMessage((message) => ({
+        ...message,
+        reasoning: `${message.reasoning || ''}${content}`,
+      })),
+    onToolCallEnd: (data) =>
+      updateApprovalMessage((message) => ({
+        ...message,
+        segments: message.segments?.map((segment) =>
+          segment.type === 'tool_call' &&
+          (segment.approvalId === approvalId || segment.callId === data.callId)
+            ? { ...segment, status: 'done' as const, result: String(data.result || '') }
+            : segment,
+        ),
+      })),
+    onToolCallError: (data) =>
+      updateApprovalMessage((message) => ({
+        ...message,
+        segments: message.segments?.map((segment) =>
+          segment.type === 'tool_call' &&
+          (segment.approvalId === approvalId || segment.callId === data.callId)
+            ? { ...segment, status: 'error' as const, error: String(data.error || '') }
+            : segment,
+        ),
+      })),
     onRunCompleted: (data) => dispatchReactEvent({ type: 'run_completed', ...data }),
     onRunCancelled: (data) => {
       dispatchReactEvent({ type: 'run_cancelled', ...data });
-      setAgentRunStatus((previous) => previous ? { ...previous, phase: 'cancelled' } : previous);
+      setAgentRunStatus((previous) => (previous ? { ...previous, phase: 'cancelled' } : previous));
     },
-    onDone: () => { setSending(false); setStreamingId(null); },
+    onDone: () => {
+      setSending(false);
+      setStreamingId(null);
+    },
     onError: (error) => {
       updateApprovalMessage((message) => ({
         ...message,
-        segments: message.segments?.map((segment) => (
+        segments: message.segments?.map((segment) =>
           segment.type === 'tool_call' && segment.approvalId === approvalId
             ? { ...segment, status: 'error' as const, error: error.message }
-            : segment
-        )),
+            : segment,
+        ),
       }));
       setSending(false);
       setStreamingId(null);

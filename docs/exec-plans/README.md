@@ -50,3 +50,4 @@
 | [Agent Eval 评测结果版本管理](<../changes/2026-08-25-agent-eval-result-versions/exec-plan.md>) | 2026-08-25 | 已完成 |
 | [Agent Eval P0 分层 Gate 与 Judge 校准](<../changes/2026-08-25-agent-eval-gated-judge-calibration/exec-plan.md>) | 2026-08-25 | 已完成 |
 | [Wiki 引用归一化](<../changes/2026-08-24-wiki-citation-normalization/exec-plan.md>) | 2026-08-24 | 已完成 |
+| [首次启动与模型连接引导](<../changes/2026-09-02-first-use-model-connection/exec-plan.md>) | 2026-09-02 | 已完成 |

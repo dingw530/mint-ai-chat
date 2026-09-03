@@ -16,6 +16,13 @@ export interface ChatAreaProps {
   activeEndpoint: EndpointOutput | null;
   endpoints: EndpointOutput[];
   onEndpointChange: () => Promise<void>;
+  chatEnabled: boolean;
+  connectionMode: 'onboarding' | 'repair' | null;
+  repairEndpoint: EndpointOutput | null;
+  onConnectModel: (mode?: 'onboarding' | 'repair') => void;
+  onSkipOnboarding: () => void;
+  onCloseConnection: () => void;
+  onConnectionSuccess: (endpoint: EndpointOutput) => Promise<void>;
   initialMessage?: string | null;
   onInitialMessageSent?: () => void;
   onLinkClick?: MarkdownRendererProps['onLinkClick'];
@@ -31,6 +38,13 @@ export default function ChatArea({
   activeEndpoint,
   endpoints,
   onEndpointChange,
+  chatEnabled,
+  connectionMode,
+  repairEndpoint,
+  onConnectModel,
+  onSkipOnboarding,
+  onCloseConnection,
+  onConnectionSuccess,
   initialMessage,
   onInitialMessageSent,
   onLinkClick,
@@ -78,10 +92,10 @@ export default function ChatArea({
   const { handleSend } = runActions;
 
   useEffect(() => {
-    if (!initialMessage || conversationData.sending) return;
+    if (!initialMessage || !chatEnabled || conversationData.sending) return;
     handleSend(initialMessage);
     onInitialMessageSent?.();
-  }, [handleSend, initialMessage, onInitialMessageSent, conversationData.sending]);
+  }, [chatEnabled, handleSend, initialMessage, onInitialMessageSent, conversationData.sending]);
 
   const currentConversation = activeConversation
     ? conversations.find((conversation) => conversation.id === activeConversation)
@@ -120,12 +134,20 @@ export default function ChatArea({
       routingMode={routingMode}
       onEndpointChange={onEndpointChange}
       onRegenerate={runActions.handleRegenerate}
+      onRepair={() => onConnectModel('repair')}
       onLinkClick={onLinkClick}
       onToolApproval={runActions.handleToolApproval}
       onSelectAgent={agentActions.handleSelectAgent}
       onUnlock={agentActions.handleUnlock}
       onStop={runActions.handleStop}
       onSend={handleSend}
+      chatEnabled={chatEnabled}
+      connectionMode={connectionMode}
+      repairEndpoint={repairEndpoint}
+      onConnectModel={onConnectModel}
+      onSkipOnboarding={onSkipOnboarding}
+      onCloseConnection={onCloseConnection}
+      onConnectionSuccess={onConnectionSuccess}
     />
   );
 }

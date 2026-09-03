@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type SetStateAction,
+} from 'react';
 import { fetchAgents, getMessages, getSettings } from '@/services/api';
 import type { Agent, Message } from '@/types';
 import type { ReactReducerEvent } from './useReactEventReducer';
@@ -24,49 +31,103 @@ export default function useChatConversationData({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationId = activeConversation || '';
   const runtime = useSyncExternalStore(
-    useCallback((listener) => conversationId ? chatRuntimeStore.subscribe(conversationId, listener) : () => {}, [conversationId]),
-    useCallback(() => conversationId ? chatRuntimeStore.getRuntime(conversationId) : chatRuntimeStore.getEmptyRuntime(), [conversationId]),
-    useCallback(() => conversationId ? chatRuntimeStore.getRuntime(conversationId) : chatRuntimeStore.getEmptyRuntime(), [conversationId]),
+    useCallback(
+      (listener) =>
+        conversationId ? chatRuntimeStore.subscribe(conversationId, listener) : () => {},
+      [conversationId],
+    ),
+    useCallback(
+      () =>
+        conversationId
+          ? chatRuntimeStore.getRuntime(conversationId)
+          : chatRuntimeStore.getEmptyRuntime(),
+      [conversationId],
+    ),
+    useCallback(
+      () =>
+        conversationId
+          ? chatRuntimeStore.getRuntime(conversationId)
+          : chatRuntimeStore.getEmptyRuntime(),
+      [conversationId],
+    ),
   );
 
-  const dispatchReactEvent = useCallback((event: ReactReducerEvent) => {
-    if (conversationId) chatRuntimeStore.dispatchReactEvent(conversationId, event);
-  }, [conversationId]);
+  const dispatchReactEvent = useCallback(
+    (event: ReactReducerEvent, targetConversationId = conversationId) => {
+      if (targetConversationId) chatRuntimeStore.dispatchReactEvent(targetConversationId, event);
+    },
+    [conversationId],
+  );
 
-  const resetReactEvents = useCallback(() => {
-    if (conversationId) chatRuntimeStore.resetReactEvents(conversationId);
-  }, [conversationId]);
+  const resetReactEvents = useCallback(
+    (targetConversationId = conversationId) => {
+      if (targetConversationId) chatRuntimeStore.resetReactEvents(targetConversationId);
+    },
+    [conversationId],
+  );
 
-  const setMessages = useCallback((action: SetStateAction<Message[]>) => {
-    if (conversationId) chatRuntimeStore.setMessages(conversationId, action);
-  }, [conversationId]);
-  const setSending = useCallback((sending: boolean) => {
-    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { sending });
-  }, [conversationId]);
-  const setStreamingId = useCallback((streamingId: string | null) => {
-    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { streamingId });
-  }, [conversationId]);
-  const setActiveAgent = useCallback((activeAgent: string) => {
-    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { activeAgent });
-  }, [conversationId]);
-  const setAutoRoutedAgent = useCallback((autoRoutedAgent: string | null) => {
-    if (conversationId) chatRuntimeStore.setRuntime(conversationId, { autoRoutedAgent });
-  }, [conversationId]);
-  const setAgentRunStatus = useCallback((action: SetStateAction<AgentRunStatusData | null>) => {
-    if (!conversationId) return;
-    const previous = chatRuntimeStore.getRuntime(conversationId).agentRunStatus;
-    const agentRunStatus = typeof action === 'function' ? action(previous) : action;
-    chatRuntimeStore.setRuntime(conversationId, { agentRunStatus });
-  }, [conversationId]);
+  const setMessages = useCallback(
+    (action: SetStateAction<Message[]>, targetConversationId = conversationId) => {
+      if (targetConversationId) chatRuntimeStore.setMessages(targetConversationId, action);
+    },
+    [conversationId],
+  );
+  const setSending = useCallback(
+    (sending: boolean, targetConversationId = conversationId) => {
+      if (targetConversationId) chatRuntimeStore.setRuntime(targetConversationId, { sending });
+    },
+    [conversationId],
+  );
+  const setStreamingId = useCallback(
+    (streamingId: string | null, targetConversationId = conversationId) => {
+      if (targetConversationId) chatRuntimeStore.setRuntime(targetConversationId, { streamingId });
+    },
+    [conversationId],
+  );
+  const setActiveAgent = useCallback(
+    (activeAgent: string, targetConversationId = conversationId) => {
+      if (targetConversationId) chatRuntimeStore.setRuntime(targetConversationId, { activeAgent });
+    },
+    [conversationId],
+  );
+  const setAutoRoutedAgent = useCallback(
+    (autoRoutedAgent: string | null, targetConversationId = conversationId) => {
+      if (targetConversationId)
+        chatRuntimeStore.setRuntime(targetConversationId, { autoRoutedAgent });
+    },
+    [conversationId],
+  );
+  const setAgentRunStatus = useCallback(
+    (action: SetStateAction<AgentRunStatusData | null>, targetConversationId = conversationId) => {
+      if (!targetConversationId) return;
+      const previous = chatRuntimeStore.getRuntime(targetConversationId).agentRunStatus;
+      const agentRunStatus = typeof action === 'function' ? action(previous) : action;
+      chatRuntimeStore.setRuntime(targetConversationId, { agentRunStatus });
+    },
+    [conversationId],
+  );
 
   useEffect(() => {
     fetchAgents()
       .then((data) => setAgents(data.agents || []))
-      .catch(() => setAgents([{
-        id: 'general', name: '通用助手', label: '通用助手', description: '', type: 'general',
-        systemPrompt: null, mcpServerIds: [], available: true, errorMessage: null,
-        triggerKeywords: [], createdAt: '', updatedAt: '',
-      }]));
+      .catch(() =>
+        setAgents([
+          {
+            id: 'general',
+            name: '通用助手',
+            label: '通用助手',
+            description: '',
+            type: 'general',
+            systemPrompt: null,
+            mcpServerIds: [],
+            available: true,
+            errorMessage: null,
+            triggerKeywords: [],
+            createdAt: '',
+            updatedAt: '',
+          },
+        ]),
+      );
   }, []);
 
   useEffect(() => {

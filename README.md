@@ -11,7 +11,7 @@
 Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构建为原生桌面应用。它可以将文档、网页和对话沉淀为可持续使用的知识，并连接任意兼容 OpenAI 的 API 端点；所有数据始终保留在本机。
 
 <p align="center">
-  <img src="screenshots/mint-preview.png" alt="Mint 预览" width="800" />
+  <img src="docs/screenshots/mint-preview.png" alt="Mint 预览" width="800" />
 </p>
 
 <img src="https://mint-badge-tracker.wd824021097.workers.dev/track.png" style="display:none" />

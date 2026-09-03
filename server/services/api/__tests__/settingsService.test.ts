@@ -27,7 +27,7 @@ import * as endpointRepo from '../../../repositories/endpointRepository.js';
 describe('settingsService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    Object.keys(mockSettings).forEach(k => delete mockSettings[k]);
+    Object.keys(mockSettings).forEach((k) => delete mockSettings[k]);
     vi.mocked(endpointRepo.getActive).mockReturnValue(null);
     vi.mocked(settingsRepo.getAll).mockReturnValue(mockSettings);
   });
@@ -70,9 +70,17 @@ describe('settingsService', () => {
 
     it('reads active endpoint info', () => {
       vi.mocked(endpointRepo.getActive).mockReturnValue({
-        id: 'ep-1', name: 'Active', apiUrl: '', apiKey: '', modelId: '',
-        apiType: 'openai-chat', category: 'text', isActive: true, sortOrder: 0,
-        createdAt: '', updatedAt: '',
+        id: 'ep-1',
+        name: 'Active',
+        apiUrl: '',
+        apiKey: '',
+        modelId: '',
+        apiType: 'openai-chat',
+        category: 'text',
+        isActive: true,
+        sortOrder: 0,
+        createdAt: '',
+        updatedAt: '',
       } as any);
       const s = settingsService.get();
       expect(s.activeEndpointId).toBe('ep-1');
@@ -83,9 +91,17 @@ describe('settingsService', () => {
   describe('getAiSettings', () => {
     it('uses active endpoint', () => {
       vi.mocked(endpointRepo.getActive).mockReturnValue({
-        id: 'ep-2', name: 'Active', apiUrl: 'https://active.com', apiKey: 'sk-actual',
-        modelId: 'gpt-4o', apiType: 'openai-chat', category: 'text',
-        isActive: true, sortOrder: 0, createdAt: '', updatedAt: '',
+        id: 'ep-2',
+        name: 'Active',
+        apiUrl: 'https://active.com',
+        apiKey: 'sk-actual',
+        modelId: 'gpt-4o',
+        apiType: 'openai-chat',
+        category: 'text',
+        isActive: true,
+        sortOrder: 0,
+        createdAt: '',
+        updatedAt: '',
       } as any);
       mockSettings.systemPrompt = 'custom';
       mockSettings.thinkingMode = 'true';
@@ -128,9 +144,17 @@ describe('settingsService', () => {
 
     it('syncs to active endpoint when available', () => {
       vi.mocked(endpointRepo.getActive).mockReturnValue({
-        id: 'ep-3', name: 'Active', apiUrl: 'https://old.com', apiKey: '',
-        modelId: 'old', apiType: 'openai-chat', category: 'text',
-        isActive: true, sortOrder: 0, createdAt: '', updatedAt: '',
+        id: 'ep-3',
+        name: 'Active',
+        apiUrl: 'https://old.com',
+        apiKey: '',
+        modelId: 'old',
+        apiType: 'openai-chat',
+        category: 'text',
+        isActive: true,
+        sortOrder: 0,
+        createdAt: '',
+        updatedAt: '',
       } as any);
       const updateMock = vi.mocked(endpointRepo.update);
 
@@ -140,10 +164,37 @@ describe('settingsService', () => {
         apiKey: 'sk-key',
       });
 
-      expect(updateMock).toHaveBeenCalledWith('ep-3', expect.objectContaining({
-        apiUrl: 'https://new.com',
-        modelId: 'gpt-4',
-      }));
+      expect(updateMock).toHaveBeenCalledWith(
+        'ep-3',
+        expect.objectContaining({
+          apiUrl: 'https://new.com',
+          modelId: 'gpt-4',
+        }),
+      );
+    });
+
+    it('does not overwrite or sync model settings when they are omitted', () => {
+      mockSettings.apiUrl = 'https://legacy.com';
+      mockSettings.modelId = 'legacy-model';
+      vi.mocked(endpointRepo.getActive).mockReturnValue({
+        id: 'ep-4',
+        name: 'Active',
+        apiUrl: 'https://endpoint.com',
+        apiKey: '',
+        modelId: 'endpoint-model',
+        apiType: 'openai-chat',
+        category: 'text',
+        isActive: true,
+        sortOrder: 0,
+        createdAt: '',
+        updatedAt: '',
+      } as any);
+
+      settingsService.save({ systemPrompt: 'Be concise' });
+
+      expect(mockSettings.apiUrl).toBe('https://legacy.com');
+      expect(mockSettings.modelId).toBe('legacy-model');
+      expect(endpointRepo.update).not.toHaveBeenCalled();
     });
   });
 });

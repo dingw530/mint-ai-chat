@@ -7,17 +7,22 @@ const log = createLogger('manifest-generator');
 
 // ── 生成 manifest JSON ──
 
-export function generateManifest(descriptors: EndpointDescriptor[], resourcePrefix: string): ManifestEntry[] {
-  return descriptors.filter((desc) => !desc.stream).map((desc) => ({
-    id: desc.id,
-    ipcChannel: desc.ipcChannel || desc.id,
-    preloadMethod: desc.preloadMethod || null,
-    method: desc.method,
-    httpPath: `/${resourcePrefix}${desc.path === '/' ? '' : desc.path}`,
-    args: desc.args || [],
-    result: typeof desc.result === 'string' ? desc.result : null,
-    async: desc.async || false,
-  }));
+export function generateManifest(
+  descriptors: EndpointDescriptor[],
+  resourcePrefix: string,
+): ManifestEntry[] {
+  return descriptors
+    .filter((desc) => !desc.stream)
+    .map((desc) => ({
+      id: desc.id,
+      ipcChannel: desc.ipcChannel || desc.id,
+      preloadMethod: desc.preloadMethod || null,
+      method: desc.method,
+      httpPath: `/${resourcePrefix}${desc.path === '/' ? '' : desc.path}`,
+      args: desc.args || [],
+      result: typeof desc.result === 'string' ? desc.result : null,
+      async: desc.async || false,
+    }));
 }
 
 // ── 写入 manifest 文件 ──
@@ -37,7 +42,7 @@ export function writeManifest(
 
   const outputPath = path.join(outputDir, 'endpoints-manifest.json');
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(entries, null, 2), 'utf-8');
+  fs.writeFileSync(outputPath, `${JSON.stringify(entries, null, 2)}\n`, 'utf-8');
 
   log.info(`Wrote manifest with ${entries.length} entries to ${outputPath}`);
 }
