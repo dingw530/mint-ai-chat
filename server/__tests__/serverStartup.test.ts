@@ -18,9 +18,10 @@ describe('server startup', () => {
   let artifactRoot: string;
 
   beforeEach(async () => {
+    mockApp.listen.mockClear();
     artifactRoot = join(tmpdir(), `mint-startup-artifact-${Date.now()}`);
     process.env.AI_CHAT_CONTEXT_ARTIFACT_DIR = artifactRoot;
-    mockApp.listen.mockImplementation((_port: number, callback: () => void) => {
+    mockApp.listen.mockImplementation((_port: number, _host: string, callback: () => void) => {
       const server = {
         address: () => ({ address: '127.0.0.1', family: 'IPv4', port: 3456 }),
         on: vi.fn(),
@@ -45,7 +46,7 @@ describe('server startup', () => {
     const port = await startServer(3456);
 
     expect(port).toBe(3456);
-    expect(mockApp.listen).toHaveBeenCalledWith(3456, expect.any(Function));
+    expect(mockApp.listen).toHaveBeenCalledWith(3456, '127.0.0.1', expect.any(Function));
     await expect(readFile(expiredPath)).rejects.toThrow();
   });
 });

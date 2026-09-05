@@ -79,6 +79,14 @@ npm run dev
 它会自动回退到随机端口；此时请以 server 日志中的实际端口为准，并同步调整
 `VITE_API_PROXY_TARGET`。
 
+### Docker（仅本机访问）
+
+```bash
+AI_CHAT_ENCRYPTION_KEY="$(openssl rand -hex 16)" docker compose up --build
+```
+
+官方 Compose 仅将服务发布到 <http://localhost:3001>。Mint 的 HTTP API 没有用户认证；请勿通过局域网地址、反向代理、host networking 或自定义端口映射将其对外暴露。CORS 不构成访问控制。
+
 ### Electron 开发模式
 
 ```bash
