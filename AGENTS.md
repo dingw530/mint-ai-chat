@@ -2,13 +2,13 @@
 
 ## Stack
 
-| Layer | Tech |
-|-------|------|
-| Language | TypeScript (全栈) |
+| Layer    | Tech                                    |
+| -------- | --------------------------------------- |
+| Language | TypeScript (全栈)                       |
 | Frontend | React 18, Vite 5, CSS Custom Properties |
-| Backend | Express 4, better-sqlite3 (SQLite) |
-| Desktop | Electron + electron-builder |
-| Testing | Vitest 1.x |
+| Backend  | Express 4, better-sqlite3 (SQLite)      |
+| Desktop  | Electron + electron-builder             |
+| Testing  | Vitest 1.x                              |
 
 ## Architecture Layers
 
@@ -104,28 +104,28 @@ docs/exec-plans/README.md       执行计划索引
 
 ## Environment
 
-| 变量 | 说明 |
-|------|------|
-| `AI_CHAT_ENCRYPTION_KEY` | AES-256-GCM 密钥（必填） |
-| `AI_CHAT_DB_PATH` | SQLite 路径覆盖（默认 `~/.mint/data.db`） |
-| `PORT` | 服务端口（默认 3001） |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 默认 API 密钥 |
+| 变量                                   | 说明                                      |
+| -------------------------------------- | ----------------------------------------- |
+| `AI_CHAT_ENCRYPTION_KEY`               | AES-256-GCM 密钥（必填）                  |
+| `AI_CHAT_DB_PATH`                      | SQLite 路径覆盖（默认 `~/.mint/data.db`） |
+| `PORT`                                 | 服务端口（默认 3001）                     |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 默认 API 密钥                             |
 
 ## Where to Look First
 
-| 任务 | 入口 |
-|------|------|
-| 前端入口 | `client/src/App.tsx` |
-| 消息流/SSE | `client/src/features/chat/` + `server/routes/conversations.ts` |
+| 任务           | 入口                                                                 |
+| -------------- | -------------------------------------------------------------------- |
+| 前端入口       | `client/src/App.tsx`                                                 |
+| 消息流/SSE     | `client/src/features/chat/` + `server/routes/conversations.ts`       |
 | ReAct 推理循环 | `server/services/api/orchestratorService.ts` + `reactRoundEngine.ts` |
-| AI 适配器 | `server/services/adapters/` |
-| Wiki 知识库 | `server/services/api/wikiCompiler.ts` + `wikiService.ts` |
-| 工具实现 | `server/services/tools/` |
-| 数据库迁移 | `server/migrations/` |
-| 端点注册 | `server/endpoints/` |
-| 设置/配置 | `server/routes/settings.ts` + `client/src/features/settings/` |
-| Electron 桌面 | `electron/main.js` + `electron/preload.js` |
-| 测试 | 各源码目录下的 `__tests__/` |
+| AI 适配器      | `server/services/adapters/`                                          |
+| Wiki 知识库    | `server/services/api/wikiCompiler.ts` + `wikiService.ts`             |
+| 工具实现       | `server/services/tools/`                                             |
+| 数据库迁移     | `server/migrations/`                                                 |
+| 端点注册       | `server/endpoints/`                                                  |
+| 设置/配置      | `server/routes/settings.ts` + `client/src/features/settings/`        |
+| Electron 桌面  | `electron/main.js` + `electron/preload.js`                           |
+| 测试           | 各源码目录下的 `__tests__/`                                          |
 
 ## Constraints (Machine-Readable)
 
@@ -142,8 +142,6 @@ docs/exec-plans/README.md       执行计划索引
 - **MUST** 修改 TypeScript、TSX、CSS 或配置代码后执行可读性格式检查：对所有本次修改文件运行 `npx prettier --check <modified-files>`；发现格式问题必须先运行 `npx prettier --write <modified-files>` 修复
 - **MUST NOT** 提交包含异常超长单行的 JSX、TypeScript、CSS 或配置代码；格式化后仍需通过 `git diff --check`
 
-
-
 # Commit Convention
 
 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范，格式：
@@ -156,17 +154,17 @@ docs/exec-plans/README.md       执行计划索引
 
 ## Type（必选）
 
-| Type | 含义 | 示例 |
-|------|------|------|
-| `feat` | 新功能 | `feat: add image generation panel` |
-| `fix` | 修复 Bug | `fix: handle SSE parse error on partial chunk` |
-| `refactor` | 重构（既不修 Bug 也不加功能） | `refactor: extract message routing to service` |
-| `perf` | 性能优化 | `perf: lazy-load Settings modal` |
-| `style` | 代码格式（空格、分号等，不影响逻辑） | `style: reformat with 2-space indent` |
-| `test` | 增改测试 | `test: add streaming edge cases` |
-| `docs` | 仅文档变更 | `docs: add architecture overview` |
-| `chore` | 构建/工具/依赖 | `chore: upgrade vite to 5.4` |
-| `ci` | CI 配置变更 | `ci: add lint step to pipeline` |
+| Type       | 含义                                 | 示例                                           |
+| ---------- | ------------------------------------ | ---------------------------------------------- |
+| `feat`     | 新功能                               | `feat: add image generation panel`             |
+| `fix`      | 修复 Bug                             | `fix: handle SSE parse error on partial chunk` |
+| `refactor` | 重构（既不修 Bug 也不加功能）        | `refactor: extract message routing to service` |
+| `perf`     | 性能优化                             | `perf: lazy-load Settings modal`               |
+| `style`    | 代码格式（空格、分号等，不影响逻辑） | `style: reformat with 2-space indent`          |
+| `test`     | 增改测试                             | `test: add streaming edge cases`               |
+| `docs`     | 仅文档变更                           | `docs: add architecture overview`              |
+| `chore`    | 构建/工具/依赖                       | `chore: upgrade vite to 5.4`                   |
+| `ci`       | CI 配置变更                          | `ci: add lint step to pipeline`                |
 
 ## Scope（可选）
 
@@ -217,7 +215,10 @@ chore: bump express from 4.18 to 4.21
 
 仅产品功能迭代需要按以下规则维护 `docs/changes/` 下的变更文档（按变更组织，含产品规格、设计文档、执行计划）。工程质量、构建、重构、测试、配置和其他非产品功能变更不要求创建或更新这套文档：
 
+本项目统一使用 SDD + Harness 工作流（`sdd-doc-generator`、`sdd-harness-workflow` 和相关 Codex 代理）。OpenSpec/OPSX 工作流已停用；`openspec/changes/archive/` 中的内容仅作为历史归档查询，不作为新变更入口。
+
 ## 目录结构
+
 ```
 docs/
 ├── changes/                          # 变更主存储
@@ -241,25 +242,30 @@ docs/
 - 不修改 `.claude/skills/sdd-doc-generator/`；Harness 通过独立 adapter 消费 SDD，不改变 SDD 生成流程。
 
 ## 执行前
+
 - 仅对产品功能迭代执行以下 SDD 文档流程；非产品功能变更跳过本节及后续文档维护步骤
 - 定位当前变更的 exec-plan，确认文档在 `docs/changes/<变更标识>/exec-plan.md` 下
 - 在 `traceability.md` 中将变更状态改为 **执行中**，初始化所有 TP 的执行记录为"待启动"
 
 ## 执行中
+
 - 开始一个 TP 时：更新状态为"进行中"，更新追溯总览表
 - 完成一个 TP 时：在 **执行记录** 中追加完成信息（状态、产出文件、遇到的问题）
 - 文件变更（新建/修改）必须记录到对应 TP 的执行备注中
 
 ## Handoff
+
 - 确保执行记录中当前 TP 状态准确
 - 写明：当前进度、下一步要做的事、已知阻塞/风险
 
 ## 归档
+
 - 所有 TP 完成后，变更状态改为 **已完成**（更新 `traceability.md` 中的状态字段和完成日期）
 - 同步更新关联的 design-doc 和 product-spec 的追溯表
 - 更新快捷索引：刷新 `docs/product-specs/README.md`、`docs/design-docs/README.md`、`docs/exec-plans/README.md`
 
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **mint-ai-chat** (8724 symbols, 15601 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
@@ -283,22 +289,22 @@ This project is indexed by GitNexus as **mint-ai-chat** (8724 symbols, 15601 rel
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/mint-ai-chat/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/mint-ai-chat/clusters` | All functional areas |
-| `gitnexus://repo/mint-ai-chat/processes` | All execution flows |
-| `gitnexus://repo/mint-ai-chat/process/{name}` | Step-by-step execution trace |
+| Resource                                      | Use for                                  |
+| --------------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/mint-ai-chat/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/mint-ai-chat/clusters`       | All functional areas                     |
+| `gitnexus://repo/mint-ai-chat/processes`      | All execution flows                      |
+| `gitnexus://repo/mint-ai-chat/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 
 <!-- gitnexus:end -->
