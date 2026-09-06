@@ -381,9 +381,9 @@ describe('reactChat', () => {
     );
 
     expect(seen).toHaveLength(3);
-    expect(seen[0].messages.at(-1)?.content).toContain('wiki_search=0/2 (remaining=2)');
-    expect(seen[1].messages.at(-1)?.content).toContain('wiki_search=1/2 (remaining=1)');
-    expect(seen[2].messages.at(-1)?.content).toContain('wiki_search=2/2 (remaining=0)');
+    expect(seen[0].messages.at(-1)?.content).toContain('wiki_search=0/2（剩余=2）');
+    expect(seen[1].messages.at(-1)?.content).toContain('wiki_search=1/2（剩余=1）');
+    expect(seen[2].messages.at(-1)?.content).toContain('wiki_search=2/2（剩余=0）');
     expect(seen[2].tools).toBeUndefined();
     expect(vi.mocked(toolLoopEngine.executeToolCallWithRetry)).toHaveBeenCalledTimes(2);
   });
