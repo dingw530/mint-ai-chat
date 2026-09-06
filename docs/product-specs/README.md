@@ -49,3 +49,5 @@
 | [Wiki 引用归一化](../changes/2026-08-24-wiki-citation-normalization/product-spec.md)                              | 2026-08-24 | 已完成 |
 | [首次启动与模型连接引导](../changes/2026-09-02-first-use-model-connection/product-spec.md)                        | 2026-09-02 | 已完成 |
 | [本机 HTTP 与 Docker 暴露边界](../changes/2026-09-04-localhost-exposure-boundary/product-spec.md)                 | 2026-09-04 | 进行中 |
+| [SQLite 迁移失败关闭](../changes/2026-09-06-migration-fail-closed/product-spec.md)                                | 2026-09-06 | 已完成 |
+| [http_fetch SSRF 目标校验](../changes/2026-09-06-http-fetch-ssrf-hardening/product-spec.md)                       | 2026-09-06 | 已完成 |
