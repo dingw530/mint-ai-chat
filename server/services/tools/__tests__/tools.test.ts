@@ -67,6 +67,9 @@ import { HttpFetchTool } from '../HttpFetchTool.js';
 import { WikiSearchTool } from '../WikiSearchTool.js';
 import { BaseTool } from '../BaseTool.js';
 import { toolExecutor } from '../ToolExecutor.js';
+import { ToolExecutor } from '../ToolExecutor.js';
+import { ToolRegistry } from '../ToolRegistry.js';
+import { browserFetch } from '../../utils/browserFetch.js';
 
 const ctx = { conversationId: 'test-conv' };
 let tmpDir: string;
@@ -487,6 +490,37 @@ describe('HttpFetchTool', () => {
   it('should validate input schema', () => {
     expect(tool.validate({ url: 'https://example.com' }).valid).toBe(true);
     expect(tool.validate({}).valid).toBe(false);
+  });
+
+  it('always enables the public-only target policy', async () => {
+    await tool.execute({ url: 'https://example.com' }, ctx);
+    expect(vi.mocked(browserFetch)).toHaveBeenCalledWith(
+      'https://example.com',
+      expect.objectContaining({ targetPolicy: 'public-only' }),
+    );
+  });
+
+  it('propagates blocked target errors to failed audit without secrets', async () => {
+    const registry = new ToolRegistry();
+    registry.register(tool);
+    vi.mocked(browserFetch).mockRejectedValueOnce(
+      new Error('HTTP_TARGET_BLOCKED hostname=private.example reason=address'),
+    );
+    const audit = vi.fn();
+    const result = await new ToolExecutor(registry).execute(
+      'http_fetch',
+      { url: 'https://private.example/?token=secret' },
+      { ...ctx, audit },
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('HTTP_TARGET_BLOCKED');
+    expect(result.error).not.toContain('token=secret');
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'failed',
+        error: expect.stringContaining('HTTP_TARGET_BLOCKED'),
+      }),
+    );
   });
 });
 
