@@ -47,12 +47,13 @@ export function isVectorExtensionLoaded(): boolean {
 export function getDb(): DatabaseConstructor.Database {
   if (!db) {
     mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL'); // WAL 模式提升并发读写性能
-    db.pragma('foreign_keys = ON'); // 启用外键约束
-    db.pragma('busy_timeout = 5000'); // 索引重建与生命周期写入并发时短暂等待写锁
+    const initializingDb = new Database(DB_PATH);
+    db = initializingDb;
     try {
-      db.loadExtension(getSqliteVecExtensionPath());
+      initializingDb.pragma('journal_mode = WAL'); // WAL 模式提升并发读写性能
+      initializingDb.pragma('foreign_keys = ON'); // 启用外键约束
+      initializingDb.pragma('busy_timeout = 5000'); // 索引重建与生命周期写入并发时短暂等待写锁
+      initializingDb.loadExtension(getSqliteVecExtensionPath());
       vectorExtensionLoaded = true;
     } catch (error) {
       vectorExtensionLoaded = false;
@@ -61,9 +62,16 @@ export function getDb(): DatabaseConstructor.Database {
         error instanceof Error ? error.message : String(error),
       );
     }
-    createSchema();
-    runMigrations(db);
-    seedData();
+    try {
+      createSchema();
+      runMigrations(initializingDb);
+      seedData();
+    } catch (error) {
+      initializingDb.close();
+      db = undefined;
+      vectorExtensionLoaded = false;
+      throw error;
+    }
   }
   return db;
 }
