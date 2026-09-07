@@ -16,9 +16,24 @@
           <span>mint</span><b>docs</b>
         </a>
         <div class="docs-header-meta">
-          <span class="docs-status"><i></i><span data-i18n="headerStatus">开源知识工作台</span></span>
-          <button class="language-toggle" type="button" aria-label="Switch language" aria-pressed="false"><span>中</span><i>/</i><span>EN</span></button>
-          <a href="https://github.com/dingw530/mint-ai-chat" target="_blank" rel="noreferrer" data-i18n="github">GitHub ↗</a>
+          <span class="docs-status"
+            ><i></i><span data-i18n="headerStatus">开源知识工作台</span></span
+          >
+          <button
+            class="language-toggle"
+            type="button"
+            aria-label="Switch language"
+            aria-pressed="false"
+          >
+            <span>中</span><i>/</i><span>EN</span>
+          </button>
+          <a
+            href="https://github.com/dingw530/mint-ai-chat"
+            target="_blank"
+            rel="noreferrer"
+            data-i18n="github"
+            >GitHub ↗</a
+          >
         </div>
       </header>
 
@@ -31,19 +46,36 @@
           <nav class="docs-nav">
             <div class="nav-group">
               <span class="nav-label" data-i18n="navStart">开始</span>
-              <a class="nav-link active" href="#overview"><span>01</span><b data-i18n="navOverview">概览</b></a>
-              <a class="nav-link" href="#quick-start"><span>02</span><b data-i18n="navQuickStart">快速开始</b></a>
+              <a class="nav-link active" href="#overview"
+                ><span>01</span><b data-i18n="navOverview">概览</b></a
+              >
+              <a class="nav-link" href="#demo"
+                ><span>02</span><b data-i18n="navDemo">本地演示</b></a
+              >
+              <a class="nav-link" href="#quick-start"
+                ><span>03</span><b data-i18n="navQuickStart">快速开始</b></a
+              >
             </div>
             <div class="nav-group">
               <span class="nav-label" data-i18n="navConcepts">概念</span>
-              <a class="nav-link" href="#what-is-mint"><span>03</span><b data-i18n="navWhat">Mint 是什么</b></a>
-              <a class="nav-link" href="#architecture"><span>04</span><b data-i18n="navArchitecture">架构分工</b></a>
-              <a class="nav-link" href="#context-lifecycle"><span>05</span><b data-i18n="navLifecycle">上下文生命周期</b></a>
+              <a class="nav-link" href="#what-is-mint"
+                ><span>03</span><b data-i18n="navWhat">Mint 是什么</b></a
+              >
+              <a class="nav-link" href="#architecture"
+                ><span>04</span><b data-i18n="navArchitecture">架构分工</b></a
+              >
+              <a class="nav-link" href="#context-lifecycle"
+                ><span>05</span><b data-i18n="navLifecycle">上下文生命周期</b></a
+              >
             </div>
             <div class="nav-group">
               <span class="nav-label" data-i18n="navGuides">指南</span>
-              <a class="nav-link" href="#interface"><span>06</span><b data-i18n="navInterface">界面对应</b></a>
-              <a class="nav-link" href="#knowledge-signals"><span>07</span><b data-i18n="navSignals">知识信号</b></a>
+              <a class="nav-link" href="#interface"
+                ><span>06</span><b data-i18n="navInterface">界面对应</b></a
+              >
+              <a class="nav-link" href="#knowledge-signals"
+                ><span>07</span><b data-i18n="navSignals">知识信号</b></a
+              >
             </div>
           </nav>
           <div class="sidebar-footer">
@@ -53,22 +85,78 @@
         </aside>
 
         <main class="docs-main" id="overview">
-          <div class="breadcrumbs"><span>Mint</span><b>/</b><span data-i18n="breadcrumbOverview">概览</span></div>
+          <div class="breadcrumbs">
+            <span>Mint</span><b>/</b><span data-i18n="breadcrumbOverview">概览</span>
+          </div>
           <div class="docs-content-grid">
             <article class="doc-article">
               <header class="doc-header">
                 <div class="doc-kicker"><span>OVERVIEW</span><b>01</b></div>
                 <h1 data-i18n="pageTitle">Mint 文档</h1>
-                <p class="doc-lede" data-i18n="pageLede">Mint 是一个以 LLM Wiki 为知识核心、以 Chat 为交互入口、以 Agent 和 Tools 为执行出口的开源 AI 工作台。</p>
-                <div class="doc-meta"><span data-i18n="docMetaOne">阅读时间 · 5 分钟</span><span data-i18n="docMetaTwo">范围 · 产品与架构</span><span>MIT / OPEN SOURCE</span></div>
+                <p class="doc-lede" data-i18n="pageLede">
+                  Mint 是一个以 LLM Wiki 为知识核心、以 Chat 为交互入口、以 Agent 和 Tools
+                  为执行出口的开源 AI 工作台。
+                </p>
+                <div class="doc-meta">
+                  <span data-i18n="docMetaOne">阅读时间 · 5 分钟</span
+                  ><span data-i18n="docMetaTwo">范围 · 产品与架构</span
+                  ><span>MIT / OPEN SOURCE</span>
+                </div>
               </header>
+
+              <section class="doc-section demo-section" id="demo">
+                <div class="section-marker">02</div>
+                <div class="section-body">
+                  <div class="demo-heading">
+                    <div>
+                      <span class="demo-kicker" data-i18n="demoKicker">LOCAL DEMO / 03:00</span>
+                      <h2 data-i18n="demoTitle">看 Mint 如何把知识带进工作</h2>
+                      <p data-i18n="demoBody">
+                        从本地资料开始，经过 Wiki、检索和
+                        Agent，最后回到一个可追溯的回答。视频中的每一步都对应当前应用里的真实界面。
+                      </p>
+                    </div>
+                    <span class="demo-badge" data-i18n="demoBadge">OFFLINE FIRST</span>
+                  </div>
+                  <figure class="demo-figure">
+                    <video
+                      controls
+                      preload="metadata"
+                      playsinline
+                      poster="./assets/mint-overview.png"
+                      aria-label="Mint local product demonstration"
+                    >
+                      <source src="./assets/example.mp4" type="video/mp4" />
+                      <span data-i18n="videoFallback"
+                        >你的浏览器不支持视频播放，请直接下载演示视频。</span
+                      >
+                    </video>
+                    <figcaption>
+                      <b>DEMO 01</b
+                      ><span data-i18n="demoCaption"
+                        >本地演示：导入资料、检索知识、生成带引用的回答，并触发 Agent 审批。</span
+                      >
+                    </figcaption>
+                  </figure>
+                </div>
+              </section>
 
               <section class="doc-section" id="what-is-mint">
                 <div class="section-marker">01</div>
                 <div class="section-body">
                   <h2 data-i18n="whatTitle">Mint 要解决什么问题？</h2>
-                  <p data-i18n="whatBody">普通聊天可以回答一次问题，却很难持续记住项目背景、知识来源和已经做过的决定。Mint 把这些内容放进一个可编译、可检索、可追溯的知识层，再让对话和 Agent 使用同一份上下文。</p>
-                  <div class="note-block"><span class="note-label" data-i18n="principleLabel">核心判断</span><p data-i18n="principleBody">如果上下文不能被留下、定位和继续使用，AI 的每次回答都可能只是一次性的文本生成。</p></div>
+                  <p data-i18n="whatBody">
+                    普通聊天可以回答一次问题，却很难持续记住项目背景、知识来源和已经做过的决定。Mint
+                    把这些内容放进一个可编译、可检索、可追溯的知识层，再让对话和 Agent
+                    使用同一份上下文。
+                  </p>
+                  <div class="note-block">
+                    <span class="note-label" data-i18n="principleLabel">核心判断</span>
+                    <p data-i18n="principleBody">
+                      如果上下文不能被留下、定位和继续使用，AI
+                      的每次回答都可能只是一次性的文本生成。
+                    </p>
+                  </div>
                 </div>
               </section>
 
@@ -76,12 +164,46 @@
                 <div class="section-marker">02</div>
                 <div class="section-body">
                   <h2 data-i18n="quickTitle">从一个真实问题开始</h2>
-                  <p data-i18n="quickBody">不需要先理解所有模块。准备一份正在使用的项目资料，然后用一个具体问题走完下面的路径。</p>
+                  <p data-i18n="quickBody">
+                    不需要先理解所有模块。准备一份正在使用的项目资料，然后用一个具体问题走完下面的路径。
+                  </p>
                   <ol class="step-list">
-                    <li><span>01</span><div><strong data-i18n="quickStepOneTitle">放入资料</strong><p data-i18n="quickStepOneBody">导入 Wiki 页面、README、设计文档或会议记录，保留来源。</p></div></li>
-                    <li><span>02</span><div><strong data-i18n="quickStepTwoTitle">检查知识状态</strong><p data-i18n="quickStepTwoBody">查看页面、关系和知识热度，先知道哪些内容已经可用。</p></div></li>
-                    <li><span>03</span><div><strong data-i18n="quickStepThreeTitle">在 Chat 中追问</strong><p data-i18n="quickStepThreeBody">围绕一个问题逐步追问，并回到来源核对上下文。</p></div></li>
-                    <li><span>04</span><div><strong data-i18n="quickStepFourTitle">交给执行层</strong><p data-i18n="quickStepFourBody">需要行动时，再让 Agent 或 Tools 带着上下文完成下一步。</p></div></li>
+                    <li>
+                      <span>01</span>
+                      <div>
+                        <strong data-i18n="quickStepOneTitle">放入资料</strong>
+                        <p data-i18n="quickStepOneBody">
+                          导入 Wiki 页面、README、设计文档或会议记录，保留来源。
+                        </p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>02</span>
+                      <div>
+                        <strong data-i18n="quickStepTwoTitle">检查知识状态</strong>
+                        <p data-i18n="quickStepTwoBody">
+                          查看页面、关系和知识热度，先知道哪些内容已经可用。
+                        </p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>03</span>
+                      <div>
+                        <strong data-i18n="quickStepThreeTitle">在 Chat 中追问</strong>
+                        <p data-i18n="quickStepThreeBody">
+                          围绕一个问题逐步追问，并回到来源核对上下文。
+                        </p>
+                      </div>
+                    </li>
+                    <li>
+                      <span>04</span>
+                      <div>
+                        <strong data-i18n="quickStepFourTitle">交给执行层</strong>
+                        <p data-i18n="quickStepFourBody">
+                          需要行动时，再让 Agent 或 Tools 带着上下文完成下一步。
+                        </p>
+                      </div>
+                    </li>
                   </ol>
                 </div>
               </section>
@@ -90,13 +212,39 @@
                 <div class="section-marker">03</div>
                 <div class="section-body">
                   <h2 data-i18n="architectureTitle">组件如何分工</h2>
-                  <p data-i18n="architectureBody">Mint 不是把所有能力塞进一个聊天框。每一层有明确职责，也有明确的产出。</p>
-                  <div class="architecture-table" role="table" aria-label="Mint architecture responsibilities">
-                    <div class="table-row table-head" role="row"><span data-i18n="tableLayer">层</span><span data-i18n="tableResponsibility">负责什么</span><span data-i18n="tableOutput">产出什么</span></div>
-                    <div class="table-row" role="row"><strong>LLM Wiki</strong><span data-i18n="wikiResponsibility">积累、组织和编译知识</span><span data-i18n="wikiOutput">可检索的页面、关系和来源</span></div>
-                    <div class="table-row" role="row"><strong>Context</strong><span data-i18n="contextResponsibility">把相关内容带入当前任务</span><span data-i18n="contextOutput">有边界的上下文</span></div>
-                    <div class="table-row" role="row"><strong>Chat</strong><span data-i18n="chatResponsibility">提供最低摩擦的交互入口</span><span data-i18n="chatOutput">问题、追问和回答</span></div>
-                    <div class="table-row" role="row"><strong>Agent / Tools</strong><span data-i18n="agentResponsibility">根据上下文推进任务</span><span data-i18n="agentOutput">动作、结果和可回看的过程</span></div>
+                  <p data-i18n="architectureBody">
+                    Mint 不是把所有能力塞进一个聊天框。每一层有明确职责，也有明确的产出。
+                  </p>
+                  <div
+                    class="architecture-table"
+                    role="table"
+                    aria-label="Mint architecture responsibilities"
+                  >
+                    <div class="table-row table-head" role="row">
+                      <span data-i18n="tableLayer">层</span
+                      ><span data-i18n="tableResponsibility">负责什么</span
+                      ><span data-i18n="tableOutput">产出什么</span>
+                    </div>
+                    <div class="table-row" role="row">
+                      <strong>LLM Wiki</strong
+                      ><span data-i18n="wikiResponsibility">积累、组织和编译知识</span
+                      ><span data-i18n="wikiOutput">可检索的页面、关系和来源</span>
+                    </div>
+                    <div class="table-row" role="row">
+                      <strong>Context</strong
+                      ><span data-i18n="contextResponsibility">把相关内容带入当前任务</span
+                      ><span data-i18n="contextOutput">有边界的上下文</span>
+                    </div>
+                    <div class="table-row" role="row">
+                      <strong>Chat</strong
+                      ><span data-i18n="chatResponsibility">提供最低摩擦的交互入口</span
+                      ><span data-i18n="chatOutput">问题、追问和回答</span>
+                    </div>
+                    <div class="table-row" role="row">
+                      <strong>Agent / Tools</strong
+                      ><span data-i18n="agentResponsibility">根据上下文推进任务</span
+                      ><span data-i18n="agentOutput">动作、结果和可回看的过程</span>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -105,8 +253,30 @@
                 <div class="section-marker">04</div>
                 <div class="section-body">
                   <h2 data-i18n="lifecycleTitle">上下文生命周期</h2>
-                  <p data-i18n="lifecycleBody">同一份知识会经历从来源到执行的几次转换。理解这条链，可以判断问题出在“没有资料”“没有检索到”，还是“没有执行”。</p>
-                  <div class="pipeline"><div><span>01</span><strong data-i18n="pipelineOne">Sources</strong><small data-i18n="pipelineOneBody">原始页面与文件</small></div><b>→</b><div><span>02</span><strong data-i18n="pipelineTwo">Wiki</strong><small data-i18n="pipelineTwoBody">结构与关系</small></div><b>→</b><div><span>03</span><strong data-i18n="pipelineThree">Context</strong><small data-i18n="pipelineThreeBody">当前任务需要的片段</small></div><b>→</b><div><span>04</span><strong data-i18n="pipelineFour">Action</strong><small data-i18n="pipelineFourBody">对话、工具与 Agent</small></div></div>
+                  <p data-i18n="lifecycleBody">
+                    同一份知识会经历从来源到执行的几次转换。理解这条链，可以判断问题出在“没有资料”“没有检索到”，还是“没有执行”。
+                  </p>
+                  <div class="pipeline">
+                    <div>
+                      <span>01</span><strong data-i18n="pipelineOne">Sources</strong
+                      ><small data-i18n="pipelineOneBody">原始页面与文件</small>
+                    </div>
+                    <b>→</b>
+                    <div>
+                      <span>02</span><strong data-i18n="pipelineTwo">Wiki</strong
+                      ><small data-i18n="pipelineTwoBody">结构与关系</small>
+                    </div>
+                    <b>→</b>
+                    <div>
+                      <span>03</span><strong data-i18n="pipelineThree">Context</strong
+                      ><small data-i18n="pipelineThreeBody">当前任务需要的片段</small>
+                    </div>
+                    <b>→</b>
+                    <div>
+                      <span>04</span><strong data-i18n="pipelineFour">Action</strong
+                      ><small data-i18n="pipelineFourBody">对话、工具与 Agent</small>
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -114,8 +284,21 @@
                 <div class="section-marker">05</div>
                 <div class="section-body">
                   <h2 data-i18n="interfaceTitle">这些概念在界面里对应什么？</h2>
-                  <p data-i18n="interfaceBody">左侧是进入不同工作面的导航，中间是当前任务，知识库页面则提供来源、关系和生命周期信号。下面是当前实现中的真实界面。</p>
-                  <figure class="doc-figure"><img src="./assets/iShot_2026-07-25_18.32.45.png" alt="Mint LLM Wiki knowledge signal dashboard" /><figcaption><b>FIG 01</b><span data-i18n="figureCaption">知识热度页面：从访问反馈中识别值得继续维护的知识。</span></figcaption></figure>
+                  <p data-i18n="interfaceBody">
+                    左侧是进入不同工作面的导航，中间是当前任务，知识库页面则提供来源、关系和生命周期信号。下面是当前实现中的真实界面。
+                  </p>
+                  <figure class="doc-figure">
+                    <img
+                      src="./assets/iShot_2026-07-25_18.32.45.png"
+                      alt="Mint LLM Wiki knowledge signal dashboard"
+                    />
+                    <figcaption>
+                      <b>FIG 01</b
+                      ><span data-i18n="figureCaption"
+                        >知识热度页面：从访问反馈中识别值得继续维护的知识。</span
+                      >
+                    </figcaption>
+                  </figure>
                 </div>
               </section>
 
@@ -123,17 +306,42 @@
                 <div class="section-marker">06</div>
                 <div class="section-body">
                   <h2 data-i18n="signalsTitle">知识信号是什么？</h2>
-                  <p data-i18n="signalsBody">知识库不应该只是文件列表。访问、召回和关系可以成为反馈信号，帮助判断哪些页面正在被使用、哪些内容需要更新，以及下一次检索应该优先看到什么。</p>
-                  <div class="callout-grid"><div><span>USE</span><strong data-i18n="signalUseTitle">被谁使用</strong><p data-i18n="signalUseBody">访问和召回反馈。</p></div><div><span>CARE</span><strong data-i18n="signalCareTitle">哪里需要维护</strong><p data-i18n="signalCareBody">过期、孤立或低热度页面。</p></div><div><span>NEXT</span><strong data-i18n="signalNextTitle">下一步看什么</strong><p data-i18n="signalNextBody">关系和检索优先级。</p></div></div>
+                  <p data-i18n="signalsBody">
+                    知识库不应该只是文件列表。访问、召回和关系可以成为反馈信号，帮助判断哪些页面正在被使用、哪些内容需要更新，以及下一次检索应该优先看到什么。
+                  </p>
+                  <div class="callout-grid">
+                    <div>
+                      <span>USE</span><strong data-i18n="signalUseTitle">被谁使用</strong>
+                      <p data-i18n="signalUseBody">访问和召回反馈。</p>
+                    </div>
+                    <div>
+                      <span>CARE</span><strong data-i18n="signalCareTitle">哪里需要维护</strong>
+                      <p data-i18n="signalCareBody">过期、孤立或低热度页面。</p>
+                    </div>
+                    <div>
+                      <span>NEXT</span><strong data-i18n="signalNextTitle">下一步看什么</strong>
+                      <p data-i18n="signalNextBody">关系和检索优先级。</p>
+                    </div>
+                  </div>
                 </div>
               </section>
 
-              <footer class="doc-footer"><span data-i18n="footerNote">这是一份随实现持续更新的文档。</span><a href="https://github.com/dingw530/mint-ai-chat" target="_blank" rel="noreferrer" data-i18n="footerLink">在 GitHub 查看源码 ↗</a></footer>
+              <footer class="doc-footer">
+                <span data-i18n="footerNote">这是一份随实现持续更新的文档。</span
+                ><a
+                  href="https://github.com/dingw530/mint-ai-chat"
+                  target="_blank"
+                  rel="noreferrer"
+                  data-i18n="footerLink"
+                  >在 GitHub 查看源码 ↗</a
+                >
+              </footer>
             </article>
 
             <aside class="toc" aria-label="On this page">
               <span class="toc-label" data-i18n="tocLabel">本页目录</span>
               <a href="#what-is-mint" data-i18n="tocWhat">Mint 要解决什么问题？</a>
+              <a href="#demo" data-i18n="tocDemo">本地演示</a>
               <a href="#quick-start" data-i18n="tocQuick">从一个真实问题开始</a>
               <a href="#architecture" data-i18n="tocArchitecture">组件如何分工</a>
               <a href="#context-lifecycle" data-i18n="tocLifecycle">上下文生命周期</a>
@@ -141,7 +349,9 @@
               <a href="#knowledge-signals" data-i18n="tocSignals">知识信号</a>
               <div class="toc-rule"></div>
               <span class="toc-label" data-i18n="tocRelated">相关入口</span>
-              <a href="https://github.com/dingw530/mint-ai-chat" target="_blank" rel="noreferrer">Repository ↗</a>
+              <a href="https://github.com/dingw530/mint-ai-chat" target="_blank" rel="noreferrer"
+                >Repository ↗</a
+              >
             </aside>
           </div>
         </main>
