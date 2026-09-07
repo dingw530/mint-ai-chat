@@ -14,6 +14,11 @@ Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构
   <img src="docs/screenshots/mint-preview.png" alt="Mint 预览" width="800" />
 </p>
 
+<p>
+<video src="website/assets/example.mp4" width="800"></video>
+</p>
+
+
 ## 功能特性
 
 - 自定义 Agent 与 API 端点配置
@@ -109,6 +114,35 @@ npm run electron:build:mac
 ```
 
 构建产物位于 `electron/release/`。
+
+#### macOS 签名与公证发布
+
+`npm run electron:build:mac` 适合本地验证，未签名包不应直接发布。正式发布前需要：
+
+1. 在 Apple Developer 中创建 `Developer ID Application` 证书，并安装到构建机钥匙串。
+2. 设置 electron-builder 的签名凭据。CI 推荐使用 base64 编码的 `.p12`：
+
+   ```bash
+   export CSC_LINK=/secure/path/developer-id-application.p12
+   export CSC_KEY_PASSWORD='<p12-password>'
+   ```
+
+   本机钥匙串也可以使用 `CSC_NAME='Developer ID Application: <Team Name> (<TEAM_ID>)'`。
+
+3. 构建签名包：
+
+   ```bash
+   npm run electron:build:mac
+   ```
+
+签名由 electron-builder 完成，构建配置启用了 hardened runtime。当前项目未配置自动 notarization。发布前验证签名和 DMG：
+
+```bash
+codesign --verify --deep --strict --verbose=2 electron/release/mac-arm64/Mint.app
+hdiutil verify electron/release/Mint-*-arm64.dmg
+```
+
+`CSC_LINK`、`CSC_KEY_PASSWORD` 不得提交到 Git。没有 Apple Developer 证书时只能生成本地测试包，不能解决其他 Mac 上的“应用已损坏”提示。
 
 打包、原生依赖或 Electron 配置变更后，运行以下命令从全新 `.app` 中检查 `app.asar`、`app.asar.unpacked` 与 sqlite-vec 动态库：
 
