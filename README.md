@@ -14,8 +14,6 @@ Mint 是一款以 LLM Wiki 知识库为核心的 AI 助手，基于 Electron 构
   <img src="docs/screenshots/mint-preview.png" alt="Mint 预览" width="800" />
 </p>
 
-<img src="https://mint-badge-tracker.wd824021097.workers.dev/track.png" style="display:none" />
-
 ## 功能特性
 
 - 自定义 Agent 与 API 端点配置

@@ -1,0 +1,338 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Mint 核心架构与消息主链路",
+    "locale": "zh-CN",
+    "output": "mint-core-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/dingw530/mint-ai-chat.git",
+      "revision": "94a89f86204a93bed618124bbf2ba0b3472337a0"
+    },
+    "viewBox": [1390, 780],
+    "views": [
+      {
+        "id": "main-chain",
+        "label": "消息主链路",
+        "focus": [
+          "user",
+          "chat-ui",
+          "transport",
+          "message-service",
+          "react-runtime",
+          "event-stream",
+          "ui-render"
+        ],
+        "note": "从用户输入到 AgentRun 事件，再到前端增量渲染。"
+      },
+      {
+        "id": "agent-loop",
+        "label": "Agent 决策与执行",
+        "focus": ["react-runtime", "model-adapter", "model-provider", "tool-runtime"],
+        "note": "模型负责决策，Mint Runtime 负责工具授权、执行、重试与循环控制。"
+      },
+      {
+        "id": "context-state",
+        "label": "上下文与持久化",
+        "focus": ["message-service", "context-sources", "event-stream", "sqlite"],
+        "note": "Wiki、Memory、消息、UI Blocks 与恢复事件共同支撑连续运行。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "用户",
+      "sublabel": "交互控制",
+      "pos": [20, 340],
+      "size": [120, 68]
+    },
+    {
+      "id": "chat-ui",
+      "type": "frontend",
+      "label": "Chat UI",
+      "sublabel": "React · useSSE",
+      "pos": [170, 340],
+      "size": [145, 68],
+      "sources": [
+        { "path": "client/src/hooks/useSSE.ts", "line": 20, "label": "流式 Hook" },
+        { "path": "client/src/services/api/streaming.ts", "line": 17, "label": "双传输客户端" }
+      ]
+    },
+    {
+      "id": "transport",
+      "type": "messagebus",
+      "label": "双传输入口",
+      "sublabel": "HTTP SSE / Electron IPC",
+      "pos": [345, 340],
+      "size": [165, 68],
+      "sources": [
+        { "path": "server/routes/messages.ts", "line": 16, "label": "Express SSE" },
+        { "path": "electron/ipc/chat.js", "line": 8, "label": "Electron IPC" }
+      ]
+    },
+    {
+      "id": "message-service",
+      "type": "backend",
+      "label": "消息编排门面",
+      "sublabel": "messageService.sendMessage",
+      "pos": [540, 340],
+      "size": [175, 68],
+      "sources": [
+        { "path": "server/services/messageService.ts", "line": 81, "label": "统一入口" },
+        { "path": "server/services/messageService.ts", "line": 172, "label": "上下文组装" }
+      ]
+    },
+    {
+      "id": "react-runtime",
+      "type": "backend",
+      "label": "ReAct Runtime",
+      "sublabel": "reactChat · executeReactRun",
+      "tag": "核心循环",
+      "pos": [745, 340],
+      "size": [185, 68],
+      "sources": [
+        { "path": "server/services/reactLoopCore.ts", "line": 463, "label": "循环执行" },
+        { "path": "server/services/reactLoopCore.ts", "line": 743, "label": "传输适配门面" },
+        { "path": "server/services/toolRoundEngine.ts", "line": 139, "label": "单轮模型调用" }
+      ]
+    },
+    {
+      "id": "event-stream",
+      "type": "messagebus",
+      "label": "AgentRun 事件流",
+      "sublabel": "状态 · 回答 · A2UI",
+      "pos": [960, 340],
+      "size": [165, 68],
+      "sources": [
+        { "path": "server/services/agentRun.ts", "line": 202, "label": "持久化运行" },
+        { "path": "server/services/reactEvents.ts", "line": 1, "label": "事件映射" },
+        { "path": "server/services/sink.ts", "line": 1, "label": "Sink 输出" }
+      ]
+    },
+    {
+      "id": "ui-render",
+      "type": "frontend",
+      "label": "增量渲染",
+      "sublabel": "回答 · 思考 · 工具轨迹",
+      "pos": [1155, 340],
+      "size": [170, 68],
+      "sources": [
+        { "path": "client/src/services/api/_base.ts", "line": 1, "label": "SSE 事件解析" },
+        {
+          "path": "client/src/features/chat/components/ChatAreaView.tsx",
+          "line": 67,
+          "label": "Chat 渲染"
+        }
+      ]
+    },
+    {
+      "id": "context-sources",
+      "type": "database",
+      "label": "Context Providers",
+      "sublabel": "Wiki / Memory",
+      "pos": [540, 100],
+      "size": [175, 68],
+      "sources": [
+        { "path": "server/services/contextProvider.ts", "line": 105, "label": "默认上下文源" },
+        {
+          "path": "server/services/contextProviders/wikiContextProvider.ts",
+          "line": 51,
+          "label": "Wiki 上下文"
+        },
+        {
+          "path": "server/services/contextProviders/memoryContextProvider.ts",
+          "line": 7,
+          "label": "Memory 上下文"
+        }
+      ]
+    },
+    {
+      "id": "model-adapter",
+      "type": "backend",
+      "label": "AIAdapter",
+      "sublabel": "OpenAI / Anthropic",
+      "pos": [745, 100],
+      "size": [185, 68],
+      "sources": [
+        { "path": "server/services/adapters/apiAdapter.ts", "line": 1, "label": "统一适配接口" }
+      ]
+    },
+    {
+      "id": "model-provider",
+      "type": "external",
+      "label": "模型提供商",
+      "sublabel": "流式生成 / tool_calls",
+      "pos": [960, 100],
+      "size": [165, 68]
+    },
+    {
+      "id": "tool-runtime",
+      "type": "security",
+      "label": "Tool Runtime",
+      "sublabel": "Registry · Executor · Policy",
+      "tag": "授权与审计",
+      "pos": [745, 575],
+      "size": [185, 68],
+      "sources": [
+        { "path": "server/services/tools/ToolRegistry.ts", "line": 15, "label": "工具注册" },
+        { "path": "server/services/tools/ToolExecutor.ts", "line": 47, "label": "安全执行" },
+        { "path": "server/services/toolOrchestration.ts", "line": 151, "label": "统一分发" }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "消息 · Wiki · AgentRun Events",
+      "pos": [960, 575],
+      "size": [165, 68],
+      "sources": [
+        { "path": "server/db.ts", "line": 43, "label": "延迟初始化" },
+        {
+          "path": "server/repositories/agentRunEventRepository.ts",
+          "line": 1,
+          "label": "恢复事件日志"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Mint 应用运行时（Web 与 Electron 共享服务层）",
+      "wraps": [
+        "chat-ui",
+        "transport",
+        "message-service",
+        "react-runtime",
+        "event-stream",
+        "ui-render",
+        "context-sources",
+        "model-adapter",
+        "tool-runtime",
+        "sqlite"
+      ],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "id": "user-input",
+      "from": "user",
+      "to": "chat-ui",
+      "label": "提问",
+      "variant": "emphasis",
+      "width": 2,
+      "labelAt": [155, 336]
+    },
+    {
+      "id": "client-transport",
+      "from": "chat-ui",
+      "to": "transport",
+      "label": "POST SSE / IPC",
+      "variant": "emphasis",
+      "width": 2,
+      "labelAt": [330, 336]
+    },
+    {
+      "id": "transport-service",
+      "from": "transport",
+      "to": "message-service",
+      "label": "统一 sendMessage",
+      "variant": "emphasis",
+      "width": 2,
+      "labelAt": [525, 336]
+    },
+    {
+      "id": "service-runtime",
+      "from": "message-service",
+      "to": "react-runtime",
+      "label": "消息历史 + Agent 设置",
+      "variant": "emphasis",
+      "width": 2,
+      "labelAt": [730, 336]
+    },
+    {
+      "id": "runtime-events",
+      "from": "react-runtime",
+      "to": "event-stream",
+      "label": "发布 AgentRun 事件",
+      "variant": "emphasis",
+      "width": 2,
+      "labelAt": [945, 336]
+    },
+    {
+      "id": "events-render",
+      "from": "event-stream",
+      "to": "ui-render",
+      "label": "SSE / IPC chunks",
+      "variant": "emphasis",
+      "width": 2,
+      "labelAt": [1140, 336]
+    },
+    {
+      "id": "context-injection",
+      "from": "context-sources",
+      "to": "message-service",
+      "label": "Wiki + Memory 注入",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [628, 182]
+    },
+    {
+      "id": "runtime-adapter",
+      "from": "react-runtime",
+      "to": "model-adapter",
+      "label": "模型请求 / 流式响应",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "adapter-provider",
+      "from": "model-adapter",
+      "to": "model-provider",
+      "label": "Provider API",
+      "labelAt": [945, 96]
+    },
+    {
+      "id": "runtime-tools",
+      "from": "react-runtime",
+      "to": "tool-runtime",
+      "label": "tool_call / result",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [838, 422]
+    },
+    {
+      "id": "events-storage",
+      "from": "event-stream",
+      "to": "sqlite",
+      "label": "恢复安全事件",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [1043, 422]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "一条共享主链",
+      "items": [
+        "Web 与 Electron 只在传输层分叉，进入 sendMessage 后共享同一套编排与状态模型",
+        "AgentRun 事件统一承载回答、思考、工具轨迹和 A2UI，再流回前端"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "核心责任边界",
+      "items": [
+        "模型提出 tool_calls；Tool Runtime 负责校验、权限、审批、重试、超时与审计",
+        "SQLite 保存消息、知识与恢复安全事件；Wiki / Memory 通过 ContextProvider 注入"
+      ]
+    }
+  ]
+}

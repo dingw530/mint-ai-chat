@@ -26,11 +26,11 @@ describe('agentStatusBar', () => {
 
     expect(message.role).toBe('user');
     expect(message.content).toContain('<agent_status>');
-    expect(message.content).toContain('Current round: 2/5');
+    expect(message.content).toContain('当前轮次：2/5');
     expect(message.content).toContain('wiki_search=2');
-    expect(message.content).toContain('Tool budgets: total=3/3 (remaining=0), wiki_search=2/2 (remaining=0)');
-    expect(message.content).toContain('Retries: 1');
-    expect(message.content).toContain('Strategy:');
+    expect(message.content).toContain('工具预算：总计=3/3（剩余=0）, wiki_search=2/2（剩余=0）');
+    expect(message.content).toContain('重试次数：1');
+    expect(message.content).toContain('策略：');
     expect(message.content).toContain('</agent_status>');
     // elapsedMs 每轮必变，不应进入模型上下文以保持前缀缓存稳定
     expect(message.content).not.toContain('Elapsed:');

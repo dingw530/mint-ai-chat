@@ -11,10 +11,24 @@ import type { ToolContext } from './BaseTool.js';
 
 const HttpFetchInputSchema = z.object({
   url: z.string().describe('请求 URL'),
-  method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']).optional().default('GET').describe('HTTP 方法，默认 GET'),
-  headers: z.record(z.string(), z.string()).optional().describe('自定义请求头（会合并到浏览器默认头之上）'),
+  method: z
+    .enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+    .optional()
+    .default('GET')
+    .describe('HTTP 方法，默认 GET'),
+  headers: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe('自定义请求头（会合并到浏览器默认头之上）'),
   body: z.string().optional().describe('请求体（字符串）'),
-  timeout: z.coerce.number().int().min(1000).max(60000).optional().default(30000).describe('超时时间（毫秒），默认 30000'),
+  timeout: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .max(60000)
+    .optional()
+    .default(30000)
+    .describe('超时时间（毫秒），默认 30000'),
 });
 
 type HttpFetchInput = z.infer<typeof HttpFetchInputSchema>;
@@ -33,7 +47,8 @@ interface HttpFetchOutput {
 
 export class HttpFetchTool extends BaseTool<HttpFetchInput, HttpFetchOutput> {
   readonly name = 'http_fetch';
-  readonly description = '发起 HTTP 请求获取外部数据（支持 GET/POST/PUT/DELETE/PATCH），使用浏览器风格请求头避免被拦截';
+  readonly description =
+    '发起 HTTP 请求获取外部数据（支持 GET/POST/PUT/DELETE/PATCH），使用浏览器风格请求头避免被拦截';
   readonly inputSchema = HttpFetchInputSchema;
 
   isReadOnly(): boolean {
@@ -69,6 +84,7 @@ export class HttpFetchTool extends BaseTool<HttpFetchInput, HttpFetchOutput> {
         body: body && ['POST', 'PUT', 'PATCH'].includes(method || 'GET') ? body : undefined,
         timeout,
         signal: context.signal,
+        targetPolicy: 'public-only',
       });
 
       const responseText = await response.text();
@@ -84,9 +100,10 @@ export class HttpFetchTool extends BaseTool<HttpFetchInput, HttpFetchOutput> {
         status: response.status,
         statusText: response.statusText,
         headers: responseHeaders,
-        body: responseText.length > 10000
-          ? responseText.substring(0, 10000) + '\n...(truncated)'
-          : responseText,
+        body:
+          responseText.length > 10000
+            ? responseText.substring(0, 10000) + '\n...(truncated)'
+            : responseText,
         duration,
       };
     } catch (err) {

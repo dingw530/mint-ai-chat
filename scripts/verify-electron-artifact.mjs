@@ -11,7 +11,8 @@ const releaseDir = join(rootDir, 'electron', 'release');
 /** Run a build command from the repository root and fail on a non-zero exit. */
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: rootDir, stdio: 'inherit' });
-  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed with exit ${result.status ?? 1}`);
+  if (result.status !== 0)
+    throw new Error(`${command} ${args.join(' ')} failed with exit ${result.status ?? 1}`);
 }
 
 /** Recursively locate the single macOS application emitted under one fresh output directory. */
@@ -35,14 +36,17 @@ function assertFile(file, label) {
 
 /** Return normalized archive paths without the asar CLI's leading slash. */
 function listAsar(asarPath) {
-  return execFileSync(join(rootDir, 'node_modules', '.bin', 'asar'), ['list', asarPath], { encoding: 'utf8' })
+  return execFileSync(join(rootDir, 'node_modules', '.bin', 'asar'), ['list', asarPath], {
+    encoding: 'utf8',
+  })
     .split(/\r?\n/)
     .map((entry) => entry.replace(/^\/+/, ''));
 }
 
 /** Build and inspect a fresh unsigned macOS directory artifact. */
 async function main() {
-  if (process.platform !== 'darwin') throw new Error('Electron artifact verification currently requires macOS.');
+  if (process.platform !== 'darwin')
+    throw new Error('Electron artifact verification currently requires macOS.');
 
   const buildId = `verify-${new Date().toISOString().replace(/[:.]/g, '-')}`;
   const outputDir = join(releaseDir, buildId);
@@ -66,11 +70,23 @@ async function main() {
   assertFile(unpackedDir, 'app.asar.unpacked');
 
   const archiveEntries = listAsar(asarPath);
-  for (const expected of ['server-dist/index.js', 'client-dist/index.html', 'node_modules/better-sqlite3/package.json']) {
-    if (!archiveEntries.includes(expected)) throw new Error(`Missing packaged archive entry: ${expected}`);
+  for (const expected of [
+    'server-dist/index.js',
+    'client-dist/index.html',
+    'node_modules/better-sqlite3/package.json',
+    'node_modules/pdfjs-dist/package.json',
+    'node_modules/pdfjs-dist/legacy/build/pdf.mjs',
+  ]) {
+    if (!archiveEntries.includes(expected))
+      throw new Error(`Missing packaged archive entry: ${expected}`);
   }
 
-  const sqliteVec = join(unpackedDir, 'node_modules', `sqlite-vec-darwin-${process.arch}`, 'vec0.dylib');
+  const sqliteVec = join(
+    unpackedDir,
+    'node_modules',
+    `sqlite-vec-darwin-${process.arch}`,
+    'vec0.dylib',
+  );
   assertFile(sqliteVec, 'unpacked sqlite-vec dynamic library');
   const evidence = { buildId, appPath, asarPath, unpackedDir, sqliteVec, archiveVerified: true };
   const evidenceFile = join(outputDir, 'verification-evidence.json');

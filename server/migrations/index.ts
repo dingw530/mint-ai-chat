@@ -657,6 +657,17 @@ const migrations: Migration[] = [
   },
 ];
 
+/**
+ * Determines whether a migration error means that the requested schema object
+ * already exists and can therefore be recorded as applied.
+ * @param error The error raised while applying a migration.
+ * @returns True only for SQLite's known idempotent object-exists errors.
+ */
+function isCompatibleMigrationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('duplicate column') || message.includes('already exists');
+}
+
 // ── 迁移执行器 ──
 // 1. 确保 _migrations 表存在
 // 2. 查询已应用的迁移 ID
@@ -683,13 +694,14 @@ export function runMigrations(db: Database.Database): void {
       db.prepare('INSERT INTO _migrations (id, name) VALUES (?, ?)').run(m.id, m.name);
       console.log(`[db/migration] Applied: #${m.id} ${m.name}`);
     } catch (err: unknown) {
-      // 列已存在等幂等错误可安全忽略；其他错误打印警告但不阻塞后续迁移
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('duplicate column') || msg.includes('already exists')) {
+      if (isCompatibleMigrationError(err)) {
         // SQLite 不同版本的错误信息可能不同，记录已存在则视为已应用
         db.prepare('INSERT OR IGNORE INTO _migrations (id, name) VALUES (?, ?)').run(m.id, m.name);
+        console.warn(`[db/migration] Skipped compatible: #${m.id} ${m.name}: ${msg}`);
       } else {
         console.error(`[db/migration] Failed: #${m.id} ${m.name}: ${msg}`);
+        throw new Error(`Migration failed: #${m.id} ${m.name}: ${msg}`, { cause: err });
       }
     }
   }
