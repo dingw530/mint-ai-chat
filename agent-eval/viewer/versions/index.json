@@ -72,6 +72,30 @@
       "answerPassAt1": 0.88,
       "langfuseUploadedAt": "2026-08-31T12:40:02.002Z",
       "langfuseScoreCount": 29
+    },
+    {
+      "id": "wiki-rag-20260910073243-ea6c31b0",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.2.0",
+      "generatedAt": "2026-09-10T07:32:43.322Z",
+      "reportFile": "wiki-rag-20260910073243-ea6c31b0.json",
+      "totalRuns": 75,
+      "passAt1": 0.96,
+      "queryPassAt1": 0.96,
+      "answerPassAt1": 0.96
+    },
+    {
+      "id": "wiki-rag-judge-20260910080151-49f35081",
+      "dataset": "wiki-rag",
+      "datasetVersion": "1.2.0",
+      "generatedAt": "2026-09-10T08:01:51.633Z",
+      "reportFile": "wiki-rag-judge-20260910080151-49f35081.json",
+      "totalRuns": 75,
+      "passAt1": 0.88,
+      "queryPassAt1": 0.88,
+      "answerPassAt1": 0.88,
+      "langfuseUploadedAt": "2026-09-10T08:20:35.267Z",
+      "langfuseScoreCount": 29
     }
   ]
 }

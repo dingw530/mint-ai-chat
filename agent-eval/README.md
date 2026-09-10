@@ -112,6 +112,17 @@ npm run eval:wiki-rag:live -w agent-eval
 npm run eval:wiki-rag -w agent-eval
 ```
 
+如果已有完整评测 checkpoint，只对已保存的 Agent 结果运行 Judge，不重新调用 Agent：
+
+```bash
+npm run eval:judge-only -w agent-eval -- \
+  --dataset wiki-rag \
+  --resume viewer/runs/<run-id> \
+  --runs 3
+```
+
+结果默认写入 `agent-eval/viewer/judge-report.json`，并保存为独立结果版本。旧 checkpoint 若未保存完整轨迹，会使用持久化的确定性指标重建最小 Judge 输入。
+
 每次运行都会自动保存一个不可覆盖的结果版本；版本 ID 默认按“数据集-时间-随机后缀”生成。需要人工指定稳定名称时，可以传 `--version`：
 
 ```bash

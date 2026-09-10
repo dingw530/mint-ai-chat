@@ -11,7 +11,10 @@ import type { ReactExecutionPolicy } from './services/reactLoopCore.js';
 import { createDurableAgentRun, agentRunRegistry } from './services/agentRun.js';
 import { findWikiCitationMarkers } from './services/utils/wikiCitationMarkers.js';
 import { getWikiVectorHealth } from './services/api/wikiSearchService.js';
-export type { WikiIngestionRequest, WikiIngestionResult } from './services/api/wikiIngestionService.js';
+export type {
+  WikiIngestionRequest,
+  WikiIngestionResult,
+} from './services/api/wikiIngestionService.js';
 export { ingestWikiSource } from './services/api/wikiIngestionService.js';
 
 interface EvalCitation {
@@ -73,7 +76,10 @@ function citationFromBlock(wikiPath: string, block: PersistedUiBlock): EvalCitat
     heading: typeof block.data.heading === 'string' ? block.data.heading : undefined,
     chunkId: typeof block.data.chunkId === 'string' ? block.data.chunkId : undefined,
     refId: typeof block.data.refId === 'string' ? block.data.refId : undefined,
-    sourceFile: typeof block.data.file === 'string' ? readCitationSource(wikiPath, block.data.file) : undefined,
+    sourceFile:
+      typeof block.data.file === 'string'
+        ? readCitationSource(wikiPath, block.data.file)
+        : undefined,
   };
 }
 
@@ -103,10 +109,14 @@ export function citationsFromReferenceMarkers(
   references: EvalWikiReference[],
   existingCitations: EvalCitation[] = [],
 ): EvalCitation[] {
-  const referencesById = new Map(references.map((reference) => [reference.refId.toLocaleUpperCase(), reference]));
-  const citationsById = new Map(existingCitations
-    .filter((citation) => citation.refId)
-    .map((citation) => [citation.refId!.toLocaleUpperCase(), citation]));
+  const referencesById = new Map(
+    references.map((reference) => [reference.refId.toLocaleUpperCase(), reference]),
+  );
+  const citationsById = new Map(
+    existingCitations
+      .filter((citation) => citation.refId)
+      .map((citation) => [citation.refId!.toLocaleUpperCase(), citation]),
+  );
   const citations: EvalCitation[] = [];
   for (const marker of findWikiCitationMarkers(content)) {
     const referenceId = marker.refId.toLocaleUpperCase();
@@ -142,7 +152,10 @@ function citationFromReference(wikiPath: string, reference: EvalWikiReference): 
   };
 }
 
-function citationsFromReferences(wikiPath: string, references: EvalWikiReference[]): EvalCitation[] {
+function citationsFromReferences(
+  wikiPath: string,
+  references: EvalWikiReference[],
+): EvalCitation[] {
   return references.map((reference) => citationFromReference(wikiPath, reference));
 }
 
@@ -158,11 +171,13 @@ interface EvalCaseInput {
 }
 
 function buildExecutionPolicy(evalCase: EvalCaseInput): ReactExecutionPolicy {
-  const maxWikiSearchCalls = evalCase.expected?.maxWikiSearchCalls
-    ?? (evalCase.expected?.mustUseTools?.includes('wiki_search') ? 2 : undefined);
+  const maxWikiSearchCalls =
+    evalCase.expected?.maxWikiSearchCalls ??
+    (evalCase.expected?.mustUseTools?.includes('wiki_search') ? 2 : undefined);
   return {
     maxToolCalls: evalCase.expected?.maxToolCalls,
-    maxToolCallsByName: maxWikiSearchCalls === undefined ? undefined : { wiki_search: maxWikiSearchCalls },
+    maxToolCallsByName:
+      maxWikiSearchCalls === undefined ? undefined : { wiki_search: maxWikiSearchCalls },
     maxToolCallsPerRoundByName: maxWikiSearchCalls === undefined ? undefined : { wiki_search: 1 },
   };
 }
@@ -205,7 +220,9 @@ export function createReactExecutor(settings: AiSettings) {
     const events: ReactEvent[] = [];
     run.subscribe((event) => events.push(event));
     const sink = new AccumulatingSink();
-    const systemPrompt = [settings.systemPrompt, EVAL_WIKI_QUERY_PROTOCOL].filter(Boolean).join('\n\n');
+    const systemPrompt = [settings.systemPrompt, EVAL_WIKI_QUERY_PROTOCOL]
+      .filter(Boolean)
+      .join('\n\n');
     const messages: HistoryMessage[] = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: evalCase.input },
@@ -220,7 +237,9 @@ export function createReactExecutor(settings: AiSettings) {
       buildExecutionPolicy(evalCase),
       run,
     );
-    const blockCitations = (result.uiBlocks ?? []).map((block) => citationFromBlock(settings.wikiPath, block));
+    const blockCitations = (result.uiBlocks ?? []).map((block) =>
+      citationFromBlock(settings.wikiPath, block),
+    );
     const answerMarkerCitations = citationsFromReferenceMarkers(
       settings.wikiPath,
       result.content,
@@ -230,12 +249,16 @@ export function createReactExecutor(settings: AiSettings) {
     return {
       content: result.content,
       events,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
       citations: dedupeCitations([
         ...blockCitations,
         ...citationsFromWikiLinks(settings.wikiPath, result.content),
         ...answerMarkerCitations,
       ]),
-      retrievedCitations: dedupeCitations(citationsFromReferences(settings.wikiPath, result.wikiReferences || [])),
+      retrievedCitations: dedupeCitations(
+        citationsFromReferences(settings.wikiPath, result.wikiReferences || []),
+      ),
     };
   };
 }

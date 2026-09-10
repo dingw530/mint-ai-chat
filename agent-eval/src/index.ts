@@ -178,7 +178,10 @@ export interface EvalCaseResult {
   rubricScore?: number;
   reasons: string[];
   content: string;
+  events?: EvalTraceEvent[];
   citations: EvalCitation[];
+  retrievedCitations?: EvalCitation[];
+  state?: Record<string, unknown>;
   citationCount: number;
   retrievedCitationCount: number;
   citationCoverage: number;
@@ -1080,7 +1083,9 @@ export function verifyExecution(
     rubricScore,
     reasons,
     content: execution.content,
+    events,
     citations,
+    retrievedCitations,
     citationCount: citations.length,
     retrievedCitationCount: retrievedCitations.length,
     citationCoverage,
@@ -1106,6 +1111,7 @@ export function verifyExecution(
     reasoningTokens: execution.reasoningTokens,
     ttftMs: execution.ttftMs,
     traceId: execution.traceId,
+    state: execution.state,
     answerGate,
     evidenceGate,
     qualityPassed: answerGate.passed && evidenceGate.passed && toolBudgetPassed && !vetoed,
@@ -1377,6 +1383,138 @@ export async function runEvaluation(
         latencyMs: deterministic.latencyMs,
       });
     }
+  return buildReport(dataset, results, runsPerCase);
+}
+
+function executionFromStoredResult(result: EvalCaseResult): EvalExecution {
+  const citations = result.citations || [];
+  const events = result.events || [
+    ...Array.from({ length: result.wikiSearchCalls }, (_, index) => ({
+      type: 'tool_call_start',
+      toolName: 'wiki_search',
+      round: index + 1,
+      summary: 'Reconstructed from persisted evaluation metrics',
+    })),
+    { type: 'run_completed', summary: 'Reconstructed from persisted evaluation metrics' },
+  ];
+  return {
+    content: result.content,
+    events,
+    citations,
+    retrievedCitations: result.retrievedCitations || citations,
+    state: result.state,
+  };
+}
+
+/** 仅对已持久化的 Agent 结果执行 Judge，不重新调用 Agent。 */
+export async function runJudgeOnly(
+  dataset: EvalDataset,
+  storedResults: EvalCaseResult[],
+  judge: JudgeExecutor,
+  onProgress?: (update: EvalProgressUpdate) => void,
+  runsPerCase = 1,
+): Promise<EvalReport> {
+  const totalRuns = dataset.cases.length * runsPerCase;
+  const results: EvalCaseResult[] = storedResults.map((stored) => ({
+    ...stored,
+    judge: undefined,
+    judgePassed: false,
+  }));
+  let completedRuns = 0;
+  for (const evalCase of dataset.cases) {
+    for (let runIndex = 1; runIndex <= runsPerCase; runIndex++) {
+      const index = results.findIndex(
+        (result) => result.caseId === evalCase.id && result.runIndex === runIndex,
+      );
+      if (index < 0) throw new Error(`Stored eval result missing: ${evalCase.id} run ${runIndex}`);
+      const deterministic = results[index];
+      const judgeEligible = Boolean(
+        evalCase.expected.judgeRubric &&
+        deterministic.answerGate?.hardPassed &&
+        deterministic.evidenceGate?.hardPassed &&
+        deterministic.toolBudgetPassed &&
+        !deterministic.vetoed,
+      );
+      if (judgeEligible) {
+        onProgress?.({
+          phase: 'judge_started',
+          caseId: evalCase.id,
+          runIndex,
+          completedRuns,
+          totalRuns,
+        });
+        let judged: EvalJudgeResult;
+        try {
+          judged = assessJudgeResult(
+            evalCase.expected.judgeRubric!,
+            await judge(
+              createJudgeInput(evalCase, executionFromStoredResult(deterministic), deterministic),
+            ),
+          );
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          deterministic.judge = {
+            dimensions: [],
+            confidence: 0,
+            shortReason: 'Judge execution failed.',
+            skipped: true,
+            skipReason: reason,
+          };
+          deterministic.judgePassed = false;
+          completedRuns += 1;
+          onProgress?.({
+            phase: 'run_completed',
+            caseId: evalCase.id,
+            runIndex,
+            completedRuns,
+            totalRuns,
+            passed: false,
+            latencyMs: deterministic.latencyMs,
+          });
+          continue;
+        }
+        deterministic.judge = judged;
+        deterministic.judgePassed = judged.passed;
+        deterministic.answerGate = {
+          ...deterministic.answerGate!,
+          judgePassed: judged.answerGatePassed,
+          passed: deterministic.answerGate!.hardPassed && judged.answerGatePassed === true,
+        };
+        deterministic.evidenceGate = {
+          ...deterministic.evidenceGate!,
+          judgePassed: judged.evidenceGatePassed,
+          passed: deterministic.evidenceGate!.hardPassed && judged.evidenceGatePassed === true,
+        };
+        deterministic.answerPassed = deterministic.answerGate.passed;
+        deterministic.queryPassed = deterministic.answerPassed && deterministic.evidenceGate.passed;
+        deterministic.passed =
+          deterministic.queryPassed && deterministic.toolBudgetPassed && !deterministic.vetoed;
+        deterministic.qualityPassed =
+          deterministic.answerGate.passed &&
+          deterministic.evidenceGate.passed &&
+          deterministic.toolBudgetPassed &&
+          !deterministic.vetoed;
+      } else if (evalCase.expected.judgeRubric) {
+        deterministic.judge = {
+          dimensions: [],
+          confidence: 0,
+          shortReason: 'Judge skipped because deterministic hard gate did not pass.',
+          skipped: true,
+          skipReason: 'Deterministic hard gate failed.',
+        };
+      }
+      completedRuns += 1;
+      onProgress?.({
+        phase: 'run_completed',
+        caseId: evalCase.id,
+        runIndex,
+        completedRuns,
+        totalRuns,
+        passed: deterministic.passed,
+        latencyMs: deterministic.latencyMs,
+      });
+    }
+  }
   return buildReport(dataset, results, runsPerCase);
 }
 
