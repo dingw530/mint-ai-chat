@@ -51,3 +51,4 @@
 | [本机 HTTP 与 Docker 暴露边界](../changes/2026-09-04-localhost-exposure-boundary/product-spec.md)                 | 2026-09-04 | 进行中 |
 | [SQLite 迁移失败关闭](../changes/2026-09-06-migration-fail-closed/product-spec.md)                                | 2026-09-06 | 已完成 |
 | [http_fetch SSRF 目标校验](../changes/2026-09-06-http-fetch-ssrf-hardening/product-spec.md)                       | 2026-09-06 | 已完成 |
+| [外部服务韧性治理](../changes/2026-09-08-external-service-resilience/product-spec.md)                             | 2026-09-08 | 已完成 |
