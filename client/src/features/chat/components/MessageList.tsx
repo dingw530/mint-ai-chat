@@ -458,11 +458,21 @@ export default function MessageList({
                     )}
                 </div>
               )}
-              {msg.role === 'assistant' && msg.estimatedTokens != null && !isStreaming && (
+              {msg.role === 'assistant' && msg.tokenUsage != null && !isStreaming && (
                 <div className="message-token-usage">
-                  本轮约 {msg.estimatedTokens.toLocaleString()} tokens
+                  本次运行 {msg.tokenUsage.totalTokens.toLocaleString()} tokens（输入{' '}
+                  {msg.tokenUsage.inputTokens.toLocaleString()} · 输出{' '}
+                  {msg.tokenUsage.outputTokens.toLocaleString()}）
                 </div>
               )}
+              {msg.role === 'assistant' &&
+                msg.tokenUsage == null &&
+                msg.estimatedTokens != null &&
+                !isStreaming && (
+                  <div className="message-token-usage">
+                    本轮约 {msg.estimatedTokens.toLocaleString()} tokens
+                  </div>
+                )}
               {isStreaming && <span className="cursor" />}
               {msg.role === 'assistant' &&
                 !isStreaming &&

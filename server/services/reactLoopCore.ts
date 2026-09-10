@@ -2,6 +2,7 @@ import type {
   HistoryMessage,
   AiSettings,
   StreamResult,
+  TokenUsage,
   ToolCall,
   ToolDefinition,
 } from '../types.js';
@@ -503,6 +504,7 @@ export async function executeReactRun(
   let currentMessages: HistoryMessage[] = [...messages];
   const state = createRunState();
   let iteration = 0;
+  let totalUsage: TokenUsage | undefined;
   const recentCallSignatures: string[] = [];
   const runStartedAt = Date.now();
 
@@ -595,6 +597,7 @@ export async function executeReactRun(
       fail(error);
       break;
     }
+    totalUsage = addUsage(totalUsage, result.usage);
 
     const toolCalls =
       result.toolCalls?.filter((toolCall): toolCall is ToolCall => Boolean(toolCall)) || null;
@@ -616,10 +619,14 @@ export async function executeReactRun(
         state: 'completed',
         content: state.finalContent,
         reasoning: state.finalReasoning,
-        estimatedTokens: estimateMessagesTokens([
-          ...currentMessages,
-          { role: 'assistant', content: state.finalContent, reasoning: state.finalReasoning },
-        ]),
+        ...(totalUsage?.totalTokens === undefined
+          ? {
+              estimatedTokens: estimateMessagesTokens([
+                ...currentMessages,
+                { role: 'assistant', content: state.finalContent, reasoning: state.finalReasoning },
+              ]),
+            }
+          : totalUsage),
       });
       break;
     }
@@ -724,6 +731,7 @@ export async function executeReactRun(
         state: 'completed',
         content: a2uiComposer.sanitizeContent(state.finalContent),
         reasoning: state.finalReasoning,
+        ...(totalUsage?.totalTokens === undefined ? {} : totalUsage),
       });
     }
   }
@@ -734,7 +742,22 @@ export async function executeReactRun(
     toolCalls: null,
     uiBlocks: a2uiComposer.getBlocks(),
     wikiReferences: a2uiComposer.getDisplayReferences(),
+    usage: totalUsage,
   };
+}
+
+function addUsage(first?: TokenUsage, second?: TokenUsage): TokenUsage | undefined {
+  if (!first && !second) return undefined;
+  return {
+    inputTokens: addDefined(first?.inputTokens, second?.inputTokens),
+    outputTokens: addDefined(first?.outputTokens, second?.outputTokens),
+    totalTokens: addDefined(first?.totalTokens, second?.totalTokens),
+  };
+}
+
+function addDefined(first?: number, second?: number): number | undefined {
+  if (first === undefined && second === undefined) return undefined;
+  return (first || 0) + (second || 0);
 }
 
 /**

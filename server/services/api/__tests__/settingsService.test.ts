@@ -58,6 +58,9 @@ describe('settingsService', () => {
       mockSettings.showReactSteps = 'false';
       mockSettings.maxContextRounds = '20';
       mockSettings.wikiPath = '/tmp/wiki';
+      mockSettings.vectorStore = 'chroma';
+      mockSettings.chromaUrl = 'http://chroma.test:8000';
+      mockSettings.chromaApiKey = 'encrypted-key';
 
       const s = settingsService.get();
       expect(s.apiUrl).toBe('https://api.test.com');
@@ -66,6 +69,8 @@ describe('settingsService', () => {
       expect(s.routingMode).toBe('manual');
       expect(s.reactMaxIterations).toBe(10);
       expect(s.wikiPath).toBe('/tmp/wiki');
+      expect(s.vectorStore).toBe('chroma');
+      expect(s.chromaUrl).toBe('http://chroma.test:8000');
     });
 
     it('reads active endpoint info', () => {
@@ -133,10 +138,16 @@ describe('settingsService', () => {
         apiUrl: 'https://new.com',
         modelId: 'gpt-4',
         apiKey: 'sk-new',
+        vectorStore: 'chroma',
+        chromaUrl: 'http://chroma.test:8000',
+        chromaApiKey: 'chroma-key',
       });
 
       expect(mockSettings.apiUrl).toBe('https://new.com');
       expect(mockSettings.modelId).toBe('gpt-4');
+      expect(mockSettings.vectorStore).toBe('chroma');
+      expect(mockSettings.chromaUrl).toBe('http://chroma.test:8000');
+      expect(mockSettings.chromaApiKey).not.toBe('chroma-key');
       // apiKey should be encrypted
       expect(mockSettings.apiKey).toBeTruthy();
       expect(mockSettings.apiKey).not.toContain('sk-new');

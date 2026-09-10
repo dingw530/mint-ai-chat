@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getWikiSchema, updateWikiSchema } from '@/services/api';
+import { getWikiSchema, testEmbeddingConnection, updateWikiSchema } from '@/services/api';
 import type { WikiCategory } from '@/types';
 import type { WikiSchema } from '@/services/api/wiki';
 
@@ -41,7 +41,10 @@ const emptyCategory = (): WikiCategory => ({
 });
 
 function parseList(value: string): string[] {
-  return value.split(',').map(item => item.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function formatList(value: string[]): string {
@@ -65,6 +68,10 @@ export default function WikiPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [embeddingTest, setEmbeddingTest] = useState<'idle' | 'testing' | 'success' | 'error'>(
+    'idle',
+  );
+  const [embeddingTestMessage, setEmbeddingTestMessage] = useState('');
 
   const fetchSchema = useCallback(async () => {
     if (!wikiPath) {
@@ -91,9 +98,9 @@ export default function WikiPanel({
       if (!prev) return prev;
       return {
         ...prev,
-        categories: prev.categories.map((category, categoryIndex) => (
-          categoryIndex === index ? { ...category, ...patch } : category
-        )),
+        categories: prev.categories.map((category, categoryIndex) =>
+          categoryIndex === index ? { ...category, ...patch } : category,
+        ),
       };
     });
   };
@@ -101,7 +108,7 @@ export default function WikiPanel({
   const handleAddCategory = () => {
     const name = newCategory.trim();
     if (!name || !schema) return;
-    if (schema.categories.some(category => category.name === name)) {
+    if (schema.categories.some((category) => category.name === name)) {
       onToast?.('error', `分类 "${name}" 已存在`);
       return;
     }
@@ -121,18 +128,18 @@ export default function WikiPanel({
 
   const handleSave = async () => {
     if (!schema) return;
-    const categories = schema.categories.map(category => ({
+    const categories = schema.categories.map((category) => ({
       ...category,
       name: category.name.trim(),
       description: category.description.trim(),
-      include: category.include.map(item => item.trim()).filter(Boolean),
-      exclude: category.exclude.map(item => item.trim()).filter(Boolean),
+      include: category.include.map((item) => item.trim()).filter(Boolean),
+      exclude: category.exclude.map((item) => item.trim()).filter(Boolean),
     }));
-    if (categories.some(category => !category.name)) {
+    if (categories.some((category) => !category.name)) {
       onToast?.('error', '分类名称不能为空');
       return;
     }
-    if (new Set(categories.map(category => category.name)).size !== categories.length) {
+    if (new Set(categories.map((category) => category.name)).size !== categories.length) {
       onToast?.('error', '分类名称不能重复');
       return;
     }
@@ -151,6 +158,24 @@ export default function WikiPanel({
 
   const categories = schema?.categories || [];
 
+  const handleEmbeddingTest = async () => {
+    setEmbeddingTest('testing');
+    setEmbeddingTestMessage('正在测试连接...');
+    try {
+      const result = await testEmbeddingConnection({
+        apiUrl: embeddingApiUrl,
+        model: embeddingModel,
+        dimensions: embeddingDimensions,
+      });
+      if (!result.success) throw new Error(result.message || 'Embedding 服务连接失败');
+      setEmbeddingTest('success');
+      setEmbeddingTestMessage(`${result.message || '连接成功'}（${result.dimensions} 维）`);
+    } catch (error) {
+      setEmbeddingTest('error');
+      setEmbeddingTestMessage((error as Error).message);
+    }
+  };
+
   return (
     <div className="wiki-panel">
       <div className="form-group">
@@ -162,7 +187,9 @@ export default function WikiPanel({
           onChange={(e) => setWikiPath(e.target.value)}
           placeholder="/Users/me/my-wiki"
         />
-        <p className="form-help">Agent 将在此目录下创建和维护知识页面。支持绝对路径，留空禁用 Wiki 功能。</p>
+        <p className="form-help">
+          Agent 将在此目录下创建和维护知识页面。支持绝对路径，留空禁用 Wiki 功能。
+        </p>
       </div>
 
       <div className="form-group">
@@ -197,13 +224,31 @@ export default function WikiPanel({
         <div className="wiki-embedding-settings">
           <div className="form-group">
             <label htmlFor="embeddingApiUrl">Embedding 服务 URL</label>
-            <input
-              id="embeddingApiUrl"
-              type="url"
-              value={embeddingApiUrl}
-              onChange={(event) => setEmbeddingApiUrl(event.target.value)}
-              placeholder="http://127.0.0.1:11434/v1"
-            />
+            <div className="connection-test-row">
+              <input
+                id="embeddingApiUrl"
+                type="url"
+                value={embeddingApiUrl}
+                onChange={(event) => {
+                  setEmbeddingApiUrl(event.target.value);
+                  setEmbeddingTest('idle');
+                }}
+                placeholder="http://127.0.0.1:11434/v1"
+              />
+              <button
+                type="button"
+                className="btn-secondary connection-test-button"
+                onClick={handleEmbeddingTest}
+                disabled={embeddingTest === 'testing'}
+              >
+                {embeddingTest === 'testing' ? '测试中...' : '测试连接'}
+              </button>
+            </div>
+            {embeddingTest !== 'idle' && (
+              <p className={`connection-test-result ${embeddingTest}`} role="status">
+                {embeddingTestMessage}
+              </p>
+            )}
           </div>
           <div className="form-group">
             <label htmlFor="embeddingModel">Embedding 模型</label>
@@ -225,7 +270,9 @@ export default function WikiPanel({
               value={embeddingDimensions}
               onChange={(event) => setEmbeddingDimensions(Number(event.target.value))}
             />
-            <p className="form-help">当前 sqlite-vec 索引固定为 1024 维，BGE-M3 默认输出 1024 维。</p>
+            <p className="form-help">
+              当前 sqlite-vec 索引固定为 1024 维，BGE-M3 默认输出 1024 维。
+            </p>
           </div>
         </div>
       )}
@@ -234,7 +281,9 @@ export default function WikiPanel({
       <div className="wiki-schema-heading">
         <div>
           <h4 className="settings-subheading">知识库 Schema</h4>
-          <p className="form-help">维护分类的定义、包含范围和排除范围，AI 编译知识时会以这里的规则为准。</p>
+          <p className="form-help">
+            维护分类的定义、包含范围和排除范围，AI 编译知识时会以这里的规则为准。
+          </p>
         </div>
         <button className="wiki-schema-save" onClick={handleSave} disabled={!schema || saving}>
           {saving ? '保存中...' : '保存 Schema'}

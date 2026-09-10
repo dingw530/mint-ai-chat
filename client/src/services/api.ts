@@ -31,7 +31,12 @@ export {
   listEndpointModels,
   testEndpointConnection,
 } from './api/endpoints';
-export { getSettings, saveSettings } from './api/settings';
+export {
+  getSettings,
+  saveSettings,
+  testEmbeddingConnection,
+  testChromaConnection,
+} from './api/settings';
 export { sendMessageStream } from './api/streaming';
 export { resolveToolApproval } from './api/toolApprovals';
 export { generateImage, sendImageMessage } from './api/images';

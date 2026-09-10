@@ -84,7 +84,16 @@ export type ReactEventPayload =
   /** 发送 A2UI 片段或组件消息。 */
   | { type: 'a2ui'; segmentId: string; surfaceId: string; message: A2uiMessage; round?: number }
   /** 标记运行成功结束，并携带最终回答、推理摘要和 token 估算。 */
-  | { type: 'run_completed'; state: 'completed'; content: string; reasoning: string; estimatedTokens?: number }
+  | {
+      type: 'run_completed';
+      state: 'completed';
+      content: string;
+      reasoning: string;
+      estimatedTokens?: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    }
   /** 标记运行因错误失败。 */
   | { type: 'run_failed'; state: 'failed'; error: string }
   /** 标记运行被用户或系统取消。 */
@@ -105,14 +114,9 @@ export class ReactEventEmitter {
   private readonly run: AgentRun;
   private readonly detachSink?: () => void;
 
-  constructor(
-    run: AgentRun,
-  );
+  constructor(run: AgentRun);
   constructor(sink: Sink, runId: string);
-  constructor(
-    runOrSink: AgentRun | Sink,
-    runId?: string,
-  ) {
+  constructor(runOrSink: AgentRun | Sink, runId?: string) {
     if (runOrSink instanceof AgentRun) {
       this.run = runOrSink;
       return;

@@ -54,17 +54,17 @@ describe('vectorRepository', () => {
     }
   });
 
-  it('stores, queries and incrementally invalidates vectors', () => {
+  it('stores, queries and incrementally invalidates vectors', async () => {
     const initial = documents();
     const change = repository.replacePageDocuments('pages/vector-a.md', [initial[0]]);
     repository.replacePageDocuments('pages/vector-b.md', [initial[1]]);
     expect(change.changedDocuments).toHaveLength(1);
-    vectorRepository.upsert(initial[0], vector(0), config);
-    vectorRepository.upsert(initial[1], vector(1), config);
+    await vectorRepository.upsert(initial[0], vector(0), config);
+    await vectorRepository.upsert(initial[1], vector(1), config);
 
-    const results = vectorRepository.search(vector(0), config, 5);
+    const results = await vectorRepository.search(vector(0), config, 5);
     expect(results[0]).toMatchObject({ document: { id: documentIds[0] }, distance: 0 });
-    expect(vectorRepository.getState(documentIds[0])).toMatchObject({
+    expect(await vectorRepository.getState(documentIds[0])).toMatchObject({
       contentHash: initial[0].contentHash,
     });
 
@@ -73,6 +73,6 @@ describe('vectorRepository', () => {
     const updated = documents('updated');
     const changed = repository.replacePageDocuments('pages/vector-a.md', [updated[0]]);
     expect(changed.changedDocuments).toHaveLength(1);
-    expect(vectorRepository.search(vector(0), config, 5)).toHaveLength(1);
+    expect(await vectorRepository.search(vector(0), config, 5)).toHaveLength(1);
   });
 });

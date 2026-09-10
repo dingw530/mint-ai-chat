@@ -23,6 +23,7 @@ export interface Message {
   segments?: ContentSegment[];
   uiBlocks?: PersistedUiBlock[];
   estimatedTokens?: number;
+  tokenUsage?: { totalTokens: number; inputTokens: number; outputTokens: number };
   errorCategory?: 'retryable' | 'configuration' | 'unknown';
 }
 
@@ -133,6 +134,9 @@ export interface VisibleSettings {
   embeddingApiUrl: string;
   embeddingModel: string;
   embeddingDimensions: number;
+  vectorStore: 'sqlite' | 'chroma';
+  chromaUrl: string;
+  chromaApiKeyMasked: string;
 }
 
 export interface SettingsInput {
@@ -151,6 +155,9 @@ export interface SettingsInput {
   embeddingApiUrl?: string;
   embeddingModel?: string;
   embeddingDimensions?: number;
+  vectorStore?: 'sqlite' | 'chroma';
+  chromaUrl?: string;
+  chromaApiKey?: string;
 }
 
 // ── SSE 流类型 ──
@@ -372,6 +379,15 @@ export interface ElectronAPI {
   // 设置
   getSettings: () => Promise<VisibleSettings>;
   saveSettings: (data: SettingsInput) => Promise<{ success: boolean }>;
+  testEmbeddingConnection: (data: {
+    apiUrl: string;
+    model: string;
+    dimensions: number;
+  }) => Promise<{ success: boolean; message?: string; dimensions?: number }>;
+  testChromaConnection: (data: { url: string; apiKey?: string }) => Promise<{
+    success: boolean;
+    message?: string;
+  }>;
 
   // Agent
   getAgents: () => Promise<{ agents: Agent[] }>;

@@ -51,7 +51,18 @@ export function createChatStreamCallbacks({
       if (status) setAgentRunStatus(status);
     },
     onLoopDetected: (data) => dispatchReactEvent({ type: 'loop_detected', ...data }),
-    onRunCompleted: (data) => dispatchReactEvent({ type: 'run_completed', ...data }),
+    onRunCompleted: (data) => {
+      dispatchReactEvent({ type: 'run_completed', ...data });
+      const totalTokens = Number(data.totalTokens);
+      const inputTokens = Number(data.inputTokens);
+      const outputTokens = Number(data.outputTokens);
+      if ([totalTokens, inputTokens, outputTokens].every(Number.isFinite))
+        updateTempMessage(tempId, (message) => ({
+          ...message,
+          tokenUsage: { totalTokens, inputTokens, outputTokens },
+          estimatedTokens: undefined,
+        }));
+    },
     onRunCancelled: (data) => {
       dispatchReactEvent({ type: 'run_cancelled', ...data });
       setAgentRunStatus((previous) => (previous ? { ...previous, phase: 'cancelled' } : previous));

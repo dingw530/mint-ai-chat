@@ -1,0 +1,51 @@
+{
+  "scenarios": [
+    {
+      "id": "vector-service-connection-buttons",
+      "name": "测试 Embedding 与 Chroma 连接按钮",
+      "url": "/",
+      "setup": {
+        "routes": [
+          {
+            "pattern": "**/api/settings",
+            "method": "GET",
+            "body": {
+              "wikiPath": "",
+              "wikiSearchMode": "keyword",
+              "embeddingApiUrl": "http://127.0.0.1:11434/v1",
+              "embeddingModel": "bge-m3",
+              "embeddingDimensions": 1024,
+              "vectorStore": "sqlite",
+              "chromaUrl": "http://127.0.0.1:8000"
+            }
+          },
+          { "pattern": "**/api/conversations", "method": "GET", "body": { "conversations": [] } },
+          { "pattern": "**/api/agents", "method": "GET", "body": { "agents": [] } },
+          {
+            "pattern": "**/api/settings/test-embedding-connection",
+            "method": "POST",
+            "body": { "success": true, "message": "Embedding 服务连接成功", "dimensions": 1024 }
+          },
+          {
+            "pattern": "**/api/settings/test-chroma-connection",
+            "method": "POST",
+            "body": { "success": true, "message": "Chroma Server 连接成功" }
+          }
+        ]
+      },
+      "steps": [
+        "打开设置并进入知识库标签，切换搜索模式为向量融合",
+        "确认 Embedding 服务 URL 下显示测试连接按钮",
+        "点击按钮，确认出现测试中及最终成功或失败状态",
+        "进入实验性功能标签并选择 Chroma",
+        "确认 Chroma Server URL 下显示测试连接按钮",
+        "点击按钮，确认出现测试中及最终成功或失败状态"
+      ],
+      "assertRequests": [
+        { "method": "POST", "contains": "/api/settings/test-embedding-connection", "status": 200 },
+        { "method": "POST", "contains": "/api/settings/test-chroma-connection", "status": 200 }
+      ],
+      "acceptanceCriteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"]
+    }
+  ]
+}

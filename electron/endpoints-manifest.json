@@ -24,6 +24,34 @@
     "async": false
   },
   {
+    "id": "settings:testEmbeddingConnection",
+    "ipcChannel": "settings:testEmbeddingConnection",
+    "preloadMethod": "testEmbeddingConnection",
+    "method": "POST",
+    "httpPath": "/settings/test-embedding-connection",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
+    "id": "settings:testChromaConnection",
+    "ipcChannel": "settings:testChromaConnection",
+    "preloadMethod": "testChromaConnection",
+    "method": "POST",
+    "httpPath": "/settings/test-chroma-connection",
+    "args": [
+      {
+        "from": "body"
+      }
+    ],
+    "result": "direct",
+    "async": true
+  },
+  {
     "id": "memories:list",
     "ipcChannel": "memories:list",
     "preloadMethod": "getMemories",

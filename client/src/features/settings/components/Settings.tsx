@@ -8,6 +8,7 @@ import EndpointsPanel from './EndpointsPanel';
 import SkillsPanel from './SkillsPanel';
 import WikiPanel from './WikiPanel';
 import BashSecurityPanel from './BashSecurityPanel';
+import ExperimentalPanel from './ExperimentalPanel';
 import type { VisibleSettings } from '@/types';
 
 function Toast({ toast }: { toast: { type: string; message: string } | null }) {
@@ -36,6 +37,10 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
   const [embeddingApiUrl, setEmbeddingApiUrl] = useState('http://127.0.0.1:11434/v1');
   const [embeddingModel, setEmbeddingModel] = useState('bge-m3');
   const [embeddingDimensions, setEmbeddingDimensions] = useState(1024);
+  const [vectorStore, setVectorStore] = useState<'sqlite' | 'chroma'>('sqlite');
+  const [chromaUrl, setChromaUrl] = useState('http://127.0.0.1:8000');
+  const [chromaApiKey, setChromaApiKey] = useState('');
+  const [chromaApiKeyMasked, setChromaApiKeyMasked] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null);
 
@@ -54,6 +59,9 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
         setEmbeddingApiUrl(data.embeddingApiUrl || 'http://127.0.0.1:11434/v1');
         setEmbeddingModel(data.embeddingModel || 'bge-m3');
         setEmbeddingDimensions(data.embeddingDimensions || 1024);
+        setVectorStore(data.vectorStore || 'sqlite');
+        setChromaUrl(data.chromaUrl || 'http://127.0.0.1:8000');
+        setChromaApiKeyMasked(data.chromaApiKeyMasked || '');
       })
       .catch((err) => {
         console.error('Failed to load settings:', err);
@@ -124,6 +132,9 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
         embeddingApiUrl: embeddingApiUrl.trim(),
         embeddingModel: embeddingModel.trim(),
         embeddingDimensions,
+        vectorStore,
+        chromaUrl: chromaUrl.trim(),
+        ...(chromaApiKey ? { chromaApiKey } : {}),
       });
       showToast('success', '设置已保存');
     } catch (err) {
@@ -142,6 +153,7 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     { id: 'bash', label: 'Bash 安全', icon: 'bash' as const },
     { id: 'memories', label: '记忆', icon: 'memory' as const },
     { id: 'wiki', label: '知识库', icon: 'wiki' as const },
+    { id: 'experimental', label: '实验性功能', icon: 'flask' as const },
   ];
 
   const tabIcon: Record<string, React.ReactNode> = {
@@ -185,6 +197,11 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
     wiki: (
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M4 6H2v14a2 2 0 002 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H8V4h12v12zM10 9h8v2h-8V9zm0 4h6v2h-6v2H8v-2h2v-2z" />
+      </svg>
+    ),
+    flask: (
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 2h6v2h-1v5.17l4.53 7.55A3.5 3.5 0 0115.53 22H8.47a3.5 3.5 0 01-3-5.28L10 9.17V4H9V2zm3 8.28l-4.81 8.01A1.5 1.5 0 008.47 20h7.06a1.5 1.5 0 001.28-2.27L12 10.28zM8.8 16h6.4l1.2 2H7.6l1.2-2z" />
       </svg>
     ),
   };
@@ -265,6 +282,17 @@ export default function Settings({ onClose, theme, onThemeChange }: SettingsProp
               />
             )}
             {activeTab === 'endpoints' && <EndpointsPanel onToast={showToast} />}
+            {activeTab === 'experimental' && (
+              <ExperimentalPanel
+                vectorStore={vectorStore}
+                setVectorStore={setVectorStore}
+                chromaUrl={chromaUrl}
+                setChromaUrl={setChromaUrl}
+                chromaApiKey={chromaApiKey}
+                setChromaApiKey={setChromaApiKey}
+                chromaApiKeyMasked={chromaApiKeyMasked}
+              />
+            )}
           </div>
         </div>
         {activeTab !== 'endpoints' &&

@@ -14,6 +14,7 @@
     "eval:wiki-rag:live": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live",
     "eval:wiki-rag": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live",
     "eval:wiki-rag:judge": "node ../scripts/with-node-version.cjs tsx src/cli.ts run --dataset wiki-rag --live --judge",
+    "eval:judge-only": "node ../scripts/with-node-version.cjs tsx src/cli.ts judge-only",
     "eval:versions:list": "node ../scripts/with-node-version.cjs tsx src/cli.ts versions:list",
     "eval:versions:repair": "node ../scripts/with-node-version.cjs tsx src/cli.ts versions:repair",
     "eval:versions:compare": "node ../scripts/with-node-version.cjs tsx src/cli.ts versions:compare",
@@ -32,5 +33,7 @@
     "typescript": "^6.0.3",
     "vitest": "^1.6.1"
   },
-  "engines": { "node": "20.19.4" }
+  "engines": {
+    "node": "20.19.4"
+  }
 }

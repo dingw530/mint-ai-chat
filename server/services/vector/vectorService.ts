@@ -3,21 +3,25 @@ import type {
   VectorBackfillProgress,
   VectorBackfillResult,
   VectorDocument,
+  VectorEmbeddingState,
   VectorHealth,
   VectorIndexConfig,
   VectorSearchHit,
 } from './types.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('vector-service');
 
 export interface VectorService<TDocument extends VectorDocument> {
   syncDocuments(documents: TDocument[]): Promise<void>;
-  removeDocuments(documentIds: string[]): void;
+  removeDocuments(documentIds: string[]): Promise<void>;
   search(question: string, limit: number): Promise<VectorSearchHit<TDocument>[]>;
   backfill(
     documents: TDocument[],
     onProgress?: VectorBackfillProgress,
   ): Promise<VectorBackfillResult>;
-  getHealth(): VectorHealth;
-  pruneOrphans(): number;
+  getHealth(): Promise<VectorHealth>;
+  pruneOrphans(): Promise<number>;
 }
 
 export interface VectorServiceDependencies<TDocument extends VectorDocument> {
@@ -28,7 +32,7 @@ export interface VectorServiceDependencies<TDocument extends VectorDocument> {
 }
 
 function isCurrent(
-  state: ReturnType<VectorStore<VectorDocument>['getState']>,
+  state: VectorEmbeddingState | null,
   document: VectorDocument,
   config: VectorIndexConfig,
 ): boolean {
@@ -47,27 +51,69 @@ export function createVectorService<TDocument extends VectorDocument>(
   const { provider, store, config, getDocumentText } = dependencies;
 
   async function syncDocuments(documents: TDocument[]): Promise<void> {
+    const states = await Promise.all(documents.map((document) => store.getState(document.id)));
     const pending = documents.filter(
-      (document) => !isCurrent(store.getState(document.id), document, config),
+      (document, index) => !isCurrent(states[index], document, config),
     );
+    log.debug('vector state check completed', {
+      requested: documents.length,
+      pending: pending.length,
+      model: config.model,
+      dimensions: config.dimensions,
+    });
     if (pending.length === 0) return;
     try {
+      const embeddingStartedAt = performance.now();
+      log.info('vector embedding started', {
+        documents: pending.length,
+        model: config.model,
+        dimensions: config.dimensions,
+      });
       const vectors = await provider.embed(pending.map(getDocumentText));
-      pending.forEach((document, index) => store.upsert(document, vectors[index], config));
+      log.duration('vector embedding completed', embeddingStartedAt, {
+        documents: pending.length,
+        vectors: vectors.length,
+        vectorDimensions: vectors[0]?.length || 0,
+        model: config.model,
+      });
+      const upsertStartedAt = performance.now();
+      log.info('vector store upsert started', { documents: pending.length });
+      await Promise.all(
+        pending.map((document, index) => store.upsert(document, vectors[index], config)),
+      );
+      log.duration('vector store upsert completed', upsertStartedAt, {
+        documents: pending.length,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      pending.forEach((document) => store.recordFailure(document, message));
+      log.error('vector indexing failed', {
+        documents: pending.length,
+        model: config.model,
+        error: message,
+      });
+      await Promise.all(pending.map((document) => store.recordFailure(document, message)));
       throw error;
     }
   }
 
   async function search(question: string, limit: number): Promise<VectorSearchHit<TDocument>[]> {
+    const startedAt = performance.now();
+    log.info('vector query embedding started', {
+      model: config.model,
+      dimensions: config.dimensions,
+    });
     const [queryVector] = await provider.embed([question]);
-    return store.search(queryVector, config, limit);
+    const results = await store.search(queryVector, config, limit);
+    log.duration('vector query completed', startedAt, {
+      requested: limit,
+      returned: results.length,
+      model: config.model,
+    });
+    return results;
   }
 
-  function removeDocuments(documentIds: string[]): void {
-    documentIds.forEach((documentId) => store.remove(documentId));
+  async function removeDocuments(documentIds: string[]): Promise<void> {
+    await Promise.all(documentIds.map((documentId) => store.remove(documentId)));
   }
 
   async function backfill(
@@ -76,7 +122,7 @@ export function createVectorService<TDocument extends VectorDocument>(
   ): Promise<VectorBackfillResult> {
     const counters = { indexed: 0, skipped: 0, failed: 0 };
     for (const document of documents) {
-      if (isCurrent(store.getState(document.id), document, config)) {
+      if (isCurrent(await store.getState(document.id), document, config)) {
         counters.skipped += 1;
         onProgress?.(
           counters.indexed + counters.skipped + counters.failed,
