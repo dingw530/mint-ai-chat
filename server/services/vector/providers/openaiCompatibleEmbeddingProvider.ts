@@ -1,13 +1,19 @@
 import type { EmbeddingProvider } from '../ports.js';
 import type { OpenAICompatibleEmbeddingConfig } from '../types.js';
+import {
+  ExternalServiceError,
+  resilientCall,
+  type ExternalErrorCategory,
+  embeddingPolicy,
+} from '../../resilience/index.js';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_BATCH_SIZE = 16;
 
 /** Error raised when an embedding provider cannot return a valid vector batch. */
-export class EmbeddingServiceError extends Error {
-  constructor(message: string) {
-    super(message);
+export class EmbeddingServiceError extends ExternalServiceError {
+  constructor(message: string, category: ExternalErrorCategory = 'protocol') {
+    super(message, category, 'embedding');
     this.name = 'EmbeddingServiceError';
   }
 }
@@ -70,7 +76,18 @@ async function embedBatch(
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new EmbeddingServiceError(`Embedding request failed with HTTP ${response.status}`);
+      const category: ExternalErrorCategory =
+        response.status === 429
+          ? 'rate_limited'
+          : [502, 503, 504].includes(response.status)
+            ? 'server_unavailable'
+            : response.status === 401 || response.status === 403
+              ? 'authentication'
+              : 'protocol';
+      throw new EmbeddingServiceError(
+        `Embedding request failed with HTTP ${response.status}`,
+        category,
+      );
     }
     let payload: unknown;
     try {
@@ -82,10 +99,16 @@ async function embedBatch(
   } catch (error) {
     if (error instanceof EmbeddingServiceError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new EmbeddingServiceError('Embedding request timed out');
+      throw new EmbeddingServiceError('Embedding request timed out', 'timeout');
     }
+    const cause = error && typeof error === 'object' && 'cause' in error ? error.cause : error;
+    const category: ExternalErrorCategory =
+      cause && typeof cause === 'object' && 'code' in cause && cause.code === 'ECONNREFUSED'
+        ? 'connection_refused'
+        : 'network_transient';
     throw new EmbeddingServiceError(
       `Embedding request failed: ${error instanceof Error ? error.message : String(error)}`,
+      category,
     );
   } finally {
     clearTimeout(timeout);
@@ -106,10 +129,16 @@ export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
 
     const batches: number[][] = [];
     for (let start = 0; start < texts.length; start += MAX_BATCH_SIZE) {
-      const vectors = await embedBatch(
-        [...texts.slice(start, start + MAX_BATCH_SIZE)],
-        this.config,
-      );
+      const batch = [...texts.slice(start, start + MAX_BATCH_SIZE)];
+      const endpoint = new URL(this.config.apiUrl).origin;
+      const vectors = await resilientCall({
+        key: `embedding:${endpoint}:${this.config.model}`,
+        service: 'embedding',
+        endpointOrigin: endpoint,
+        model: this.config.model,
+        policy: embeddingPolicy,
+        operation: () => embedBatch(batch, this.config),
+      });
       batches.push(...vectors);
     }
     return batches;

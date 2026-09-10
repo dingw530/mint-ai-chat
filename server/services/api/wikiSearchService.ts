@@ -11,6 +11,7 @@ import type {
 } from '../vector/types.js';
 import { isSystemWikiPath, parseWikiPage } from '../utils/wikiShared.js';
 import { createLogger } from '../../utils/logger.js';
+import { ExternalServiceError } from '../resilience/index.js';
 
 const log = createLogger('wiki-search');
 
@@ -95,6 +96,9 @@ function embeddingConfig(
     apiUrl: settings.embeddingApiUrl,
     model: settings.embeddingModel,
     dimensions: settings.embeddingDimensions,
+    vectorStore: settings.vectorStore,
+    chromaUrl: settings.chromaUrl,
+    chromaApiKey: settings.chromaApiKey,
   };
 }
 
@@ -173,7 +177,7 @@ export async function rebuildWikiSearchIndex(
       });
       addClaims(relative, documents, page, parsed.title);
       const indexChange = searchRepo.replacePageDocuments(relative, documents);
-      vectorService?.removeDocuments(indexChange.removedDocumentIds);
+      await vectorService?.removeDocuments(indexChange.removedDocumentIds);
       if (vectorService) {
         try {
           await vectorService.syncDocuments(documents);
@@ -186,7 +190,7 @@ export async function rebuildWikiSearchIndex(
       }
     }
     const removed = searchRepo.removeStaleSearchDocuments([...activeSourcePaths]);
-    const pruned = pruneWikiVectorOrphans();
+    const pruned = await pruneWikiVectorOrphans();
     if (removed > 0 || pruned > 0)
       log.info('wiki search stale index entries removed', {
         removedDocuments: removed,
@@ -398,7 +402,9 @@ function toSearchResult(
 }
 
 /** 返回当前 Wiki 搜索文档的向量健康度。 */
-export function getWikiVectorHealth(config: OpenAICompatibleEmbeddingConfig): VectorHealth {
+export async function getWikiVectorHealth(
+  config: OpenAICompatibleEmbeddingConfig,
+): Promise<VectorHealth> {
   return createWikiVectorService(config, documentText).getHealth();
 }
 
@@ -533,9 +539,16 @@ export async function searchWiki(
       });
     } catch (error) {
       fallback = true;
+      const fallbackReason =
+        error instanceof ExternalServiceError
+          ? error.circuitState === 'open'
+            ? 'circuit-open'
+            : error.category
+          : 'service-unavailable';
       log.warn('wiki vector query failed; using FTS fallback', {
         model: config.model,
         dimensions: config.dimensions,
+        fallbackReason,
         error: error instanceof Error ? error.message : String(error),
       });
     }

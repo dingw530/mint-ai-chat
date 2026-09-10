@@ -24,6 +24,9 @@ function embeddingConfig(): OpenAICompatibleEmbeddingConfig {
     apiUrl: settings.embeddingApiUrl,
     model: settings.embeddingModel,
     dimensions: settings.embeddingDimensions,
+    vectorStore: settings.vectorStore,
+    chromaUrl: settings.chromaUrl,
+    chromaApiKey: settings.chromaApiKey,
   };
 }
 
@@ -152,7 +155,7 @@ export function getStatus(jobId: string): backfillRepo.WikiVectorBackfillJob {
 }
 
 /** 获取当前 embedding 模型的向量索引健康度。 */
-export function getHealth(): VectorHealth {
+export async function getHealth(): Promise<VectorHealth> {
   return getWikiVectorHealth(embeddingConfig());
 }
 

@@ -130,6 +130,9 @@ export async function ingestWikiSource(
             apiUrl: settings.embeddingApiUrl,
             model: settings.embeddingModel,
             dimensions: settings.embeddingDimensions,
+            vectorStore: settings.vectorStore,
+            chromaUrl: settings.chromaUrl,
+            chromaApiKey: settings.chromaApiKey,
           }
         : undefined;
     await rebuildWikiSearchIndex(wikiPath, embeddingConfig);

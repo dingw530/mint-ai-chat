@@ -7,6 +7,9 @@ export interface VectorIndexConfig {
 /** Configuration understood by the built-in OpenAI-compatible provider. */
 export interface OpenAICompatibleEmbeddingConfig extends VectorIndexConfig {
   apiUrl: string;
+  vectorStore?: 'sqlite' | 'chroma';
+  chromaUrl?: string;
+  chromaApiKey?: string;
 }
 
 /** Minimum document identity required by a vector store. */

@@ -2,7 +2,7 @@
 // 将"一轮工具调用往返"（构建请求 → fetch → 解析 SSE → 返回结构化结果）抽象为统一引擎
 // 不依赖 Express，可单元测试
 
-import type { HistoryMessage, AiSettings, ToolCall, ToolDefinition } from '../types.js';
+import type { HistoryMessage, AiSettings, TokenUsage, ToolCall, ToolDefinition } from '../types.js';
 import type { AdapterStream, ApiAdapter, ParsedChunk } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { executeTool, getToolResultSummary } from './toolOrchestration.js';
@@ -38,6 +38,7 @@ export interface ToolRoundResult {
   content: string;
   reasoning: string;
   toolCalls: ToolCall[] | null; // null 或空数组表示无需继续
+  usage?: TokenUsage;
 }
 
 // 工具执行结果（包含拼接用的 message 和成功标志）
@@ -66,10 +67,14 @@ export async function parseSSEStream(
   let fullContent = '';
   let fullReasoning = '';
   const toolCalls: (ToolCall | null)[] = [];
+  let usage: TokenUsage | undefined;
 
   for await (const chunk of stream) {
     if (options?.signal?.aborted) break;
-    if (chunk.isFinished) break;
+    if (chunk.isFinished) {
+      usage = chunk.usage;
+      break;
+    }
 
     if (chunk.toolCallDelta) {
       appendToolCall(toolCalls, chunk.toolCallDelta);
@@ -77,12 +82,20 @@ export async function parseSSEStream(
 
     if (chunk.content) {
       fullContent += chunk.content;
-      writeChunk({ content: chunk.content, ...(options?.eventType ? { type: options.eventType } : {}) }, sink, options);
+      writeChunk(
+        { content: chunk.content, ...(options?.eventType ? { type: options.eventType } : {}) },
+        sink,
+        options,
+      );
     }
 
     if (chunk.reasoning) {
       fullReasoning += chunk.reasoning;
-      writeChunk({ reasoning: chunk.reasoning, ...(options?.eventType ? { type: options.eventType } : {}) }, sink, options);
+      writeChunk(
+        { reasoning: chunk.reasoning, ...(options?.eventType ? { type: options.eventType } : {}) },
+        sink,
+        options,
+      );
     }
   }
 
@@ -90,7 +103,10 @@ export async function parseSSEStream(
   return {
     content: fullContent,
     reasoning: fullReasoning,
-    toolCalls: hasToolCalls ? toolCalls.filter((toolCall): toolCall is ToolCall => toolCall !== null) : null,
+    toolCalls: hasToolCalls
+      ? toolCalls.filter((toolCall): toolCall is ToolCall => toolCall !== null)
+      : null,
+    usage,
   };
 }
 
@@ -257,12 +273,16 @@ export class ToolLoopEngine {
   }
 }
 
-function isApprovalResult(value: unknown): value is { approvalRequired: { approvalId?: string; reason: string } } {
-  return typeof value === 'object'
-    && value !== null
-    && 'approvalRequired' in value
-    && typeof (value as { approvalRequired?: unknown }).approvalRequired === 'object'
-    && (value as { approvalRequired: { reason?: unknown } }).approvalRequired.reason !== undefined;
+function isApprovalResult(
+  value: unknown,
+): value is { approvalRequired: { approvalId?: string; reason: string } } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'approvalRequired' in value &&
+    typeof (value as { approvalRequired?: unknown }).approvalRequired === 'object' &&
+    (value as { approvalRequired: { reason?: unknown } }).approvalRequired.reason !== undefined
+  );
 }
 
 // 单例

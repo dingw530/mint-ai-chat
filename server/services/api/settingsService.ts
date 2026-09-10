@@ -40,6 +40,7 @@ const WIKI_MANIFEST_CONTENT =
 export const DEFAULT_EMBEDDING_API_URL = 'http://127.0.0.1:11434/v1';
 export const DEFAULT_EMBEDDING_MODEL = 'bge-m3';
 export const DEFAULT_EMBEDDING_DIMENSIONS = 1024;
+export const DEFAULT_CHROMA_URL = 'http://127.0.0.1:8000';
 
 function getSearchMode(raw: RawSettings): 'keyword' | 'hybrid' {
   return raw.wikiSearchMode === 'hybrid' ? 'hybrid' : 'keyword';
@@ -51,6 +52,19 @@ function getEmbeddingDimensions(raw: RawSettings): number {
     10,
   );
   return Number.isFinite(dimensions) && dimensions > 0 ? dimensions : DEFAULT_EMBEDDING_DIMENSIONS;
+}
+
+function getVectorStore(raw: RawSettings): 'sqlite' | 'chroma' {
+  return raw.vectorStore === 'chroma' ? 'chroma' : 'sqlite';
+}
+
+function getMaskedSecret(value: string | undefined): string {
+  if (!value) return '';
+  try {
+    return maskApiKey(decrypt(value));
+  } catch {
+    return '****';
+  }
 }
 
 function ensureWikiPath(wikiPath: string): void {
@@ -124,7 +138,21 @@ export function get(): VisibleSettings {
     embeddingApiUrl: raw.embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
     embeddingModel: raw.embeddingModel || DEFAULT_EMBEDDING_MODEL,
     embeddingDimensions: getEmbeddingDimensions(raw),
+    vectorStore: getVectorStore(raw),
+    chromaUrl: raw.chromaUrl || DEFAULT_CHROMA_URL,
+    chromaApiKeyMasked: getMaskedSecret(raw.chromaApiKey),
   };
+}
+
+/** Returns the decrypted Chroma API key for server-side connection checks. */
+export function getChromaApiKey(): string {
+  const raw: RawSettings = settingsRepo.getAll();
+  if (!raw.chromaApiKey) return '';
+  try {
+    return decrypt(raw.chromaApiKey);
+  } catch {
+    return '';
+  }
 }
 
 // 获取内部使用的 AI 设置（优先从激活端点读取，兜底旧 settings）
@@ -158,6 +186,9 @@ export function getAiSettings(): AiSettings {
       embeddingApiUrl: raw.embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
       embeddingModel: raw.embeddingModel || DEFAULT_EMBEDDING_MODEL,
       embeddingDimensions: getEmbeddingDimensions(raw),
+      vectorStore: getVectorStore(raw),
+      chromaUrl: raw.chromaUrl || DEFAULT_CHROMA_URL,
+      chromaApiKey: raw.chromaApiKey ? decrypt(raw.chromaApiKey) : '',
     };
   }
   // 兜底：旧 settings 表（过渡期兼容）
@@ -181,6 +212,9 @@ export function getAiSettings(): AiSettings {
     embeddingApiUrl: raw.embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
     embeddingModel: raw.embeddingModel || DEFAULT_EMBEDDING_MODEL,
     embeddingDimensions: getEmbeddingDimensions(raw),
+    vectorStore: getVectorStore(raw),
+    chromaUrl: raw.chromaUrl || DEFAULT_CHROMA_URL,
+    chromaApiKey: raw.chromaApiKey ? decrypt(raw.chromaApiKey) : '',
   };
 }
 
@@ -203,6 +237,9 @@ export function save({
   embeddingApiUrl,
   embeddingModel,
   embeddingDimensions,
+  vectorStore,
+  chromaUrl,
+  chromaApiKey,
 }: SettingsInput): void {
   const settings: Record<string, string> = {
     systemPrompt: systemPrompt || '',
@@ -218,11 +255,16 @@ export function save({
     embeddingApiUrl: embeddingApiUrl || DEFAULT_EMBEDDING_API_URL,
     embeddingModel: embeddingModel || DEFAULT_EMBEDDING_MODEL,
     embeddingDimensions: String(embeddingDimensions ?? DEFAULT_EMBEDDING_DIMENSIONS),
+    vectorStore: vectorStore === 'chroma' ? 'chroma' : 'sqlite',
+    chromaUrl: chromaUrl || DEFAULT_CHROMA_URL,
   };
   if (apiUrl !== undefined) settings.apiUrl = apiUrl;
   if (modelId !== undefined) settings.modelId = modelId;
   if (apiKey) {
     settings.apiKey = encrypt(apiKey);
+  }
+  if (chromaApiKey) {
+    settings.chromaApiKey = encrypt(chromaApiKey);
   }
   settingsRepo.upsertAll(settings);
 

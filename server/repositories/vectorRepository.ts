@@ -56,7 +56,7 @@ function mapVectorDocument(row: VectorDocumentRow): WikiSearchDocumentInput {
 }
 
 /** Returns the current vector metadata for a document, if vector storage is available. */
-export function getState(documentId: string): VectorEmbeddingState | null {
+export async function getState(documentId: string): Promise<VectorEmbeddingState | null> {
   if (!hasVectorStorage()) return null;
   const row = getDb()
     .prepare(
@@ -70,11 +70,11 @@ export function getState(documentId: string): VectorEmbeddingState | null {
 }
 
 /** Writes or replaces a document vector and its model metadata transactionally. */
-export function upsert(
+export async function upsert(
   document: WikiSearchDocumentInput,
   vector: number[],
   config: VectorIndexConfig,
-): void {
+): Promise<void> {
   if (!hasVectorStorage()) throw new Error('sqlite-vec vector storage is unavailable');
   if (vector.length !== config.dimensions)
     throw new Error(`Embedding dimension mismatch: expected ${config.dimensions}`);
@@ -113,10 +113,10 @@ export function upsert(
 }
 
 /** Records a document-level indexing failure for health reporting and retry. */
-export function recordFailure(
+export async function recordFailure(
   document: Pick<WikiSearchDocumentInput, 'id' | 'sourcePath'>,
   error: string,
-): void {
+): Promise<void> {
   getDb()
     .prepare(
       `
@@ -137,7 +137,7 @@ function clearFailure(documentId: string): void {
 }
 
 /** Removes a document vector and its associated metadata. */
-export function remove(documentId: string): void {
+export async function remove(documentId: string): Promise<void> {
   if (!hasVectorStorage()) return;
   const db = getDb();
   const row = db.prepare('SELECT id FROM wiki_embeddings WHERE document_id = ?').get(documentId) as
@@ -149,11 +149,11 @@ export function remove(documentId: string): void {
 }
 
 /** Searches the current model/dimension vectors and excludes stale document hashes. */
-export function search(
+export async function search(
   queryVector: number[],
   config: VectorIndexConfig,
   limit: number,
-): VectorSearchHit<WikiSearchDocumentInput>[] {
+): Promise<VectorSearchHit<WikiSearchDocumentInput>[]> {
   if (!hasVectorStorage()) return [];
   const rows = getDb()
     .prepare(
@@ -180,7 +180,7 @@ export function search(
 }
 
 /** Returns health metrics for the configured vector index. */
-export function getHealth(config: VectorIndexConfig): VectorHealth {
+export async function getHealth(config: VectorIndexConfig): Promise<VectorHealth> {
   const db = getDb();
   const documentCount = countSearchDocuments();
   if (!hasVectorStorage()) {
@@ -259,7 +259,7 @@ function countSearchDocuments(): number {
 }
 
 /** Deletes vector rows that no longer have a corresponding search document. */
-export function pruneOrphans(): number {
+export async function pruneOrphans(): Promise<number> {
   if (!hasVectorStorage()) return 0;
   const db = getDb();
   const rows = db

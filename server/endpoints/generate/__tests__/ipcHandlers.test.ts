@@ -52,7 +52,12 @@ describe('standard IPC handlers', () => {
 
     registerIpcHandlers(settingsEndpoints, { settSvc: { get: vi.fn() } }, ipcMain);
 
-    expect([...handlers.keys()]).toEqual(['settings:get', 'settings:save']);
+    expect([...handlers.keys()]).toEqual([
+      'settings:get',
+      'settings:save',
+      'settings:testEmbeddingConnection',
+      'settings:testChromaConnection',
+    ]);
   });
 
   it('keeps service references and validates explicitly provided legacy model fields', async () => {
@@ -141,7 +146,7 @@ describe('standard IPC handlers', () => {
     }
     registerIpcHandlers(conversationsIpcOnlyEndpoints, {}, ipcMain);
 
-    expect(handlers.size).toBe(52);
+    expect(handlers.size).toBe(54);
     expect(handlers.has('conversations:rename')).toBe(true);
     expect(handlers.has('conversations:lockAgent')).toBe(true);
     expect(handlers.has('conversations:resolveToolApproval')).toBe(true);

@@ -8,7 +8,7 @@ import {
   type ToolSet,
   type TextStreamPart,
 } from 'ai';
-import type { HistoryMessage, ToolCall, ToolDefinition } from '../../types.js';
+import type { HistoryMessage, TokenUsage, ToolCall, ToolDefinition } from '../../types.js';
 import type {
   AdapterStream,
   ApiAdapter,
@@ -216,7 +216,10 @@ async function* mapAiSdkStream(
         };
         break;
       case 'finish':
-        yield { isFinished: true };
+        yield {
+          isFinished: true,
+          ...(normalizeUsage(part.totalUsage) ? { usage: normalizeUsage(part.totalUsage) } : {}),
+        };
         break;
       case 'error':
         throw normalizeSdkError(part.error);
@@ -224,6 +227,19 @@ async function* mapAiSdkStream(
         break;
     }
   }
+}
+
+/** 将 AI SDK 用量转换为应用层结构，并省略 Provider 未提供的字段。 */
+function normalizeUsage(usage: {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}): TokenUsage | undefined {
+  const normalized: TokenUsage = {};
+  if (usage.inputTokens !== undefined) normalized.inputTokens = usage.inputTokens;
+  if (usage.outputTokens !== undefined) normalized.outputTokens = usage.outputTokens;
+  if (usage.totalTokens !== undefined) normalized.totalTokens = usage.totalTokens;
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 function parseToolArguments(toolCall: ToolCall): unknown {

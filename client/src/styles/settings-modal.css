@@ -5,7 +5,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(30, 30, 30, 0.30);
+  background: rgba(30, 30, 30, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,7 +22,9 @@
   width: 680px;
   max-width: 90vw;
   max-height: 85vh;
-  box-shadow: var(--shadow-xl), 0 0 60px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    var(--shadow-xl),
+    0 0 60px rgba(0, 0, 0, 0.08);
   animation: modalBounce 0.5s var(--ease-spring);
   position: relative;
   overflow: hidden;
@@ -124,13 +126,95 @@
 
 .form-group input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-border), 0 0 0 4px var(--accent-glow);
+  box-shadow:
+    0 0 0 1px var(--accent-border),
+    0 0 0 4px var(--accent-glow);
   background: white;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 9px 13px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.form-group select:focus {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent-border),
+    0 0 0 4px var(--accent-glow);
+}
+
+.settings-section-intro {
+  margin-bottom: 20px;
+}
+
+.settings-section-intro h3 {
+  margin: 0 0 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 17px;
+}
+
+.experimental-settings-card {
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+}
+
+.connection-test-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.connection-test-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.connection-test-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 9px 14px;
+}
+
+.connection-test-result {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.connection-test-result.success {
+  color: var(--success-text, #218739);
+}
+.connection-test-result.error {
+  color: var(--error-text);
+}
+.connection-test-result.testing {
+  color: var(--text-secondary);
+}
+
+.form-warning {
+  margin: 10px 0 0;
+  color: var(--warning-text, var(--text-secondary));
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .form-group input.input-error {
   border-color: var(--error-border);
-  box-shadow: 0 0 0 1px var(--error-border), 0 0 0 4px var(--error-bg);
+  box-shadow:
+    0 0 0 1px var(--error-border),
+    0 0 0 4px var(--error-bg);
 }
 
 .field-error {
@@ -405,7 +489,9 @@
   border-color: var(--accent);
   background: var(--accent-subtle);
   color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-border), var(--shadow-sm);
+  box-shadow:
+    0 0 0 1px var(--accent-border),
+    var(--shadow-sm);
 }
 .wiki-search-mode-options button:focus-visible {
   outline: 2px solid var(--accent);
@@ -442,7 +528,7 @@
   font-size: 12px;
 }
 .wiki-schema-save:disabled {
-  opacity: .5;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 .wiki-category-editor {
@@ -506,7 +592,7 @@
   padding: 4px;
   display: flex;
   align-items: center;
-  transition: color .15s;
+  transition: color 0.15s;
 }
 .wiki-category-remove:hover {
   color: var(--danger, #e74c3c);
@@ -544,14 +630,14 @@
   background: var(--accent);
   color: #fff;
   cursor: pointer;
-  transition: opacity .15s;
+  transition: opacity 0.15s;
 }
 .wiki-category-add-btn:disabled {
-  opacity: .4;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 .wiki-category-add-btn:not(:disabled):hover {
-  opacity: .85;
+  opacity: 0.85;
 }
 .panel-loading {
   color: var(--text-tertiary);

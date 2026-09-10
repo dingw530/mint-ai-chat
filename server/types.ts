@@ -36,6 +36,13 @@ export interface HistoryMessageRow {
   reasoning: string | null;
 }
 
+/** Provider 返回的单次模型调用 token 用量。 */
+export interface TokenUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
+
 // ── API 响应类型（camelCase，对外接口使用） ──
 export interface Conversation {
   id: string;
@@ -105,6 +112,9 @@ export interface SettingsInput {
   embeddingApiUrl?: string;
   embeddingModel?: string;
   embeddingDimensions?: number;
+  vectorStore?: 'sqlite' | 'chroma';
+  chromaUrl?: string;
+  chromaApiKey?: string;
 }
 
 // AI 代理内部使用的设置（apiKey 已解密）
@@ -126,6 +136,9 @@ export interface AiSettings {
   embeddingApiUrl: string;
   embeddingModel: string;
   embeddingDimensions: number;
+  vectorStore: 'sqlite' | 'chroma';
+  chromaUrl: string;
+  chromaApiKey: string;
 }
 
 // 返回给前端的设置（apiKey 脱敏显示）
@@ -149,6 +162,9 @@ export interface VisibleSettings {
   embeddingApiUrl: string;
   embeddingModel: string;
   embeddingDimensions: number;
+  vectorStore: 'sqlite' | 'chroma';
+  chromaUrl: string;
+  chromaApiKeyMasked: string;
 }
 
 // ── Tool call 类型（兼容 OpenAI function calling 格式） ──
@@ -178,6 +194,7 @@ export interface StreamResult {
   content: string;
   reasoning: string;
   toolCalls: ToolCall[] | null;
+  usage?: TokenUsage;
   uiBlocks?: PersistedUiBlock[];
   wikiReferences?: Array<{
     evidenceId: string;

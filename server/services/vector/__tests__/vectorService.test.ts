@@ -38,8 +38,8 @@ function createFakeStore(): VectorStore<TestDocument> & {
   return {
     states,
     vectors,
-    getState: (documentId) => states.get(documentId) ?? null,
-    upsert: (document, vector, indexConfig) => {
+    getState: async (documentId) => states.get(documentId) ?? null,
+    upsert: async (document, vector, indexConfig) => {
       vectors.set(document.id, vector);
       states.set(document.id, {
         id: 1,
@@ -48,11 +48,11 @@ function createFakeStore(): VectorStore<TestDocument> & {
         contentHash: document.contentHash,
       });
     },
-    remove: (documentId) => {
+    remove: async (documentId) => {
       vectors.delete(documentId);
       states.delete(documentId);
     },
-    search: (queryVector) => {
+    search: async (queryVector) => {
       const document: TestDocument = {
         id: 'doc-1',
         sourcePath: 'pages/doc.md',
@@ -65,9 +65,9 @@ function createFakeStore(): VectorStore<TestDocument> & {
       };
       return [result];
     },
-    recordFailure: vi.fn(),
-    getHealth: health,
-    pruneOrphans: vi.fn(() => 2),
+    recordFailure: vi.fn(async () => undefined),
+    getHealth: async () => health(),
+    pruneOrphans: vi.fn(async () => 2),
   };
 }
 
@@ -116,9 +116,9 @@ describe('VectorService', () => {
 
     expect(searchResult[0].distance).toBe(0);
     expect(backfillResult).toEqual({ indexed: 1, skipped: 0, failed: 0 });
-    expect(service.getHealth()).toEqual(health());
-    expect(service.pruneOrphans()).toBe(2);
-    service.removeDocuments([document.id]);
+    expect(await service.getHealth()).toEqual(health());
+    expect(await service.pruneOrphans()).toBe(2);
+    await service.removeDocuments([document.id]);
     expect(store.vectors.has(document.id)).toBe(false);
   });
 });

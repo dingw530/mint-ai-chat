@@ -1,5 +1,5 @@
 import { getAllToolDefinitions } from './toolOrchestration.js';
-import type { HistoryMessage, AiSettings, StreamResult } from '../types.js';
+import type { HistoryMessage, AiSettings, StreamResult, TokenUsage } from '../types.js';
 import type { AdapterStream, ApiAdapter } from './adapters/apiAdapter.js';
 import { getAdapter } from './adapters/apiAdapter.js';
 import { toolLoopEngine, parseSSEStream } from './toolRoundEngine.js';
@@ -30,7 +30,11 @@ export async function readStream(
   stream: AdapterStream,
   adapter: ApiAdapter,
   sink?: Sink,
-  options?: { eventType?: string; signal?: AbortSignal; emitEvent?: (event: ReactEventPayload) => void },
+  options?: {
+    eventType?: string;
+    signal?: AbortSignal;
+    emitEvent?: (event: ReactEventPayload) => void;
+  },
 ): Promise<StreamResult> {
   const result = await parseSSEStream(stream, adapter, sink, options);
   return result;
@@ -51,15 +55,19 @@ export async function streamChat(
   const events = new ReactEventEmitter(run);
   if (!existingRun) events.emit({ type: 'run_started', state: 'running' });
   const complete = (messages: HistoryMessage[], result: StreamResult) => {
+    const estimatedTokens =
+      result.usage?.totalTokens === undefined
+        ? estimateMessagesTokens([
+            ...messages,
+            { role: 'assistant', content: result.content, reasoning: result.reasoning },
+          ])
+        : undefined;
     events.emit({
       type: 'run_completed',
       state: 'completed',
       content: result.content,
       reasoning: result.reasoning,
-      estimatedTokens: estimateMessagesTokens([
-        ...messages,
-        { role: 'assistant', content: result.content, reasoning: result.reasoning },
-      ]),
+      ...(estimatedTokens === undefined ? result.usage : { estimatedTokens }),
     });
     detachSink();
     if (!sink.writableEnded) sink.end();
@@ -83,12 +91,16 @@ export async function streamChat(
 
   // 快速路径：无工具调用，直接将 AI SSE 流透传到前端
   if (!hasTools) {
-    const stream = await withLangfuseAgentContext(run, () => adapter.stream(messages, settings, apiUrl, apiKey));
+    const stream = await withLangfuseAgentContext(run, () =>
+      adapter.stream(messages, settings, apiUrl, apiKey),
+    );
     try {
-      const result = await withLangfuseAgentContext(run, () => readStream(stream, adapter, undefined, {
+      const result = await withLangfuseAgentContext(run, () =>
+        readStream(stream, adapter, undefined, {
           eventType: 'answer',
           emitEvent: (event) => events.emit(event),
-        }));
+        }),
+      );
       complete(messages, result);
       return result;
     } catch (err) {
@@ -100,9 +112,15 @@ export async function streamChat(
   // 工具路径：先通过引擎执行首轮，判断是否触发 tool_call
   let result: StreamResult;
   try {
-    result = await withLangfuseAgentContext(run, () => toolLoopEngine.executeRound(
-      { messages, settings, tools, adapter, label: 'streamChat-tool1' },
-    ));
+    result = await withLangfuseAgentContext(run, () =>
+      toolLoopEngine.executeRound({
+        messages,
+        settings,
+        tools,
+        adapter,
+        label: 'streamChat-tool1',
+      }),
+    );
   } catch (err) {
     fail(err);
     return { content: '', reasoning: '', toolCalls: null };
@@ -123,37 +141,62 @@ export async function streamChat(
   // ---- 工具调用路径：执行工具后二次调用 AI ----
   const toolMessages: HistoryMessage[] = [];
   for (const tc of result.toolCalls) {
-    const { assistantMsg, toolMsg } = await toolLoopEngine.executeToolCall(tc, result.reasoning, conversationId);
+    const { assistantMsg, toolMsg } = await toolLoopEngine.executeToolCall(
+      tc,
+      result.reasoning,
+      conversationId,
+    );
     toolMessages.push(assistantMsg, toolMsg);
   }
 
   const secondMessages: HistoryMessage[] = [
-    ...messages.map(m => ({ role: m.role, content: m.content, reasoning: m.reasoning })),
+    ...messages.map((m) => ({ role: m.role, content: m.content, reasoning: m.reasoning })),
     ...toolMessages,
   ];
 
   let secondResult: StreamResult;
   try {
-    secondResult = await withLangfuseAgentContext(run, () => toolLoopEngine.executeRound(
-        {
-          messages: secondMessages,
-          settings,
-          adapter,
-          label: 'react-answer',
-          emitEvent: (event) => events.emit(event),
-        },
-      ));
+    secondResult = await withLangfuseAgentContext(run, () =>
+      toolLoopEngine.executeRound({
+        messages: secondMessages,
+        settings,
+        adapter,
+        label: 'react-answer',
+        emitEvent: (event) => events.emit(event),
+      }),
+    );
   } catch (err) {
     fail(err);
     return { content: '', reasoning: '', toolCalls: null };
   }
 
-  complete(secondMessages, secondResult);
+  complete(secondMessages, {
+    ...secondResult,
+    usage: addUsage(result.usage, secondResult.usage),
+  });
   return { content: secondResult.content, reasoning: secondResult.reasoning, toolCalls: null };
 }
 
+function addUsage(first?: TokenUsage, second?: TokenUsage): TokenUsage | undefined {
+  if (!first && !second) return undefined;
+  return {
+    inputTokens: addDefined(first?.inputTokens, second?.inputTokens),
+    outputTokens: addDefined(first?.outputTokens, second?.outputTokens),
+    totalTokens: addDefined(first?.totalTokens, second?.totalTokens),
+  };
+}
+
+function addDefined(first?: number, second?: number): number | undefined {
+  if (first === undefined && second === undefined) return undefined;
+  return (first || 0) + (second || 0);
+}
+
 // 非流式调用 AI 生成对话标题（保持 OpenAI Chat 格式）
-export async function generateTitle(settings: AiSettings, userContent: string, assistantContent: string): Promise<string> {
+export async function generateTitle(
+  settings: AiSettings,
+  userContent: string,
+  assistantContent: string,
+): Promise<string> {
   const { apiUrl, apiKey } = settings;
   if (!apiUrl || !apiKey) return '';
 
@@ -166,7 +209,11 @@ export async function generateTitle(settings: AiSettings, userContent: string, a
 
     const content = await adapter.call(
       [
-        { role: 'system', content: '根据对话内容生成一个简短的标题（最多6个汉字或12个英文字符）。只返回标题本身，不要引号、标点和解释。\nGenerate a very short title (max 6 Chinese characters or 12 English characters) for this conversation. Return ONLY the title.' },
+        {
+          role: 'system',
+          content:
+            '根据对话内容生成一个简短的标题（最多6个汉字或12个英文字符）。只返回标题本身，不要引号、标点和解释。\nGenerate a very short title (max 6 Chinese characters or 12 English characters) for this conversation. Return ONLY the title.',
+        },
         { role: 'user', content: userContent },
         { role: 'assistant', content: assistantContent },
       ],

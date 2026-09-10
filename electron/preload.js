@@ -57,6 +57,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── 设置 ──
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (data) => ipcRenderer.invoke('settings:save', data),
+  testEmbeddingConnection: (data) => ipcRenderer.invoke('settings:testEmbeddingConnection', data),
+  testChromaConnection: (data) => ipcRenderer.invoke('settings:testChromaConnection', data),
 
   // ── Agent ──
   getAgents: () => ipcRenderer.invoke('agents:list'),

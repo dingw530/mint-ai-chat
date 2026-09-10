@@ -1,4 +1,4 @@
-import type { HistoryMessage, ToolCallDelta, ToolDefinition } from '../../types.js';
+import type { HistoryMessage, TokenUsage, ToolCallDelta, ToolDefinition } from '../../types.js';
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
 /** 应用层单次 LLM 请求的默认超时时间（毫秒）。 */
@@ -9,6 +9,7 @@ export interface ParsedChunk {
   reasoning?: string;
   toolCallDelta?: ToolCallDelta;
   isFinished?: boolean;
+  usage?: TokenUsage;
 }
 
 export type AdapterStream = AsyncIterable<ParsedChunk>;
@@ -37,11 +38,7 @@ export interface ApiAdapter {
    *
    * 该方法只负责 Provider 和 endpoint 配置，不执行模型调用。
    */
-  createModel(
-    apiUrl: string,
-    apiKey: string,
-    settings: ModelGenerationSettings,
-  ): LanguageModel;
+  createModel(apiUrl: string, apiKey: string, settings: ModelGenerationSettings): LanguageModel;
 
   /** 将项目消息和工具定义转换为 AI SDK prompt。 */
   toModelMessages(messages: HistoryMessage[], systemPrompt: string): ModelMessage[];

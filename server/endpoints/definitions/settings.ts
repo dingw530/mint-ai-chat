@@ -2,6 +2,7 @@ import * as settingsService from '../../services/api/settingsService.js';
 import { httpError } from '../helpers.js';
 import type { EndpointDescriptor } from '../types.js';
 import type { SettingsInput } from '../../types.js';
+import * as vectorConnectionService from '../../services/api/vectorConnectionService.js';
 
 function toSettingsInput(data: Record<string, unknown>): SettingsInput {
   return {
@@ -26,6 +27,10 @@ function toSettingsInput(data: Record<string, unknown>): SettingsInput {
     embeddingModel: typeof data.embeddingModel === 'string' ? data.embeddingModel : undefined,
     embeddingDimensions:
       typeof data.embeddingDimensions === 'number' ? data.embeddingDimensions : undefined,
+    vectorStore:
+      data.vectorStore === 'chroma' || data.vectorStore === 'sqlite' ? data.vectorStore : undefined,
+    chromaUrl: typeof data.chromaUrl === 'string' ? data.chromaUrl : undefined,
+    chromaApiKey: typeof data.chromaApiKey === 'string' ? data.chromaApiKey : undefined,
   };
 }
 
@@ -62,6 +67,23 @@ function saveSettings(data: Record<string, unknown>) {
       throw httpError(400, 'embeddingApiUrl must be a valid URL');
     }
   }
+  if (
+    data.vectorStore !== undefined &&
+    data.vectorStore !== 'sqlite' &&
+    data.vectorStore !== 'chroma'
+  ) {
+    throw httpError(400, 'vectorStore must be sqlite or chroma');
+  }
+  if (data.chromaUrl !== undefined) {
+    if (typeof data.chromaUrl !== 'string' || !data.chromaUrl.trim()) {
+      throw httpError(400, 'chromaUrl must be a valid URL');
+    }
+    try {
+      new URL(data.chromaUrl);
+    } catch {
+      throw httpError(400, 'chromaUrl must be a valid URL');
+    }
+  }
   settingsService.save(toSettingsInput(data));
   return { success: true };
 }
@@ -83,5 +105,36 @@ export const settingsEndpoints: EndpointDescriptor[] = [
     service: saveSettings,
     args: [{ from: 'body' }],
     result: 'direct',
+  },
+  {
+    id: 'settings:testEmbeddingConnection',
+    method: 'POST',
+    path: '/test-embedding-connection',
+    preloadMethod: 'testEmbeddingConnection',
+    service: (data: Record<string, unknown>) =>
+      vectorConnectionService.testEmbeddingConnection({
+        apiUrl: typeof data.apiUrl === 'string' ? data.apiUrl : '',
+        model: typeof data.model === 'string' ? data.model : '',
+        dimensions: typeof data.dimensions === 'number' ? data.dimensions : 0,
+      }),
+    args: [{ from: 'body' }],
+    result: 'direct',
+    async: true,
+  },
+  {
+    id: 'settings:testChromaConnection',
+    method: 'POST',
+    path: '/test-chroma-connection',
+    preloadMethod: 'testChromaConnection',
+    service: (data: Record<string, unknown>) =>
+      vectorConnectionService.testChromaConnection(
+        typeof data.url === 'string' ? data.url : '',
+        typeof data.apiKey === 'string' && data.apiKey.trim()
+          ? data.apiKey
+          : settingsService.getChromaApiKey(),
+      ),
+    args: [{ from: 'body' }],
+    result: 'direct',
+    async: true,
   },
 ];

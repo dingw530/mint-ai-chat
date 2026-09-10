@@ -13,15 +13,15 @@ export interface EmbeddingProvider {
 
 /** Persistence and nearest-neighbor operations required by VectorService. */
 export interface VectorStore<TDocument extends VectorDocument> {
-  getState(documentId: string): VectorEmbeddingState | null;
-  upsert(document: TDocument, vector: number[], config: VectorIndexConfig): void;
-  remove(documentId: string): void;
+  getState(documentId: string): Promise<VectorEmbeddingState | null>;
+  upsert(document: TDocument, vector: number[], config: VectorIndexConfig): Promise<void>;
+  remove(documentId: string): Promise<void>;
   search(
     queryVector: number[],
     config: VectorIndexConfig,
     limit: number,
-  ): VectorSearchHit<TDocument>[];
-  recordFailure(document: Pick<TDocument, 'id' | 'sourcePath'>, error: string): void;
-  getHealth(config: VectorIndexConfig): VectorHealth;
-  pruneOrphans(): number;
+  ): Promise<VectorSearchHit<TDocument>[]>;
+  recordFailure(document: Pick<TDocument, 'id' | 'sourcePath'>, error: string): Promise<void>;
+  getHealth(config: VectorIndexConfig): Promise<VectorHealth>;
+  pruneOrphans(): Promise<number>;
 }
